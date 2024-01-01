@@ -1,0 +1,83 @@
+[workspace]
+
+default-members = [
+    "spdmlib",
+    "codec",
+    "executor",
+    "sys_time",
+    "test/spdm-requester-emu",
+    "test/spdm-responder-emu",
+]
+
+members = [
+    "spdmlib",
+    "codec",
+    "executor",
+    "sys_time",
+    "idekm",
+    "tdisp",
+    "test/spdm-requester-emu",
+    "test/spdm-responder-emu",
+    "test/spdmlib-test",
+
+    "fuzz-target/responder/version_rsp",
+    "fuzz-target/responder/capability_rsp",
+    "fuzz-target/responder/algorithm_rsp",
+    "fuzz-target/responder/digest_rsp",
+    "fuzz-target/responder/certificate_rsp",
+    "fuzz-target/responder/challenge_rsp",
+    "fuzz-target/responder/measurement_rsp",
+    "fuzz-target/responder/keyexchange_rsp",
+    "fuzz-target/responder/pskexchange_rsp",
+    "fuzz-target/responder/finish_rsp",
+    "fuzz-target/responder/psk_finish_rsp",
+    "fuzz-target/responder/heartbeat_rsp",
+    "fuzz-target/responder/key_update_rsp",
+    "fuzz-target/responder/end_session_rsp",
+    "fuzz-target/responder/vendor_rsp",
+    "fuzz-target/responder/deliver_encapsulated_response_digest_rsp",
+    "fuzz-target/responder/deliver_encapsulated_response_certificate_rsp",
+    "fuzz-target/responder/get_encapsulated_request_rsp",
+    "fuzz-target/responder/deliver_encapsulated_response_rsp",
+
+    "fuzz-target/requester/version_req",
+    "fuzz-target/requester/capability_req",
+    "fuzz-target/requester/algorithm_req",
+    "fuzz-target/requester/digest_req",
+    "fuzz-target/requester/certificate_req",
+    "fuzz-target/requester/challenge_req",
+    "fuzz-target/requester/measurement_req",
+    "fuzz-target/requester/key_exchange_req",
+    "fuzz-target/requester/psk_exchange_req",
+    "fuzz-target/requester/finish_req",
+    "fuzz-target/requester/psk_finish_req",
+    "fuzz-target/requester/heartbeat_req",
+    "fuzz-target/requester/key_update_req",
+    "fuzz-target/requester/end_session_req",
+    "fuzz-target/requester/vendor_req",
+    "fuzz-target/requester/encapsulated_request_digest_req",
+    "fuzz-target/requester/encapsulated_request_certificate_req",
+    "fuzz-target/requester/encapsulated_request_req",
+
+    "fuzz-target/random_requester",
+    "fuzz-target/pass_context",
+]
+exclude = [
+    "external/ring",
+    "external/webpki",
+    "fuzz-target/",
+]
+
+resolver = "2"
+
+# The dev profile used for `cargo build`
+[profile.dev]
+opt-level = 3
+# The release profile used for `cargo build --release`
+[profile.release]
+opt-level = 3
+
+[patch.crates-io]
+  ring = { path = "external/ring" }
+  webpki = { path = "external/webpki" }
+  mbedtls-platform-support = { path = "spdmlib_crypto_mbedtls/mbedtls-platform-support" }

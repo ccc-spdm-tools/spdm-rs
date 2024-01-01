@@ -1,0 +1,22 @@
+[package]
+name = "vendor_req"
+version = "0.1.0"
+authors = ["Xiaotian Chen <xiaotian.chen@intel.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fuzzlib = { path = "../../fuzzlib", default-features = false }
+afl = { version = "=0.12.12", optional = true }
+futures = { version = "0.3", default-features = false }
+async-trait = "0.1.71"
+async-recursion = "1.0.4"
+spin = { version = "0.9.8" }
+executor = { path = "../../../executor" }
+
+[features]
+default = ["hashed-transcript-data"]
+hashed-transcript-data = ["fuzzlib/hashed-transcript-data"]
+fuzzlogfile = []
+fuzz = ["afl"]

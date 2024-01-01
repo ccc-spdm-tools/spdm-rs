@@ -1,0 +1,76 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 2c8ba6964..209c3d4a1 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -171,7 +171,7 @@ all-features = true
+ name = "ring"
+ 
+ [dependencies]
+-getrandom = { version = "0.2.10" }
++getrandom = { version = "0.2.10", features = ["rdrand"] }
+ untrusted = { version = "0.9" }
+ 
+ [target.'cfg(any(target_arch = "x86",target_arch = "x86_64", all(any(target_arch = "aarch64", target_arch = "arm"), any(target_os = "android", target_os = "fuchsia", target_os = "linux", target_os = "windows"))))'.dependencies]
+diff --git a/build.rs b/build.rs
+index f7b94108b..3bdc8cd29 100644
+--- a/build.rs
++++ b/build.rs
+@@ -121,7 +121,9 @@ fn cpp_flags(compiler: &cc::Tool) -> &'static [&'static str] {
+             "-Wenum-compare",
+             "-Wfloat-equal",
+             "-Wformat=2",
+-            "-Winline",
++            // Clear the `-Winline` because warnings will be treated as errors
++            // when `ring` is used as git submodules.
++            // "-Winline",
+             "-Winvalid-pch",
+             "-Wmissing-field-initializers",
+             "-Wmissing-include-dirs",
+@@ -260,6 +262,8 @@ const LINUX_ABI: &[&str] = &[
+     "linux",
+     "redox",
+     "solaris",
++    // For `x86_64-unknown-none` target
++    "none",
+ ];
+ 
+ /// Operating systems that have the same ABI as macOS on every architecture
+@@ -604,16 +608,29 @@ fn configure_cc(c: &mut cc::Build, target: &Target, include_dir: &Path) {
+     // poly1305_vec.c requires <emmintrin.h> which requires <stdlib.h>.
+     if (target.arch == "wasm32")
+         || (target.os == "linux" && target.is_musl && target.arch != "x86_64")
++        || (target.os == "none")
+     {
+         if let Ok(compiler) = c.try_get_compiler() {
+             // TODO: Expand this to non-clang compilers in 0.17.0 if practical.
+             if compiler.is_like_clang() {
+                 let _ = c.flag("-nostdlibinc");
++                // Required on windows for cross compilation to `x86_64-unknown-none`
++                let _ = c.flag("-ffreestanding");
+                 let _ = c.define("RING_CORE_NOSTDLIBINC", "1");
+             }
+         }
+     }
+ 
++    // `clang` does not define `__ELF__` for `x86_64-unknown-none` target.
++    // Manually define it.
++    if target.os == "none" {
++        if let Ok(compiler) = c.try_get_compiler() {
++            if compiler.is_like_clang() {
++                let _ = c.define("__ELF__", None);
++            }
++        }
++    }
++
+     if target.force_warnings_into_errors {
+         c.warnings_into_errors(true);
+     }
+@@ -645,7 +662,7 @@ fn nasm(file: &Path, arch: &str, include_dir: &Path, out_file: &Path) -> Command
+         std::path::MAIN_SEPARATOR,
+     )));
+ 
+-    let mut c = Command::new("./target/tools/windows/nasm/nasm");
++    let mut c = Command::new("nasm");
+     let _ = c
+         .arg("-o")
+         .arg(out_file.to_str().expect("Invalid path"))

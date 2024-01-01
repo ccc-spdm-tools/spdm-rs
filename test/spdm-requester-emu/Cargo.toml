@@ -1,0 +1,37 @@
+[package]
+name = "spdm-requester-emu"
+version = "0.1.0"
+authors = ["Jiewen Yao <jiewen.yao@intel.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spdm-emu = { path = "../spdm-emu", default-features = false }
+spdmlib = { path = "../../spdmlib", default-features = false }
+idekm  = { path = "../../idekm", default-features = false }
+tdisp  = { path = "../../tdisp", default-features = false }
+codec = { path = "../../codec" }
+mctp_transport = { path = "../../mctp_transport" }
+pcidoe_transport = { path = "../../pcidoe_transport" }
+log = "0.4.13"
+simple_logger = "4.2.0"
+futures = { version = "0.3", default-features = false }
+spin = { version = "0.9.8" }
+tokio = { version = "1.30.0", features = ["full"] }
+executor = { path = "../../executor" }
+maybe-async = "0.2.7"
+td-benchmark = { git = "https://github.com/confidential-containers/td-shim.git", default-features = false, optional = true }
+dhat = { version = "0.3.2", optional = true }
+
+[features]
+default = ["spdm-emu/default", "async-executor"]
+mut-auth = ["spdm-emu/mut-auth"]
+spdm-ring = ["spdm-emu/spdm-ring"]
+spdm-mbedtls = ["spdm-emu/spdm-mbedtls"]
+hashed-transcript-data = ["spdm-emu/hashed-transcript-data"]
+async-executor = ["spdm-emu/async-executor"]
+async-tokio = ["spdm-emu/async-tokio"]
+is_sync = ["spdm-emu/is_sync", "spdmlib/is_sync", "maybe-async/is_sync", "idekm/is_sync", "tdisp/is_sync", "mctp_transport/is_sync", "pcidoe_transport/is_sync"]
+test_stack_size = ["td-benchmark"]
+test_heap_size = ["dhat"]

@@ -1,0 +1,28 @@
+name: deny
+on: [push, pull_request]
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        checks:
+          - sources
+          - bans
+          - advisories
+
+    # Prevent sudden announcement of a new advisory from failing ci:
+    continue-on-error: ${{ matrix.checks == 'sources' }}
+
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Apply patch
+      shell: bash
+      run: |
+          ./sh_script/pre-build.sh
+
+    - uses: EmbarkStudios/cargo-deny-action@v1
+      with:
+        command: check ${{ matrix.checks }}

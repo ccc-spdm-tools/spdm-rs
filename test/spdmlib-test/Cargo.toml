@@ -1,0 +1,27 @@
+[package]
+name = "spdmlib-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spdmlib = { path = "../../spdmlib", default-features = false, features=["spdm-ring"] }
+codec = { path = "../../codec", features = ["alloc"] }
+log = "0.4.13"
+ring = { version = "0.17.6" }
+bytes = { version="1", default-features=false }
+futures = { version = "0.3", default-features = false }
+async-trait = "0.1.71"
+async-recursion = "1.0.4"
+spin = { version = "0.9.8" }
+executor = { path = "../../executor" }
+pcidoe_transport = { path = "../../pcidoe_transport" }
+
+[dev-dependencies]
+env_logger = "*"
+
+[features]
+default = ["hashed-transcript-data", "mut-auth"]
+hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
+mut-auth = ["spdmlib/mut-auth"]

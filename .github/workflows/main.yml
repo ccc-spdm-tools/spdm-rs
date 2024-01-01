@@ -1,0 +1,91 @@
+# This is a basic workflow to help you get started with Actions
+
+name: RUN CODE
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    strategy:
+      matrix:
+        runs-on: [ubuntu-latest]
+        run_requester_features:
+          [
+            "spdm-ring,async-executor",
+            "spdm-ring,hashed-transcript-data,async-executor",
+            "spdm-mbedtls,async-executor",
+            "spdm-mbedtls,hashed-transcript-data,async-executor",
+            "spdm-ring,hashed-transcript-data,is_sync",
+            "spdm-ring,is_sync",
+          ]
+        run_responder_features:
+          [
+            "spdm-ring,async-executor",
+            "spdm-ring,hashed-transcript-data,async-executor",
+            "spdm-mbedtls,async-executor",
+            "spdm-mbedtls,hashed-transcript-data,async-executor",
+            "spdm-ring,hashed-transcript-data,is_sync",
+            "spdm-ring,is_sync",
+          ]
+        include:
+          - runs-on: windows-latest
+            run_requester_features: "spdm-ring,hashed-transcript-data,async-executor"
+            run_responder_features: "spdm-ring,hashed-transcript-data,async-executor"
+    # The type of runner that the job will run on
+    runs-on: ${{ matrix.runs-on }}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: install NASM
+        uses: ilammy/setup-nasm@v1
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "12.0.1"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2023-08-28
+          override: true
+          components: rust-src, rustfmt, clippy
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build and Run test
+        shell: bash
+        env:
+          CC_x86_64_unknown_none: clang
+          AR_x86_64_unknown_none: llvm-ar
+        run: |
+          ./sh_script/build.sh -c
+          ./sh_script/build.sh
+
+      - name: Requester-Responder test
+        shell: bash
+        env:
+          CC_x86_64_unknown_none: clang
+          AR_x86_64_unknown_none: llvm-ar
+          RUN_REQUESTER_FEATURES: ${{ matrix.run_requester_features }}
+          RUN_RESPONDER_FEATURES: ${{ matrix.run_responder_features }}
+        run: |
+          ./sh_script/build.sh -r

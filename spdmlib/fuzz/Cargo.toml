@@ -1,0 +1,249 @@
+[package]
+name = "spdmlib-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+fuzzlib = { path = "../../fuzz-target/fuzzlib", default-features = false }
+
+[dependencies.spdmlib]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[features]
+default = ["hashed-transcript-data", "use_libfuzzer"]
+hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
+use_libfuzzer = []
+
+[[bin]]
+name = "version_rsp"
+path = "fuzz_targets/version_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "capability_rsp"
+path = "fuzz_targets/capability_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "algorithm_rsp"
+path = "fuzz_targets/algorithm_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "digest_rsp"
+path = "fuzz_targets/digest_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "certificate_rsp"
+path = "fuzz_targets/certificate_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "challenge_rsp"
+path = "fuzz_targets/challenge_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "measurement_rsp"
+path = "fuzz_targets/measurement_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "keyexchange_rsp"
+path = "fuzz_targets/keyexchange_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "pskexchange_rsp"
+path = "fuzz_targets/pskexchange_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "finish_rsp"
+path = "fuzz_targets/finish_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "psk_finish_rsp"
+path = "fuzz_targets/psk_finish_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "heartbeat_rsp"
+path = "fuzz_targets/heartbeat_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "key_update_rsp"
+path = "fuzz_targets/key_update_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "end_session_rsp"
+path = "fuzz_targets/end_session_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "vendor_rsp"
+path = "fuzz_targets/vendor_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "deliver_encapsulated_response_digest_rsp"
+path = "fuzz_targets/deliver_encapsulated_response_digest_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "deliver_encapsulated_response_certificate_rsp"
+path = "fuzz_targets/deliver_encapsulated_response_certificate_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "get_encapsulated_request_rsp"
+path = "fuzz_targets/get_encapsulated_request_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "deliver_encapsulated_response_rsp"
+path = "fuzz_targets/deliver_encapsulated_response_rsp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "version_req"
+path = "fuzz_targets/version_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "capability_req"
+path = "fuzz_targets/capability_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "algorithm_req"
+path = "fuzz_targets/algorithm_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "digest_req"
+path = "fuzz_targets/digest_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "certificate_req"
+path = "fuzz_targets/certificate_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "challenge_req"
+path = "fuzz_targets/challenge_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "measurement_req"
+path = "fuzz_targets/measurement_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "key_exchange_req"
+path = "fuzz_targets/key_exchange_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "psk_exchange_req"
+path = "fuzz_targets/psk_exchange_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "finish_req"
+path = "fuzz_targets/finish_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "psk_finish_req"
+path = "fuzz_targets/psk_finish_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "heartbeat_req"
+path = "fuzz_targets/heartbeat_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "key_update_req"
+path = "fuzz_targets/key_update_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "end_session_req"
+path = "fuzz_targets/end_session_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "vendor_req"
+path = "fuzz_targets/vendor_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "encapsulated_request_digest_req"
+path = "fuzz_targets/encapsulated_request_digest_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "encapsulated_request_certificate_req"
+path = "fuzz_targets/encapsulated_request_certificate_req.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "encapsulated_request_req"
+path = "fuzz_targets/encapsulated_request_req.rs"
+test = false
+doc = false
