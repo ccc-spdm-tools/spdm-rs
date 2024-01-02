@@ -72,7 +72,7 @@ All documents are put at [doc](./doc/) folder.
 
 ### Checkout repo
 ```
-git clone https://github.com/intel/spdm-rs.git
+git clone https://github.com/ccc-spdm-tools/spdm-rs.git
 git submodule update --init --recursive
 ```
 
