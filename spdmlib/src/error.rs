@@ -60,7 +60,7 @@ pub enum StatusCodeCore {
     ACQUIRE_FAIL = 16,
     SESSION_TRY_DISCARD_KEY_UPDATE = 17,
 
-    // only in Rust-SPDM
+    // only in spdm-rs
     DECODE_AEAD_FAIL = 0xFE,
 }
 
@@ -163,7 +163,7 @@ pub enum StatusCodeTransport {
     SEND_FAIL = 0,
     RECEIVE_FAIL = 1,
 
-    // only in Rust-SPDM
+    // only in spdm-rs
     DECAP_FAIL = 0xFE,
     DECAP_APP_FAIL = 0xFD,
     ENCAP_FAIL = 0xFC,

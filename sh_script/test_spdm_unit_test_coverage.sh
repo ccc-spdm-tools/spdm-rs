@@ -1,7 +1,7 @@
 #!/bin/bash
 cargo clean
 
-if [[ ! $PWD =~ rust-spdm$ ]];then
+if [[ ! $PWD =~ spdm-rs$ ]];then
     pushd ..
 fi
 

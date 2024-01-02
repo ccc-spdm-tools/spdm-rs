@@ -7,7 +7,7 @@ if [[ $? != 0 ]]; then
     exit
 fi
 
-if [[ ! $PWD =~ rust-spdm$ ]];then
+if [[ ! $PWD =~ spdm-rs$ ]];then
     pushd ..
 fi
 

@@ -1,13 +1,13 @@
 #!/bin/bash
 
-if [[ ! $PWD =~ rust-spdm$ ]];then
+if [[ ! $PWD =~ spdm-rs$ ]];then
     pushd ..
 fi
 
 rm -rf ./target
 
 export RUSTFLAGS="-Zinstrument-coverage"
-export LLVM_PROFILE_FILE="rust-spdm-%p%m.profraw"
+export LLVM_PROFILE_FILE="spdm-rs-%p%m.profraw"
 
 cargo build -p spdm-responder-emu -p spdm-requester-emu
 
