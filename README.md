@@ -72,7 +72,7 @@ All documents are put at [doc](./doc/) folder.
 
 ### Checkout repo
 ```
-git clone https://github.com/intel/rust-spdm.git
+git clone https://github.com/intel/spdm-rs.git
 git submodule update --init --recursive
 ```
 
@@ -198,7 +198,7 @@ nmake copy_sample_key
 nmake
 ```
 
-Test rust-spdm as requester:
+Test spdm-rs as requester:
 
 1. run libspdm in spdm-emu as responder:
 ```
@@ -206,14 +206,14 @@ cd bin
 spdm_responder_emu.exe --trans PCI_DOE
 ```
 
-2. run rust-spdm-emu as requester:
+2. run spdm-rs-emu as requester:
 ```
 cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor "
 ```
 
-Test rust-spdm as responder:
+Test spdm-rs as responder:
 
-1. run rust-spdm-emu as Test rust-spdm as responder:
+1. run spdm-rs-emu as Test spdm-rs as responder:
 ```
 cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor "
 ```

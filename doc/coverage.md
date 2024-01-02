@@ -33,7 +33,7 @@ rustup component add llvm-tools-preview
 ```bash
 # Export the flags needed to instrument the program to collect code coverage.
 export RUSTFLAGS="-Zinstrument-coverage"
-export LLVM_PROFILE_FILE="rust-spdm-%p%m.profraw"
+export LLVM_PROFILE_FILE="spdm-rs-%p%m.profraw"
 
 # Build the program
 cargo build -p spdm-responder-emu -p spdm-requester-emu

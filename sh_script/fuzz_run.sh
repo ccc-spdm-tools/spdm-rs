@@ -34,7 +34,7 @@ process_args() {
 
 process_args "$@"
 
-if [[ ! $PWD =~ rust-spdm$ ]]; then
+if [[ ! $PWD =~ spdm-rs$ ]]; then
     pushd ..
 fi
 

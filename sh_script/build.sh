@@ -46,50 +46,50 @@ check() {
 RUSTFLAGS=${RUSTFLAGS:-}
 build() {
     pushd spdmlib
-    echo "Building Rust-SPDM..."
+    echo "Building spdm-rs..."
     cargo build
     
-    echo "Building Rust-SPDM with no-default-features..."
+    echo "Building spdm-rs with no-default-features..."
     echo_command cargo build --release --no-default-features
     
-    echo "Building Rust-SPDM with spdm-ring feature..."
+    echo "Building spdm-rs with spdm-ring feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring
 
-    echo "Building Rust-SPDM with spdm-ring,is_sync feature..."
+    echo "Building spdm-rs with spdm-ring,is_sync feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,is_sync
     
-    echo "Building Rust-SPDM with spdm-ring,hashed-transcript-data feature..."
+    echo "Building spdm-rs with spdm-ring,hashed-transcript-data feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data
 
-    echo "Building Rust-SPDM with spdm-ring,hashed-transcript-data,is_sync feature..."
+    echo "Building spdm-rs with spdm-ring,hashed-transcript-data,is_sync feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data,is_sync
 
-    echo "Building Rust-SPDM with spdm-ring,hashed-transcript-data,mut-auth feature..."
+    echo "Building spdm-rs with spdm-ring,hashed-transcript-data,mut-auth feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data,mut-auth
 
-    echo "Building Rust-SPDM with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
+    echo "Building spdm-rs with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data,mut-auth,is_sync
 
     if [ -z "$RUSTFLAGS" ]; then
-        echo "Building Rust-SPDM in no std with no-default-features..."
+        echo "Building spdm-rs in no std with no-default-features..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features
     
-        echo "Building Rust-SPDM in no std with spdm-ring feature..."
+        echo "Building spdm-rs in no std with spdm-ring feature..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring"
     
-        echo "Building Rust-SPDM in no std with spdm-ring,is_sync feature..."
+        echo "Building spdm-rs in no std with spdm-ring,is_sync feature..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,is_sync"
 
-        echo "Building Rust-SPDM in no std with spdm-ring,hashed-transcript-data feature..."
+        echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data feature..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data"
     
-        echo "Building Rust-SPDM in no std with spdm-ring,hashed-transcript-data,is_sync feature..."
+        echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,is_sync feature..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data,is_sync"
 
-        echo "Building Rust-SPDM in no std with spdm-ring,hashed-transcript-data,mut-auth feature..."
+        echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth feature..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth"
     
-        echo "Building Rust-SPDM in no std with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
+        echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
         echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth,is_sync"
     fi
 
