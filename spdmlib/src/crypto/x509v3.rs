@@ -631,6 +631,82 @@ pub fn is_root_certificate(cert: &[u8]) -> SpdmResult {
     }
 }
 
+// verify alias and device model by searching hardware oid in leaf cert
+pub fn check_leaf_certificate(cert: &[u8], is_alias_cert_model: bool) -> SpdmResult {
+    let mut c_walker = 0usize;
+
+    check_tag_is_sequence(cert)?;
+    c_walker += 1;
+
+    let (_, bytes_consumed) = check_length(&cert[c_walker..])?;
+    c_walker += bytes_consumed;
+
+    // tbs
+    let data = &cert[c_walker..];
+    let mut t_walker = 0usize;
+    let len = data.len();
+
+    check_tag_is_sequence(data)?;
+    t_walker += 1;
+
+    let (tbs_length, bytes_consumed) = check_length(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    if len < t_walker + tbs_length {
+        return Err(SPDM_STATUS_VERIF_FAIL);
+    }
+
+    // version         [0]  EXPLICIT Version DEFAULT v1,
+    let bytes_consumed = check_version(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    // serialNumber         CertificateSerialNumber,
+    let bytes_consumed = check_and_skip_common_tag(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    // signature            AlgorithmIdentifier,
+    check_tag_is_sequence(&data[t_walker..])?;
+    t_walker += 1;
+    let (signature_id_length, bytes_consumed) = check_length(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    check_object_identifier(&data[t_walker..], None)?;
+    t_walker += signature_id_length;
+
+    // issuer               Name,
+    let bytes_consumed = check_name(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    // validity             Validity,
+    let bytes_consumed = check_validity(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    // subject              Name,
+    let bytes_consumed = check_name(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    // subjectPublicKeyInfo SubjectPublicKeyInfo,
+    let bytes_consumed = check_public_key_info(&data[t_walker..])?;
+    t_walker += bytes_consumed;
+
+    //extensions            EXTENSIONS,
+    let (_, extension_data) = check_and_get_extensions(&data[t_walker..])?;
+
+    if is_alias_cert_model
+        && find_target_object_identifiers(extension_data, OID_DMTF_SPDM_HARDWARE_IDENTITY)?
+    {
+        info!("Hardware identity OID shall not be present in alias cert!\n");
+        Err(SPDM_STATUS_VERIF_FAIL)
+    } else if !is_alias_cert_model
+        && !find_target_object_identifiers(extension_data, OID_DMTF_SPDM_HARDWARE_IDENTITY)?
+    {
+        info!("Hardware identity OID shall be present in device cert!\n");
+        Err(SPDM_STATUS_VERIF_FAIL)
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1133,5 +1209,22 @@ mod tests {
             find_target_object_identifiers(extension_sa4_wrong, &[0x55, 0x1D, 0x13]),
             Ok(false)
         );
+    }
+
+    #[test]
+    fn test_case0_check_leaf_certificate() {
+        let end1 = std::fs::read("../test_key/rsa2048/end_responder_with_spdm_rsp_eku.cert.der")
+            .expect("unable to read end cert!");
+        let end2 = std::fs::read("../test_key/ecp384/end_responder.cert.der")
+            .expect("unable to read end cert!");
+
+        let ct1_wrong = [0x30, 0x82, 0x01, 0xA8, 0xA0];
+
+        assert!(check_leaf_certificate(&end1, true).is_ok());
+        assert!(check_leaf_certificate(&end1, false).is_err());
+        assert!(check_leaf_certificate(&end2, false).is_ok());
+        assert!(check_leaf_certificate(&end2, true).is_err());
+        assert!(check_leaf_certificate(&ct1_wrong, true).is_err());
+        assert!(check_leaf_certificate(&ct1_wrong, false).is_err());
     }
 }
