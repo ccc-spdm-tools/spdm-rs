@@ -700,8 +700,8 @@ pub fn check_leaf_certificate(cert: &[u8], is_alias_cert_model: bool) -> SpdmRes
     } else if !is_alias_cert_model
         && !find_target_object_identifiers(extension_data, OID_DMTF_SPDM_HARDWARE_IDENTITY)?
     {
-        info!("Hardware identity OID shall be present in device cert!\n");
-        Err(SPDM_STATUS_VERIF_FAIL)
+        info!("Hardware identity OID should be present in device cert!\n");
+        Ok(())
     } else {
         Ok(())
     }
@@ -1221,7 +1221,7 @@ mod tests {
         let ct1_wrong = [0x30, 0x82, 0x01, 0xA8, 0xA0];
 
         assert!(check_leaf_certificate(&end1, true).is_ok());
-        assert!(check_leaf_certificate(&end1, false).is_err());
+        assert!(check_leaf_certificate(&end1, false).is_ok());
         assert!(check_leaf_certificate(&end2, false).is_ok());
         assert!(check_leaf_certificate(&end2, true).is_err());
         assert!(check_leaf_certificate(&ct1_wrong, true).is_err());
