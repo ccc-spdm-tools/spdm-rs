@@ -14,8 +14,10 @@ const ASN1_TAG_CLASS_CONTEXT_SPECIFIC_MASK: u8 = 0x80;
 
 const ASN1_FORM_CONSTRUCTED_MASK: u8 = 0x20;
 
+const ASN1_TAG_BOOLEAN: u8 = 0x1;
 const ASN1_TAG_NUMBER_INTEGER: u8 = 0x2;
 const ASN1_TAG_BIT_STRING: u8 = 0x3;
+const ASN1_TAG_OCTET_STRING: u8 = 0x4;
 const ASN1_TAG_NUMBER_OBJECT_IDENTIFIER: u8 = 0x6;
 const ASN1_TAG_NUMBER_SEQUENCE: u8 = 0x10;
 
@@ -224,6 +226,36 @@ fn check_tag_is_sequence(data: &[u8]) -> SpdmResult {
     }
 }
 
+fn check_tag_is_num_oid(data: &[u8]) -> SpdmResult {
+    if data.is_empty() {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    } else if data[0] == ASN1_TAG_NUMBER_OBJECT_IDENTIFIER {
+        Ok(())
+    } else {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    }
+}
+
+fn check_tag_is_bool(data: &[u8]) -> SpdmResult {
+    if data.is_empty() {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    } else if data[0] == ASN1_TAG_BOOLEAN {
+        Ok(())
+    } else {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    }
+}
+
+fn check_tag_is_octet_string(data: &[u8]) -> SpdmResult {
+    if data.is_empty() {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    } else if data[0] == ASN1_TAG_OCTET_STRING {
+        Ok(())
+    } else {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    }
+}
+
 // IN bytes slice
 // OUT Ok (length, bytes consumed)
 // OUT Error Mulformed certificate found
@@ -383,7 +415,7 @@ fn check_extensions_spdm_oid(extensions: &[u8], is_leaf_cert: bool) -> SpdmResul
                 let (extnid, extn_sequence_len) = check_and_get_extn_id(&extn_sequences[index..])?;
                 // find the first level extension identifiy from extensions sequence
                 if object_identifiers_are_same(extnid, OID_SUBJECT_ALTERNATIVE_NAME) {
-                    if find_target_object_identifiers(
+                    if find_target_object_identifier_in_single_extension(
                         &extn_sequences[index..index + extn_sequence_len],
                         OID_DMTF_SPDM_DEVICE_INFO,
                     )? {
@@ -392,13 +424,13 @@ fn check_extensions_spdm_oid(extensions: &[u8], is_leaf_cert: bool) -> SpdmResul
                     index += extn_sequence_len;
                     continue;
                 } else if object_identifiers_are_same(extnid, OID_EXT_KEY_USAGE) {
-                    if find_target_object_identifiers(
+                    if find_target_object_identifier_in_single_extension(
                         &extn_sequences[index..index + extn_sequence_len],
                         OID_DMTF_SPDM_EKU_RESPONDER_AUTH,
                     )? {
                         responder_auth_oid_find_success = true;
                         info!("find id-DMTF-eku-responder-auth OID\n");
-                    } else if find_target_object_identifiers(
+                    } else if find_target_object_identifier_in_single_extension(
                         &extn_sequences[index..index + extn_sequence_len],
                         OID_DMTF_SPDM_EKU_REQUESTER_AUTH,
                     )? {
@@ -408,12 +440,12 @@ fn check_extensions_spdm_oid(extensions: &[u8], is_leaf_cert: bool) -> SpdmResul
                     index += extn_sequence_len;
                     continue;
                 } else if object_identifiers_are_same(extnid, OID_DMTF_SPDM_EXTENSION) {
-                    if find_target_object_identifiers(
+                    if find_target_object_identifier_in_single_extension(
                         &extn_sequences[index..index + extn_sequence_len],
                         OID_DMTF_MUTABLE_CERTIFICATE,
                     )? {
                         info!("find id-DMTF-mutable-certificate OID\n");
-                    } else if find_target_object_identifiers(
+                    } else if find_target_object_identifier_in_single_extension(
                         &extn_sequences[index..index + extn_sequence_len],
                         OID_DMTF_SPDM_HARDWARE_IDENTITY,
                     )? {
@@ -436,7 +468,10 @@ fn check_extensions_spdm_oid(extensions: &[u8], is_leaf_cert: bool) -> SpdmResul
 // IN  (sequences slice, target oid)
 // OUT true when find target oid
 // OUT false when not find target oid
-fn find_target_object_identifiers(data: &[u8], target_oid: &[u8]) -> SpdmResult<bool> {
+fn find_target_object_identifier_in_single_extension(
+    data: &[u8],
+    target_oid: &[u8],
+) -> SpdmResult<bool> {
     let mut target_oid_find_success = false;
     let len = data.len();
     let target_oid_len = target_oid.len();
@@ -468,6 +503,148 @@ fn find_target_object_identifiers(data: &[u8], target_oid: &[u8]) -> SpdmResult<
         }
     }
     Ok(target_oid_find_success)
+}
+
+// IN  extension sequences slice
+// OUT true when find hardware oid
+// OUT false when not find hardware oid
+fn find_target_object_identifier_in_extensions(data: &[u8], target_oid: &[u8]) -> SpdmResult<bool> {
+    let len = data.len();
+    let mut walker = 0usize;
+    if walker >= len {
+        return Err(SPDM_STATUS_VERIF_FAIL);
+    }
+
+    check_tag_is_sequence(&data[walker..])?;
+    walker += 1;
+    if walker >= len {
+        return Err(SPDM_STATUS_VERIF_FAIL);
+    }
+
+    let (payload_length, bytes_consumed) = check_length(&data[walker..])?;
+    walker += bytes_consumed;
+    if walker + payload_length > len {
+        return Err(SPDM_STATUS_VERIF_FAIL);
+    }
+
+    let data = &data[walker..walker + payload_length];
+    let len = payload_length;
+    walker = 0;
+    while walker < len {
+        check_tag_is_sequence(&data[walker..])?;
+        walker += 1;
+        if walker >= len {
+            return Err(SPDM_STATUS_VERIF_FAIL);
+        }
+
+        let (extension_length, bytes_consumed) = check_length(&data[walker..])?;
+        walker += bytes_consumed;
+        if walker >= len {
+            return Err(SPDM_STATUS_VERIF_FAIL);
+        }
+
+        let next_ext_walker = walker + extension_length;
+
+        check_tag_is_num_oid(&data[walker..])?;
+        walker += 1;
+        if walker >= len {
+            return Err(SPDM_STATUS_VERIF_FAIL);
+        }
+
+        let (payload_length, bytes_consumed) = check_length(&data[walker..])?;
+        walker += bytes_consumed;
+        if walker >= len {
+            return Err(SPDM_STATUS_VERIF_FAIL);
+        }
+
+        if walker + payload_length < len
+            && object_identifiers_are_same(
+                &data[walker..walker + payload_length],
+                OID_DMTF_SPDM_EXTENSION,
+            )
+        {
+            walker += payload_length;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            // check critical, it is optional
+            if check_tag_is_bool(&data[walker..]).is_ok() {
+                walker += 3; // tag, length, value
+                if walker >= len {
+                    return Err(SPDM_STATUS_VERIF_FAIL);
+                }
+            }
+
+            // next find hardware oid
+            check_tag_is_octet_string(&data[walker..])?;
+            walker += 1;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            let (_, bytes_consumed) = check_length(&data[walker..])?;
+            walker += bytes_consumed;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            // sequence
+            check_tag_is_sequence(&data[walker..])?;
+            walker += 1;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            let (_, bytes_consumed) = check_length(&data[walker..])?;
+            walker += bytes_consumed;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            // sequence
+            check_tag_is_sequence(&data[walker..])?;
+            walker += 1;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            let (_, bytes_consumed) = check_length(&data[walker..])?;
+            walker += bytes_consumed;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            check_tag_is_num_oid(&data[walker..])?;
+            walker += 1;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            let (target_oid_length, bytes_consumed) = check_length(&data[walker..])?;
+            walker += bytes_consumed;
+            if walker >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            if target_oid_length != target_oid.len() {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+
+            if walker + target_oid_length <= len
+                && object_identifiers_are_same(
+                    &data[walker..walker + target_oid_length],
+                    target_oid,
+                )
+            {
+                return Ok(true);
+            }
+        }
+
+        walker = next_ext_walker;
+    }
+
+    Ok(false)
 }
 
 // IN extension sequence slice
@@ -693,12 +870,18 @@ pub fn check_leaf_certificate(cert: &[u8], is_alias_cert_model: bool) -> SpdmRes
     let (_, extension_data) = check_and_get_extensions(&data[t_walker..])?;
 
     if is_alias_cert_model
-        && find_target_object_identifiers(extension_data, OID_DMTF_SPDM_HARDWARE_IDENTITY)?
+        && find_target_object_identifier_in_extensions(
+            extension_data,
+            OID_DMTF_SPDM_HARDWARE_IDENTITY,
+        )?
     {
         info!("Hardware identity OID shall not be present in alias cert!\n");
         Err(SPDM_STATUS_VERIF_FAIL)
     } else if !is_alias_cert_model
-        && !find_target_object_identifiers(extension_data, OID_DMTF_SPDM_HARDWARE_IDENTITY)?
+        && !find_target_object_identifier_in_extensions(
+            extension_data,
+            OID_DMTF_SPDM_HARDWARE_IDENTITY,
+        )?
     {
         info!("Hardware identity OID should be present in device cert!\n");
         Ok(())
@@ -1191,22 +1374,28 @@ mod tests {
             0x30, 0x0C, 0x05, 0x03, 0x55, 0x1D, 0x13, 0x01, 0x01, 0xFF, 0x04, 0x02, 0x30, 0x00,
         ];
         assert_eq!(
-            find_target_object_identifiers(extension_s1, &[0x55, 0x1D, 0x13]),
+            find_target_object_identifier_in_single_extension(extension_s1, &[0x55, 0x1D, 0x13]),
             Ok(true)
         );
         assert_eq!(
-            find_target_object_identifiers(
+            find_target_object_identifier_in_single_extension(
                 extension_s2,
                 &[0x2B, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1C, 0x82, 0x12, 0x04]
             ),
             Ok(true)
         );
         assert_eq!(
-            find_target_object_identifiers(extension_s3_wrong, &[0x55, 0x1D, 0x14]),
+            find_target_object_identifier_in_single_extension(
+                extension_s3_wrong,
+                &[0x55, 0x1D, 0x14]
+            ),
             Ok(false)
         );
         assert_eq!(
-            find_target_object_identifiers(extension_sa4_wrong, &[0x55, 0x1D, 0x13]),
+            find_target_object_identifier_in_single_extension(
+                extension_sa4_wrong,
+                &[0x55, 0x1D, 0x13]
+            ),
             Ok(false)
         );
     }
