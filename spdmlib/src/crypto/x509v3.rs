@@ -933,7 +933,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 false
             ),
-            Ok(460)
+            Ok(464)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -941,7 +941,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                 false
             ),
-            Ok(460)
+            Ok(464)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -949,7 +949,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 true
             ),
-            Ok(460)
+            Ok(464)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -1022,7 +1022,7 @@ mod tests {
         );
         assert_eq!(
             check_cert_format(&c3, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384),
-            Ok(583)
+            Ok(587)
         );
         assert_eq!(
             check_cert_format(&c3, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256),
