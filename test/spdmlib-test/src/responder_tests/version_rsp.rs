@@ -98,12 +98,9 @@ pub fn construct_version_positive() -> (TestSpdmMessage, TestSpdmMessage) {
     };
     let (config_info, provision_info) = create_info();
     let mut VersionNumberEntryCount = 0;
-    let mut VersionNumberEntry: [u16; MAX_SPDM_VERSION_COUNT] = gen_array_clone(
-        u8::from(SpdmVersion::default()) as u16,
-        MAX_SPDM_VERSION_COUNT,
-    );
+    let mut VersionNumberEntry: Vec<u16> = vec![];
     for (_, v) in config_info.spdm_version.iter().flatten().enumerate() {
-        VersionNumberEntry[VersionNumberEntryCount] = (u8::from(*v) as u16) << 8;
+        VersionNumberEntry.push((u8::from(*v) as u16) << 8);
         VersionNumberEntryCount += 1;
     }
     let version_msg = TestSpdmMessage {
@@ -114,7 +111,7 @@ pub fn construct_version_positive() -> (TestSpdmMessage, TestSpdmMessage) {
             Param2: 0,
             Reserved: 0,
             VersionNumberEntryCount: VersionNumberEntryCount as u8,
-            VersionNumberEntry: VersionNumberEntry.to_vec(),
+            VersionNumberEntry,
         }),
         secure: 0,
     };

@@ -285,6 +285,7 @@ async fn handle_message(
             Some(SpdmVersion::SpdmVersion10),
             Some(SpdmVersion::SpdmVersion11),
             Some(SpdmVersion::SpdmVersion12),
+            None,
         ],
         rsp_capabilities,
         rsp_ct_exponent: 0,
