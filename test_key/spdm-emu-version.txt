@@ -1,1 +1,6 @@
-https://github.com/DMTF/spdm-emu/releases/tag/3.1.1
+https://github.com/DMTF/spdm-emu/releases/tag/3.2.0, 
+This is a bug in 3.2.0, when received the vendor defined request,
+libspdm will return error because vendor_response_get_id function
+pointer and vendor_response_callback function pointer don't get 
+initialized.
+Solution: change LIBSPDM_ENABLE_VENDOR_DEFINED_MESSAGES setting to 0!
