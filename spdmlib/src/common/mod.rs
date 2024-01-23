@@ -1151,7 +1151,7 @@ pub struct SpdmNegotiateInfo {
     pub rsp_max_spdm_msg_size_sel: u32, // spdm 1.2
 }
 
-pub const MAX_MANAGED_BUFFER_A_SIZE: usize = 150 + 2 * MAX_SPDM_VERSION_COUNT;
+pub const MAX_MANAGED_BUFFER_A_SIZE: usize = 150 + 2 * 255; // for version response, there can be more than MAX_SPDM_VERSION_COUNT versions.
 pub const MAX_MANAGED_BUFFER_B_SIZE: usize =
     24 + SPDM_MAX_HASH_SIZE * SPDM_MAX_SLOT_NUMBER + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE;
 pub const MAX_MANAGED_BUFFER_C_SIZE: usize =
