@@ -95,9 +95,7 @@ impl SpdmCodec for SpdmVersionResponsePayload {
         u8::read(r)?; // reserved
         let version_number_entry_count = u8::read(r)?;
 
-        if version_number_entry_count < 1
-            || version_number_entry_count > MAX_SPDM_VERSION_COUNT as u8
-        {
+        if version_number_entry_count == 0 {
             return None;
         }
 
@@ -108,14 +106,32 @@ impl SpdmCodec for SpdmVersionResponsePayload {
             },
             MAX_SPDM_VERSION_COUNT,
         );
-        for version in versions
-            .iter_mut()
-            .take(version_number_entry_count as usize)
-        {
-            *version = SpdmVersionStruct::read(r)?;
+
+        let mut version_count = 0;
+        let rest = r.take(version_number_entry_count as usize * 2)?;
+
+        for i in 0..version_number_entry_count {
+            if let Some(ver) = SpdmVersionStruct::read_bytes(&rest[i as usize * 2..]) {
+                if version_count < MAX_SPDM_VERSION_COUNT {
+                    versions[version_count] = ver;
+                    version_count += 1;
+                } else {
+                    // the buffer is full now, stop for scaning more versions
+                    break;
+                }
+            } else {
+                // for unknown versions,
+                if rest[i as usize * 2 + 1] < 0x10 {
+                    // find a version which is lower than the 0x10 version
+                    return None;
+                } else {
+                    // for any other version, just ignore it
+                }
+            }
         }
+
         Some(SpdmVersionResponsePayload {
-            version_number_entry_count,
+            version_number_entry_count: version_count as u8,
             versions,
         })
     }
