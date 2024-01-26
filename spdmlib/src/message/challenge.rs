@@ -79,6 +79,7 @@ bitflags! {
     #[derive(Default)]
     pub struct SpdmChallengeAuthAttribute: u8 {
         const BASIC_MUT_AUTH_REQ = 0b10000000;
+        const VALID_MASK = Self::BASIC_MUT_AUTH_REQ.bits;
     }
 }
 
@@ -126,7 +127,9 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
     ) -> Option<SpdmChallengeAuthResponsePayload> {
         let param1 = u8::read(r)?;
         let slot_id = param1 & 0xF;
-        let challenge_auth_attribute = SpdmChallengeAuthAttribute::from_bits(param1 & 0xF0)?;
+        let challenge_auth_attribute = SpdmChallengeAuthAttribute::from_bits(
+            param1 & SpdmChallengeAuthAttribute::VALID_MASK.bits,
+        )?;
         let slot_mask = u8::read(r)?; // param2
         let cert_chain_hash = SpdmDigestStruct::spdm_read(context, r)?;
         let nonce = SpdmNonceStruct::read(r)?;

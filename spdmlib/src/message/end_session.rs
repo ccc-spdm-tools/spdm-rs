@@ -11,6 +11,7 @@ bitflags! {
     #[derive(Default)]
     pub struct SpdmEndSessionRequestAttributes: u8 {
         const PRESERVE_NEGOTIATED_STATE = 0b00000001;
+        const VALID_MASK = Self::PRESERVE_NEGOTIATED_STATE.bits;
     }
 }
 
@@ -22,7 +23,9 @@ impl Codec for SpdmEndSessionRequestAttributes {
     fn read(r: &mut Reader) -> Option<SpdmEndSessionRequestAttributes> {
         let bits = u8::read(r)?;
 
-        SpdmEndSessionRequestAttributes::from_bits(bits)
+        SpdmEndSessionRequestAttributes::from_bits(
+            bits & SpdmEndSessionRequestAttributes::VALID_MASK.bits,
+        )
     }
 }
 

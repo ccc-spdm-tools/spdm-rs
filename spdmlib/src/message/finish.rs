@@ -14,6 +14,7 @@ bitflags! {
     #[derive(Default)]
     pub struct SpdmFinishRequestAttributes: u8 {
         const SIGNATURE_INCLUDED = 0b00000001;
+        const VALID_MASK = Self::SIGNATURE_INCLUDED.bits;
     }
 }
 
@@ -25,7 +26,7 @@ impl Codec for SpdmFinishRequestAttributes {
     fn read(r: &mut Reader) -> Option<SpdmFinishRequestAttributes> {
         let bits = u8::read(r)?;
 
-        SpdmFinishRequestAttributes::from_bits(bits)
+        SpdmFinishRequestAttributes::from_bits(bits & SpdmFinishRequestAttributes::VALID_MASK.bits)
     }
 }
 

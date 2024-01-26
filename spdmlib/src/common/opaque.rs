@@ -613,7 +613,7 @@ impl Codec for SpdmOpaqueSupport {
     fn read(r: &mut Reader) -> Option<SpdmOpaqueSupport> {
         let bits = u8::read(r)?;
 
-        SpdmOpaqueSupport::from_bits(bits)
+        SpdmOpaqueSupport::from_bits(bits & SpdmOpaqueSupport::VALID_MASK.bits)
     }
 }
 
