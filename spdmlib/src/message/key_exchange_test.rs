@@ -146,7 +146,7 @@ fn test_key_exchange_rsp_struct() {
     u8_slice[6] = 0x8;
     let reader = &mut Reader::init(&u8_slice[2..]);
     let ret = SpdmKeyExchangeResponsePayload::spdm_read(context, reader);
-    assert!(ret.is_none());
+    assert!(ret.is_some());
 }
 
 #[ignore = "extended unit test"]

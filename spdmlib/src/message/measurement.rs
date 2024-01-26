@@ -22,6 +22,7 @@ bitflags! {
     pub struct SpdmMeasurementAttributes: u8 {
         const SIGNATURE_REQUESTED = 0b00000001;
         const RAW_BIT_STREAM_REQUESTED = 0b0000_0010;
+        const VALID_MASK = Self::SIGNATURE_REQUESTED.bits | Self::RAW_BIT_STREAM_REQUESTED.bits;
     }
 }
 
@@ -33,7 +34,7 @@ impl Codec for SpdmMeasurementAttributes {
     fn read(r: &mut Reader) -> Option<SpdmMeasurementAttributes> {
         let bits = u8::read(r)?;
 
-        SpdmMeasurementAttributes::from_bits(bits)
+        SpdmMeasurementAttributes::from_bits(bits & SpdmMeasurementAttributes::VALID_MASK.bits)
     }
 }
 

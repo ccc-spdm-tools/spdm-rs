@@ -118,6 +118,7 @@ bitflags! {
         const MUT_AUTH_REQ = 0b00000001;
         const MUT_AUTH_REQ_WITH_ENCAP_REQUEST = 0b00000010;
         const MUT_AUTH_REQ_WITH_GET_DIGESTS = 0b00000100;
+        const VALID_MASK = Self::MUT_AUTH_REQ.bits | Self::MUT_AUTH_REQ_WITH_ENCAP_REQUEST.bits | Self::MUT_AUTH_REQ_WITH_GET_DIGESTS.bits;
     }
 }
 
@@ -129,7 +130,9 @@ impl Codec for SpdmKeyExchangeMutAuthAttributes {
     fn read(r: &mut Reader) -> Option<SpdmKeyExchangeMutAuthAttributes> {
         let bits = u8::read(r)?;
 
-        SpdmKeyExchangeMutAuthAttributes::from_bits(bits)
+        SpdmKeyExchangeMutAuthAttributes::from_bits(
+            bits & SpdmKeyExchangeMutAuthAttributes::VALID_MASK.bits,
+        )
     }
 }
 

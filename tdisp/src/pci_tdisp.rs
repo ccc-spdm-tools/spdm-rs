@@ -526,6 +526,11 @@ bitflags! {
         const LOCK_MSIX = 0b0000_0000_0000_0100;
         const BIND_P2P = 0b0000_0000_0000_1000;
         const ALL_REQUEST_REDIRECT = 0b0000_0000_0001_0000;
+        const VALID_MASK = Self::NO_FW_UPDATE.bits
+        | Self::SYSTEM_CACHE_LINE_SIZE.bits
+        | Self::LOCK_MSIX.bits
+        | Self::BIND_P2P.bits
+        | Self::ALL_REQUEST_REDIRECT.bits;
     }
 }
 
@@ -536,7 +541,7 @@ impl Codec for LockInterfaceFlag {
 
     fn read(r: &mut codec::Reader) -> Option<Self> {
         let bits = u16::read(r)?;
-        Some(Self { bits })
+        LockInterfaceFlag::from_bits(bits & LockInterfaceFlag::VALID_MASK.bits)
     }
 }
 
@@ -701,6 +706,11 @@ bitflags! {
         const DMA_REQUESTS_WITH_PASID = 0b0000_0000_0000_0100;
         const ATS_SUPPORTED_ENABLED = 0b0000_0000_0000_1000;
         const PRS_SUPPORTED_ENABLED = 0b0000_0000_0001_0000;
+        const VALID_MASK = Self::DEVICE_FIRMWARE_UPDATES_NOT_PERMITTED.bits
+        | Self::DMA_REQUESTS_WITHOUT_PASID.bits
+        | Self::DMA_REQUESTS_WITH_PASID.bits
+        | Self::ATS_SUPPORTED_ENABLED.bits
+        | Self::PRS_SUPPORTED_ENABLED.bits;
     }
 }
 
@@ -711,7 +721,7 @@ impl Codec for InterfaceInfo {
 
     fn read(r: &mut codec::Reader) -> Option<Self> {
         let bits = u16::read(r)?;
-        Some(Self { bits })
+        InterfaceInfo::from_bits(bits & InterfaceInfo::VALID_MASK.bits)
     }
 }
 
@@ -982,6 +992,11 @@ bitflags! {
         const IS_NON_TEE_MEM = 0b0000_0000_0000_0100;
         const IS_MEM_ATTR_UPDATABLE = 0b0000_0000_0000_1000;
         const PRS_SUPPORTED_ENABLED = 0b0000_0000_0001_0000;
+        const VALID_MASK = Self::MSI_X_TABLE.bits
+        | Self::MSI_X_PBA.bits
+        | Self::IS_NON_TEE_MEM.bits
+        | Self::IS_MEM_ATTR_UPDATABLE.bits
+        | Self::PRS_SUPPORTED_ENABLED.bits;
     }
 }
 
@@ -992,7 +1007,7 @@ impl Codec for MMIORangeAttribute {
 
     fn read(r: &mut codec::Reader) -> Option<Self> {
         let bits = u16::read(r)?;
-        Some(Self { bits })
+        MMIORangeAttribute::from_bits(bits & MMIORangeAttribute::VALID_MASK.bits)
     }
 }
 
