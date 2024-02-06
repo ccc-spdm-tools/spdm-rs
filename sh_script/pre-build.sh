@@ -35,6 +35,8 @@ patch-webpki() {
     # apply the patch set for webpki
     pushd external/webpki
     git reset --hard f84a538a5cd281ba1ffc0d54bbe5824cf5969703
+    git clean -xdf
+    git apply ../patches/webpki/0001-Add-support-for-verifying-certificate-chain-with-EKU.patch
     popd
 }
 
