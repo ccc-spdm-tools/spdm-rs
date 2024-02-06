@@ -9,6 +9,7 @@ usage() {
 Usage: $(basename "$0") [OPTION]...
   -c Run check
   -b Build target
+  -t Specify target platform to be built
   -r Build and run tests
   -h Show help info
 EOM

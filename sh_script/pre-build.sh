@@ -35,7 +35,6 @@ patch-webpki() {
     # apply the patch set for webpki
     pushd external/webpki
     git reset --hard f84a538a5cd281ba1ffc0d54bbe5824cf5969703
-	@@ -16,4 +43,10 @@ format-patch() {
     popd
 }
 
