@@ -72,25 +72,25 @@ build() {
 
     if [ -z "$RUSTFLAGS" ]; then
         echo "Building spdm-rs in no std with no-default-features..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features
     
         echo "Building spdm-rs in no std with spdm-ring feature..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring"
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring"
     
         echo "Building spdm-rs in no std with spdm-ring,is_sync feature..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,is_sync"
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,is_sync"
 
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data feature..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data"
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data"
     
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,is_sync feature..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data,is_sync"
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,is_sync"
 
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth feature..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth"
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth"
     
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
-        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth,is_sync"
+        echo_command cargo build -Z build-std=core,alloc,compiler_builtins --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth,is_sync"
     fi
 
     popd
@@ -203,15 +203,21 @@ run() {
 CHECK_OPTION=false
 BUILD_OPTION=false
 RUN_OPTION=false
+TARGET_OPTION=x86_64-unknown-none
+PREBUILD_ARGS=""
 
 process_args() {
-    while getopts ":cbrfh" option; do
+    while getopts ":cbt:rfh" option; do
         case "${option}" in
             c)
                 CHECK_OPTION=true
             ;;
             b)
                 BUILD_OPTION=true
+            ;;
+            t)
+                TARGET_OPTION=${OPTARG}
+                PREBUILD_ARGS="-t ${TARGET_OPTION}"
             ;;
             r)
                 RUN_OPTION=true
@@ -230,7 +236,7 @@ process_args() {
 }
 
 main() {
-    ./sh_script/pre-build.sh
+    ./sh_script/pre-build.sh ${PREBUILD_ARGS}
 
     if [[ ${CHECK_OPTION} == true ]]; then
         check
