@@ -15,10 +15,14 @@ pub use spdmlib_test::common::secret_callback::*;
 pub use spdmlib_test::common::transport::PciDoeTransportEncap;
 pub use spdmlib_test::common::util::{get_rsp_cert_chain_buff, req_create_info, rsp_create_info};
 
+pub use codec;
+pub use executor;
+pub use log::info;
 pub use spdmlib;
 pub use spdmlib::common::{SpdmDeviceIo, SpdmTransportEncap};
 pub use spdmlib::error::SpdmResult;
-pub use spdmlib::{common, config, requester, responder};
+pub use spdmlib::{common, config, error, protocol, requester, responder};
+pub use spin;
 
 pub use flexi_logger;
 pub use flexi_logger::FileSpec;

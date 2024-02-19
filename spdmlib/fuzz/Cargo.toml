@@ -247,3 +247,15 @@ name = "encapsulated_request_req"
 path = "fuzz_targets/encapsulated_request_req.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_x509v3"
+path = "fuzz_targets/fuzz_x509v3.rs"
+test = false
+doc = false
+bench = false
+
+[patch.crates-io]
+  ring = { path = "../../external/ring" }
+  webpki = { path = "../../external/webpki" }
+  mbedtls-platform-support = { path = "../../spdmlib_crypto_mbedtls/mbedtls-platform-support" }
