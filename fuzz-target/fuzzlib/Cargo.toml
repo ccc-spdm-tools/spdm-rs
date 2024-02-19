@@ -19,6 +19,7 @@ async-trait = "0.1.71"
 async-recursion = "1.0.4"
 spin = { version = "0.9.8" }
 executor = { path = "../../executor" }
+codec = {path= "../../codec"}
 
 [features]
 default = ["hashed-transcript-data", "afl"]
