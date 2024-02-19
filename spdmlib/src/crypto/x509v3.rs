@@ -1227,4 +1227,58 @@ mod tests {
         assert!(check_leaf_certificate(&ct1_wrong, true).is_err());
         assert!(check_leaf_certificate(&ct1_wrong, false).is_err());
     }
+
+    #[test]
+    fn test_check_length_short_form() {
+        let data = [0x03, 0x01, 0x02, 0x03];
+        assert_eq!(check_length(&data), Ok((3, 1)));
+    }
+
+    #[test]
+    fn test_check_length_short_form_large_than_128() {
+        let data = [0x80];
+        assert_eq!(check_length(&data), Err(SPDM_STATUS_VERIF_FAIL));
+    }
+
+    #[test]
+    fn test_check_length_long_form() {
+        let data = [0x81, 0x80, 0xFF, 0xFF];
+        assert_eq!(check_length(&data), Ok((0x80, 2)));
+    }
+
+    #[ignore = "https://github.com/ccc-spdm-tools/spdm-rs/issues/28"]
+    #[test]
+    fn test_check_length_long_form_smaller_than_128() {
+        let data: [u8; 2] = [0x81, 0x7F];
+        assert_eq!(check_length(&data), Err(SPDM_STATUS_VERIF_FAIL));
+    }
+
+    #[test]
+    fn test_check_length_overflow_the_length_of_k_octets_bytes_is_less_than_k() {
+        // First Octet  +   k          + l octets
+        // bit0..=6 k       Length l
+        // k = 5
+        // length(k(octets)) < 5
+        let data = [0x85, 0xFF, 0xFF, 0xFF, 0xFF];
+        assert_eq!(check_length(&data), Err(SPDM_STATUS_VERIF_FAIL));
+    }
+
+    #[ignore = "https://github.com/ccc-spdm-tools/spdm-rs/issues/15"]
+    #[test]
+    fn test_check_cert_format_large_length() {
+        let cert = std::fs::read("../test_key/ecp384/bundle_requester.certchain.der")
+            .expect("unable to read ca cert!");
+        let mut malformed_cert = cert.clone();
+        malformed_cert[1] = 0x88;
+        for i in 2..10 {
+            malformed_cert[i] = 0xff;
+        }
+        assert_eq!(
+            check_cert_format(
+                &malformed_cert,
+                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
+            ),
+            Err(SPDM_STATUS_VERIF_FAIL)
+        );
+    }
 }
