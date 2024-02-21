@@ -691,7 +691,7 @@ fn check_and_get_extn_id(extn_sequences: &[u8]) -> SpdmResult<(&[u8], usize)> {
         } else {
             // extnID is the first item in the extension sequence and the tag is Object identifier
             let extn_id = &extn_sequences[1 + extn_bytes_consumed..];
-            if extn_id[0] != ASN1_TAG_NUMBER_OBJECT_IDENTIFIER {
+            if extn_id.is_empty() || extn_id[0] != ASN1_TAG_NUMBER_OBJECT_IDENTIFIER {
                 Err(SPDM_STATUS_VERIF_FAIL)
             } else {
                 let (extn_id_length, extn_id_bytes_consumed) = check_length(&extn_id[1..])?;
