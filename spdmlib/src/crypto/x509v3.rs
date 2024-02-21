@@ -381,6 +381,9 @@ fn get_key_usage_value(data: &[u8]) -> SpdmResult<(bool, u8)> {
     let mut find_key_usage = false;
     let len = data.len();
     let key_usage_oid_len = OID_KEY_USAGE.len();
+    if len < 1 {
+        return Err(SPDM_STATUS_VERIF_FAIL);
+    }
     let (data_length, bytes_consumed) = check_length(&data[1..])?;
     if len < 1 + data_length + bytes_consumed {
         Err(SPDM_STATUS_VERIF_FAIL)
