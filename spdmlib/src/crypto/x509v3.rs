@@ -1064,12 +1064,18 @@ mod tests {
         let l1_wrong = [0x80];
         let l2_wrong = [0x81];
         let l3_wrong = [0x82, 0x01];
+        let mut l4_wrong = [0u8; 1 + 3 + 0x10000];
+        l4_wrong[0] = 0x83;
+        l4_wrong[1] = 0x01;
+        l4_wrong[1] = 0x00;
+        l4_wrong[1] = 0x00;
         assert_eq!(check_length(&l1), Ok((3, 1)));
         assert_eq!(check_length(&l2), Ok((0x82, 2)));
         assert_eq!(check_length(&l3), Ok((0x101, 3)));
         assert_eq!(check_length(&l1_wrong), Err(SPDM_STATUS_VERIF_FAIL));
         assert_eq!(check_length(&l2_wrong), Err(SPDM_STATUS_VERIF_FAIL));
         assert_eq!(check_length(&l3_wrong), Err(SPDM_STATUS_VERIF_FAIL));
+        assert_eq!(check_length(&l4_wrong), Err(SPDM_STATUS_VERIF_FAIL));
     }
 
     #[test]
