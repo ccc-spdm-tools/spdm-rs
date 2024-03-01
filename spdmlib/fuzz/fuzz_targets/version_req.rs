@@ -10,5 +10,5 @@ include!("../../../fuzz-target/requester/version_req/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_send_receive_spdm_version(data);
+    let _ = fuzz_send_receive_spdm_version(Arc::new(data.to_vec()));
 });

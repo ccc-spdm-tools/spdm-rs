@@ -165,6 +165,9 @@ if [[ $fuzz_target_name ]]; then
 else
     set -x
     cargo afl build --features "fuzz ${MUT_AUTH_FEATURE}" ${FUZZ_NO_DEFAULT_FEATURES} $buildpackage
+    pushd spdmlib
+    cargo fuzz build --release
+    popd
     set -x
 fi
 

@@ -10,5 +10,5 @@ include!("../../../fuzz-target/requester/encapsulated_request_req/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_session_based_mutual_authenticate(data);
+    let _ = fuzz_session_based_mutual_authenticate(Arc::new(data.to_vec()));
 });
