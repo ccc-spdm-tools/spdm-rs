@@ -10,5 +10,5 @@ include!("../../../fuzz-target/responder/deliver_encapsulated_response_rsp/src/m
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_handle_deliver_encapsulated_reponse(data);
+    let _ = fuzz_handle_deliver_encapsulated_reponse(Arc::new(data.to_vec()));
 });

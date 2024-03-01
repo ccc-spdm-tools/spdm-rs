@@ -8,13 +8,12 @@ use fuzzlib::{
     spdmlib::protocol::MAX_SPDM_VERSION_COUNT,
     spdmlib::{protocol::SpdmVersion, requester::RequesterContext},
     time::SPDM_TIME_IMPL,
-    PciDoeTransportEncap, SharedBuffer, SECRET_ASYM_IMPL_INSTANCE,
+    Mutex, PciDoeTransportEncap, SharedBuffer, SECRET_ASYM_IMPL_INSTANCE,
 };
 
 #[allow(unused)]
 use fuzzlib::flexi_logger;
 
-use spin::Mutex;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;

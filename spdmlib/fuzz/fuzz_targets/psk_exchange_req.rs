@@ -10,5 +10,5 @@ include!("../../../fuzz-target/requester/psk_exchange_req/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_send_receive_spdm_psk_exchange(data);
+    let _ = fuzz_send_receive_spdm_psk_exchange(Arc::new(data.to_vec()));
 });

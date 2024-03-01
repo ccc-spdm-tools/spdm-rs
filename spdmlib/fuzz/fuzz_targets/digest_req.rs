@@ -10,5 +10,5 @@ include!("../../../fuzz-target/requester/digest_req/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_send_receive_spdm_digest(data);
+    let _ = fuzz_send_receive_spdm_digest(Arc::new(data.to_vec()));
 });

@@ -22,7 +22,7 @@ pub use spdmlib;
 pub use spdmlib::common::{SpdmDeviceIo, SpdmTransportEncap};
 pub use spdmlib::error::SpdmResult;
 pub use spdmlib::{common, config, error, protocol, requester, responder};
-pub use spin;
+pub use spin::{self, Mutex};
 
 pub use flexi_logger;
 pub use flexi_logger::FileSpec;

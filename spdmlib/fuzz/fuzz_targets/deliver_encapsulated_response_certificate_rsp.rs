@@ -10,5 +10,5 @@ include!("../../../fuzz-target/responder/deliver_encapsulated_response_certifica
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_handle_encap_response_certificate(data);
+    let _ = fuzz_handle_encap_response_certificate(Arc::new(data.to_vec()));
 });

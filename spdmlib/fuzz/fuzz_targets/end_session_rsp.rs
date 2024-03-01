@@ -10,5 +10,5 @@ include!("../../../fuzz-target/responder/end_session_rsp/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_handle_spdm_end_session(data);
+    let _ = fuzz_handle_spdm_end_session(Arc::new(data.to_vec()));
 });

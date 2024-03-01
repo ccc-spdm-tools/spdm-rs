@@ -10,5 +10,5 @@ include!("../../../fuzz-target/responder/get_encapsulated_request_rsp/src/main.r
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_handle_get_encapsulated_request(data);
+    let _ = fuzz_handle_get_encapsulated_request(Arc::new(data.to_vec()));
 });

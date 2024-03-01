@@ -10,5 +10,5 @@ include!("../../../fuzz-target/requester/vendor_req/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_send_spdm_vendor_defined_request(data);
+    let _ = fuzz_send_spdm_vendor_defined_request(Arc::new(data.to_vec()));
 });

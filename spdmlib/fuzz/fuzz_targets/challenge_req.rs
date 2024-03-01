@@ -10,5 +10,5 @@ include!("../../../fuzz-target/requester/challenge_req/src/main.rs");
 
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
-    fuzz_send_receive_spdm_challenge(data);
+    let _ = fuzz_send_receive_spdm_challenge(Arc::new(data.to_vec()));
 });
