@@ -23,7 +23,6 @@ use crate::crypto;
 
 use crate::error::SpdmResult;
 use crate::message::*;
-use crate::protocol::{SpdmMeasurementSummaryHashType, SpdmSignatureStruct, SpdmVersion};
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
@@ -104,14 +103,7 @@ impl RequesterContext {
             versions_list: [SecuredMessageVersion::default(); MAX_SECURE_SPDM_VERSION_COUNT],
         };
 
-        for (_, local_version) in self
-            .common
-            .config_info
-            .secure_spdm_version
-            .iter()
-            .flatten()
-            .enumerate()
-        {
+        for local_version in self.common.config_info.secure_spdm_version.iter().flatten() {
             secured_message_version_list.versions_list
                 [secured_message_version_list.version_count as usize] = *local_version;
             secured_message_version_list.version_count += 1;

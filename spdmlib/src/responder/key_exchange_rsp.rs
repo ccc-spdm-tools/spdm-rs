@@ -15,11 +15,11 @@ use crate::error::{
     SpdmResult, SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_CRYPTO_ERROR, SPDM_STATUS_INVALID_MSG_FIELD,
     SPDM_STATUS_INVALID_STATE_LOCAL, SPDM_STATUS_INVALID_STATE_PEER,
 };
+use crate::message::*;
 use crate::protocol::*;
 use crate::responder::*;
 extern crate alloc;
 use crate::common::opaque::SpdmOpaqueStruct;
-use crate::message::*;
 use crate::secret;
 use alloc::boxed::Box;
 use core::convert::TryFrom;
@@ -150,13 +150,8 @@ impl ResponderContext {
                 }
                 let mut selected_version: Option<SecuredMessageVersion> = None;
                 for index in 0..secured_message_version_list.version_count as usize {
-                    for (_, local_version) in self
-                        .common
-                        .config_info
-                        .secure_spdm_version
-                        .iter()
-                        .flatten()
-                        .enumerate()
+                    for local_version in
+                        self.common.config_info.secure_spdm_version.iter().flatten()
                     {
                         if secured_message_version_list.versions_list[index] == *local_version {
                             selected_version = Some(*local_version);

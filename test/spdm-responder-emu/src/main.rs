@@ -183,7 +183,7 @@ fn emu_main_inner() {
     let mctp_transport_encap: Arc<Mutex<(dyn SpdmTransportEncap + Send + Sync)>> =
         Arc::new(Mutex::new(MctpTransportEncap {}));
 
-    for stream in listener.incoming() {
+    if let Some(stream) = listener.incoming().next() {
         let stream = stream.expect("Read stream error!");
         let stream = Arc::new(Mutex::new(stream));
         println!("new connection!");

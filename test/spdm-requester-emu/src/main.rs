@@ -18,7 +18,6 @@ use idekm::pci_idekm::KEY_SUB_STREAM_CPL;
 use idekm::pci_idekm::KEY_SUB_STREAM_NPR;
 use idekm::pci_idekm::KEY_SUB_STREAM_PR;
 use idekm::pci_idekm::PCI_IDE_KM_IDE_REG_BLOCK_MAX_COUNT;
-use log::LevelFilter;
 use log::*;
 use simple_logger::SimpleLogger;
 
