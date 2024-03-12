@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::crypto::SpdmAead;
-use crate::error::{SpdmResult};
+use crate::error::SpdmResult;
 
 use crate::protocol::{SpdmAeadAlgo, SpdmAeadIvStruct, SpdmAeadKeyStruct};
 

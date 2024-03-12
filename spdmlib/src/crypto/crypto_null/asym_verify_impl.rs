@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::crypto::{SpdmAsymVerify};
-use crate::error::{SpdmResult};
+use crate::crypto::SpdmAsymVerify;
+use crate::error::SpdmResult;
 use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
 
 pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
