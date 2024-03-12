@@ -3,21 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use super::key_schedule::SpdmKeySchedule;
-use crate::config;
-use crate::crypto;
-use crate::error::SpdmResult;
 use crate::error::StatusCodeCrypto;
 use crate::error::SPDM_STATUS_BUFFER_TOO_SMALL;
-use crate::error::SPDM_STATUS_CRYPTO_ERROR;
 use crate::error::SPDM_STATUS_DECODE_AEAD_FAIL;
-use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW;
 use crate::message::SpdmKeyExchangeMutAuthAttributes;
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use codec::enum_builder;
-use codec::{Codec, Reader, Writer};
 
 use super::*;
 

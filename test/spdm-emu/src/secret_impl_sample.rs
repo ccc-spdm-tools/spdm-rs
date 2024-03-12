@@ -13,10 +13,6 @@ use spdmlib::crypto;
 use spdmlib::crypto::hash;
 use spdmlib::message::*;
 use spdmlib::protocol::*;
-use spdmlib::protocol::{
-    SpdmBaseHashAlgo, SpdmDigestStruct, SpdmHkdfOutputKeyingMaterial,
-    SpdmMeasurementRecordStructure, SpdmMeasurementSpecification, SpdmMeasurementSummaryHashType,
-};
 use spdmlib::secret::*;
 
 pub static SECRET_MEASUREMENT_IMPL_INSTANCE: SpdmSecretMeasurement = SpdmSecretMeasurement {

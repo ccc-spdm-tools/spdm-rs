@@ -214,8 +214,8 @@ impl RequesterContext {
 
         let result = self.verify_spdm_certificate_chain();
         if result.is_ok() {
-            self.common.peer_info.peer_cert_chain[slot_id as usize] =
-                self.common.peer_info.peer_cert_chain_temp.clone();
+            self.common.peer_info.peer_cert_chain[slot_id as usize]
+                .clone_from(&self.common.peer_info.peer_cert_chain_temp);
         }
         self.common.peer_info.peer_cert_chain_temp = None;
         result

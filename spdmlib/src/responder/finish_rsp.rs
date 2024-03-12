@@ -5,10 +5,6 @@
 use crate::common::session::SpdmSession;
 use crate::common::{ManagedBuffer12Sign, SpdmCodec};
 use crate::crypto;
-use crate::error::SpdmResult;
-use crate::error::SPDM_STATUS_CRYPTO_ERROR;
-use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
-use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::*;
 use crate::message::*;
 use crate::protocol::*;

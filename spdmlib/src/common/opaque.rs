@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use super::spdm_codec::SpdmCodec;
 use super::*;
-use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_UNSUPPORTED_CAP};
-use codec::{u24, Codec, Reader, Writer};
+use crate::error::{SpdmStatus, SPDM_STATUS_UNSUPPORTED_CAP};
+use codec::u24;
 use core::convert::TryFrom;
 
 /// This is used in SpdmOpaqueStruct <- SpdmChallengeAuthResponsePayload / SpdmMeasurementsResponsePayload
