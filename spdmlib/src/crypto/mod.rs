@@ -7,6 +7,9 @@ mod crypto_callbacks;
 mod x509v3;
 pub use x509v3::*;
 
+#[cfg(not(feature = "spdm-ring"))]
+mod crypto_null;
+
 #[cfg(feature = "spdm-ring")]
 mod spdm_ring;
 
@@ -39,11 +42,8 @@ pub mod hash {
         not(any(feature = "spdm-ring")),
         not(feature = "hashed-transcript-data")
     ))]
-    static DEFAULT: SpdmHash = SpdmHash {
-        hash_all_cb: |_base_hash_algo: SpdmBaseHashAlgo,
-                      _data: &[u8]|
-         -> Option<SpdmDigestStruct> { unimplemented!() },
-    };
+    use super::crypto_null::hash_impl::DEFAULT;
+
     // +ring -transcript
     #[cfg(all(feature = "spdm-ring", not(feature = "hashed-transcript-data")))]
     use super::spdm_ring::hash_impl::DEFAULT;
@@ -120,19 +120,7 @@ pub mod hash {
 
         // - ring +transcript
         #[cfg(not(feature = "spdm-ring"))]
-        use super::SpdmHash;
-        #[cfg(not(feature = "spdm-ring"))]
-        pub static DEFAULT: SpdmHash = SpdmHash {
-            hash_all_cb: |_base_hash_algo: SpdmBaseHashAlgo,
-                          _data: &[u8]|
-             -> Option<SpdmDigestStruct> { unimplemented!() },
-            hash_ctx_init_cb: |_base_hash_algo: SpdmBaseHashAlgo| -> Option<usize> {
-                unimplemented!()
-            },
-            hash_ctx_update_cb: |_handle: usize, _data: &[u8]| -> SpdmResult { unimplemented!() },
-            hash_ctx_finalize_cb: |_handle: usize| -> Option<SpdmDigestStruct> { unimplemented!() },
-            hash_ctx_dup_cb: |_handle: usize| -> Option<usize> { unimplemented!() },
-        };
+        pub use crate::crypto::crypto_null::hash_impl::DEFAULT;
 
         // + ring +transcript
         #[cfg(feature = "spdm-ring")]
@@ -152,18 +140,8 @@ pub mod hmac {
     use crate::protocol::{SpdmBaseHashAlgo, SpdmDigestStruct};
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmHmac = SpdmHmac {
-        hmac_cb: |_base_hash_algo: SpdmBaseHashAlgo,
-                  _key: &[u8],
-                  _data: &[u8]|
-         -> Option<SpdmDigestStruct> { unimplemented!() },
-        hmac_verify_cb: |_base_hash_algo: SpdmBaseHashAlgo,
-                         _key: &[u8],
-                         _data: &[u8],
-                         _hmac: &SpdmDigestStruct|
-         -> SpdmResult { unimplemented!() },
-    };
-
+    use super::crypto_null::hmac_impl::DEFAULT;
+    
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::hmac_impl::DEFAULT;
 
@@ -202,14 +180,7 @@ pub mod asym_verify {
     use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
-        verify_cb: |_base_hash_algo: SpdmBaseHashAlgo,
-                    _base_asym_algo: SpdmBaseAsymAlgo,
-                    _public_cert_der: &[u8],
-                    _data: &[u8],
-                    _signature: &SpdmSignatureStruct|
-         -> SpdmResult { unimplemented!() },
-    };
+    use super::crypto_null::asym_verify_impl::DEFAULT;
 
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::asym_verify_impl::DEFAULT;
@@ -247,12 +218,8 @@ pub mod dhe {
     use crate::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct};
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmDhe = SpdmDhe {
-        generate_key_pair_cb: |_dhe_algo: SpdmDheAlgo| -> Option<(
-            SpdmDheExchangeStruct,
-            Box<dyn SpdmDheKeyExchange + Send>,
-        )> { unimplemented!() },
-    };
+    use super::crypto_null::dhe_impl::DEFAULT;
+
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::dhe_impl::DEFAULT;
 
@@ -276,12 +243,7 @@ pub mod cert_operation {
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmCertOperation = SpdmCertOperation {
-        get_cert_from_cert_chain_cb: |_cert_chain: &[u8],
-                                      _index: isize|
-         -> SpdmResult<(usize, usize)> { unimplemented!() },
-        verify_cert_chain_cb: |_cert_chain: &[u8]| -> SpdmResult { unimplemented!() },
-    };
+    use super::crypto_null::cert_operation_impl::DEFAULT;
 
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::cert_operation_impl::DEFAULT;
@@ -314,17 +276,7 @@ pub mod hkdf {
     };
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmHkdf = SpdmHkdf {
-        hkdf_extract_cb: |_hash_algo: SpdmBaseHashAlgo,
-                          _salt: &[u8],
-                          _ikm: &SpdmHkdfInputKeyingMaterial|
-         -> Option<SpdmHkdfPseudoRandomKey> { unimplemented!() },
-        hkdf_expand_cb: |_hash_algo: SpdmBaseHashAlgo,
-                         _prk: &SpdmHkdfPseudoRandomKey,
-                         _info: &[u8],
-                         _out_size: u16|
-         -> Option<SpdmHkdfOutputKeyingMaterial> { unimplemented!() },
-    };
+    use super::crypto_null::hkdf_impl::DEFAULT;
 
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::hkdf_impl::DEFAULT;
@@ -364,24 +316,7 @@ pub mod aead {
     use crate::protocol::{SpdmAeadAlgo, SpdmAeadIvStruct, SpdmAeadKeyStruct};
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmAead = SpdmAead {
-        encrypt_cb: |_aead_algo: SpdmAeadAlgo,
-                     _key: &SpdmAeadKeyStruct,
-                     _iv: &SpdmAeadIvStruct,
-                     _aad: &[u8],
-                     _plain_text: &[u8],
-                     _tag: &mut [u8],
-                     _cipher_text: &mut [u8]|
-         -> SpdmResult<(usize, usize)> { unimplemented!() },
-        decrypt_cb: |_aead_algo: SpdmAeadAlgo,
-                     _key: &SpdmAeadKeyStruct,
-                     _iv: &SpdmAeadIvStruct,
-                     _aad: &[u8],
-                     _cipher_text: &[u8],
-                     _tag: &[u8],
-                     _plain_text: &mut [u8]|
-         -> SpdmResult<usize> { unimplemented!() },
-    };
+    use super::crypto_null::aead_impl::DEFAULT;
 
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::aead_impl::DEFAULT;
@@ -427,9 +362,7 @@ pub mod rand {
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
 
     #[cfg(not(any(feature = "spdm-ring")))]
-    static DEFAULT: SpdmCryptoRandom = SpdmCryptoRandom {
-        get_random_cb: |_data: &mut [u8]| -> SpdmResult<usize> { unimplemented!() },
-    };
+    use super::crypto_null::rand_impl::DEFAULT;
 
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::rand_impl::DEFAULT;
