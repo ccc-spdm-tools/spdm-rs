@@ -141,7 +141,7 @@ pub mod hmac {
 
     #[cfg(not(any(feature = "spdm-ring")))]
     use super::crypto_null::hmac_impl::DEFAULT;
-    
+
     #[cfg(feature = "spdm-ring")]
     use super::spdm_ring::hmac_impl::DEFAULT;
 

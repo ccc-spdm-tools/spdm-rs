@@ -5,7 +5,7 @@
 use crate::crypto::SpdmHkdf;
 use crate::protocol::{
     SpdmBaseHashAlgo, SpdmHkdfInputKeyingMaterial, SpdmHkdfOutputKeyingMaterial,
-    SpdmHkdfPseudoRandomKey
+    SpdmHkdfPseudoRandomKey,
 };
 
 pub static DEFAULT: SpdmHkdf = SpdmHkdf {

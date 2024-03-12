@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::crypto::SpdmHmac;
-use crate::error::{SpdmResult};
+use crate::error::SpdmResult;
 use crate::protocol::{SpdmBaseHashAlgo, SpdmDigestStruct};
 
 pub static DEFAULT: SpdmHmac = SpdmHmac {

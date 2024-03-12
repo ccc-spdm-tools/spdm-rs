@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::crypto::SpdmCryptoRandom;
-use crate::error::{SpdmResult};
+use crate::error::SpdmResult;
 
 pub static DEFAULT: SpdmCryptoRandom = SpdmCryptoRandom {
     get_random_cb: get_random,
