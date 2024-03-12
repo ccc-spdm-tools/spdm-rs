@@ -24,7 +24,8 @@ fn hash_all(base_hash_algo: SpdmBaseHashAlgo, data: &[u8]) -> Option<SpdmDigestS
 
 #[cfg(feature = "hashed-transcript-data")]
 mod hash_ext {
-    use crate::error::{SpdmResult, SPDM_STATUS_CRYPTO_ERROR};
+    use crate::error::SpdmResult;
+    use crate::protocol::{SpdmBaseHashAlgo, SpdmDigestStruct};
 
     pub fn hash_ctx_update(handle: usize, data: &[u8]) -> SpdmResult {
         unimplemented!()
@@ -39,10 +40,6 @@ mod hash_ext {
     }
 
     pub fn hash_ctx_init(base_hash_algo: SpdmBaseHashAlgo) -> Option<usize> {
-        unimplemented!()
-    }
-
-    fn insert_to_table(value: Box<HashCtxConcrete>) -> usize {
         unimplemented!()
     }
 }
