@@ -52,8 +52,9 @@ fn hmac_verify(
 #[cfg(test)]
 mod tests {
     use crate::protocol::{SpdmFinishedKeyStruct, SPDM_MAX_HASH_SIZE};
-
+    extern crate alloc;
     use super::*;
+    use alloc::boxed::Box;
 
     #[test]
     fn test_case0_hmac_verify() {

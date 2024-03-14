@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 //
 
-#![cfg_attr(any(target_os = "uefi", target_os = "none"), no_std)]
+#![no_std]
+#[cfg(feature = "std")]
+extern crate std;
 
 mod executor;
 use crate::executor::*;

@@ -85,8 +85,10 @@ fn hkdf_expand(
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use super::*;
     use spdmlib::protocol::{SpdmBaseHashAlgo, SPDM_MAX_HASH_SIZE};
+    use std::boxed::Box;
     #[test]
     fn test_case0_hkdf_expand() {
         let base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;

@@ -13,8 +13,7 @@ pub use hash_ext::DEFAULT;
 mod hash_ext {
     extern crate alloc;
     use super::*;
-    use alloc::boxed::Box;
-    use alloc::collections::BTreeMap;
+    use alloc::{boxed::Box, collections::BTreeMap};
     use lazy_static::lazy_static;
     use spdmlib::error::{SpdmResult, SPDM_STATUS_CRYPTO_ERROR};
     use spin::Mutex;
@@ -106,8 +105,9 @@ fn hash_all(base_hash_algo: SpdmBaseHashAlgo, data: &[u8]) -> Option<SpdmDigestS
 
 #[test]
 fn test_case1_hash_all() {
+    extern crate std;
     use std::fmt::Write;
-    use std::string::String;
+    use std::string::{String, ToString};
     let base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
     let data = &b"hello"[..];
 
@@ -116,7 +116,7 @@ fn test_case1_hash_all() {
     for d in hash_all.as_ref() {
         let _ = write!(&mut res, "{:02x}", d);
     }
-    println!("res: {}", String::from_utf8_lossy(res.as_ref()));
+    std::println!("res: {}", String::from_utf8_lossy(res.as_ref()));
     assert_eq!(hash_all.data_size, 32);
 
     assert_eq!(

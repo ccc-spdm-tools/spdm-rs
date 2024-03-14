@@ -8,6 +8,7 @@ use crate::message::SpdmMessage;
 use codec::{Reader, Writer};
 use spin::Mutex;
 extern crate alloc;
+use alloc::boxed::Box;
 use alloc::sync::Arc;
 
 #[allow(unused, unused_mut)]

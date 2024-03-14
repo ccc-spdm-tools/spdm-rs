@@ -582,6 +582,7 @@ mod tests {
     use codec::u24;
     use testlib::{create_spdm_context, new_spdm_message, DeviceIO, TransportEncap};
     extern crate alloc;
+    use alloc::boxed::Box;
 
     #[test]
     fn test_case0_spdm_message_header() {
