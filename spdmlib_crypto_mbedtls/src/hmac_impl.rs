@@ -43,8 +43,9 @@ fn hmac_verify(
 #[cfg(test)]
 mod tests {
     use spdmlib::protocol::{SpdmFinishedKeyStruct, SPDM_MAX_HASH_SIZE};
-
+    extern crate std;
     use super::*;
+    use std::boxed::Box;
     #[test]
     fn test_case_rfc4231_2() {
         let key = &mut SpdmFinishedKeyStruct {

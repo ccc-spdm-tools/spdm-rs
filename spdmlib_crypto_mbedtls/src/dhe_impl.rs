@@ -5,6 +5,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::{boxed::Box, vec::Vec};
 
+#[cfg(feature = "std")]
+use std::{boxed::Box, vec::Vec};
+
 use mbedtls::ecp::EcPoint;
 use mbedtls::pk::{EcGroup, EcGroupId, Pk};
 use mbedtls::rng::RngCallback;

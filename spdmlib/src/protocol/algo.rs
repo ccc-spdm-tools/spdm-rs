@@ -6,7 +6,6 @@ use crate::config;
 use crate::crypto::bytes_mut_scrubbed::BytesMutStrubbed;
 use bytes::BytesMut;
 use codec::{enum_builder, u24, Codec, Reader, Writer};
-use core::convert::From;
 extern crate alloc;
 use alloc::boxed::Box;
 use zeroize::{Zeroize, ZeroizeOnDrop};

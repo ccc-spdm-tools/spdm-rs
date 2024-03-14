@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+extern crate std;
+use std::{boxed::Box, string::String, vec::Vec};
+
 use super::aead::{decrypt, encrypt};
 #[cfg(feature = "hashed-transcript-data")]
 use super::hash;
@@ -217,5 +220,5 @@ fn from_hex_digit(d: u8) -> Result<u8, String> {
             return Ok(d - range.start() + offset);
         }
     }
-    Err(format!("Invalid hex digit '{}'", d as char))
+    Err(std::format!("Invalid hex digit '{}'", d as char))
 }

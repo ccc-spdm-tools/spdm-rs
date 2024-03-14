@@ -159,6 +159,8 @@ fn make_key<K: ring::aead::BoundKey<OneNonceSequence>>(
 mod tests {
     use super::*;
     use crate::protocol::*;
+    extern crate std;
+    use std::boxed::Box;
 
     #[test]
     fn test_case0_encrypt() {
@@ -216,7 +218,7 @@ mod tests {
         let aad = &mut [100u8; 16];
         let cipher_text = &mut [100u8; 16];
         let ret_tag_size = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
-        println!("ret_tag_size{:?}", ret_tag_size);
+        std::println!("ret_tag_size{:?}", ret_tag_size);
     }
     #[test]
     fn test_case3_encrypt() {
@@ -234,7 +236,7 @@ mod tests {
         let aad = &mut [100u8; 16];
         let cipher_text = &mut [100u8; 16];
         let ret_tag_size = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
-        println!("ret_tag_size{:?}", ret_tag_size);
+        std::println!("ret_tag_size{:?}", ret_tag_size);
     }
     #[test]
     fn test_case4_encrypt() {
@@ -252,7 +254,7 @@ mod tests {
         let aad = &mut [100u8; 16];
         let cipher_text = &mut [100u8; 16];
         let ret_tag_size = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
-        println!("ret_tag_size{:?}", ret_tag_size);
+        std::println!("ret_tag_size{:?}", ret_tag_size);
     }
     #[test]
     fn test_case5_encrypt() {
@@ -270,7 +272,7 @@ mod tests {
         let aad = &mut [100u8; 16];
         let cipher_text = &mut [100u8; 1];
         let ret_tag_size = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
-        println!("ret_tag_size{:?}", ret_tag_size);
+        std::println!("ret_tag_size{:?}", ret_tag_size);
     }
     #[test]
     fn test_case6_encrypt() {
@@ -288,7 +290,7 @@ mod tests {
         let aad = &mut [100u8; 16];
         let cipher_text = &mut [100u8; 1];
         let ret_tag_size = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
-        println!("ret_tag_size{:?}", ret_tag_size);
+        std::println!("ret_tag_size{:?}", ret_tag_size);
     }
     #[test]
     #[should_panic]

@@ -1093,6 +1093,7 @@ impl SpdmSession {
 
 #[cfg(test)]
 mod tests_session {
+    extern crate std;
     use super::*;
 
     #[test]
@@ -1110,7 +1111,7 @@ mod tests_session {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
-        println!("session.session_id::{:?}", session.session_id);
+        std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,
@@ -1177,7 +1178,7 @@ mod tests_session {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
-        println!("session.session_id::{:?}", session.session_id);
+        std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,
@@ -1244,7 +1245,7 @@ mod tests_session {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
-        println!("session.session_id::{:?}", session.session_id);
+        std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,
@@ -1312,7 +1313,7 @@ mod tests_session {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
-        println!("session.session_id::{:?}", session.session_id);
+        std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,
@@ -1451,7 +1452,7 @@ mod tests_session {
         );
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
         session.transport_param.sequence_number_count = 1;
-        println!("session.session_id::{:?}", session.session_id);
+        std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,

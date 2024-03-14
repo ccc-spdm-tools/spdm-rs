@@ -2,10 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+#![no_std]
 #![forbid(unsafe_code)]
-#![cfg_attr(not(feature = "std"), no_std)]
 #![feature(stmt_expr_attributes)]
 #![feature(try_trait_v2)]
+
+#[cfg(feature = "std")]
+extern crate std;
 
 #[macro_use]
 extern crate log;

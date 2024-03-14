@@ -925,6 +925,7 @@ pub fn check_leaf_certificate(cert: &[u8], is_alias_cert_model: bool) -> SpdmRes
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use super::*;
 
     #[test]

@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-extern crate alloc;
-use alloc::boxed::Box;
 use core::{future::Future, pin::Pin};
 
 // Run async task

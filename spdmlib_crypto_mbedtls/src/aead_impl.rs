@@ -5,6 +5,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 use mbedtls::cipher::{raw, Authenticated, Cipher, Decryption, Encryption, Fresh};
 use spdmlib::crypto::SpdmAead;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_PARAMETER};
@@ -130,6 +133,9 @@ mod test {
             SpdmAeadIvStruct, SpdmAeadKeyStruct, SPDM_MAX_AEAD_IV_SIZE, SPDM_MAX_AEAD_KEY_SIZE,
         },
     };
+    extern crate std;
+    use std::{boxed::Box, string::String};
+
     #[test]
     fn test_case_gcm256() {
         // Test vector from GCM Test Vectors (SP 800-38D)
@@ -234,6 +240,6 @@ mod test {
                 return Ok(d - range.start() + offset);
             }
         }
-        Err(format!("Invalid hex digit '{}'", d as char))
+        Err(std::format!("Invalid hex digit '{}'", d as char))
     }
 }

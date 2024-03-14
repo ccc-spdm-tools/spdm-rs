@@ -166,6 +166,7 @@ mod tests {
     use crate::protocol::*;
     use testlib::{create_spdm_context, DeviceIO, TransportEncap};
     extern crate alloc;
+    use alloc::boxed::Box;
 
     #[test]
     fn test_case0_spdm_challenge_request_payload() {
