@@ -31,6 +31,7 @@ enum_builder! {
         MctpMessageTypeVendorDefinedIana => 0x7F
     }
 }
+#[allow(clippy::derivable_impls)]
 impl Default for MctpMessageType {
     fn default() -> MctpMessageType {
         MctpMessageType::MctpMessageTypeMctpControl
