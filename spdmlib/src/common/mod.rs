@@ -13,7 +13,7 @@ use spin::Mutex;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
+use core::{convert::TryFrom, ops::DerefMut};
 
 pub use opaque::*;
 pub use spdm_codec::SpdmCodec;
@@ -1464,12 +1464,41 @@ impl Default for ManagedBuffer12Sign {
     }
 }
 
-bitflags! {
-    #[derive(Default)]
-    pub struct SpdmMeasurementContentChanged: u8 {
-        const NOT_SUPPORTED = 0b0000_0000;
-        const DETECTED_CHANGE = 0b0001_0000;
-        const NO_CHANGE = 0b0010_0000;
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub enum SpdmMeasurementContentChanged {
+    NotSupported,
+    DetectedChange,
+    NoChange,
+}
+
+impl Default for SpdmMeasurementContentChanged {
+    fn default() -> Self {
+        Self::NotSupported
+    }
+}
+
+impl TryFrom<u8> for SpdmMeasurementContentChanged {
+    type Error = ();
+    fn try_from(content_changed: u8) -> Result<Self, <Self as TryFrom<u8>>::Error> {
+        if content_changed == 0b0000_0000 {
+            Ok(Self::NotSupported)
+        } else if content_changed == 0b0001_0000 {
+            Ok(Self::DetectedChange)
+        } else if content_changed == 0b0010_0000 {
+            Ok(Self::NoChange)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<SpdmMeasurementContentChanged> for u8 {
+    fn from(content_changed: SpdmMeasurementContentChanged) -> Self {
+        match content_changed {
+            SpdmMeasurementContentChanged::NotSupported => 0b0000_0000,
+            SpdmMeasurementContentChanged::DetectedChange => 0b0001_0000,
+            SpdmMeasurementContentChanged::NoChange => 0b0010_0000,
+        }
     }
 }
 

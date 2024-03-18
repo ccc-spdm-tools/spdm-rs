@@ -194,7 +194,7 @@ impl ResponderContext {
             if runtime_content_change_support && (spdm_version_sel >= SpdmVersion::SpdmVersion12) {
                 content_changed
             } else {
-                SpdmMeasurementContentChanged::NOT_SUPPORTED
+                SpdmMeasurementContentChanged::NotSupported
             };
 
         let mut nonce = [0u8; SPDM_NONCE_SIZE];
