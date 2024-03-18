@@ -5,7 +5,6 @@
 use super::*;
 use crate::error::{SpdmStatus, SPDM_STATUS_UNSUPPORTED_CAP};
 use codec::u24;
-use core::convert::TryFrom;
 
 /// This is used in SpdmOpaqueStruct <- SpdmChallengeAuthResponsePayload / SpdmMeasurementsResponsePayload
 /// It should be 1024 according to SPDM spec.

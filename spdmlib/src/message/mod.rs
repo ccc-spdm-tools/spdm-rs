@@ -1091,7 +1091,7 @@ mod tests {
                 SpdmMeasurementsResponsePayload {
                     number_of_measurement: 100u8,
                     slot_id: 7u8,
-                    content_changed: SpdmMeasurementContentChanged::NOT_SUPPORTED,
+                    content_changed: SpdmMeasurementContentChanged::NotSupported,
                     measurement_record: SpdmMeasurementRecordStructure {
                         number_of_blocks: 5,
                         measurement_record_length: u24::new(writer.used() as u32),
@@ -1131,7 +1131,7 @@ mod tests {
             assert_eq!(payload.slot_id, 7);
             assert_eq!(
                 payload.content_changed,
-                SpdmMeasurementContentChanged::NOT_SUPPORTED
+                SpdmMeasurementContentChanged::NotSupported
             );
             assert_eq!(payload.measurement_record.number_of_blocks, 5);
             for i in 0..SPDM_NONCE_SIZE {

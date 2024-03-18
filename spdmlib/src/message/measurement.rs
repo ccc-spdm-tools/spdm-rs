@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use core::convert::TryFrom;
+
 use crate::common;
 use crate::common::opaque::SpdmOpaqueStruct;
 use crate::common::spdm_codec::SpdmCodec;
@@ -159,7 +161,8 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
             && context.runtime_info.need_measurement_signature
         {
-            cnt += (self.slot_id | self.content_changed.bits())
+            let content_changed_bits = u8::from(self.content_changed);
+            cnt += (self.slot_id | content_changed_bits)
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
         } else if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11
@@ -192,7 +195,7 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
         let param2 = u8::read(r)?; // param2
         let slot_id = param2 & MEASUREMENT_RESPONDER_PARAM2_SLOT_ID_MASK; // Bit [3:0]
         let content_changed = param2 & MEASUREMENT_RESPONDER_PARAM2_CONTENT_CHANGED_MASK; // Bit [5:4]
-        let content_changed = SpdmMeasurementContentChanged::from_bits(content_changed)?;
+        let content_changed = SpdmMeasurementContentChanged::try_from(content_changed).ok()?;
         let measurement_record = SpdmMeasurementRecordStructure::spdm_read(context, r)?;
         let nonce = SpdmNonceStruct::read(r)?;
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
@@ -346,7 +349,7 @@ mod tests {
         let value = SpdmMeasurementsResponsePayload {
             number_of_measurement: 100u8,
             slot_id: 7u8,
-            content_changed: SpdmMeasurementContentChanged::NOT_SUPPORTED,
+            content_changed: SpdmMeasurementContentChanged::NotSupported,
             measurement_record: SpdmMeasurementRecordStructure {
                 number_of_blocks: 5,
                 measurement_record_length: u24::new(measurement_record_data_writer.used() as u32),
@@ -389,7 +392,7 @@ mod tests {
         assert_eq!(measurements_response.slot_id, 7);
         assert_eq!(
             measurements_response.content_changed,
-            SpdmMeasurementContentChanged::NOT_SUPPORTED
+            SpdmMeasurementContentChanged::NotSupported
         );
 
         assert_eq!(measurements_response.measurement_record.number_of_blocks, 5);
@@ -440,6 +443,40 @@ mod tests {
             assert_eq!(measurements_response.signature.data[i], 0);
         }
         assert_eq!(0, reader.left());
+    }
+
+    #[test]
+    fn test_case0_spdm_measurement_content_changed() {
+        let content_changed_1 = SpdmMeasurementContentChanged::NotSupported;
+        let content_changed_2 = SpdmMeasurementContentChanged::DetectedChange;
+        let content_changed_3 = SpdmMeasurementContentChanged::NoChange;
+
+        assert_eq!(u8::from(content_changed_1), 0b0000_0000);
+        assert_eq!(u8::from(content_changed_2), 0b0001_0000);
+        assert_eq!(u8::from(content_changed_3), 0b0010_0000);
+
+        assert_eq!(
+            SpdmMeasurementContentChanged::try_from(0b0000_0000)
+                .ok()
+                .unwrap(),
+            SpdmMeasurementContentChanged::NotSupported
+        );
+        assert_eq!(
+            SpdmMeasurementContentChanged::try_from(0b0001_0000)
+                .ok()
+                .unwrap(),
+            SpdmMeasurementContentChanged::DetectedChange
+        );
+        assert_eq!(
+            SpdmMeasurementContentChanged::try_from(0b0010_0000)
+                .ok()
+                .unwrap(),
+            SpdmMeasurementContentChanged::NoChange
+        );
+        assert_eq!(
+            SpdmMeasurementContentChanged::try_from(0b0011_0000),
+            Err(())
+        );
     }
 }
 
