@@ -28,6 +28,7 @@ enum_builder! {
         SpdmSessionEstablished => 0x2
     }
 }
+#[allow(clippy::derivable_impls)]
 impl Default for SpdmSessionState {
     fn default() -> SpdmSessionState {
         SpdmSessionState::SpdmSessionNotStarted

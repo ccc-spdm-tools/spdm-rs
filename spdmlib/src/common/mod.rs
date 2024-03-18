@@ -50,6 +50,7 @@ enum_builder! {
         SpdmConnectionAuthenticated => 0x5
     }
 }
+#[allow(clippy::derivable_impls)]
 impl Default for SpdmConnectionState {
     fn default() -> SpdmConnectionState {
         SpdmConnectionState::SpdmConnectionNotStarted

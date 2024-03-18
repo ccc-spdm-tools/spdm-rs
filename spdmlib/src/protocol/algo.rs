@@ -741,6 +741,7 @@ enum_builder! {
         SpdmMeasurementSummaryHashTypeAll => 0xFF
     }
 }
+#[allow(clippy::derivable_impls)]
 impl Default for SpdmMeasurementSummaryHashType {
     fn default() -> SpdmMeasurementSummaryHashType {
         SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone

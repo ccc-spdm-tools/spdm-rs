@@ -46,6 +46,7 @@ enum_builder! {
         SpdmMeasurementRequestAll => 0xFF
     }
 }
+#[allow(clippy::derivable_impls)]
 impl Default for SpdmMeasurementOperation {
     fn default() -> SpdmMeasurementOperation {
         SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber

@@ -30,7 +30,7 @@ jobs:
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: clippy
-          args: -- -D warnings -A clippy::only-used-in-recursion -A incomplete-features -A clippy::bad_bit_mask -A clippy::derivable_impls
+          args: -- -D warnings -A clippy::bad_bit_mask
 
   rustfmt:
     name: Format
@@ -103,4 +103,4 @@ jobs:
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: clippy
-          args: -- -D warnings -A clippy::only-used-in-recursion -A incomplete-features -A clippy::bad_bit_mask -A clippy::derivable_impls
+          args: -- -D warnings -A clippy::bad_bit_mask
