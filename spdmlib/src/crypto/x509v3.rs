@@ -170,7 +170,8 @@ fn check_tbs_certificate(
     // extensions      [3]  EXPLICIT Extensions OPTIONAL
 
     // key_usage             EXTENSIONS,
-    let (find_key_usage, key_usage_value) = get_key_usage_value(&data[t_walker..])?;
+    let (bytes_consumed, extension_data) = check_and_get_extensions(&data[t_walker..])?;
+    let (find_key_usage, key_usage_value) = get_key_usage_value(extension_data)?;
     // The digitalSignature bit SHOULD asserted when subject public key is used for verifying digital signatures
     // in an entity authentication service, a data origin authentication service, and/or an integrity service.
     let check_extensions_success = !(find_key_usage
@@ -179,7 +180,6 @@ fn check_tbs_certificate(
     // when key usage digitalSignature bit unset, it SHOULD return false.
 
     //extensions            EXTENSIONS,
-    let (bytes_consumed, extension_data) = check_and_get_extensions(&data[t_walker..])?;
     let check_extn_spdm_success = check_extensions_spdm_oid(extension_data, is_leaf_cert)?;
     t_walker += bytes_consumed;
 
@@ -381,7 +381,7 @@ fn get_key_usage_value(data: &[u8]) -> SpdmResult<(bool, u8)> {
     let mut find_key_usage = false;
     let len = data.len();
     let key_usage_oid_len = OID_KEY_USAGE.len();
-    if len < 1 {
+    if len < 1 || data[0] != ASN1_TAG_SEQUENCE {
         return Err(SPDM_STATUS_VERIF_FAIL);
     }
     let (data_length, bytes_consumed) = check_length(&data[1..])?;
@@ -389,10 +389,18 @@ fn get_key_usage_value(data: &[u8]) -> SpdmResult<(bool, u8)> {
         Err(SPDM_STATUS_VERIF_FAIL)
     } else {
         let mut index = 1 + bytes_consumed;
-        while index < data_length {
+        // search KEY_Usage OID in Extensions Sequence
+        while index < len {
+            if index + 1 >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
             let (payload_length, bytes_consumed) = check_length(&data[index + 1..])?;
+            if bytes_consumed + payload_length > len - (index + 1) {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
+            // search in sequence, skip bytes consumed
             if data[index] == ASN1_TAG_SEQUENCE {
-                index += 1 + payload_length;
+                index += 1 + bytes_consumed;
                 continue;
             } else if data[index] == ASN1_TAG_NUMBER_OBJECT_IDENTIFIER
                 && payload_length == key_usage_oid_len
@@ -402,22 +410,41 @@ fn get_key_usage_value(data: &[u8]) -> SpdmResult<(bool, u8)> {
                 )
             {
                 index += 1 + bytes_consumed + payload_length;
+                if index >= len {
+                    return Err(SPDM_STATUS_VERIF_FAIL);
+                }
+
                 if data[index] == ASN1_TAG_EXTN_VALUE {
+                    if index + 1 >= len {
+                        return Err(SPDM_STATUS_VERIF_FAIL);
+                    }
                     let (_, extnvalue_consumed) = check_length(&data[index + 1..])?;
                     index += 1 + extnvalue_consumed;
+
+                    if index >= len {
+                        return Err(SPDM_STATUS_VERIF_FAIL);
+                    }
+
                     if data[index] == ASN1_TAG_BIT_STRING {
+                        if index + 1 >= len {
+                            return Err(SPDM_STATUS_VERIF_FAIL);
+                        }
                         let (string_length, string_consumed) = check_length(&data[index + 1..])?;
                         index += string_consumed + string_length;
+
+                        if index >= len {
+                            return Err(SPDM_STATUS_VERIF_FAIL);
+                        }
                         find_key_usage = true;
                     } else {
                         find_key_usage = false;
                     }
                     break;
                 } else {
-                    index += 1 + bytes_consumed + payload_length;
-                    continue;
+                    return Err(SPDM_STATUS_VERIF_FAIL);
                 }
             } else {
+                // if not Sequence or OID tag, skip
                 index += 1 + bytes_consumed + payload_length;
                 continue;
             }
@@ -446,6 +473,9 @@ fn check_extensions_spdm_oid(extensions: &[u8], is_leaf_cert: bool) -> SpdmResul
             let mut index = 0;
             while index < payload_length {
                 let (extnid, extn_sequence_len) = check_and_get_extn_id(&extn_sequences[index..])?;
+                if extn_sequence_len > payload_length - index {
+                    return Err(SPDM_STATUS_VERIF_FAIL);
+                }
                 // find the first level extension identifiy from extensions sequence
                 if object_identifiers_are_same(extnid, OID_SUBJECT_ALTERNATIVE_NAME) {
                     if find_target_object_identifier_in_single_extension(
@@ -508,12 +538,21 @@ fn find_target_object_identifier_in_single_extension(
     let mut target_oid_find_success = false;
     let len = data.len();
     let target_oid_len = target_oid.len();
-    if len < target_oid_len {
+    if len < 1 {
+        Err(SPDM_STATUS_VERIF_FAIL)
+    } else if len < target_oid_len {
         target_oid_find_success = false;
+        Ok(target_oid_find_success)
     } else {
         let mut index = 0;
         while index < len - target_oid_len {
+            if index + 1 >= len {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
             let (payload_length, bytes_consumed) = check_length(&data[index + 1..])?;
+            if bytes_consumed + payload_length > len - (index + 1) {
+                return Err(SPDM_STATUS_VERIF_FAIL);
+            }
             if data[index] == ASN1_TAG_NUMBER_OBJECT_IDENTIFIER {
                 if object_identifiers_are_same(
                     &data[index + 1 + bytes_consumed..index + 1 + bytes_consumed + payload_length],
@@ -534,8 +573,8 @@ fn find_target_object_identifier_in_single_extension(
                 continue;
             }
         }
+        Ok(target_oid_find_success)
     }
-    Ok(target_oid_find_success)
 }
 
 // IN  extension sequences slice
@@ -556,7 +595,7 @@ fn find_target_object_identifier_in_extensions(data: &[u8], target_oid: &[u8]) -
 
     let (payload_length, bytes_consumed) = check_length(&data[walker..])?;
     walker += bytes_consumed;
-    if walker + payload_length > len {
+    if payload_length > len - walker {
         return Err(SPDM_STATUS_VERIF_FAIL);
     }
 
@@ -1376,6 +1415,60 @@ mod tests {
         );
         assert_eq!(
             get_key_usage_value(key_usage4_wrong),
+            Err(SPDM_STATUS_VERIF_FAIL)
+        );
+    }
+
+    #[test]
+    fn test_case1_get_key_usage_value() {
+        let key_usage1 = std::fs::read("../test_key/ecp384/end_responder.cert.der")
+            .expect("unable to read leaf cert!");
+        let key_usage2 =
+            std::fs::read("../test_key/rsa2048/end_requester_with_spdm_rsp_eku.cert.der")
+                .expect("unable to read leaf cert!");
+        let key_usage3 =
+            std::fs::read("../test_key/rsa2048/end_responder_with_spdm_req_eku.cert.der")
+                .expect("unable to read leaf cert!");
+
+        let key_usage1_wrong = &[
+            0x30, 0x0, 0x30, 0x0, 0xa0, 0x3, 0x2, 0x1, 0x2, 0x8, 0x0, 0x30, 0x6, 0x6, 0x6, 0x6,
+            0x20, 0x6, 0x0, 0x30, 0x0, 0x30, 0x0, 0x30, 0x6, 0x6, 0x20, 0x26, 0x0, 0x30, 0x0, 0x30,
+            0x20, 0x30, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x20,
+            0x30, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16,
+            0x16, 0x16, 0x16, 0x16, 0x4, 0x30, 0x32, 0x10, 0x2, 0x8, 0x0, 0x30, 0x6, 0x6, 0x6, 0x6,
+            0x20, 0x6, 0x0, 0x30, 0x0, 0x30, 0x0, 0x30, 0x6, 0x6, 0x20, 0x26, 0x0, 0x30, 0x0, 0x30,
+            0x21, 0x30, 0x4, 0x30, 0xa0, 0x1, 0x2, 0x8, 0x0, 0xbb, 0x0, 0x30, 0x2, 0x8, 0x0, 0x0,
+            0x0, 0x0, 0x0, 0xbb, 0x6, 0x6, 0x6, 0x6, 0x20, 0x26, 0x0, 0x6, 0x3, 0x55, 0x1d, 0xf,
+        ];
+        let key_usage2_wrong = &[
+            0x30, 0x0, 0x30, 0x0, 0xa0, 0x3, 0x2, 0x1, 0x2, 0x8, 0x0, 0x30, 0x6, 0x6, 0x6, 0x6,
+            0x20, 0x6, 0x0, 0x30, 0x0, 0x30, 0x0, 0x30, 0x6, 0x6, 0x20, 0x26, 0x0, 0x30, 0x0, 0x30,
+            0x20, 0x30, 0x4, 0x30, 0x32, 0x10, 0x2, 0x8, 0x0, 0x30, 0x6, 0x6, 0x6, 0x6, 0x20, 0x6,
+            0x0, 0x30, 0x66, 0x30, 0x0, 0x30, 0x6, 0x6, 0x20, 0x26, 0x0, 0x30, 0x0, 0x30, 0x20,
+            0x30, 0x4, 0x30, 0x32, 0x10, 0x30, 0x31, 0x31, 0x31, 0x31, 0x6, 0x20, 0x26, 0x0, 0x30,
+            0x0, 0x30, 0x31, 0x31, 0x31, 0xff, 0xff, 0xff, 0xff, 0x0, 0x8, 0x6, 0x27, 0x3, 0x55,
+            0x1d, 0xf, 0x4, 0x0, 0x30, 0x0, 0x30, 0x0, 0xa0, 0x3, 0x2, 0x1, 0x26, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, 0x6, 0x3, 0x55, 0x1d, 0xf,
+        ];
+
+        assert_eq!(
+            get_key_usage_value(&key_usage1[280..]),
+            Ok((true, key_usage1[309]))
+        );
+        assert_eq!(
+            get_key_usage_value(&key_usage2[450..]),
+            Ok((true, key_usage2[478]))
+        );
+        assert_eq!(
+            get_key_usage_value(&key_usage3[450..]),
+            Ok((true, key_usage3[478]))
+        );
+        assert_eq!(
+            get_key_usage_value(key_usage1_wrong),
+            Err(SPDM_STATUS_VERIF_FAIL)
+        );
+        assert_eq!(
+            get_key_usage_value(key_usage2_wrong),
             Err(SPDM_STATUS_VERIF_FAIL)
         );
     }
