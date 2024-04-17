@@ -117,6 +117,8 @@ pub struct SpdmSession {
     handshake_secret: SpdmSessionHandshakeSecret,
     application_secret: SpdmSessionAppliationSecret,
     application_secret_backup: SpdmSessionAppliationSecret,
+    responder_backup_valid: bool,
+    requester_backup_valid: bool,
     transport_param: SpdmSessionTransportParam,
     pub runtime_info: SpdmSessionRuntimeInfo,
     key_schedule: SpdmKeySchedule,
@@ -142,6 +144,8 @@ impl SpdmSession {
             handshake_secret: SpdmSessionHandshakeSecret::default(),
             application_secret: SpdmSessionAppliationSecret::default(),
             application_secret_backup: SpdmSessionAppliationSecret::default(),
+            responder_backup_valid: false,
+            requester_backup_valid: false,
             transport_param: SpdmSessionTransportParam::default(),
             runtime_info: SpdmSessionRuntimeInfo::default(),
             key_schedule: SpdmKeySchedule::new(),
@@ -590,6 +594,7 @@ impl SpdmSession {
                 self.application_secret.request_data_secret.clone();
             self.application_secret_backup.request_direction =
                 self.application_secret.request_direction.clone();
+            self.requester_backup_valid = true;
 
             self.application_secret.request_data_secret = if let Some(us) =
                 self.key_schedule.derive_update_secret(
@@ -639,6 +644,7 @@ impl SpdmSession {
                 self.application_secret.response_data_secret.clone();
             self.application_secret_backup.response_direction =
                 self.application_secret.response_direction.clone();
+            self.responder_backup_valid = true;
 
             self.application_secret.response_data_secret = if let Some(us) =
                 self.key_schedule.derive_update_secret(
@@ -693,13 +699,13 @@ impl SpdmSession {
         use_new_key: bool,
     ) -> SpdmResult {
         if !use_new_key {
-            if update_requester {
+            if update_requester && self.requester_backup_valid {
                 self.application_secret.request_data_secret =
                     self.application_secret_backup.request_data_secret.clone();
                 self.application_secret.request_direction =
                     self.application_secret_backup.request_direction.clone();
             }
-            if update_responder {
+            if update_responder && self.responder_backup_valid {
                 self.application_secret.response_data_secret =
                     self.application_secret_backup.response_data_secret.clone();
                 self.application_secret.response_direction =
@@ -711,12 +717,14 @@ impl SpdmSession {
                     SpdmDirectionDataSecretStruct::default();
                 self.application_secret_backup.request_direction =
                     SpdmSessionSecretParam::default();
+                self.requester_backup_valid = false;
             }
             if update_responder {
                 self.application_secret_backup.response_data_secret =
                     SpdmDirectionDataSecretStruct::default();
                 self.application_secret_backup.response_direction =
                     SpdmSessionSecretParam::default();
+                self.responder_backup_valid = false;
             }
         }
         Ok(())
