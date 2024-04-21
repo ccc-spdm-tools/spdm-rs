@@ -919,10 +919,24 @@ impl SpdmSession {
                         app_buffer,
                         &self.application_secret.response_direction,
                     );
-                    if r != Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW) {
+                    // When meet Generic failure, try backup keys before aborting.
+                    if r == Err(SPDM_STATUS_CRYPTO_ERROR) && self.responder_backup_valid {
+                        //  Retry decoding message with backup Requester key.
+                        let r_backup = self.decode_msg(
+                            secured_buffer,
+                            app_buffer,
+                            &self.application_secret_backup.response_direction,
+                        );
+                        if r_backup != Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW) {
+                            self.application_secret.response_direction.sequence_number += 1;
+                        }
+                        r_backup
+                    } else if r != Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW) {
                         self.application_secret.response_direction.sequence_number += 1;
+                        r
+                    } else {
+                        r
                     }
-                    r
                 }
             }
             _ => Err(SPDM_STATUS_INVALID_STATE_LOCAL),
