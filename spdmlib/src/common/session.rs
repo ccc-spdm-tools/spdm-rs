@@ -928,7 +928,9 @@ impl SpdmSession {
                             &self.application_secret_backup.response_direction,
                         );
                         if r_backup != Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW) {
-                            self.application_secret.response_direction.sequence_number += 1;
+                            self.application_secret_backup
+                                .response_direction
+                                .sequence_number += 1;
                         }
                         r_backup
                     } else if r != Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW) {
