@@ -116,13 +116,27 @@ impl RequesterContext {
                             Err(SPDM_STATUS_INVALID_MSG_FIELD)
                         }
                     }
-                    SpdmRequestResponseCode::SpdmResponseError => self
-                        .spdm_handle_error_response_main(
+                    SpdmRequestResponseCode::SpdmResponseError => {
+                        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+                        let session = if let Some(s) = self.common.get_session_via_id(session_id) {
+                            s
+                        } else {
+                            return Err(SPDM_STATUS_INVALID_PARAMETER);
+                        };
+                        error!("!!! key_update : fail !!! rollback all keys\n");
+                        session.activate_data_secret_update(
+                            spdm_version_sel,
+                            update_requester,
+                            update_responder,
+                            false,
+                        )?;
+                        self.spdm_handle_error_response_main(
                             Some(session_id),
                             receive_buffer,
                             SpdmRequestResponseCode::SpdmRequestKeyUpdate,
                             SpdmRequestResponseCode::SpdmResponseKeyUpdateAck,
-                        ),
+                        )
+                    }
                     _ => Err(SPDM_STATUS_ERROR_PEER),
                 }
             }
