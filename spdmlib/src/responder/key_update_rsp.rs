@@ -70,7 +70,7 @@ impl ResponderContext {
             }
             SpdmKeyUpdateOperation::SpdmUpdateAllKeys => {
                 let _ = session.create_data_secret_update(spdm_version_sel, true, true);
-                let _ = session.activate_data_secret_update(spdm_version_sel, true, true, true);
+                let _ = session.activate_data_secret_update(spdm_version_sel, false, true, true);
             }
             SpdmKeyUpdateOperation::SpdmVerifyNewKey => {
                 let _ = session.activate_data_secret_update(spdm_version_sel, true, false, true);
