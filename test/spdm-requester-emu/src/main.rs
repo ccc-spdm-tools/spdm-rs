@@ -362,6 +362,187 @@ async fn test_spdm(
             panic!("send_receive_spdm_key_update failed");
         }
 
+        #[cfg(feature = "test_update_keys")]
+        {
+            context.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestKeyUpdate,
+                Some(session_id),
+            );
+
+            // Get original keys.
+            let ori_keys = &context.common.session[0].export_keys();
+
+            // Update all keys and send wrong UpdateAllKeys request.
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = if let Ok(u) = context.encode_spdm_key_update_op(
+                SpdmKeyUpdateOperation::Unknown(0),
+                1,
+                &mut send_buffer,
+            ) {
+                u
+            } else {
+                panic!("Send request fail!\n");
+            };
+            let _ = context
+                .send_message(Some(session_id), &send_buffer[..used], false)
+                .await
+                .is_ok();
+
+            let session = if let Some(s) = context.common.get_session_via_id(session_id) {
+                s
+            } else {
+                panic!("Invalid session id!\n");
+            };
+
+            // Create new keys after sending KeyUpdate request.
+            let _ = session
+                .create_data_secret_update(SpdmVersion::SpdmVersion12, true, true)
+                .ok();
+
+            // Update all keys to new keys.
+            let new_keys = &context.common.session[0].export_keys();
+            assert!(new_keys.0.encryption_key.data != ori_keys.0.encryption_key.data);
+            assert!(new_keys.1.encryption_key.data != ori_keys.1.encryption_key.data);
+
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = if let Ok(u) = context
+                .receive_message(Some(session_id), &mut receive_buffer, false)
+                .await
+            {
+                u
+            } else {
+                panic!("Receive message fail!\n");
+            };
+
+            let status = context.handle_spdm_key_update_op_response(
+                session_id,
+                true,
+                true,
+                &receive_buffer[..used],
+            );
+            // Return key update fail due to wrong request message
+            assert!(status.is_err());
+            let rollbacked_keys = &context.common.session[0].export_keys();
+            // Rollback all keys to original keys.
+            assert!(rollbacked_keys.0.encryption_key.data == ori_keys.0.encryption_key.data);
+            assert!(rollbacked_keys.1.encryption_key.data == ori_keys.1.encryption_key.data);
+        }
+
+        #[cfg(feature = "test_verify_keys")]
+        {
+            context.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestKeyUpdate,
+                Some(session_id),
+            );
+
+            // Get original keys.
+            let ori_keys = &context.common.session[0].export_keys();
+
+            // 1. Send UpdateAllKeys request and update all keys.
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = if let Ok(u) = context.encode_spdm_key_update_op(
+                SpdmKeyUpdateOperation::SpdmUpdateAllKeys,
+                1,
+                &mut send_buffer,
+            ) {
+                u
+            } else {
+                panic!("Send request fail!\n");
+            };
+            let _ = context
+                .send_message(Some(session_id), &send_buffer[..used], false)
+                .await
+                .is_ok();
+
+            let session = if let Some(s) = context.common.get_session_via_id(session_id) {
+                s
+            } else {
+                panic!("Invalid session id!\n");
+            };
+
+            // Create new keys after sending KeyUpdate request.
+            let _ = session
+                .create_data_secret_update(SpdmVersion::SpdmVersion12, true, true)
+                .ok();
+
+            // Update all keys to new keys.
+            let new_keys = &context.common.session[0].export_keys();
+            assert!(new_keys.0.encryption_key.data != ori_keys.0.encryption_key.data);
+
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = if let Ok(u) = context
+                .receive_message(Some(session_id), &mut receive_buffer, false)
+                .await
+            {
+                u
+            } else {
+                panic!("Receive message fail!\n");
+            };
+
+            let status = context.handle_spdm_key_update_op_response(
+                session_id,
+                true,
+                true,
+                &receive_buffer[..used],
+            );
+            // Key update successfully.
+            assert!(status.is_ok());
+            let new_keys = &context.common.session[0].export_keys();
+            assert!(new_keys.0.encryption_key.data != ori_keys.0.encryption_key.data);
+            assert!(new_keys.1.encryption_key.data != ori_keys.1.encryption_key.data);
+
+            // 2. Send VerifyNewKeys request.
+            context.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestKeyUpdate,
+                Some(session_id),
+            );
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = if let Ok(u) = context.encode_spdm_key_update_op(
+                SpdmKeyUpdateOperation::Unknown(0),
+                2,
+                &mut send_buffer,
+            ) {
+                u
+            } else {
+                panic!("Send request fail!\n");
+            };
+            let _ = context
+                .send_message(Some(session_id), &send_buffer[..used], false)
+                .await
+                .is_ok();
+
+            let session = if let Some(s) = context.common.get_session_via_id(session_id) {
+                s
+            } else {
+                panic!("Invalid session id!\n");
+            };
+
+            // No keys update in VerifyNewKeys step.
+            let _ = session
+                .create_data_secret_update(SpdmVersion::SpdmVersion12, false, false)
+                .ok();
+
+            // Receive verify response message.
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = if let Ok(u) = context
+                .receive_message(Some(session_id), &mut receive_buffer, false)
+                .await
+            {
+                u
+            } else {
+                panic!("Receive message fail!\n");
+            };
+
+            let status = context.handle_spdm_key_update_op_response(
+                session_id,
+                false,
+                false,
+                &receive_buffer[..used],
+            );
+            // Return VerifyNewKeys fail due to wrong request message
+            assert!(status.is_err());
+        }
+
         let mut content_changed = None;
         let mut transcript_meas = None;
 
