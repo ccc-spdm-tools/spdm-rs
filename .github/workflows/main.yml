@@ -89,3 +89,11 @@ jobs:
           RUN_RESPONDER_FEATURES: ${{ matrix.run_responder_features }}
         run: |
           ./sh_script/build.sh -r
+
+      - name: Rollback test
+        shell: bash
+        env:
+          CC_x86_64_unknown_none: clang
+          AR_x86_64_unknown_none: llvm-ar
+        run: |
+          ./sh_script/rollbacktest.sh -a
