@@ -25,7 +25,7 @@ jobs:
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@1a3da29f56261a1e1f937ec88f0856a9b8321d7e # v1
         with:
-          version: "12.0.1"
+          version: "14.0"
           directory: ${{ runner.temp }}/llvm
 
       - name: Checkout sources
