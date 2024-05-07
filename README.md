@@ -2,6 +2,7 @@
 [![Deny](https://github.com/ccc-spdm-tools/spdm-rs/actions/workflows/deny.yml/badge.svg)](https://github.com/ccc-spdm-tools/spdm-rs/actions/workflows/deny.yml)
 [![Format](https://github.com/ccc-spdm-tools/spdm-rs/actions/workflows/format.yml/badge.svg)](https://github.com/ccc-spdm-tools/spdm-rs/actions/workflows/format.yml)
 [![Fuzzing](https://github.com/ccc-spdm-tools/spdm-rs/actions/workflows/fuzz.yml/badge.svg)](https://github.com/ccc-spdm-tools/spdm-rs/actions/workflows/fuzz.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8901/badge)](https://www.bestpractices.dev/projects/8901)
 
 # spdm-rs
 
