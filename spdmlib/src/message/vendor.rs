@@ -160,17 +160,22 @@ impl Codec for VendorDefinedRspPayloadStruct {
 
     fn read(r: &mut Reader) -> Option<VendorDefinedRspPayloadStruct> {
         let rsp_length = u16::read(r)?;
-        let mut vendor_defined_rsp_payload = [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE];
-        for d in vendor_defined_rsp_payload
-            .iter_mut()
-            .take(rsp_length as usize)
-        {
-            *d = u8::read(r)?;
+        if rsp_length as usize > MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE {
+            log::error!("invalid rsp length!!!\n");
+            None
+        } else {
+            let mut vendor_defined_rsp_payload = [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE];
+            for d in vendor_defined_rsp_payload
+                .iter_mut()
+                .take(rsp_length as usize)
+            {
+                *d = u8::read(r)?;
+            }
+            Some(VendorDefinedRspPayloadStruct {
+                rsp_length,
+                vendor_defined_rsp_payload,
+            })
         }
-        Some(VendorDefinedRspPayloadStruct {
-            rsp_length,
-            vendor_defined_rsp_payload,
-        })
     }
 }
 
