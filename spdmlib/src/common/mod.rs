@@ -269,8 +269,7 @@ impl SpdmContext {
                     crypto::cert_operation::get_cert_from_cert_chain(
                         &cert_chain.data[..(cert_chain.data_size as usize)],
                         0,
-                    )
-                    .unwrap();
+                    )?;
                 let root_cert = &cert_chain.data[root_cert_begin..root_cert_end];
                 if let Some(root_hash) =
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, root_cert)
@@ -509,7 +508,9 @@ impl SpdmContext {
     }
 
     pub fn append_message_k(&mut self, session_id: u32, new_message: &[u8]) -> SpdmResult {
-        let session = self.get_session_via_id(session_id).unwrap();
+        let session = self
+            .get_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
@@ -574,7 +575,9 @@ impl SpdmContext {
         session_id: u32,
         new_message: &[u8],
     ) -> SpdmResult {
-        let session = self.get_session_via_id(session_id).unwrap();
+        let session = self
+            .get_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let _ = session
             .runtime_info
             .message_f
@@ -590,7 +593,9 @@ impl SpdmContext {
         session_id: u32,
         new_message: &[u8],
     ) -> SpdmResult {
-        let session = self.get_immutable_session_via_id(session_id).unwrap();
+        let session = self
+            .get_immutable_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         if session.runtime_info.digest_context_th.is_none() {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
@@ -631,18 +636,24 @@ impl SpdmContext {
             };
 
             if let Some(mut_cert_digest) = mut_cert_digest {
-                let session = self.get_session_via_id(session_id).unwrap();
+                let session = self
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                 crypto::hash::hash_ctx_update(
                     session.runtime_info.digest_context_th.as_mut().unwrap(),
                     &mut_cert_digest.data[..mut_cert_digest.data_size as usize],
                 )?;
             }
-            let session = self.get_session_via_id(session_id).unwrap();
+            let session = self
+                .get_session_via_id(session_id)
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
             session.runtime_info.message_f_initialized = true;
         }
 
-        let session = self.get_session_via_id(session_id).unwrap();
+        let session = self
+            .get_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         crypto::hash::hash_ctx_update(
             session.runtime_info.digest_context_th.as_mut().unwrap(),
             new_message,

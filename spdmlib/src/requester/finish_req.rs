@@ -77,7 +77,7 @@ impl RequesterContext {
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
-                .unwrap()
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
             return Err(res.err().unwrap());
         }
@@ -92,7 +92,7 @@ impl RequesterContext {
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
-                .unwrap()
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
             return res;
         }
@@ -107,7 +107,7 @@ impl RequesterContext {
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
-                .unwrap()
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
             return Err(res.err().unwrap());
         }
@@ -186,13 +186,16 @@ impl RequesterContext {
         let session = self
             .common
             .get_immutable_session_via_id(session_id)
-            .unwrap();
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
         let transcript_hash =
             self.common
                 .calc_req_transcript_hash(false, req_slot_id, is_mut_auth, session)?;
 
-        let session = self.common.get_session_via_id(session_id).unwrap();
+        let session = self
+            .common
+            .get_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
         let hmac = session.generate_hmac_with_request_finished_key(transcript_hash.as_ref())?;
 
@@ -253,7 +256,7 @@ impl RequesterContext {
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             let transcript_hash = self.common.calc_req_transcript_hash(
                                 false,
@@ -291,7 +294,7 @@ impl RequesterContext {
                         let session = self
                             .common
                             .get_immutable_session_via_id(session_id)
-                            .unwrap();
+                            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                         // generate the data secret
                         let th2 = self.common.calc_req_transcript_hash(
@@ -303,7 +306,10 @@ impl RequesterContext {
 
                         debug!("!!! th2 : {:02x?}\n", th2.as_ref());
                         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-                        let session = self.common.get_session_via_id(session_id).unwrap();
+                        let session = self
+                            .common
+                            .get_session_via_id(session_id)
+                            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                         match session.generate_data_secret(spdm_version_sel, &th2) {
                             Ok(_) => {}
                             Err(e) => {
@@ -424,8 +430,7 @@ impl RequesterContext {
             peer_cert,
             transcript_sign.as_ref(),
             &signature,
-        )
-        .unwrap();
+        )?;
 
         Ok(signature)
     }

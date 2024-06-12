@@ -63,7 +63,15 @@ impl ResponderContext {
         let key_update_req = key_update_req.unwrap();
 
         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-        let session = self.common.get_session_via_id(session_id).unwrap();
+        let session = if let Some(session) = self.common.get_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
         match key_update_req.key_update_operation {
             SpdmKeyUpdateOperation::SpdmUpdateSingleKey => {
                 let _ = session.create_data_secret_update(spdm_version_sel, true, false);

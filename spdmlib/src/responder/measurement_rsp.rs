@@ -150,25 +150,38 @@ impl ResponderContext {
             );
         }
 
-        let number_of_measurement = secret::measurement::measurement_collection(
+        let number_of_measurement = if let Some(meas) = secret::measurement::measurement_collection(
             spdm_version_sel,
             measurement_specification_sel,
             measurement_hash_sel,
             SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber.get_u8() as usize,
-        )
-        .unwrap()
-        .number_of_blocks;
+        ) {
+            meas.number_of_blocks
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
 
         let measurement_record = if get_measurements.measurement_operation
             == SpdmMeasurementOperation::SpdmMeasurementRequestAll
         {
-            secret::measurement::measurement_collection(
+            if let Some(meas) = secret::measurement::measurement_collection(
                 spdm_version_sel,
                 measurement_specification_sel,
                 measurement_hash_sel,
                 SpdmMeasurementOperation::SpdmMeasurementRequestAll.get_u8() as usize,
-            )
-            .unwrap()
+            ) {
+                meas
+            } else {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (
+                    Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                    Some(writer.used_slice()),
+                );
+            }
         } else if let SpdmMeasurementOperation::Unknown(index) =
             get_measurements.measurement_operation
         {
@@ -179,13 +192,20 @@ impl ResponderContext {
                     Some(writer.used_slice()),
                 );
             }
-            secret::measurement::measurement_collection(
+            if let Some(meas) = secret::measurement::measurement_collection(
                 spdm_version_sel,
                 measurement_specification_sel,
                 measurement_hash_sel,
                 index as usize,
-            )
-            .unwrap()
+            ) {
+                meas
+            } else {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (
+                    Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                    Some(writer.used_slice()),
+                );
+            }
         } else {
             SpdmMeasurementRecordStructure::default()
         };
@@ -299,7 +319,7 @@ impl ResponderContext {
             Some(session_id) => crypto::hash::hash_ctx_finalize(
                 self.common
                     .get_immutable_session_via_id(session_id)
-                    .unwrap()
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                     .runtime_info
                     .digest_context_l1l2
                     .as_ref()

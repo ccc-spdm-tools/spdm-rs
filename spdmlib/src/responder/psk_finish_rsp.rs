@@ -80,10 +80,16 @@ impl ResponderContext {
         let temp_used = read_used - base_hash_size;
 
         {
-            let session = self
-                .common
-                .get_immutable_session_via_id(session_id)
-                .unwrap();
+            let session =
+                if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+                    session
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                        Some(writer.used_slice()),
+                    );
+                };
 
             if !session.get_use_psk() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
@@ -106,10 +112,16 @@ impl ResponderContext {
                 );
             }
 
-            let session = self
-                .common
-                .get_immutable_session_via_id(session_id)
-                .unwrap();
+            let session =
+                if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+                    session
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                        Some(writer.used_slice()),
+                    );
+                };
 
             let transcript_hash =
                 self.common
@@ -120,10 +132,16 @@ impl ResponderContext {
             }
             let transcript_hash = transcript_hash.as_ref().unwrap();
 
-            let session = self
-                .common
-                .get_immutable_session_via_id(session_id)
-                .unwrap();
+            let session =
+                if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+                    session
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                        Some(writer.used_slice()),
+                    );
+                };
             let res = session.verify_hmac_with_request_finished_key(
                 transcript_hash.as_ref(),
                 &psk_finish_req.verify_data,
@@ -182,10 +200,15 @@ impl ResponderContext {
             );
         }
 
-        let session = self
-            .common
-            .get_immutable_session_via_id(session_id)
-            .unwrap();
+        let session = if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
         // generate the data secret
         let th2 = self
             .common
@@ -198,7 +221,15 @@ impl ResponderContext {
         let th2 = th2.unwrap();
         debug!("!!! th2 : {:02x?}\n", th2.as_ref());
         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-        let session = self.common.get_session_via_id(session_id).unwrap();
+        let session = if let Some(session) = self.common.get_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
         if let Err(e) = session.generate_data_secret(spdm_version_sel, &th2) {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(e), Some(writer.used_slice()));
