@@ -5,11 +5,11 @@
 use config::MAX_SPDM_PSK_CONTEXT_SIZE;
 
 use crate::crypto;
-use crate::error::SPDM_STATUS_BUFFER_FULL;
 use crate::error::{
     SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
     SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_SESSION_NUMBER_EXCEED, SPDM_STATUS_VERIF_FAIL,
 };
+use crate::error::{SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_INVALID_STATE_LOCAL};
 use crate::message::*;
 use crate::protocol::*;
 use crate::requester::*;
@@ -217,7 +217,7 @@ impl RequesterContext {
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             // generate the handshake secret (including finished_key) before verify HMAC
                             let th1 = self.common.calc_req_transcript_hash(
@@ -228,13 +228,16 @@ impl RequesterContext {
                             )?;
                             debug!("!!! th1 : {:02x?}\n", th1.as_ref());
 
-                            let session = self.common.get_session_via_id(session_id).unwrap();
+                            let session = self
+                                .common
+                                .get_session_via_id(session_id)
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             session.generate_handshake_secret(spdm_version_sel, &th1)?;
 
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             // verify HMAC with finished_key
                             let transcript_hash = self.common.calc_req_transcript_hash(
@@ -257,7 +260,10 @@ impl RequesterContext {
                                 .is_err()
                             {
                                 error!("verify_hmac_with_response_finished_key fail");
-                                let session = self.common.get_session_via_id(session_id).unwrap();
+                                let session = self
+                                    .common
+                                    .get_session_via_id(session_id)
+                                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                                 session.teardown();
                                 return Err(SPDM_STATUS_VERIF_FAIL);
                             } else {
@@ -289,7 +295,7 @@ impl RequesterContext {
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             let psk_without_context = self
                                 .common
                                 .negotiate_info
@@ -306,14 +312,20 @@ impl RequesterContext {
 
                                 debug!("!!! th2 : {:02x?}\n", th2.as_ref());
 
-                                let session = self.common.get_session_via_id(session_id).unwrap();
+                                let session = self
+                                    .common
+                                    .get_session_via_id(session_id)
+                                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                                 session.generate_data_secret(spdm_version_sel, &th2)?;
                                 session.set_session_state(
                                     crate::common::session::SpdmSessionState::SpdmSessionEstablished,
                                 );
                             }
 
-                            let session = self.common.get_session_via_id(session_id).unwrap();
+                            let session = self
+                                .common
+                                .get_session_via_id(session_id)
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             session.secure_spdm_version_sel = secure_spdm_version_sel;
                             session.heartbeat_period = psk_exchange_rsp.heartbeat_period;
 

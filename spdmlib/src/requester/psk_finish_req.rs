@@ -4,7 +4,7 @@
 
 use crate::error::{
     SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER,
+    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_LOCAL,
 };
 use crate::message::*;
 use crate::protocol::*;
@@ -44,7 +44,7 @@ impl RequesterContext {
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
-                .unwrap()
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
             return Err(res.err().unwrap());
         }
@@ -55,7 +55,7 @@ impl RequesterContext {
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
-                .unwrap()
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
             return res;
         }
@@ -67,7 +67,7 @@ impl RequesterContext {
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
-                .unwrap()
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
             return Err(res.err().unwrap());
         }
@@ -108,12 +108,15 @@ impl RequesterContext {
         let session = self
             .common
             .get_immutable_session_via_id(session_id)
-            .unwrap();
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let transcript_hash =
             self.common
                 .calc_req_transcript_hash(true, INVALID_SLOT, false, session)?;
 
-        let session = self.common.get_session_via_id(session_id).unwrap();
+        let session = self
+            .common
+            .get_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let hmac = session.generate_hmac_with_request_finished_key(transcript_hash.as_ref())?;
 
         self.common
@@ -153,7 +156,7 @@ impl RequesterContext {
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             let th2 = self.common.calc_req_transcript_hash(
                                 true,
@@ -164,7 +167,10 @@ impl RequesterContext {
 
                             debug!("!!! th2 : {:02x?}\n", th2.as_ref());
 
-                            let session = self.common.get_session_via_id(session_id).unwrap();
+                            let session = self
+                                .common
+                                .get_session_via_id(session_id)
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             session.generate_data_secret(spdm_version_sel, &th2)?;
                             session.set_session_state(
                                 crate::common::session::SpdmSessionState::SpdmSessionEstablished,

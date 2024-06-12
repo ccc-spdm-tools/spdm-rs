@@ -12,7 +12,6 @@ use crate::error::SPDM_STATUS_CRYPTO_ERROR;
 use crate::error::SPDM_STATUS_ERROR_PEER;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_PARAMETER;
-#[cfg(feature = "hashed-transcript-data")]
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::SPDM_STATUS_SESSION_NUMBER_EXCEED;
 use crate::error::SPDM_STATUS_VERIF_FAIL;
@@ -296,7 +295,7 @@ impl RequesterContext {
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             // verify signature
                             if self
@@ -321,7 +320,7 @@ impl RequesterContext {
                             let session = self
                                 .common
                                 .get_immutable_session_via_id(session_id)
-                                .unwrap();
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             // generate the handshake secret (including finished_key) before verify HMAC
                             let th1 = self
@@ -329,14 +328,17 @@ impl RequesterContext {
                                 .calc_req_transcript_hash(false, slot_id, false, session)?;
                             debug!("!!! th1 : {:02x?}\n", th1.as_ref());
 
-                            let session = self.common.get_session_via_id(session_id).unwrap();
+                            let session = self
+                                .common
+                                .get_session_via_id(session_id)
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             session.generate_handshake_secret(spdm_version_sel, &th1)?;
 
                             if !in_clear_text {
                                 let session = self
                                     .common
                                     .get_immutable_session_via_id(session_id)
-                                    .unwrap();
+                                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                                 // verify HMAC with finished_key
                                 let transcript_hash = self
@@ -346,7 +348,7 @@ impl RequesterContext {
                                 let session = self
                                     .common
                                     .get_immutable_session_via_id(session_id)
-                                    .unwrap();
+                                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                                 if session
                                     .verify_hmac_with_response_finished_key(
@@ -356,8 +358,10 @@ impl RequesterContext {
                                     .is_err()
                                 {
                                     error!("verify_hmac_with_response_finished_key fail");
-                                    let session =
-                                        self.common.get_session_via_id(session_id).unwrap();
+                                    let session = self
+                                        .common
+                                        .get_session_via_id(session_id)
+                                        .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                                     session.teardown();
                                     return Err(SPDM_STATUS_VERIF_FAIL);
                                 } else {
@@ -373,15 +377,20 @@ impl RequesterContext {
                                     )
                                     .is_err()
                                 {
-                                    let session =
-                                        self.common.get_session_via_id(session_id).unwrap();
+                                    let session = self
+                                        .common
+                                        .get_session_via_id(session_id)
+                                        .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                                     session.teardown();
                                     return Err(SPDM_STATUS_BUFFER_FULL);
                                 }
                             }
 
                             // append verify_data after TH1
-                            let session = self.common.get_session_via_id(session_id).unwrap();
+                            let session = self
+                                .common
+                                .get_session_via_id(session_id)
+                                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             session.secure_spdm_version_sel = secure_spdm_version_sel;
                             session.heartbeat_period = key_exchange_rsp.heartbeat_period;

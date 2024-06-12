@@ -127,7 +127,10 @@ impl ResponderContext {
                 };
 
             let heartbeat_period = {
-                let session = self.common.get_session_via_id(session_id).unwrap();
+                let session = self
+                    .common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                 session.set_session_state(
                     crate::common::session::SpdmSessionState::SpdmSessionEstablished,
                 );
@@ -151,7 +154,10 @@ impl ResponderContext {
 
             self.common.runtime_info.set_last_session_id(None);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseEndSessionAck.get_u8() {
-            let session = self.common.get_session_via_id(session_id.unwrap()).unwrap();
+            let session = self
+                .common
+                .get_session_via_id(session_id.unwrap())
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
             session.teardown();
         } else if (opcode == SpdmRequestResponseCode::SpdmResponseFinishRsp.get_u8()
             || opcode == SpdmRequestResponseCode::SpdmResponsePskFinishRsp.get_u8())
@@ -161,7 +167,10 @@ impl ResponderContext {
             let session_id = session_id.unwrap();
 
             let heartbeat_period = {
-                let session = self.common.get_session_via_id(session_id).unwrap();
+                let session = self
+                    .common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                 session.set_session_state(
                     crate::common::session::SpdmSessionState::SpdmSessionEstablished,
                 );

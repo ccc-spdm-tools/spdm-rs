@@ -120,10 +120,15 @@ impl SpdmKeySchedule {
                 return None;
             }
         } else {
+            let empty_pskhint = SpdmPskHintStruct::default();
             secret::psk::handshake_secret_hkdf_expand(
                 spdm_version,
                 hash_algo,
-                psk_hint.unwrap(),
+                if let Some(hint) = psk_hint {
+                    hint
+                } else {
+                    &empty_pskhint
+                },
                 bin_str1,
             )?
         };
@@ -162,10 +167,15 @@ impl SpdmKeySchedule {
                 return None;
             }
         } else {
+            let empty_pskhint = SpdmPskHintStruct::default();
             secret::psk::handshake_secret_hkdf_expand(
                 spdm_version,
                 hash_algo,
-                psk_hint.unwrap(),
+                if let Some(hint) = psk_hint {
+                    hint
+                } else {
+                    &empty_pskhint
+                },
                 bin_str2,
             )?
         };
@@ -295,10 +305,15 @@ impl SpdmKeySchedule {
                 return None;
             }
         } else {
+            let empty_pskhint = SpdmPskHintStruct::default();
             secret::psk::master_secret_hkdf_expand(
                 spdm_version,
                 hash_algo,
-                psk_hint.unwrap(),
+                if let Some(hint) = psk_hint {
+                    hint
+                } else {
+                    &empty_pskhint
+                },
                 bin_str3,
             )?
         };
@@ -337,10 +352,15 @@ impl SpdmKeySchedule {
                 return None;
             }
         } else {
+            let empty_pskhint = SpdmPskHintStruct::default();
             secret::psk::master_secret_hkdf_expand(
                 spdm_version,
                 hash_algo,
-                psk_hint.unwrap(),
+                if let Some(hint) = psk_hint {
+                    hint
+                } else {
+                    &empty_pskhint
+                },
                 bin_str4,
             )?
         };
@@ -378,10 +398,15 @@ impl SpdmKeySchedule {
                 return None;
             }
         } else {
+            let empty_pskhint = SpdmPskHintStruct::default();
             secret::psk::master_secret_hkdf_expand(
                 spdm_version,
                 hash_algo,
-                psk_hint.unwrap(),
+                if let Some(hint) = psk_hint {
+                    hint
+                } else {
+                    &empty_pskhint
+                },
                 bin_str8,
             )?
         };

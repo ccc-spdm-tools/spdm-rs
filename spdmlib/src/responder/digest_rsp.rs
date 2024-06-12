@@ -5,6 +5,7 @@
 use crate::common::SpdmCodec;
 use crate::common::SpdmConnectionState;
 use crate::crypto;
+use crate::error::SPDM_STATUS_CRYPTO_ERROR;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::SPDM_STATUS_INVALID_STATE_PEER;
@@ -136,8 +137,13 @@ impl ResponderContext {
                 let cert_chain_hash = crypto::hash::hash_all(
                     self.common.negotiate_info.base_hash_sel,
                     my_cert_chain.as_ref(),
-                )
-                .unwrap();
+                );
+
+                let cert_chain_hash = if let Some(hash) = cert_chain_hash {
+                    hash
+                } else {
+                    return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+                };
 
                 // patch the message before send
                 let used = writer.used();

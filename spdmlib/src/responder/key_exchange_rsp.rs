@@ -218,7 +218,12 @@ impl ResponderContext {
             .set_local_used_cert_chain_slot_id(key_exchange_req.slot_id);
 
         let (exchange, key_exchange_context) =
-            crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel).unwrap();
+            if let Some(kp) = crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel) {
+                kp
+            } else {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+            };
 
         debug!("!!! exchange data : {:02x?}\n", exchange);
 
@@ -394,10 +399,15 @@ impl ResponderContext {
             );
         }
 
-        let session = self
-            .common
-            .get_immutable_session_via_id(session_id)
-            .unwrap();
+        let session = if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
 
         let signature = self.generate_key_exchange_rsp_signature(slot_id as u8, session);
         if signature.is_err() {
@@ -418,10 +428,15 @@ impl ResponderContext {
             );
         }
 
-        let session = self
-            .common
-            .get_immutable_session_via_id(session_id)
-            .unwrap();
+        let session = if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
 
         // generate the handshake secret (including finished_key) before generate HMAC
         let th1 = self
@@ -434,17 +449,31 @@ impl ResponderContext {
         let th1 = th1.unwrap();
         debug!("!!! th1 : {:02x?}\n", th1.as_ref());
 
-        let session = self.common.get_session_via_id(session_id).unwrap();
+        let session = if let Some(session) = self.common.get_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
         if let Err(e) = session.generate_handshake_secret(spdm_version_sel, &th1) {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(e), Some(writer.used_slice()));
         }
 
         if !in_clear_text {
-            let session = self
-                .common
-                .get_immutable_session_via_id(session_id)
-                .unwrap();
+            let session =
+                if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
+                    session
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                        Some(writer.used_slice()),
+                    );
+                };
 
             // generate HMAC with finished_key
             let transcript_hash =
@@ -456,7 +485,15 @@ impl ResponderContext {
             }
             let transcript_hash = transcript_hash.unwrap();
 
-            let session = self.common.get_session_via_id(session_id).unwrap();
+            let session = if let Some(session) = self.common.get_session_via_id(session_id) {
+                session
+            } else {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (
+                    Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                    Some(writer.used_slice()),
+                );
+            };
 
             let hmac = session.generate_hmac_with_response_finished_key(transcript_hash.as_ref());
             if hmac.is_err() {
@@ -472,7 +509,15 @@ impl ResponderContext {
                 .append_message_k(session_id, hmac.as_ref())
                 .is_err()
             {
-                let session = self.common.get_session_via_id(session_id).unwrap();
+                let session = if let Some(session) = self.common.get_session_via_id(session_id) {
+                    session
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                        Some(writer.used_slice()),
+                    );
+                };
                 session.teardown();
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (
@@ -489,14 +534,29 @@ impl ResponderContext {
         }
 
         let heartbeat_period = self.common.config_info.heartbeat_period;
-        let session = self.common.get_session_via_id(session_id).unwrap();
+        let session = if let Some(session) = self.common.get_session_via_id(session_id) {
+            session
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Some(writer.used_slice()),
+            );
+        };
 
         session.heartbeat_period = heartbeat_period;
         if return_opaque.data_size != 0 {
-            session.secure_spdm_version_sel = SecuredMessageVersion::try_from(
+            session.secure_spdm_version_sel = if let Ok(svs) = SecuredMessageVersion::try_from(
                 return_opaque.data[return_opaque.data_size as usize - 1],
-            )
-            .unwrap();
+            ) {
+                svs
+            } else {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                return (
+                    Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                    Some(writer.used_slice()),
+                );
+            };
         }
 
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);

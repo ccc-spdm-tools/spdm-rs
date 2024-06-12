@@ -147,8 +147,13 @@ impl ResponderContext {
         let cert_chain_hash = crypto::hash::hash_all(
             self.common.negotiate_info.base_hash_sel,
             my_cert_chain.as_ref(),
-        )
-        .unwrap();
+        );
+        let cert_chain_hash = if let Some(hash) = cert_chain_hash {
+            hash
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+        };
 
         let mut nonce = [0u8; SPDM_NONCE_SIZE];
         let res = crypto::rand::get_random(&mut nonce);
@@ -238,7 +243,7 @@ impl ResponderContext {
                 .digest_context_m1m2
                 .as_ref()
                 .cloned()
-                .unwrap(),
+                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?,
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
 
