@@ -101,7 +101,7 @@ impl RequesterContext {
         }
 
         let offset = get_certificate.offset;
-        if offset > my_cert_chain.data_size {
+        if offset >= my_cert_chain.data_size {
             self.encode_encap_error_response(
                 SpdmErrorCode::SpdmErrorInvalidRequest,
                 0,
