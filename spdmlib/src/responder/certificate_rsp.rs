@@ -125,7 +125,7 @@ impl ResponderContext {
         }
 
         let offset = get_certificate.offset;
-        if offset > my_cert_chain.data_size {
+        if offset >= my_cert_chain.data_size {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_MSG_FIELD),
