@@ -150,7 +150,7 @@ jobs:
           name: coverage_data-${{ github.sha }}
           path: coverage/
       - name: Upload coverage reports to Codecov with GitHub Action
-        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4.4.1
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
           files: coverage/lcov.info
           fail_ci_if_error: false
