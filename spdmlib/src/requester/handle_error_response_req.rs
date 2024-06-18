@@ -7,7 +7,8 @@ use codec::{Codec, Reader};
 use crate::common::session::SpdmSessionState;
 use crate::error::{
     SpdmResult, SPDM_STATUS_BUSY_PEER, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_NOT_READY_PEER, SPDM_STATUS_SESSION_MSG_ERROR,
+    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_PEER, SPDM_STATUS_NOT_READY_PEER,
+    SPDM_STATUS_SESSION_MSG_ERROR,
 };
 use crate::message::*;
 use crate::requester::RequesterContext;
@@ -33,7 +34,7 @@ impl RequesterContext {
                 };
                 session.set_session_state(SpdmSessionState::SpdmSessionNotStarted);
             }
-            Err(SPDM_STATUS_INVALID_PARAMETER)
+            Err(SPDM_STATUS_INVALID_STATE_PEER)
         } else {
             Err(SPDM_STATUS_ERROR_PEER)
         }
