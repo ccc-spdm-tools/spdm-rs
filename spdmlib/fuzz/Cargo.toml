@@ -10,6 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 fuzzlib = { path = "../../fuzz-target/fuzzlib", default-features = false }
+serde = "=1.0.198"
 
 [dependencies.spdmlib]
 path = ".."
