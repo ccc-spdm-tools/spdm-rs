@@ -64,39 +64,6 @@ use alloc::sync::Arc;
 use core::ops::DerefMut;
 
 #[maybe_async::maybe_async]
-async fn send_receive_hello(
-    stream: Arc<Mutex<TcpStream>>,
-    transport_encap: Arc<Mutex<dyn common::SpdmTransportEncap + Send + Sync>>,
-    transport_type: u32,
-) {
-    println!("send test");
-    let mut payload = [0u8; 1024];
-
-    let mut transport_encap = transport_encap.lock();
-    let transport_encap = transport_encap.deref_mut();
-    let used = transport_encap
-        .encap(
-            Arc::new(b"Client Hello!\0"),
-            Arc::new(Mutex::new(&mut payload[..])),
-            false,
-        )
-        .await
-        .unwrap();
-
-    let _buffer_size = spdm_emu::spdm_emu::send_message(
-        stream.clone(),
-        transport_type,
-        SOCKET_SPDM_COMMAND_TEST,
-        &payload[0..used],
-    );
-    let mut buffer = [0u8; config::RECEIVER_BUFFER_SIZE];
-    let (_transport_type, _command, _payload) =
-        spdm_emu::spdm_emu::receive_message(stream, &mut buffer[..], ST1)
-            .await
-            .unwrap();
-}
-
-#[maybe_async::maybe_async]
 async fn send_receive_stop(
     stream: Arc<Mutex<TcpStream>>,
     transport_encap: Arc<Mutex<dyn common::SpdmTransportEncap + Send + Sync>>,
@@ -1534,16 +1501,6 @@ fn emu_main_inner() {
     } else {
         SOCKET_TRANSPORT_TYPE_MCTP
     };
-
-    #[cfg(not(feature = "is_sync"))]
-    block_on(Box::pin(send_receive_hello(
-        socket.clone(),
-        transport_encap.clone(),
-        transport_type,
-    )));
-
-    #[cfg(feature = "is_sync")]
-    send_receive_hello(socket.clone(), transport_encap.clone(), transport_type);
 
     let socket_io_transport = SocketIoTransport::new(socket.clone());
     let socket_io_transport: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>> =
