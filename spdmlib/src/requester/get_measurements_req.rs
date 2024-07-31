@@ -22,6 +22,7 @@ impl RequesterContext {
         session_id: Option<u32>,
         measurement_attributes: SpdmMeasurementAttributes,
         measurement_operation: SpdmMeasurementOperation,
+        spdm_nonce_struct: Option<SpdmNonceStruct>,
         content_changed: &mut Option<SpdmMeasurementContentChanged>,
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
         transcript_meas: &mut Option<ManagedBufferM>,
@@ -36,6 +37,7 @@ impl RequesterContext {
                 session_id,
                 measurement_attributes,
                 measurement_operation,
+                spdm_nonce_struct,
                 content_changed,
                 spdm_measurement_record_structure,
                 transcript_meas,
@@ -60,6 +62,7 @@ impl RequesterContext {
         session_id: Option<u32>,
         measurement_attributes: SpdmMeasurementAttributes,
         measurement_operation: SpdmMeasurementOperation,
+        spdm_nonce_struct: Option<SpdmNonceStruct>,
         content_changed: &mut Option<SpdmMeasurementContentChanged>,
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
         transcript_meas: &mut Option<ManagedBufferM>,
@@ -80,6 +83,7 @@ impl RequesterContext {
         let send_used = self.encode_spdm_measurement_record(
             measurement_attributes,
             measurement_operation,
+            spdm_nonce_struct,
             slot_id,
             &mut send_buffer,
         )?;
@@ -109,12 +113,18 @@ impl RequesterContext {
         &mut self,
         measurement_attributes: SpdmMeasurementAttributes,
         measurement_operation: SpdmMeasurementOperation,
+        spdm_nonce_struct: Option<SpdmNonceStruct>,
         slot_id: u8,
         buf: &mut [u8],
     ) -> SpdmResult<usize> {
         let mut writer = Writer::init(buf);
         let mut nonce = [0u8; SPDM_NONCE_SIZE];
-        crypto::rand::get_random(&mut nonce)?;
+
+        if let Some(n) = spdm_nonce_struct {
+            nonce.copy_from_slice(&n.data)
+        } else {
+            crypto::rand::get_random(&mut nonce)?;
+        }
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
@@ -284,11 +294,41 @@ impl RequesterContext {
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure, // out
         transcript_meas: &mut Option<ManagedBufferM>,                           // out
     ) -> SpdmResult {
+        self.send_receive_spdm_measurement_with_nonce(
+            session_id,
+            slot_id,
+            spdm_measuremente_attributes,
+            measurement_operation,
+            None,
+            content_changed,
+            out_total_number,
+            spdm_measurement_record_structure,
+            transcript_meas,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_measurement_with_nonce(
+        &mut self,
+        session_id: Option<u32>,
+        slot_id: u8,
+        spdm_measuremente_attributes: SpdmMeasurementAttributes,
+        measurement_operation: SpdmMeasurementOperation,
+        spdm_nonce_struct: Option<SpdmNonceStruct>,
+        content_changed: &mut Option<SpdmMeasurementContentChanged>, // out, None if spdm version < 0x12
+        out_total_number: &mut u8, // out, total number when measurement_operation = SpdmMeasurementQueryTotalNumber
+        //      number of blocks got measured.
+        spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure, // out
+        transcript_meas: &mut Option<ManagedBufferM>,                           // out
+    ) -> SpdmResult {
         *out_total_number = self
             .send_receive_spdm_measurement_record(
                 session_id,
                 spdm_measuremente_attributes,
                 measurement_operation,
+                spdm_nonce_struct,
                 content_changed,
                 spdm_measurement_record_structure,
                 transcript_meas,
