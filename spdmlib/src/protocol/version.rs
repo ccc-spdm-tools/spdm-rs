@@ -10,6 +10,7 @@ pub enum SpdmVersion {
     SpdmVersion10,
     SpdmVersion11,
     SpdmVersion12,
+    SpdmVersion13,
 }
 
 impl Default for SpdmVersion {
@@ -27,6 +28,8 @@ impl TryFrom<u8> for SpdmVersion {
             Ok(SpdmVersion::SpdmVersion11)
         } else if untrusted_spdm_version == 0x12 {
             Ok(SpdmVersion::SpdmVersion12)
+        } else if untrusted_spdm_version == 0x13 {
+            Ok(SpdmVersion::SpdmVersion13)
         } else {
             Err(())
         }
@@ -39,6 +42,7 @@ impl From<SpdmVersion> for u8 {
             SpdmVersion::SpdmVersion10 => 0x10,
             SpdmVersion::SpdmVersion11 => 0x11,
             SpdmVersion::SpdmVersion12 => 0x12,
+            SpdmVersion::SpdmVersion13 => 0x13,
         }
     }
 }
@@ -60,7 +64,7 @@ impl Codec for SpdmVersion {
     }
 }
 
-pub const MAX_SPDM_VERSION_COUNT: usize = 3;
+pub const MAX_SPDM_VERSION_COUNT: usize = 4;
 
 //SPDM V1.2 signing prefix context
 pub const SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT: [u8; 64] = [
