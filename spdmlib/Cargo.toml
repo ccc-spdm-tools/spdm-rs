@@ -3,7 +3,8 @@ name = "spdmlib"
 version = "0.1.0"
 authors = [
     "Jiewen Yao <jiewen.yao@intel.com>",
-    "Xiaoyu Lu <xiaoyux.lu@intel.com>"
+    "Xiaoyu Lu <xiaoyux.lu@intel.com>",
+    "Stanislaw Grams <stanislaw.grams@intel.com>"
     ]
 edition = "2018"
 license = "Apache-2.0 or MIT"
@@ -50,3 +51,4 @@ hashed-transcript-data = []
 mut-auth = []
 mandatory-mut-auth = ["mut-auth"]
 is_sync = ["maybe-async/is_sync"]
+fips = []
