@@ -14,11 +14,12 @@ use crate::{
     },
 };
 
+use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
+
 use crate::crypto::fips::cavs_vectors::gcmDecrypt256;
 use crate::crypto::fips::cavs_vectors::gcmEncryptExtIV256;
-use crate::crypto::fips::SelfTestError;
 
-pub fn run_self_test() -> Result<(), SelfTestError> {
+pub fn run_self_tests() -> SpdmResult {
     // encrypt
     match encrypt_self_test() {
         Ok(v) => v,
@@ -34,7 +35,7 @@ pub fn run_self_test() -> Result<(), SelfTestError> {
     Ok(())
 }
 
-pub fn encrypt_self_test() -> Result<(), SelfTestError> {
+pub fn encrypt_self_test() -> SpdmResult {
     let aead_algo = SpdmAeadAlgo::AES_256_GCM;
     let cavs_vectors = gcmEncryptExtIV256::get_cavs_vectors();
 
@@ -44,7 +45,7 @@ pub fn encrypt_self_test() -> Result<(), SelfTestError> {
             || cv.iv.len() != aead_algo.get_iv_size() as usize
             || cv.tag.len() != aead_algo.get_tag_size() as usize
         {
-            return Err(SelfTestError::SelfTestFailed);
+            return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
 
         let mut key = &mut SpdmAeadKeyStruct {
@@ -74,17 +75,17 @@ pub fn encrypt_self_test() -> Result<(), SelfTestError> {
             encrypt(aead_algo, key, iv, aad, pt, out_tag, out_ct).unwrap();
 
         if tag != &out_tag[0..out_tag_len] {
-            return Err(SelfTestError::SelfTestFailed);
+            return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
         if ct != &out_ct[0..out_ct_len] {
-            return Err(SelfTestError::SelfTestFailed);
+            return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
     }
 
     Ok(())
 }
 
-pub fn decrypt_self_test() -> Result<(), SelfTestError> {
+pub fn decrypt_self_test() -> SpdmResult {
     let aead_algo = SpdmAeadAlgo::AES_256_GCM;
     let cavs_vectors = gcmDecrypt256::get_cavs_vectors();
 
@@ -94,7 +95,7 @@ pub fn decrypt_self_test() -> Result<(), SelfTestError> {
             || cv.iv.len() != aead_algo.get_iv_size() as usize
             || cv.tag.len() != aead_algo.get_tag_size() as usize
         {
-            return Err(SelfTestError::SelfTestFailed);
+            return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
 
         let mut key = &mut SpdmAeadKeyStruct {
@@ -122,10 +123,10 @@ pub fn decrypt_self_test() -> Result<(), SelfTestError> {
         let out_pt_len = decrypt(aead_algo, key, iv, aad, ct, tag, out_pt).unwrap();
 
         if out_pt_len != pt.len() {
-            return Err(SelfTestError::SelfTestFailed);
+            return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
         if out_pt != pt {
-            return Err(SelfTestError::SelfTestFailed);
+            return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
     }
 

@@ -6,44 +6,35 @@
 
 use super::*;
 
+use crate::error::SpdmResult;
+
 mod aead_st;
 mod asym_verify_st;
 mod cavs_vectors;
 mod dhe_st;
 mod hash_st;
-mod hkdf_st;
-mod hmac_st;
 
-#[derive(Debug)]
-pub enum SelfTestError {
-    SelfTestFailed,
-    Unsupported,
-}
-
-pub fn run_self_tests() -> Result<(), SelfTestError> {
+pub fn run_self_tests() -> SpdmResult {
     // aead
-    match aead_st::run_self_test() {
+    match aead_st::run_self_tests() {
         Ok(v) => v,
         Err(e) => return Err(e),
     };
 
     // asym_verify
-    // TBD
-
-    // dhe
-    // TBD
-
-    // hash
-    match hash_st::run_self_test() {
+    match asym_verify_st::run_self_tests() {
         Ok(v) => v,
         Err(e) => return Err(e),
     };
 
-    // hkdf
-    // TBD
+    // dhe
+    match dhe_st::run_self_tests() {
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
 
-    // hmac
-    match hmac_st::run_self_test() {
+    // hash
+    match hash_st::run_self_tests() {
         Ok(v) => v,
         Err(e) => return Err(e),
     };
