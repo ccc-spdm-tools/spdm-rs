@@ -6,13 +6,13 @@
 
 use super::*;
 
-use crate::error::SpdmResult;
-
 mod aead_st;
 mod asym_verify_st;
 mod cavs_vectors;
 mod dhe_st;
 mod hash_st;
+
+use crate::error::SpdmResult;
 
 pub fn run_self_tests() -> SpdmResult {
     // aead
