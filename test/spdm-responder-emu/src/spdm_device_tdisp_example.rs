@@ -130,9 +130,6 @@ impl Codec for TdiReportStructure {
 
 #[derive(Debug, Clone)]
 pub struct DeviceContext {
-    pub bus: u8,
-    pub device: u8,
-    pub function: u8,
     pub negotiated_version: Option<TdispVersion>,
     pub interface_id: InterfaceId,
     pub dsm_caps: u32,
