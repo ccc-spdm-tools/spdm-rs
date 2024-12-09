@@ -10,7 +10,7 @@ edition = "2018"
 fuzzlib = { path = "../../fuzzlib", default-features = false }
 log = "0.4.13"
 simple_logger = "4.2.0"
-afl = { version = "=0.12.12", optional = true }
+afl = { version = "=0.15.12", optional = true }
 futures = { version = "0.3", default-features = false }
 async-trait = "0.1.71"
 async-recursion = "1.0.4"
