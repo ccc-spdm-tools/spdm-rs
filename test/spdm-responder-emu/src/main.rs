@@ -30,7 +30,6 @@ use tdisp::pci_tdisp::{
 use tdisp::pci_tdisp_responder::pci_tdisp_rsp_dispatcher;
 
 use std::net::{TcpListener, TcpStream};
-use std::u32;
 
 use codec::{Codec, Reader, Writer};
 use common::SpdmTransportEncap;
@@ -145,9 +144,6 @@ fn emu_main_inner() {
     spdmlib::secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
 
     let tdisp_rsp_context = DeviceContext {
-        bus: 0x2a,
-        device: 0x00,
-        function: 0x00,
         negotiated_version: None,
         interface_id: InterfaceId {
             function_id: FunctionId {
