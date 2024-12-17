@@ -23,3 +23,4 @@ maybe-async = "0.2.7"
 
 [features]
 is_sync = ["spdmlib/is_sync", "maybe-async/is_sync"]
+std = []

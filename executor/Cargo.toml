@@ -11,3 +11,4 @@ woke = "0"
 spin = "0"
 
 [features]
+std = []
