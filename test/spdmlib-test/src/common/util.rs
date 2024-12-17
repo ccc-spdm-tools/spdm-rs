@@ -177,7 +177,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SpdmVersion::SpdmVersion10),
             Some(SpdmVersion::SpdmVersion11),
             Some(SpdmVersion::SpdmVersion12),
-            None,
+            Some(SpdmVersion::SpdmVersion13),
         ],
         req_capabilities: req_capabilities,
         req_ct_exponent: 0,
