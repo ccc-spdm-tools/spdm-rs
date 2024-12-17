@@ -80,6 +80,8 @@ fn test_case0_handle_spdm_version() {
             assert_eq!(payload.versions[1].version, SpdmVersion::SpdmVersion11);
             assert_eq!(payload.versions[2].update, 0);
             assert_eq!(payload.versions[2].version, SpdmVersion::SpdmVersion12);
+            assert_eq!(payload.versions[3].update, 0);
+            assert_eq!(payload.versions[3].version, SpdmVersion::SpdmVersion13);
         }
     };
     executor::block_on(future);
