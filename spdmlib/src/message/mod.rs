@@ -606,6 +606,12 @@ mod tests {
 
     #[test]
     fn test_case0_spdm_message() {
+        let mut versions = gen_array_clone(SpdmVersionStruct::default(), MAX_SPDM_VERSION_COUNT);
+        versions[0].update = 100;
+        versions[0].version = SpdmVersion::SpdmVersion10;
+        versions[1].update = 100;
+        versions[1].version = SpdmVersion::SpdmVersion11;
+
         let value = SpdmMessage {
             header: SpdmMessageHeader {
                 version: SpdmVersion::SpdmVersion10,
@@ -613,13 +619,7 @@ mod tests {
             },
             payload: SpdmMessagePayload::SpdmVersionResponse(SpdmVersionResponsePayload {
                 version_number_entry_count: 0x02,
-                versions: gen_array_clone(
-                    SpdmVersionStruct {
-                        update: 100,
-                        version: SpdmVersion::SpdmVersion11,
-                    },
-                    MAX_SPDM_VERSION_COUNT,
-                ),
+                versions,
             }),
         };
 
@@ -633,10 +633,10 @@ mod tests {
         );
         if let SpdmMessagePayload::SpdmVersionResponse(payload) = &spdm_message.payload {
             assert_eq!(payload.version_number_entry_count, 0x02);
-            for i in 0..2 {
-                assert_eq!(payload.versions[i].update, 100);
-                assert_eq!(payload.versions[i].version, SpdmVersion::SpdmVersion11);
-            }
+            assert_eq!(payload.versions[0].update, 100);
+            assert_eq!(payload.versions[0].version, SpdmVersion::SpdmVersion10);
+            assert_eq!(payload.versions[1].update, 100);
+            assert_eq!(payload.versions[1].version, SpdmVersion::SpdmVersion11);
         }
     }
     #[test]

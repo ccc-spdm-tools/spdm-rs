@@ -106,18 +106,20 @@ impl SpdmCodec for SpdmVersionResponsePayload {
             },
             MAX_SPDM_VERSION_COUNT,
         );
+        let mut version_exist_map: [u8; MAX_SPDM_VERSION_COUNT] = [0; MAX_SPDM_VERSION_COUNT];
 
         let mut version_count = 0;
         let rest = r.take(version_number_entry_count as usize * 2)?;
 
         for i in 0..version_number_entry_count {
             if let Some(ver) = SpdmVersionStruct::read_bytes(&rest[i as usize * 2..]) {
-                if version_count < MAX_SPDM_VERSION_COUNT {
+                let index = ver.version as usize;
+                if version_exist_map[index] == 0 {
+                    version_exist_map[index] = 1;
                     versions[version_count] = ver;
                     version_count += 1;
                 } else {
-                    // the buffer is full now, stop for scaning more versions
-                    break;
+                    // for duplicated version, ignore it
                 }
             } else {
                 // for unknown versions,
@@ -180,15 +182,15 @@ mod tests {
     fn test_case0_spdm_version_response_payload() {
         let u8_slice = &mut [0u8; 8];
         let mut writer = Writer::init(u8_slice);
+        let mut versions = gen_array_clone(SpdmVersionStruct::default(), MAX_SPDM_VERSION_COUNT);
+        versions[0].update = 100;
+        versions[0].version = SpdmVersion::SpdmVersion10;
+        versions[1].update = 100;
+        versions[1].version = SpdmVersion::SpdmVersion11;
+
         let value = SpdmVersionResponsePayload {
             version_number_entry_count: 2u8,
-            versions: gen_array_clone(
-                SpdmVersionStruct {
-                    update: 100u8,
-                    version: SpdmVersion::SpdmVersion10,
-                },
-                MAX_SPDM_VERSION_COUNT,
-            ),
+            versions,
         };
 
         create_spdm_context!(context);
@@ -200,13 +202,16 @@ mod tests {
             SpdmVersionResponsePayload::spdm_read(&mut context, &mut reader).unwrap();
 
         assert_eq!(version_response.version_number_entry_count, 2u8);
-        for i in 0..2 {
-            assert_eq!(version_response.versions[i].update, 100u8);
-            assert_eq!(
-                version_response.versions[i].version,
-                SpdmVersion::SpdmVersion10
-            );
-        }
+        assert_eq!(version_response.versions[0].update, 100);
+        assert_eq!(
+            version_response.versions[0].version,
+            SpdmVersion::SpdmVersion10
+        );
+        assert_eq!(version_response.versions[1].update, 100);
+        assert_eq!(
+            version_response.versions[1].version,
+            SpdmVersion::SpdmVersion11
+        );
         assert_eq!(0, reader.left());
     }
     #[test]
