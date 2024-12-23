@@ -51,7 +51,12 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             | SpdmResponseCapabilityFlags::HBEAT_CAP
             | SpdmResponseCapabilityFlags::KEY_UPD_CAP
             | SpdmResponseCapabilityFlags::MUT_AUTH_CAP
-            | SpdmResponseCapabilityFlags::ENCAP_CAP,
+            | SpdmResponseCapabilityFlags::EP_INFO_CAP_NO_SIG
+            | SpdmResponseCapabilityFlags::MEL_CAP
+            | SpdmResponseCapabilityFlags::EVENT_CAP
+            | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
+            | SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP
+            | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP,
         req_capabilities: SpdmRequestCapabilityFlags::CERT_CAP
             | SpdmRequestCapabilityFlags::ENCRYPT_CAP
             | SpdmRequestCapabilityFlags::MAC_CAP
@@ -60,7 +65,9 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             | SpdmRequestCapabilityFlags::HBEAT_CAP
             | SpdmRequestCapabilityFlags::KEY_UPD_CAP
             | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
-            | SpdmRequestCapabilityFlags::ENCAP_CAP,
+            | SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG
+            | SpdmRequestCapabilityFlags::EVENT_CAP
+            | SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY,
         rsp_ct_exponent: 0,
         req_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
@@ -166,7 +173,10 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         | SpdmRequestCapabilityFlags::HBEAT_CAP
         // | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
         // | SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP
-        | SpdmRequestCapabilityFlags::KEY_UPD_CAP;
+        | SpdmRequestCapabilityFlags::KEY_UPD_CAP
+        | SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG
+        | SpdmRequestCapabilityFlags::EVENT_CAP
+        | SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY;
     let req_capabilities = if cfg!(feature = "mut-auth") {
         req_capabilities | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
     } else {
@@ -296,7 +306,13 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         | SpdmResponseCapabilityFlags::HBEAT_CAP
         // | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
         // | SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP
-        | SpdmResponseCapabilityFlags::KEY_UPD_CAP;
+        | SpdmResponseCapabilityFlags::KEY_UPD_CAP
+        | SpdmResponseCapabilityFlags::EP_INFO_CAP_NO_SIG
+        | SpdmResponseCapabilityFlags::MEL_CAP
+        | SpdmResponseCapabilityFlags::EVENT_CAP
+        | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
+        | SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP
+        | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP;
     let rsp_capabilities = if cfg!(feature = "mut-auth") {
         rsp_capabilities | SpdmResponseCapabilityFlags::MUT_AUTH_CAP
     } else {

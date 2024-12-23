@@ -54,7 +54,19 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmGetCapabilitiesRequestPayload> {
-        u8::read(r)?; // param1
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            let param1 = SpdmCapabilityParam1::read(r)?; // param1
+            if param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP)
+                && !context
+                    .config_info
+                    .rsp_capabilities
+                    .contains(SpdmResponseCapabilityFlags::CHUNK_CAP)
+            {
+                return None;
+            }
+        } else {
+            u8::read(r)?; // param1
+        }
         u8::read(r)?; // param2
 
         let mut ct_exponent = 0;
@@ -75,13 +87,20 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 if !flags.contains(SpdmRequestCapabilityFlags::MAC_CAP) {
                     return None;
                 }
-            } else if flags.contains(SpdmRequestCapabilityFlags::MAC_CAP)
-                || flags.contains(SpdmRequestCapabilityFlags::ENCRYPT_CAP)
-                || flags.contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
-                || flags.contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
-                || flags.contains(SpdmRequestCapabilityFlags::KEY_UPD_CAP)
-            {
-                return None;
+            } else {
+                if flags.contains(SpdmRequestCapabilityFlags::MAC_CAP)
+                    || flags.contains(SpdmRequestCapabilityFlags::ENCRYPT_CAP)
+                    || flags.contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
+                    || flags.contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
+                    || flags.contains(SpdmRequestCapabilityFlags::KEY_UPD_CAP)
+                {
+                    return None;
+                }
+                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                    && flags.contains(SpdmRequestCapabilityFlags::EVENT_CAP)
+                {
+                    return None;
+                }
             }
             if !flags.contains(SpdmRequestCapabilityFlags::KEY_EX_CAP)
                 && flags.contains(SpdmRequestCapabilityFlags::PSK_CAP)
@@ -102,10 +121,17 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 {
                     return None;
                 }
-            } else if flags.contains(SpdmRequestCapabilityFlags::CHAL_CAP)
-                || flags.contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
-            {
-                return None;
+            } else {
+                if flags.contains(SpdmRequestCapabilityFlags::CHAL_CAP)
+                    || flags.contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
+                {
+                    return None;
+                }
+                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                    && flags.contains(SpdmRequestCapabilityFlags::EP_INFO_CAP_SIG)
+                {
+                    return None;
+                }
             }
 
             if context.negotiate_info.spdm_version_sel == SpdmVersion::SpdmVersion11
@@ -113,6 +139,25 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 && !flags.contains(SpdmRequestCapabilityFlags::ENCAP_CAP)
             {
                 return None;
+            }
+
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                if flags.contains(SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG)
+                    && flags.contains(SpdmRequestCapabilityFlags::EP_INFO_CAP_SIG)
+                {
+                    return None;
+                }
+                if flags.contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                    && flags.contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
+                {
+                    return None;
+                }
+                if flags.contains(SpdmRequestCapabilityFlags::PUB_KEY_ID_CAP)
+                    && (flags.contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                        || flags.contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL))
+                {
+                    return None;
+                }
             }
         }
 
@@ -228,13 +273,20 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 if !flags.contains(SpdmResponseCapabilityFlags::MAC_CAP) {
                     return None;
                 }
-            } else if flags.contains(SpdmResponseCapabilityFlags::MAC_CAP)
-                || flags.contains(SpdmResponseCapabilityFlags::ENCRYPT_CAP)
-                || flags.contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
-                || flags.contains(SpdmResponseCapabilityFlags::HBEAT_CAP)
-                || flags.contains(SpdmResponseCapabilityFlags::KEY_UPD_CAP)
-            {
-                return None;
+            } else {
+                if flags.contains(SpdmResponseCapabilityFlags::MAC_CAP)
+                    || flags.contains(SpdmResponseCapabilityFlags::ENCRYPT_CAP)
+                    || flags.contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
+                    || flags.contains(SpdmResponseCapabilityFlags::HBEAT_CAP)
+                    || flags.contains(SpdmResponseCapabilityFlags::KEY_UPD_CAP)
+                {
+                    return None;
+                }
+                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                    && flags.contains(SpdmResponseCapabilityFlags::EVENT_CAP)
+                {
+                    return None;
+                }
             }
             if !flags.contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
                 && (flags.contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT)
@@ -257,12 +309,19 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 {
                     return None;
                 }
-            } else if flags.contains(SpdmResponseCapabilityFlags::CHAL_CAP)
-                || flags.contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
-                || flags.contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG)
-                || flags.contains(SpdmResponseCapabilityFlags::MUT_AUTH_CAP)
-            {
-                return None;
+            } else {
+                if flags.contains(SpdmResponseCapabilityFlags::CHAL_CAP)
+                    || flags.contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
+                    || flags.contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG)
+                    || flags.contains(SpdmResponseCapabilityFlags::MUT_AUTH_CAP)
+                {
+                    return None;
+                }
+                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                    && flags.contains(SpdmResponseCapabilityFlags::EP_INFO_CAP_SIG)
+                {
+                    return None;
+                }
             }
         }
         if context.negotiate_info.spdm_version_sel == SpdmVersion::SpdmVersion11
@@ -288,6 +347,29 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 && !flags.contains(SpdmResponseCapabilityFlags::SET_CERT_CAP)
             {
                 return None;
+            }
+        }
+
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if flags.contains(SpdmResponseCapabilityFlags::EP_INFO_CAP_NO_SIG)
+                && flags.contains(SpdmResponseCapabilityFlags::EP_INFO_CAP_SIG)
+            {
+                return None;
+            }
+            if flags.contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                && flags.contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
+            {
+                return None;
+            }
+            if flags.contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                || flags.contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
+            {
+                if flags.contains(SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP) {
+                    return None;
+                }
+                if !flags.contains(SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP) {
+                    return None;
+                }
             }
         }
 
