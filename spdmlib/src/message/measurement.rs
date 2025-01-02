@@ -22,7 +22,7 @@ pub const MEASUREMENT_RESPONDER_PARAM2_CONTENT_CHANGED_MASK: u8 = 0b0011_0000;
 bitflags! {
     #[derive(Default)]
     pub struct SpdmMeasurementAttributes: u8 {
-        const SIGNATURE_REQUESTED = 0b00000001;
+        const SIGNATURE_REQUESTED      = 0b0000_0001;
         const RAW_BIT_STREAM_REQUESTED = 0b0000_0010;
         const VALID_MASK = Self::SIGNATURE_REQUESTED.bits | Self::RAW_BIT_STREAM_REQUESTED.bits;
     }

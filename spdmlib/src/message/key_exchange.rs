@@ -115,9 +115,9 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
 bitflags! {
     #[derive(Default)]
     pub struct SpdmKeyExchangeMutAuthAttributes: u8 {
-        const MUT_AUTH_REQ = 0b00000001;
+        const MUT_AUTH_REQ =                    0b00000001;
         const MUT_AUTH_REQ_WITH_ENCAP_REQUEST = 0b00000010;
-        const MUT_AUTH_REQ_WITH_GET_DIGESTS = 0b00000100;
+        const MUT_AUTH_REQ_WITH_GET_DIGESTS =   0b00000100;
         const VALID_MASK = Self::MUT_AUTH_REQ.bits | Self::MUT_AUTH_REQ_WITH_ENCAP_REQUEST.bits | Self::MUT_AUTH_REQ_WITH_GET_DIGESTS.bits;
     }
 }
