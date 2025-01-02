@@ -521,11 +521,11 @@ impl Codec for ReqGetTdispCapabilities {
 bitflags! {
     #[derive(Default)]
     pub struct LockInterfaceFlag: u16 {
-        const NO_FW_UPDATE = 0b0000_0000_0000_0001;
+        const NO_FW_UPDATE           = 0b0000_0000_0000_0001;
         const SYSTEM_CACHE_LINE_SIZE = 0b0000_0000_0000_0010;
-        const LOCK_MSIX = 0b0000_0000_0000_0100;
-        const BIND_P2P = 0b0000_0000_0000_1000;
-        const ALL_REQUEST_REDIRECT = 0b0000_0000_0001_0000;
+        const LOCK_MSIX              = 0b0000_0000_0000_0100;
+        const BIND_P2P               = 0b0000_0000_0000_1000;
+        const ALL_REQUEST_REDIRECT   = 0b0000_0000_0001_0000;
         const VALID_MASK = Self::NO_FW_UPDATE.bits
         | Self::SYSTEM_CACHE_LINE_SIZE.bits
         | Self::LOCK_MSIX.bits
@@ -702,10 +702,10 @@ bitflags! {
     #[derive(Default)]
     pub struct InterfaceInfo: u16 {
         const DEVICE_FIRMWARE_UPDATES_NOT_PERMITTED = 0b0000_0000_0000_0001;
-        const DMA_REQUESTS_WITHOUT_PASID = 0b0000_0000_0000_0010;
-        const DMA_REQUESTS_WITH_PASID = 0b0000_0000_0000_0100;
-        const ATS_SUPPORTED_ENABLED = 0b0000_0000_0000_1000;
-        const PRS_SUPPORTED_ENABLED = 0b0000_0000_0001_0000;
+        const DMA_REQUESTS_WITHOUT_PASID            = 0b0000_0000_0000_0010;
+        const DMA_REQUESTS_WITH_PASID               = 0b0000_0000_0000_0100;
+        const ATS_SUPPORTED_ENABLED                 = 0b0000_0000_0000_1000;
+        const PRS_SUPPORTED_ENABLED                 = 0b0000_0000_0001_0000;
         const VALID_MASK = Self::DEVICE_FIRMWARE_UPDATES_NOT_PERMITTED.bits
         | Self::DMA_REQUESTS_WITHOUT_PASID.bits
         | Self::DMA_REQUESTS_WITH_PASID.bits
@@ -987,9 +987,9 @@ impl Codec for RspUnBindP2PStreamResponse {
 bitflags! {
     #[derive(Default)]
     pub struct MMIORangeAttribute: u16 {
-        const MSI_X_TABLE = 0b0000_0000_0000_0001;
-        const MSI_X_PBA = 0b0000_0000_0000_0010;
-        const IS_NON_TEE_MEM = 0b0000_0000_0000_0100;
+        const MSI_X_TABLE           = 0b0000_0000_0000_0001;
+        const MSI_X_PBA             = 0b0000_0000_0000_0010;
+        const IS_NON_TEE_MEM        = 0b0000_0000_0000_0100;
         const IS_MEM_ATTR_UPDATABLE = 0b0000_0000_0000_1000;
         const PRS_SUPPORTED_ENABLED = 0b0000_0000_0001_0000;
         const VALID_MASK = Self::MSI_X_TABLE.bits

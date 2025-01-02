@@ -104,14 +104,14 @@ impl SpdmMeasurementSpecification {
 bitflags! {
     #[derive(Default)]
     pub struct SpdmMeasurementHashAlgo: u32 {
-        const RAW_BIT_STREAM = 0b0000_0001;
-        const TPM_ALG_SHA_256 = 0b0000_0010;
-        const TPM_ALG_SHA_384 = 0b0000_0100;
-        const TPM_ALG_SHA_512 = 0b0000_1000;
+        const RAW_BIT_STREAM   = 0b0000_0001;
+        const TPM_ALG_SHA_256  = 0b0000_0010;
+        const TPM_ALG_SHA_384  = 0b0000_0100;
+        const TPM_ALG_SHA_512  = 0b0000_1000;
         const TPM_ALG_SHA3_256 = 0b0001_0000;
         const TPM_ALG_SHA3_384 = 0b0010_0000;
         const TPM_ALG_SHA3_512 = 0b0100_0000;
-        const TPM_ALG_SM3 = 0b1000_0000;
+        const TPM_ALG_SM3      = 0b1000_0000;
         const VALID_MASK = Self::RAW_BIT_STREAM.bits
             | Self::TPM_ALG_SHA_256.bits
             | Self::TPM_ALG_SHA_384.bits
@@ -169,13 +169,13 @@ impl Codec for SpdmMeasurementHashAlgo {
 bitflags! {
     #[derive(Default)]
     pub struct SpdmBaseAsymAlgo: u32 {
-        const TPM_ALG_RSASSA_2048 = 0b0000_0001;
-        const TPM_ALG_RSAPSS_2048 = 0b0000_0010;
-        const TPM_ALG_RSASSA_3072 = 0b0000_0100;
-        const TPM_ALG_RSAPSS_3072 = 0b0000_1000;
+        const TPM_ALG_RSASSA_2048         = 0b0000_0001;
+        const TPM_ALG_RSAPSS_2048         = 0b0000_0010;
+        const TPM_ALG_RSASSA_3072         = 0b0000_0100;
+        const TPM_ALG_RSAPSS_3072         = 0b0000_1000;
         const TPM_ALG_ECDSA_ECC_NIST_P256 = 0b0001_0000;
-        const TPM_ALG_RSASSA_4096 = 0b0010_0000;
-        const TPM_ALG_RSAPSS_4096 = 0b0100_0000;
+        const TPM_ALG_RSASSA_4096         = 0b0010_0000;
+        const TPM_ALG_RSAPSS_4096         = 0b0100_0000;
         const TPM_ALG_ECDSA_ECC_NIST_P384 = 0b1000_0000;
         const VALID_MASK = Self::TPM_ALG_RSASSA_2048.bits
             | Self::TPM_ALG_RSAPSS_2048.bits
@@ -399,8 +399,8 @@ impl Codec for SpdmDheAlgo {
 bitflags! {
     #[derive(Default)]
     pub struct SpdmAeadAlgo: u16 {
-        const AES_128_GCM = 0b0000_0001;
-        const AES_256_GCM = 0b0000_0010;
+        const AES_128_GCM       = 0b0000_0001;
+        const AES_256_GCM       = 0b0000_0010;
         const CHACHA20_POLY1305 = 0b0000_0100;
         const VALID_MASK = Self::AES_128_GCM.bits
             | Self::AES_256_GCM.bits
@@ -486,13 +486,13 @@ impl Codec for SpdmAeadAlgo {
 bitflags! {
     #[derive(Default)]
     pub struct SpdmReqAsymAlgo: u16 {
-        const TPM_ALG_RSASSA_2048 = 0b0000_0001;
-        const TPM_ALG_RSAPSS_2048 = 0b0000_0010;
-        const TPM_ALG_RSASSA_3072 = 0b0000_0100;
-        const TPM_ALG_RSAPSS_3072 = 0b0000_1000;
+        const TPM_ALG_RSASSA_2048         = 0b0000_0001;
+        const TPM_ALG_RSAPSS_2048         = 0b0000_0010;
+        const TPM_ALG_RSASSA_3072         = 0b0000_0100;
+        const TPM_ALG_RSAPSS_3072         = 0b0000_1000;
         const TPM_ALG_ECDSA_ECC_NIST_P256 = 0b0001_0000;
-        const TPM_ALG_RSASSA_4096 = 0b0010_0000;
-        const TPM_ALG_RSAPSS_4096 = 0b0100_0000;
+        const TPM_ALG_RSASSA_4096         = 0b0010_0000;
+        const TPM_ALG_RSAPSS_4096         = 0b0100_0000;
         const TPM_ALG_ECDSA_ECC_NIST_P384 = 0b1000_0000;
         const VALID_MASK = Self::TPM_ALG_RSASSA_2048.bits
             | Self::TPM_ALG_RSAPSS_2048.bits
