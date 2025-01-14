@@ -28,6 +28,7 @@ patch-ring() {
             echo "Unsupported target for ring, builds may not work!"
         ;;
     esac
+    git apply ../patches/ring/0001-NFC-Address-Clippy-unused-import-warning.patch
     popd
 }
 
