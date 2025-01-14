@@ -36,11 +36,6 @@ patch-webpki() {
     pushd external/webpki
     git reset --hard f84a538a5cd281ba1ffc0d54bbe5824cf5969703
     git clean -xdf
-
-    # apply the patch to get rid of unused import warning during compilation
-    # https://github.com/briansmith/webpki/commit/8f81719df5b47bda95f15a7655be811e52e12997
-    git cherry-pick 8f81719df5b47bda95f15a7655be811e52e12997
-
     git apply ../patches/webpki/0001-Add-support-for-verifying-certificate-chain-with-EKU.patch
     popd
 }
