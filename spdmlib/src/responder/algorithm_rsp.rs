@@ -68,6 +68,67 @@ impl ResponderContext {
             other_params_support = negotiate_algorithms.other_params_support;
             self.common.negotiate_info.measurement_specification_sel =
                 negotiate_algorithms.measurement_specification;
+
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                if self
+                    .common
+                    .negotiate_info
+                    .req_capabilities_sel
+                    .contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                {
+                    self.common.negotiate_info.multi_key_conn_req = true;
+                } else if self
+                    .common
+                    .negotiate_info
+                    .req_capabilities_sel
+                    .contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
+                {
+                    self.common.negotiate_info.multi_key_conn_req = self
+                        .common
+                        .config_info
+                        .other_params_support
+                        .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN);
+                } else {
+                    self.common.negotiate_info.multi_key_conn_req = false;
+                }
+                if negotiate_algorithms
+                    .other_params_support
+                    .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN)
+                {
+                    if !self
+                        .common
+                        .config_info
+                        .rsp_capabilities
+                        .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                        && !self
+                            .common
+                            .config_info
+                            .rsp_capabilities
+                            .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
+                    {
+                        self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                        return (
+                            Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                            Some(writer.used_slice()),
+                        );
+                    }
+                    self.common.negotiate_info.multi_key_conn_rsp = true;
+                } else {
+                    if self
+                        .common
+                        .config_info
+                        .rsp_capabilities
+                        .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY)
+                    {
+                        self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                        return (
+                            Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                            Some(writer.used_slice()),
+                        );
+                    }
+                    self.common.negotiate_info.multi_key_conn_rsp = false;
+                }
+            }
             self.common.negotiate_info.base_hash_sel = negotiate_algorithms.base_hash_algo;
             self.common.negotiate_info.base_asym_sel = negotiate_algorithms.base_asym_algo;
             for alg in negotiate_algorithms
@@ -214,6 +275,31 @@ impl ResponderContext {
             other_params_selection
                 .insert(other_params_support & self.common.config_info.other_params_support);
         }
+
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if self
+                .common
+                .negotiate_info
+                .req_capabilities_sel
+                .contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY)
+            {
+                other_params_selection.insert(SpdmAlgoOtherParams::MULTI_KEY_CONN);
+            }
+            if self
+                .common
+                .negotiate_info
+                .req_capabilities_sel
+                .contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
+                && self
+                    .common
+                    .config_info
+                    .other_params_support
+                    .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN)
+            {
+                other_params_selection.insert(SpdmAlgoOtherParams::MULTI_KEY_CONN);
+            }
+        }
+
         self.common.negotiate_info.other_params_support = other_params_selection;
 
         let response = SpdmMessage {
