@@ -6,7 +6,6 @@ use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedB
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::{create_info, get_rsp_cert_chain_buff};
-use spdmlib::common::SpdmOpaqueSupport;
 use spdmlib::common::{session, SpdmConnectionState};
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;
@@ -52,7 +51,8 @@ fn test_case0_send_receive_spdm_key_exchange() {
         responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
         responder.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        responder.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         #[cfg(feature = "mut-auth")]
         {
             responder.common.negotiate_info.rsp_capabilities_sel |=
@@ -98,7 +98,8 @@ fn test_case0_send_receive_spdm_key_exchange() {
         requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
         requester.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        requester.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         #[cfg(feature = "mut-auth")]
         {
@@ -160,7 +161,8 @@ fn test_case1_send_receive_spdm_key_exchange() {
         responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1; // different dhe algo will cause key negotiate fail
         responder.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        responder.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         #[cfg(feature = "mut-auth")]
         {
             responder.common.negotiate_info.rsp_capabilities_sel |=
@@ -206,7 +208,8 @@ fn test_case1_send_receive_spdm_key_exchange() {
         requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
         requester.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        requester.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         #[cfg(feature = "mut-auth")]
         {

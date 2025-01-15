@@ -1131,7 +1131,7 @@ pub struct SpdmConfigInfo {
     pub aead_algo: SpdmAeadAlgo,
     pub req_asym_algo: SpdmReqAsymAlgo,
     pub key_schedule_algo: SpdmKeyScheduleAlgo,
-    pub opaque_support: SpdmOpaqueSupport,
+    pub other_params_support: SpdmAlgoOtherParams,
     pub session_policy: u8,
     pub runtime_content_change_support: bool,
     pub data_transfer_size: u32,
@@ -1155,12 +1155,14 @@ pub struct SpdmNegotiateInfo {
     pub aead_sel: SpdmAeadAlgo,
     pub req_asym_sel: SpdmReqAsymAlgo,
     pub key_schedule_sel: SpdmKeyScheduleAlgo,
-    pub opaque_data_support: SpdmOpaqueSupport,
+    pub other_params_support: SpdmAlgoOtherParams,
     pub termination_policy_set: bool, // used by responder to take action when code or configuration changed.
     pub req_data_transfer_size_sel: u32, // spdm 1.2
     pub req_max_spdm_msg_size_sel: u32, // spdm 1.2
     pub rsp_data_transfer_size_sel: u32, // spdm 1.2
     pub rsp_max_spdm_msg_size_sel: u32, // spdm 1.2
+    pub multi_key_conn_req: bool,     // spdm 1.3
+    pub multi_key_conn_rsp: bool,     // spdm 1.3
 }
 
 pub const MAX_MANAGED_BUFFER_A_SIZE: usize = 150 + 2 * 255; // for version response, there can be more than MAX_SPDM_VERSION_COUNT versions.

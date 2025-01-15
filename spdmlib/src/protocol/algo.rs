@@ -103,6 +103,27 @@ impl SpdmMeasurementSpecification {
 
 bitflags! {
     #[derive(Default)]
+    pub struct SpdmAlgoOtherParams: u8 {
+        const OPAQUE_DATA_FMT1 = 0b0000_0010;
+        const MULTI_KEY_CONN   = 0b0001_0000;
+        const VALID_MASK = Self::OPAQUE_DATA_FMT1.bits
+            | Self::MULTI_KEY_CONN.bits;
+    }
+}
+
+impl Codec for SpdmAlgoOtherParams {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmAlgoOtherParams> {
+        let bits = u8::read(r)?;
+        SpdmAlgoOtherParams::from_bits(bits & SpdmAlgoOtherParams::VALID_MASK.bits)
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
     pub struct SpdmMeasurementHashAlgo: u32 {
         const RAW_BIT_STREAM   = 0b0000_0001;
         const TPM_ALG_SHA_256  = 0b0000_0010;
@@ -1535,6 +1556,23 @@ mod tests {
             SpdmMeasurementSpecification::DMTF
         );
         assert_eq!(3, reader.left());
+    }
+    #[test]
+    fn test_case0_spdm_algo_other_params_selection() {
+        let u8_slice = &mut [0u8; 1];
+        let mut writer = Writer::init(u8_slice);
+        let value = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1 | SpdmAlgoOtherParams::MULTI_KEY_CONN;
+        assert!(value.encode(&mut writer).is_ok());
+
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(1, reader.left());
+
+        let other_params_support = SpdmAlgoOtherParams::read(&mut reader).unwrap();
+        assert_eq!(
+            other_params_support,
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1 | SpdmAlgoOtherParams::MULTI_KEY_CONN
+        );
+        assert_eq!(0, reader.left());
     }
     #[test]
     fn test_case0_spdm_measurement_hash_algo() {

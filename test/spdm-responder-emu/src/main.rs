@@ -16,7 +16,7 @@ use simple_logger::SimpleLogger;
 #[cfg(not(feature = "is_sync"))]
 use spdm_emu::async_runtime::block_on;
 use spdm_emu::watchdog_impl_sample::init_watchdog;
-use spdmlib::common::{SecuredMessageVersion, SpdmOpaqueSupport};
+use spdmlib::common::SecuredMessageVersion;
 use spdmlib::config::{MAX_ROOT_CERT_SUPPORT, RECEIVER_BUFFER_SIZE};
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD};
 use spdmlib::message::{
@@ -301,7 +301,7 @@ async fn handle_message(
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
-        opaque_support: SpdmOpaqueSupport::OPAQUE_DATA_FMT1,
+        other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
         data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         heartbeat_period: config::HEARTBEAT_PERIOD,

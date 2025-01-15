@@ -575,9 +575,7 @@ mod tests {
     use super::*;
     use crate::common::opaque::MAX_SPDM_OPAQUE_SIZE;
     use crate::common::SpdmMeasurementContentChanged;
-    use crate::common::{
-        SpdmConfigInfo, SpdmContext, SpdmOpaqueStruct, SpdmOpaqueSupport, SpdmProvisionInfo,
-    };
+    use crate::common::{SpdmConfigInfo, SpdmContext, SpdmOpaqueStruct, SpdmProvisionInfo};
     use crate::config::{self, *};
     use codec::u24;
     use testlib::{create_spdm_context, new_spdm_message, DeviceIO, TransportEncap};
@@ -711,7 +709,7 @@ mod tests {
             payload: SpdmMessagePayload::SpdmNegotiateAlgorithmsRequest(
                 SpdmNegotiateAlgorithmsRequestPayload {
                     measurement_specification: SpdmMeasurementSpecification::DMTF,
-                    other_params_support: SpdmOpaqueSupport::empty(),
+                    other_params_support: SpdmAlgoOtherParams::empty(),
                     base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                     base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                     alg_struct_count: 4,
@@ -796,7 +794,7 @@ mod tests {
             },
             payload: SpdmMessagePayload::SpdmAlgorithmsResponse(SpdmAlgorithmsResponsePayload {
                 measurement_specification_sel: SpdmMeasurementSpecification::DMTF,
-                other_params_selection: SpdmOpaqueSupport::empty(),
+                other_params_selection: SpdmAlgoOtherParams::empty(),
                 measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
                 base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                 base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,

@@ -11,9 +11,9 @@ use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
 use crate::common::transport::PciDoeTransportEncap;
 use codec::{Codec, Reader, Writer};
 use spdmlib::common::{
-    SecuredMessageVersion, SpdmCodec, SpdmConfigInfo, SpdmContext, SpdmDeviceIo, SpdmOpaqueSupport,
-    SpdmProvisionInfo, SpdmTransportEncap, DMTF_SECURE_SPDM_VERSION_10,
-    DMTF_SECURE_SPDM_VERSION_11, MAX_SECURE_SPDM_VERSION_COUNT, ST1,
+    SecuredMessageVersion, SpdmCodec, SpdmConfigInfo, SpdmContext, SpdmDeviceIo, SpdmProvisionInfo,
+    SpdmTransportEncap, DMTF_SECURE_SPDM_VERSION_10, DMTF_SECURE_SPDM_VERSION_11,
+    MAX_SECURE_SPDM_VERSION_COUNT, ST1,
 };
 use spdmlib::config::{MAX_ROOT_CERT_SUPPORT, MAX_SPDM_MSG_SIZE};
 use spdmlib::crypto;
@@ -79,7 +79,8 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         aead_algo: SpdmAeadAlgo::AES_256_GCM,
         req_asym_algo: SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048,
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
-        opaque_support: SpdmOpaqueSupport::OPAQUE_DATA_FMT1,
+        other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
+            | SpdmAlgoOtherParams::MULTI_KEY_CONN,
         data_transfer_size: 0x1200,
         max_spdm_msg_size: 0x1200,
         secure_spdm_version: [
@@ -149,7 +150,7 @@ pub fn new_context(
         config_info,
         provision_info,
     );
-    context.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+    context.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
     context
 }
 
@@ -206,7 +207,8 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
-        opaque_support: SpdmOpaqueSupport::OPAQUE_DATA_FMT1,
+        other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
+            | SpdmAlgoOtherParams::MULTI_KEY_CONN,
         data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
@@ -343,7 +345,8 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
-        opaque_support: SpdmOpaqueSupport::OPAQUE_DATA_FMT1,
+        other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
+            | SpdmAlgoOtherParams::MULTI_KEY_CONN,
         data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         heartbeat_period: config::HEARTBEAT_PERIOD,

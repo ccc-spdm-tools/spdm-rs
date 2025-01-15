@@ -9,14 +9,12 @@ use crate::{common, error::SpdmStatus};
 
 use codec::{Codec, Reader, Writer};
 
-use self::common::SpdmOpaqueSupport;
-
 pub const MAX_SUPPORTED_ALG_STRUCTURE_COUNT: usize = 4;
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmNegotiateAlgorithmsRequestPayload {
     pub measurement_specification: SpdmMeasurementSpecification,
-    pub other_params_support: SpdmOpaqueSupport,
+    pub other_params_support: SpdmAlgoOtherParams,
     pub base_asym_algo: SpdmBaseAsymAlgo,
     pub base_hash_algo: SpdmBaseHashAlgo,
     pub alg_struct_count: u8,
@@ -109,10 +107,10 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
 
         let other_params_support =
             if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-                SpdmOpaqueSupport::read(r)?
+                SpdmAlgoOtherParams::read(r)?
             } else {
                 u8::read(r)?;
-                SpdmOpaqueSupport::default()
+                SpdmAlgoOtherParams::default()
             };
 
         let base_asym_algo = SpdmBaseAsymAlgo::read(r)?;
@@ -207,7 +205,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
 #[derive(Debug, Clone, Default)]
 pub struct SpdmAlgorithmsResponsePayload {
     pub measurement_specification_sel: SpdmMeasurementSpecification,
-    pub other_params_selection: SpdmOpaqueSupport,
+    pub other_params_selection: SpdmAlgoOtherParams,
     pub measurement_hash_algo: SpdmMeasurementHashAlgo,
     pub base_asym_sel: SpdmBaseAsymAlgo,
     pub base_hash_sel: SpdmBaseHashAlgo,
@@ -321,14 +319,11 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
 
         let other_params_selection =
             if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-                SpdmOpaqueSupport::read(r)?
+                SpdmAlgoOtherParams::read(r)?
             } else {
                 u8::read(r)?;
-                SpdmOpaqueSupport::default()
+                SpdmAlgoOtherParams::default()
             };
-        if !other_params_selection.is_no_more_than_one_selected() {
-            return None;
-        }
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
             && (context
                 .negotiate_info
@@ -342,7 +337,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT))
-            && !other_params_selection.is_valid_one_select()
+            && !other_params_selection.contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
         {
             return None;
         }
@@ -619,7 +614,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmNegotiateAlgorithmsRequestPayload {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
-            other_params_support: SpdmOpaqueSupport::empty(),
+            other_params_support: SpdmAlgoOtherParams::empty(),
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             alg_struct_count: 4,
@@ -708,7 +703,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmNegotiateAlgorithmsRequestPayload {
             measurement_specification: SpdmMeasurementSpecification::empty(),
-            other_params_support: SpdmOpaqueSupport::empty(),
+            other_params_support: SpdmAlgoOtherParams::empty(),
             base_asym_algo: SpdmBaseAsymAlgo::empty(),
             base_hash_algo: SpdmBaseHashAlgo::empty(),
             alg_struct_count: 0,
@@ -738,7 +733,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmNegotiateAlgorithmsRequestPayload {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
-            other_params_support: SpdmOpaqueSupport::empty(),
+            other_params_support: SpdmAlgoOtherParams::empty(),
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             alg_struct_count: 0,
@@ -763,7 +758,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmAlgorithmsResponsePayload {
             measurement_specification_sel: SpdmMeasurementSpecification::DMTF,
-            other_params_selection: SpdmOpaqueSupport::empty(),
+            other_params_selection: SpdmAlgoOtherParams::empty(),
             measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
             base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
@@ -862,7 +857,8 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmAlgorithmsResponsePayload {
             measurement_specification_sel: SpdmMeasurementSpecification::DMTF,
-            other_params_selection: SpdmOpaqueSupport::empty(),
+            other_params_selection: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
+                | SpdmAlgoOtherParams::MULTI_KEY_CONN,
             measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
             base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
@@ -871,18 +867,40 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
 
-        u8_slice[30] = 1;
-        u8_slice[35] = 1;
-
+        u8_slice[30] = 1; // ext_asym_count
         let mut reader = Reader::init(u8_slice);
         assert_eq!(48, reader.left());
         let spdm_algorithms_response_payload =
             SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
         assert_eq!(spdm_algorithms_response_payload.is_none(), true);
+        u8_slice[30] = 0;
+
+        u8_slice[0] = 1; // number of algorithm structure tables
+        u8_slice[35] = 1; // alg_type
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(48, reader.left());
+        let spdm_algorithms_response_payload =
+            SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
+        assert_eq!(spdm_algorithms_response_payload.is_none(), true);
+        u8_slice[0] = 0;
+        u8_slice[35] = 0;
+
+        u8_slice[5] = 0x12; // other_params_selection
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(48, reader.left());
+        let spdm_algorithms_response_payload =
+            SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
+        assert_eq!(spdm_algorithms_response_payload.is_none(), false);
+        assert_eq!(
+            spdm_algorithms_response_payload
+                .unwrap()
+                .other_params_selection,
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1 | SpdmAlgoOtherParams::MULTI_KEY_CONN
+        );
     }
     #[test]
     fn test_case2_spdm_algorithms_response_payload() {
@@ -890,7 +908,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmAlgorithmsResponsePayload {
             measurement_specification_sel: SpdmMeasurementSpecification::empty(),
-            other_params_selection: SpdmOpaqueSupport::empty(),
+            other_params_selection: SpdmAlgoOtherParams::empty(),
             measurement_hash_algo: SpdmMeasurementHashAlgo::empty(),
             base_asym_sel: SpdmBaseAsymAlgo::empty(),
             base_hash_sel: SpdmBaseHashAlgo::empty(),

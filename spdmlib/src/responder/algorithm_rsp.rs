@@ -208,8 +208,13 @@ impl ResponderContext {
 
         info!("send spdm algorithm\n");
 
-        let other_params_selection = self.common.config_info.opaque_support & other_params_support;
-        self.common.negotiate_info.opaque_data_support = other_params_selection;
+        let mut other_params_selection = SpdmAlgoOtherParams::empty();
+
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+            other_params_selection
+                .insert(other_params_support & self.common.config_info.other_params_support);
+        }
+        self.common.negotiate_info.other_params_support = other_params_selection;
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
