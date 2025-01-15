@@ -360,7 +360,11 @@ impl SpdmCodec for SMVersionSelOpaque {
     fn spdm_encode(&self, context: &mut SpdmContext, bytes: &mut Writer) -> SpdmResult<usize> {
         let mut cnt = 0;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            if context.negotiate_info.opaque_data_support == SpdmOpaqueSupport::OPAQUE_DATA_FMT1 {
+            if context
+                .negotiate_info
+                .other_params_support
+                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
+            {
                 cnt += FM1OpaqueDataHeader
                     .encode(bytes)
                     .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
@@ -379,7 +383,11 @@ impl SpdmCodec for SMVersionSelOpaque {
 
     fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<Self> {
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            if context.negotiate_info.opaque_data_support == SpdmOpaqueSupport::OPAQUE_DATA_FMT1 {
+            if context
+                .negotiate_info
+                .other_params_support
+                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
+            {
                 FM1OpaqueDataHeader::read(r)?;
             } else {
                 return None;
@@ -456,7 +464,11 @@ impl SpdmCodec for SMSupportedVerListOpaque {
     fn spdm_encode(&self, context: &mut SpdmContext, bytes: &mut Writer) -> SpdmResult<usize> {
         let mut cnt = 0;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            if context.negotiate_info.opaque_data_support == SpdmOpaqueSupport::OPAQUE_DATA_FMT1 {
+            if context
+                .negotiate_info
+                .other_params_support
+                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
+            {
                 cnt += FM1OpaqueDataHeader
                     .encode(bytes)
                     .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
@@ -475,7 +487,11 @@ impl SpdmCodec for SMSupportedVerListOpaque {
 
     fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<Self> {
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            if context.negotiate_info.opaque_data_support == SpdmOpaqueSupport::OPAQUE_DATA_FMT1 {
+            if context
+                .negotiate_info
+                .other_params_support
+                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
+            {
                 FM1OpaqueDataHeader::read(r)?;
             } else {
                 return None;
@@ -592,41 +608,5 @@ impl SpdmOpaqueStruct {
     ) -> Option<SecuredMessageVersion> {
         let smversion_sel_opaque = self.to_sm_version_sel_opaque(context).ok()?;
         Some(smversion_sel_opaque.secured_message_version)
-    }
-}
-
-bitflags! {
-    #[derive(Default)]
-    pub struct SpdmOpaqueSupport: u8 {
-        const OPAQUE_DATA_FMT1 = 0b0000_0010;
-        const VALID_MASK = Self::OPAQUE_DATA_FMT1.bits;
-    }
-}
-
-impl Codec for SpdmOpaqueSupport {
-    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
-        self.bits().encode(bytes)
-    }
-
-    fn read(r: &mut Reader) -> Option<SpdmOpaqueSupport> {
-        let bits = u8::read(r)?;
-
-        SpdmOpaqueSupport::from_bits(bits & SpdmOpaqueSupport::VALID_MASK.bits)
-    }
-}
-
-impl SpdmOpaqueSupport {
-    /// return true if no more than one is selected
-    /// return false if two or more is selected
-    pub fn is_no_more_than_one_selected(&self) -> bool {
-        self.bits() == 0 || self.bits() & (self.bits() - 1) == 0
-    }
-
-    pub fn is_valid(&self) -> bool {
-        (self.bits & Self::VALID_MASK.bits) != 0
-    }
-
-    pub fn is_valid_one_select(&self) -> bool {
-        self.is_no_more_than_one_selected() && self.is_valid()
     }
 }

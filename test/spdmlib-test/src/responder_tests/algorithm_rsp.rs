@@ -55,7 +55,7 @@ fn test_case0_handle_spdm_algorithm() {
         let mut writer = Writer::init(negotiate_algorithms);
         let value = SpdmNegotiateAlgorithmsRequestPayload {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
-            other_params_support: SpdmOpaqueSupport::empty(),
+            other_params_support: SpdmAlgoOtherParams::empty(),
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             alg_struct_count: 4,
@@ -232,7 +232,7 @@ pub fn consturct_algorithm_positive() -> (TestSpdmMessage, TestSpdmMessage) {
                 Param2: 0,
                 Length: 48,
                 MeasurementSpecification: config_info.measurement_specification.bits(),
-                OtherParamsSupport: config_info.opaque_support.bits(),
+                OtherParamsSupport: config_info.other_params_support.bits(),
                 BaseAsymAlgo: config_info.base_asym_algo.bits(),
                 BaseHashAlgo: config_info.base_hash_algo.bits(),
                 _Reserved1: [0u8; 12],
@@ -260,7 +260,7 @@ pub fn consturct_algorithm_positive() -> (TestSpdmMessage, TestSpdmMessage) {
             Param2: 0,
             Length: 52,
             MeasurementSpecification: config_info.measurement_specification.bits(),
-            OtherParamsSupport: config_info.opaque_support.bits(),
+            OtherParamsSupport: config_info.other_params_support.bits(),
             MeasurementHashAlgo: config_info.measurement_hash_algo.bits(),
             BaseAsymAlgo: config_info.base_asym_algo.bits(),
             BaseHashAlgo: config_info.base_hash_algo.bits(),

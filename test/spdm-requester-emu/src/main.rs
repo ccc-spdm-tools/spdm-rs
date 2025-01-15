@@ -28,7 +28,6 @@ use spdm_emu::secret_impl_sample::SECRET_PSK_IMPL_INSTANCE;
 use spdm_emu::EMU_STACK_SIZE;
 use spdmlib::common;
 use spdmlib::common::SecuredMessageVersion;
-use spdmlib::common::SpdmOpaqueSupport;
 use spdmlib::common::ST1;
 use spdmlib::config;
 use spdmlib::config::MAX_ROOT_CERT_SUPPORT;
@@ -140,7 +139,7 @@ async fn test_spdm(
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
-        opaque_support: SpdmOpaqueSupport::OPAQUE_DATA_FMT1,
+        other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
         data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
@@ -629,7 +628,7 @@ async fn test_idekm_tdisp(
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
-        opaque_support: SpdmOpaqueSupport::OPAQUE_DATA_FMT1,
+        other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
         data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use fuzzlib::{common::SpdmOpaqueSupport, *};
+use fuzzlib::*;
 use spdmlib::common::SpdmConnectionState;
 use spdmlib::protocol::*;
 use spin::Mutex;
@@ -38,7 +38,8 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        requester.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
         requester.common.negotiate_info.rsp_capabilities_sel =
@@ -76,7 +77,8 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        requester.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
         requester.common.negotiate_info.rsp_capabilities_sel =
@@ -111,7 +113,8 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        requester.common.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
         requester.common.negotiate_info.rsp_capabilities_sel =

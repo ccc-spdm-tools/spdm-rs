@@ -4,7 +4,7 @@
 
 use fuzzlib::config::MAX_SPDM_SESSION_COUNT;
 use fuzzlib::spdmlib::common::session::SpdmSession;
-use fuzzlib::{common::SpdmConnectionState, common::SpdmOpaqueSupport, *};
+use fuzzlib::{common::SpdmConnectionState, *};
 use spdmlib::protocol::*;
 use spin::Mutex;
 extern crate alloc;
@@ -38,7 +38,7 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             provision_info,
         );
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
@@ -81,7 +81,7 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             provision_info,
         );
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
@@ -124,7 +124,7 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             provision_info,
         );
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
@@ -171,7 +171,7 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             provision_info,
         );
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;

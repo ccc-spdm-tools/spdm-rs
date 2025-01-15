@@ -161,7 +161,6 @@ mod testlib;
 mod tests {
     use super::*;
     use crate::common::opaque::MAX_SPDM_OPAQUE_SIZE;
-    use crate::common::SpdmOpaqueSupport;
     use crate::common::{SpdmConfigInfo, SpdmContext, SpdmProvisionInfo};
     use crate::protocol::*;
     use testlib::{create_spdm_context, DeviceIO, TransportEncap};
@@ -238,7 +237,7 @@ mod tests {
         context.runtime_info.need_measurement_summary_hash = true;
         context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
         context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.opaque_data_support = SpdmOpaqueSupport::OPAQUE_DATA_FMT1;
+        context.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
