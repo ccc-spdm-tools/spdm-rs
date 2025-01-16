@@ -17,6 +17,7 @@ pub struct SpdmNegotiateAlgorithmsRequestPayload {
     pub other_params_support: SpdmAlgoOtherParams,
     pub base_asym_algo: SpdmBaseAsymAlgo,
     pub base_hash_algo: SpdmBaseHashAlgo,
+    pub mel_specification: SpdmMelSpecification,
     pub alg_struct_count: u8,
     pub alg_struct: [SpdmAlgStruct; MAX_SUPPORTED_ALG_STRUCTURE_COUNT],
 }
@@ -77,7 +78,16 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
 
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // ext_hash_count
 
-        cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved3
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved3
+
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .mel_specification
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        } else {
+            cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
 
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             for algo in self.alg_struct.iter().take(self.alg_struct_count as usize) {
@@ -130,7 +140,15 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
             return None;
         }
 
-        u16::read(r)?; // reserved3
+        u8::read(r)?; // reserved3
+
+        let mel_specification =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                SpdmMelSpecification::read(r)?
+            } else {
+                u8::read(r)?;
+                SpdmMelSpecification::default()
+            };
 
         let mut alg_struct = gen_array_clone(SpdmAlgStruct::default(), 4);
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
@@ -196,6 +214,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
             other_params_support,
             base_asym_algo,
             base_hash_algo,
+            mel_specification,
             alg_struct_count,
             alg_struct,
         })
@@ -209,6 +228,7 @@ pub struct SpdmAlgorithmsResponsePayload {
     pub measurement_hash_algo: SpdmMeasurementHashAlgo,
     pub base_asym_sel: SpdmBaseAsymAlgo,
     pub base_hash_sel: SpdmBaseHashAlgo,
+    pub mel_specification_sel: SpdmMelSpecification,
     pub alg_struct_count: u8,
     pub alg_struct: [SpdmAlgStruct; 4],
 }
@@ -265,8 +285,17 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             .base_hash_sel
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        for _i in 0..12 {
+        for _i in 0..11 {
             cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved2
+        }
+
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .mel_specification_sel
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        } else {
+            cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
 
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // ext_asym_count
@@ -429,9 +458,17 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             return None;
         }
 
-        for _i in 0..12 {
+        for _i in 0..11 {
             u8::read(r)?; // reserved2
         }
+
+        let mel_specification_sel =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                SpdmMelSpecification::read(r)?
+            } else {
+                u8::read(r)?;
+                SpdmMelSpecification::default()
+            };
 
         let ext_asym_count = u8::read(r)?;
         if ext_asym_count != 0 {
@@ -591,6 +628,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             measurement_hash_algo,
             base_asym_sel,
             base_hash_sel,
+            mel_specification_sel,
             alg_struct_count,
             alg_struct,
         })
@@ -614,9 +652,11 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmNegotiateAlgorithmsRequestPayload {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
-            other_params_support: SpdmAlgoOtherParams::empty(),
+            other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
+                | SpdmAlgoOtherParams::MULTI_KEY_CONN,
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
             alg_struct_count: 4,
             alg_struct: [
                 SpdmAlgStruct {
@@ -642,7 +682,7 @@ mod tests {
             ],
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -654,12 +694,20 @@ mod tests {
             SpdmMeasurementSpecification::DMTF
         );
         assert_eq!(
+            spdm_sturct_data.other_params_support,
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1 | SpdmAlgoOtherParams::MULTI_KEY_CONN
+        );
+        assert_eq!(
             spdm_sturct_data.base_asym_algo,
             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
         );
         assert_eq!(
             spdm_sturct_data.base_hash_algo,
             SpdmBaseHashAlgo::TPM_ALG_SHA_256
+        );
+        assert_eq!(
+            spdm_sturct_data.mel_specification,
+            SpdmMelSpecification::DMTF_MEL_SPEC
         );
         assert_eq!(spdm_sturct_data.alg_struct_count, 4);
         assert_eq!(
@@ -706,12 +754,13 @@ mod tests {
             other_params_support: SpdmAlgoOtherParams::empty(),
             base_asym_algo: SpdmBaseAsymAlgo::empty(),
             base_hash_algo: SpdmBaseHashAlgo::empty(),
+            mel_specification: SpdmMelSpecification::empty(),
             alg_struct_count: 0,
             alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -724,6 +773,10 @@ mod tests {
         );
         assert_eq!(spdm_sturct_data.base_asym_algo, SpdmBaseAsymAlgo::empty());
         assert_eq!(spdm_sturct_data.base_hash_algo, SpdmBaseHashAlgo::empty());
+        assert_eq!(
+            spdm_sturct_data.mel_specification,
+            SpdmMelSpecification::empty()
+        );
         assert_eq!(spdm_sturct_data.alg_struct_count, 0);
         assert_eq!(18, reader.left());
     }
@@ -736,6 +789,7 @@ mod tests {
             other_params_support: SpdmAlgoOtherParams::empty(),
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            mel_specification: SpdmMelSpecification::empty(),
             alg_struct_count: 0,
             alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
         };
@@ -758,10 +812,12 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmAlgorithmsResponsePayload {
             measurement_specification_sel: SpdmMeasurementSpecification::DMTF,
-            other_params_selection: SpdmAlgoOtherParams::empty(),
+            other_params_selection: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
+                | SpdmAlgoOtherParams::MULTI_KEY_CONN,
             measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
             base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            mel_specification_sel: SpdmMelSpecification::DMTF_MEL_SPEC,
             alg_struct_count: 4,
             alg_struct: [
                 SpdmAlgStruct {
@@ -788,7 +844,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         context.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
         context.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
@@ -805,6 +861,10 @@ mod tests {
             SpdmMeasurementSpecification::DMTF
         );
         assert_eq!(
+            spdm_sturct_data.other_params_selection,
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1 | SpdmAlgoOtherParams::MULTI_KEY_CONN
+        );
+        assert_eq!(
             spdm_sturct_data.measurement_hash_algo,
             SpdmMeasurementHashAlgo::RAW_BIT_STREAM
         );
@@ -815,6 +875,10 @@ mod tests {
         assert_eq!(
             spdm_sturct_data.base_hash_sel,
             SpdmBaseHashAlgo::TPM_ALG_SHA_256
+        );
+        assert_eq!(
+            spdm_sturct_data.mel_specification_sel,
+            SpdmMelSpecification::DMTF_MEL_SPEC
         );
         assert_eq!(spdm_sturct_data.alg_struct_count, 4);
         assert_eq!(
@@ -862,6 +926,7 @@ mod tests {
             measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
             base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            mel_specification_sel: SpdmMelSpecification::DMTF_MEL_SPEC,
             alg_struct_count: 0,
             alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
         };
@@ -912,12 +977,13 @@ mod tests {
             measurement_hash_algo: SpdmMeasurementHashAlgo::empty(),
             base_asym_sel: SpdmBaseAsymAlgo::empty(),
             base_hash_sel: SpdmBaseHashAlgo::empty(),
+            mel_specification_sel: SpdmMelSpecification::empty(),
             alg_struct_count: 0,
             alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -929,11 +995,19 @@ mod tests {
             SpdmMeasurementSpecification::empty()
         );
         assert_eq!(
+            spdm_sturct_data.other_params_selection,
+            SpdmAlgoOtherParams::empty()
+        );
+        assert_eq!(
             spdm_sturct_data.measurement_hash_algo,
             SpdmMeasurementHashAlgo::empty()
         );
         assert_eq!(spdm_sturct_data.base_asym_sel, SpdmBaseAsymAlgo::empty());
         assert_eq!(spdm_sturct_data.base_hash_sel, SpdmBaseHashAlgo::empty());
+        assert_eq!(
+            spdm_sturct_data.mel_specification_sel,
+            SpdmMelSpecification::empty()
+        );
         assert_eq!(spdm_sturct_data.alg_struct_count, 0);
         assert_eq!(16, reader.left());
     }

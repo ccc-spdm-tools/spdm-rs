@@ -70,6 +70,7 @@ fn test_case0_handle_spdm_algorithm() {
                 | SpdmAlgoOtherParams::MULTI_KEY_CONN,
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
             alg_struct_count: 4,
             alg_struct: [
                 SpdmAlgStruct {
@@ -148,6 +149,10 @@ fn test_case0_handle_spdm_algorithm() {
             spdm_sturct_data.base_hash_algo,
             SpdmBaseHashAlgo::TPM_ALG_SHA_384
         );
+        assert_eq!(
+            spdm_sturct_data.mel_specification,
+            SpdmMelSpecification::DMTF_MEL_SPEC
+        );
         assert_eq!(spdm_sturct_data.alg_struct_count, 4);
         assert_eq!(
             spdm_sturct_data.alg_struct[0].alg_type,
@@ -222,6 +227,14 @@ fn test_case0_handle_spdm_algorithm() {
             );
             assert_eq!(payload.base_hash_sel, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
             assert_eq!(payload.alg_struct_count, 4);
+            assert_eq!(
+                payload.mel_specification_sel,
+                SpdmMelSpecification::DMTF_MEL_SPEC
+            );
+            assert_eq!(
+                context.common.negotiate_info.mel_specification_sel,
+                SpdmMelSpecification::DMTF_MEL_SPEC
+            );
 
             assert_eq!(payload.alg_struct[0].alg_type, SpdmAlgType::SpdmAlgTypeDHE);
             assert_eq!(

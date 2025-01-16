@@ -341,6 +341,55 @@ impl Codec for SpdmBaseHashAlgo {
     }
 }
 
+bitflags! {
+    #[derive(Default)]
+    pub struct SpdmMelSpecification: u8 {
+        const DMTF_MEL_SPEC = 0b0000_0001;
+        const VALID_MASK = Self::DMTF_MEL_SPEC.bits;
+    }
+}
+
+impl Codec for SpdmMelSpecification {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmMelSpecification> {
+        let bits = u8::read(r)?;
+
+        SpdmMelSpecification::from_bits(bits & SpdmMelSpecification::VALID_MASK.bits)
+    }
+}
+
+impl SpdmMelSpecification {
+    pub fn prioritize(&mut self, peer: SpdmMelSpecification) {
+        let prio_table = [SpdmMelSpecification::DMTF_MEL_SPEC];
+
+        *self &= peer;
+        for v in prio_table.iter() {
+            if self.bits() & v.bits() != 0 {
+                *self = *v;
+                return;
+            }
+        }
+        *self = SpdmMelSpecification::empty();
+    }
+
+    /// return true if no more than one is selected
+    /// return false if two or more is selected
+    pub fn is_no_more_than_one_selected(&self) -> bool {
+        self.bits() == 0 || self.bits() & (self.bits() - 1) == 0
+    }
+
+    pub fn is_valid(&self) -> bool {
+        (self.bits & Self::VALID_MASK.bits) != 0
+    }
+
+    pub fn is_valid_one_select(&self) -> bool {
+        self.is_no_more_than_one_selected() && self.is_valid()
+    }
+}
+
 enum_builder! {
     @U8
     EnumName: SpdmStandardId;

@@ -8,7 +8,8 @@ use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use spdmlib::common::SpdmConnectionState;
 use spdmlib::protocol::{
-    SpdmAlgoOtherParams, SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion,
+    SpdmAlgoOtherParams, SpdmMelSpecification, SpdmRequestCapabilityFlags,
+    SpdmResponseCapabilityFlags, SpdmVersion,
 };
 use spdmlib::requester::RequesterContext;
 use spdmlib::{responder, secret};
@@ -113,11 +114,20 @@ fn test_case1_send_receive_spdm_algorithm() {
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
+        requester
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .insert(SpdmResponseCapabilityFlags::MEL_CAP);
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
         assert_eq!(requester.common.negotiate_info.multi_key_conn_req, true);
         assert_eq!(requester.common.negotiate_info.multi_key_conn_rsp, true);
+        assert_eq!(
+            requester.common.negotiate_info.mel_specification_sel,
+            SpdmMelSpecification::DMTF_MEL_SPEC
+        );
     };
     executor::block_on(future);
 }
@@ -168,6 +178,11 @@ fn test_case2_send_receive_spdm_algorithm() {
             .config_info
             .rsp_capabilities
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
+        responder
+            .common
+            .config_info
+            .rsp_capabilities
+            .remove(SpdmResponseCapabilityFlags::MEL_CAP);
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -209,6 +224,10 @@ fn test_case2_send_receive_spdm_algorithm() {
         assert!(status);
         assert_eq!(requester.common.negotiate_info.multi_key_conn_req, false);
         assert_eq!(requester.common.negotiate_info.multi_key_conn_rsp, false);
+        assert_eq!(
+            requester.common.negotiate_info.mel_specification_sel,
+            SpdmMelSpecification::empty()
+        );
     };
     executor::block_on(future);
 }

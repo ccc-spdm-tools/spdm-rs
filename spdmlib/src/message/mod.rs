@@ -712,6 +712,7 @@ mod tests {
                     other_params_support: SpdmAlgoOtherParams::empty(),
                     base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                     base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                    mel_specification: SpdmMelSpecification::empty(),
                     alg_struct_count: 4,
                     alg_struct: [
                         SpdmAlgStruct {
@@ -798,6 +799,7 @@ mod tests {
                 measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
                 base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                 base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                mel_specification_sel: SpdmMelSpecification::empty(),
                 alg_struct_count: 4,
                 alg_struct: [
                     SpdmAlgStruct {

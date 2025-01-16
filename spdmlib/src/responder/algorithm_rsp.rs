@@ -131,6 +131,18 @@ impl ResponderContext {
             }
             self.common.negotiate_info.base_hash_sel = negotiate_algorithms.base_hash_algo;
             self.common.negotiate_info.base_asym_sel = negotiate_algorithms.base_asym_algo;
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                && self
+                    .common
+                    .config_info
+                    .rsp_capabilities
+                    .contains(SpdmResponseCapabilityFlags::MEL_CAP)
+            {
+                self.common.negotiate_info.mel_specification_sel =
+                    negotiate_algorithms.mel_specification;
+            } else {
+                self.common.negotiate_info.mel_specification_sel = SpdmMelSpecification::empty();
+            }
             for alg in negotiate_algorithms
                 .alg_struct
                 .iter()
@@ -241,6 +253,10 @@ impl ResponderContext {
             .prioritize(self.common.config_info.base_asym_algo);
         self.common
             .negotiate_info
+            .mel_specification_sel
+            .prioritize(self.common.config_info.mel_specification);
+        self.common
+            .negotiate_info
             .dhe_sel
             .prioritize(self.common.config_info.dhe_algo);
         self.common
@@ -316,6 +332,7 @@ impl ResponderContext {
                 measurement_hash_algo: self.common.negotiate_info.measurement_hash_sel,
                 base_asym_sel: self.common.negotiate_info.base_asym_sel,
                 base_hash_sel: self.common.negotiate_info.base_hash_sel,
+                mel_specification_sel: self.common.negotiate_info.mel_specification_sel,
                 alg_struct_count: 4,
                 alg_struct: [
                     SpdmAlgStruct {

@@ -60,6 +60,13 @@ impl RequesterContext {
             }
         }
 
+        let mel_specification =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                self.common.config_info.mel_specification
+            } else {
+                SpdmMelSpecification::empty()
+            };
+
         let mut alg_struct_count = 0;
         let mut alg_struct: [SpdmAlgStruct; MAX_SUPPORTED_ALG_STRUCTURE_COUNT] =
             gen_array_clone(SpdmAlgStruct::default(), MAX_SUPPORTED_ALG_STRUCTURE_COUNT);
@@ -100,6 +107,7 @@ impl RequesterContext {
                     other_params_support,
                     base_asym_algo: self.common.config_info.base_asym_algo,
                     base_hash_algo: self.common.config_info.base_hash_algo,
+                    mel_specification,
                     alg_struct_count: alg_struct_count as u8,
                     alg_struct,
                 },
@@ -261,6 +269,31 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoUnknown(_v) => {}
                                 }
+                            }
+
+                            if self.common.negotiate_info.spdm_version_sel
+                                >= SpdmVersion::SpdmVersion13
+                            {
+                                if self.common.config_info.mel_specification
+                                    != SpdmMelSpecification::empty()
+                                    && self
+                                        .common
+                                        .negotiate_info
+                                        .rsp_capabilities_sel
+                                        .contains(SpdmResponseCapabilityFlags::MEL_CAP)
+                                {
+                                    if algorithms.mel_specification_sel
+                                        != SpdmMelSpecification::DMTF_MEL_SPEC
+                                    {
+                                        return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                    }
+                                } else if algorithms.mel_specification_sel
+                                    != SpdmMelSpecification::empty()
+                                {
+                                    return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                }
+                                self.common.negotiate_info.mel_specification_sel =
+                                    algorithms.mel_specification_sel;
                             }
 
                             self.common.append_message_a(send_buffer)?;
