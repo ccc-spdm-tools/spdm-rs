@@ -87,6 +87,7 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
             Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
         ],
+        mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
         ..Default::default()
     };
 
@@ -215,6 +216,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
             Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
         ],
+        mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
         ..Default::default()
     };
 
@@ -354,6 +356,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
             Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
         ],
+        mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
         ..Default::default()
     };
 

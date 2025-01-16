@@ -1138,6 +1138,7 @@ pub struct SpdmConfigInfo {
     pub max_spdm_msg_size: u32,
     pub heartbeat_period: u8, // used by responder only
     pub secure_spdm_version: [Option<SecuredMessageVersion>; MAX_SECURE_SPDM_VERSION_COUNT],
+    pub mel_specification: SpdmMelSpecification, // spdm 1.3
 }
 
 #[derive(Debug, Default)]
@@ -1161,6 +1162,7 @@ pub struct SpdmNegotiateInfo {
     pub req_max_spdm_msg_size_sel: u32, // spdm 1.2
     pub rsp_data_transfer_size_sel: u32, // spdm 1.2
     pub rsp_max_spdm_msg_size_sel: u32, // spdm 1.2
+    pub mel_specification_sel: SpdmMelSpecification, // spdm 1.3
     pub multi_key_conn_req: bool,     // spdm 1.3
     pub multi_key_conn_rsp: bool,     // spdm 1.3
 }
