@@ -44,6 +44,7 @@ pub const AEAD_AES_256_GCM_TAG_SIZE: usize = 16;
 pub const AEAD_CHACHA20_POLY1305_TAG_SIZE: usize = 16;
 
 pub const SPDM_NONCE_SIZE: usize = 32;
+pub const SPDM_CHALLENGE_CONTEXT_SIZE: usize = 8;
 pub const SPDM_RANDOM_SIZE: usize = 32;
 pub const SPDM_MAX_HASH_SIZE: usize = 64;
 pub const SPDM_MAX_ASYM_KEY_SIZE: usize = 512;
@@ -836,6 +837,27 @@ impl Codec for SpdmNonceStruct {
             *d = u8::read(r)?;
         }
         Some(SpdmNonceStruct { data })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SpdmChallengeContextStruct {
+    pub data: [u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+}
+
+impl Codec for SpdmChallengeContextStruct {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        for d in self.data.iter() {
+            d.encode(bytes)?;
+        }
+        Ok(SPDM_CHALLENGE_CONTEXT_SIZE)
+    }
+    fn read(r: &mut Reader) -> Option<SpdmChallengeContextStruct> {
+        let mut data = [0u8; SPDM_CHALLENGE_CONTEXT_SIZE];
+        for d in data.iter_mut() {
+            *d = u8::read(r)?;
+        }
+        Some(SpdmChallengeContextStruct { data })
     }
 }
 
@@ -1739,6 +1761,29 @@ mod tests {
             assert_eq!(spdm_nonce_struct.data[i], 100);
         }
         assert_eq!(0, reader.left());
+    }
+
+    #[test]
+    fn test_case0_spdm_challenge_context_struct() {
+        let u8_slice = &mut [0u8; SPDM_CHALLENGE_CONTEXT_SIZE];
+        let mut writer = Writer::init(u8_slice);
+        let value = SpdmChallengeContextStruct {
+            data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+        };
+        assert!(value.encode(&mut writer).is_ok());
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(SPDM_CHALLENGE_CONTEXT_SIZE, reader.left());
+        let spdm_challenge_context_struct = SpdmChallengeContextStruct::read(&mut reader).unwrap();
+
+        for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
+            assert_eq!(spdm_challenge_context_struct.data[i], 100);
+        }
+        assert_eq!(0, reader.left());
+
+        let spdm_challenge_context_struct = SpdmChallengeContextStruct::default();
+        for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
+            assert_eq!(spdm_challenge_context_struct.data[i], 0);
+        }
     }
 
     #[test]

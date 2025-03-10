@@ -19,6 +19,7 @@ impl RequesterContext {
         &mut self,
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        requester_context_struct: Option<SpdmChallengeContextStruct>,
     ) -> SpdmResult {
         info!("send spdm challenge\n");
 
@@ -29,9 +30,15 @@ impl RequesterContext {
         self.common
             .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestChallenge, None);
 
+        let requester_context = requester_context_struct.unwrap_or_default();
+
         let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used =
-            self.encode_spdm_challenge(slot_id, measurement_summary_hash_type, &mut send_buffer)?;
+        let send_used = self.encode_spdm_challenge(
+            slot_id,
+            measurement_summary_hash_type,
+            &mut send_buffer,
+            &requester_context,
+        )?;
         self.send_message(None, &send_buffer[..send_used], false)
             .await?;
 
@@ -44,6 +51,7 @@ impl RequesterContext {
             0, // NULL
             slot_id,
             measurement_summary_hash_type,
+            requester_context,
             &send_buffer[..send_used],
             &receive_buffer[..used],
         )
@@ -54,6 +62,7 @@ impl RequesterContext {
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
         buf: &mut [u8],
+        requester_context: &SpdmChallengeContextStruct,
     ) -> SpdmResult<usize> {
         let mut writer = Writer::init(buf);
 
@@ -69,6 +78,7 @@ impl RequesterContext {
                 slot_id,
                 measurement_summary_hash_type,
                 nonce: SpdmNonceStruct { data: nonce },
+                context: requester_context.clone(),
             }),
         };
         request.spdm_encode(&mut self.common, &mut writer)
@@ -79,6 +89,7 @@ impl RequesterContext {
         session_id: u32,
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        requester_context: SpdmChallengeContextStruct,
         send_buffer: &[u8],
         receive_buffer: &[u8],
     ) -> SpdmResult {
@@ -102,6 +113,15 @@ impl RequesterContext {
                         let used = reader.used();
                         if let Some(challenge_auth) = challenge_auth {
                             debug!("!!! challenge_auth : {:02x?}\n", challenge_auth);
+
+                            // verify context
+                            if self.common.negotiate_info.spdm_version_sel
+                                >= SpdmVersion::SpdmVersion13
+                                && challenge_auth.requester_context.data != requester_context.data
+                            {
+                                error!("!!! challenge_auth : fail !!!\n");
+                                return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                            }
 
                             // verify signature
                             let base_asym_size =

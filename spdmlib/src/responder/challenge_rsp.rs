@@ -165,6 +165,13 @@ impl ResponderContext {
             );
         }
 
+        let requester_context =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                challenge.context.data
+            } else {
+                [0u8; SPDM_CHALLENGE_CONTEXT_SIZE]
+            };
+
         info!("send spdm challenge_auth\n");
 
         let response = SpdmMessage {
@@ -184,6 +191,9 @@ impl ResponderContext {
                         data_size: 0,
                         data: [0u8; MAX_SPDM_OPAQUE_SIZE],
                     },
+                    requester_context: SpdmChallengeContextStruct {
+                        data: requester_context,
+                    },
                     signature: SpdmSignatureStruct {
                         data_size: self.common.negotiate_info.base_asym_sel.get_size(),
                         data: [0xbb; SPDM_MAX_ASYM_KEY_SIZE],
@@ -201,7 +211,7 @@ impl ResponderContext {
         }
         let used = writer.used();
 
-        // generat signature
+        // generate signature
         let base_asym_size = self.common.negotiate_info.base_asym_sel.get_size() as usize;
         let temp_used = used - base_asym_size;
 

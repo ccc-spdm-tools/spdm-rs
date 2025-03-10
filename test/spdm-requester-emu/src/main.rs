@@ -250,6 +250,7 @@ async fn test_spdm(
         .send_receive_spdm_challenge(
             0,
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+            Some(SpdmChallengeContextStruct::default()),
         )
         .await
         .is_err()
@@ -739,6 +740,7 @@ async fn test_idekm_tdisp(
         .send_receive_spdm_challenge(
             0,
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+            Some(SpdmChallengeContextStruct::default()),
         )
         .await
         .is_err()

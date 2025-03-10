@@ -68,6 +68,9 @@ fn test_case0_handle_spdm_finish() {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
             nonce: SpdmNonceStruct { data: [100u8; 32] },
+            context: SpdmChallengeContextStruct {
+                data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+            },
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
@@ -149,6 +152,9 @@ fn test_case1_handle_spdm_finish() {
         measurement_summary_hash_type:
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
         nonce: SpdmNonceStruct { data: [100u8; 32] },
+        context: SpdmChallengeContextStruct {
+            data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+        },
     };
     assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
@@ -230,6 +236,9 @@ fn test_case2_handle_spdm_finish() {
         measurement_summary_hash_type:
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
         nonce: SpdmNonceStruct { data: [100u8; 32] },
+        context: SpdmChallengeContextStruct {
+            data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+        },
     };
     assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 

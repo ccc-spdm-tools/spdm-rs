@@ -232,6 +232,7 @@ fn issue_other_request_before_vca_negotiated() {
             .send_receive_spdm_challenge(
                 0,
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                Some(SpdmChallengeContextStruct::default()),
             )
             .await;
         assert!(

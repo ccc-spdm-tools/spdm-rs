@@ -100,6 +100,9 @@ fn test_case0_handle_spdm_challenge() {
             nonce: SpdmNonceStruct {
                 data: [100u8; SPDM_NONCE_SIZE],
             },
+            context: SpdmChallengeContextStruct {
+                data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+            },
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 

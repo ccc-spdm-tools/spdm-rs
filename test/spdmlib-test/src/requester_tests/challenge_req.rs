@@ -99,6 +99,7 @@ fn test_case0_send_receive_spdm_challenge() {
             .send_receive_spdm_challenge(
                 0,
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                Some(SpdmChallengeContextStruct::default()),
             )
             .await;
         log::info!("{:?}", status);
