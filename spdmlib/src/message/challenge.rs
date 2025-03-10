@@ -7,8 +7,8 @@ use crate::common::opaque::SpdmOpaqueStruct;
 use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
-    SpdmDigestStruct, SpdmMeasurementSummaryHashType, SpdmNonceStruct, SpdmResponseCapabilityFlags,
-    SpdmSignatureStruct,
+    SpdmChallengeContextStruct, SpdmDigestStruct, SpdmMeasurementSummaryHashType, SpdmNonceStruct,
+    SpdmResponseCapabilityFlags, SpdmSignatureStruct, SpdmVersion,
 };
 use codec::{Codec, Reader, Writer};
 
@@ -17,6 +17,7 @@ pub struct SpdmChallengeRequestPayload {
     pub slot_id: u8,
     pub measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
     pub nonce: SpdmNonceStruct,
+    pub context: SpdmChallengeContextStruct,
 }
 
 impl SpdmCodec for SpdmChallengeRequestPayload {
@@ -38,6 +39,12 @@ impl SpdmCodec for SpdmChallengeRequestPayload {
             .nonce
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        if _context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .context
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
         Ok(cnt)
     }
 
@@ -67,10 +74,18 @@ impl SpdmCodec for SpdmChallengeRequestPayload {
         }
         let nonce = SpdmNonceStruct::read(r)?;
 
+        let requester_context =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                SpdmChallengeContextStruct::read(r)?
+            } else {
+                SpdmChallengeContextStruct::default()
+            };
+
         Some(SpdmChallengeRequestPayload {
             slot_id,
             measurement_summary_hash_type,
             nonce,
+            context: requester_context,
         })
     }
 }
@@ -92,6 +107,7 @@ pub struct SpdmChallengeAuthResponsePayload {
     pub nonce: SpdmNonceStruct,
     pub measurement_summary_hash: SpdmDigestStruct,
     pub opaque: SpdmOpaqueStruct,
+    pub requester_context: SpdmChallengeContextStruct,
     pub signature: SpdmSignatureStruct,
 }
 
@@ -118,6 +134,12 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
         }
         cnt += self.opaque.spdm_encode(context, bytes)?;
         cnt += self.signature.spdm_encode(context, bytes)?;
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .requester_context
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
         Ok(cnt)
     }
 
@@ -140,6 +162,13 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
         };
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
         let signature = SpdmSignatureStruct::spdm_read(context, r)?;
+        let requester_context =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                SpdmChallengeContextStruct::read(r)?
+            } else {
+                SpdmChallengeContextStruct::default()
+            };
+
         Some(SpdmChallengeAuthResponsePayload {
             slot_id,
             slot_mask,
@@ -148,6 +177,7 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
             nonce,
             measurement_summary_hash,
             opaque,
+            requester_context,
             signature,
         })
     }
@@ -169,6 +199,43 @@ mod tests {
 
     #[test]
     fn test_case0_spdm_challenge_request_payload() {
+        let u8_slice = &mut [0u8; 2 + SPDM_NONCE_SIZE + SPDM_CHALLENGE_CONTEXT_SIZE];
+        let mut writer = Writer::init(u8_slice);
+        let value = SpdmChallengeRequestPayload {
+            slot_id: 100,
+            measurement_summary_hash_type:
+                SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+            nonce: SpdmNonceStruct {
+                data: [100u8; SPDM_NONCE_SIZE],
+            },
+            context: SpdmChallengeContextStruct {
+                data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+            },
+        };
+
+        create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(42, reader.left());
+        let spdm_challenge_request_payload =
+            SpdmChallengeRequestPayload::spdm_read(&mut context, &mut reader).unwrap();
+        assert_eq!(spdm_challenge_request_payload.slot_id, 100);
+        assert_eq!(
+            spdm_challenge_request_payload.measurement_summary_hash_type,
+            SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone
+        );
+        for i in 0..SPDM_NONCE_SIZE {
+            assert_eq!(spdm_challenge_request_payload.nonce.data[i], 100u8);
+        }
+        for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
+            assert_eq!(spdm_challenge_request_payload.context.data[i], 100u8);
+        }
+        assert_eq!(0, reader.left());
+    }
+    #[test]
+    fn test_case1_spdm_challenge_request_payload() {
         let u8_slice = &mut [0u8; 2 + SPDM_NONCE_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmChallengeRequestPayload {
@@ -178,9 +245,11 @@ mod tests {
             nonce: SpdmNonceStruct {
                 data: [100u8; SPDM_NONCE_SIZE],
             },
+            context: SpdmChallengeContextStruct::default(),
         };
 
         create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -205,6 +274,7 @@ mod tests {
             + SPDM_MAX_HASH_SIZE
             + 2
             + MAX_SPDM_OPAQUE_SIZE
+            + SPDM_CHALLENGE_CONTEXT_SIZE
             + SPDM_MAX_ASYM_KEY_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmChallengeAuthResponsePayload {
@@ -226,6 +296,9 @@ mod tests {
                 data_size: MAX_SPDM_OPAQUE_SIZE as u16,
                 data: [0xAAu8; MAX_SPDM_OPAQUE_SIZE],
             },
+            requester_context: SpdmChallengeContextStruct {
+                data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+            },
             signature: SpdmSignatureStruct {
                 data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
                 data: [0x55u8; SPDM_MAX_ASYM_KEY_SIZE],
@@ -233,6 +306,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         context.runtime_info.need_measurement_summary_hash = true;
         context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
@@ -248,6 +322,7 @@ mod tests {
                 + SPDM_MAX_HASH_SIZE
                 + 2
                 + MAX_SPDM_OPAQUE_SIZE
+                + SPDM_CHALLENGE_CONTEXT_SIZE
                 + SPDM_MAX_ASYM_KEY_SIZE,
             reader.left()
         );
@@ -287,6 +362,9 @@ mod tests {
         for i in 0..SPDM_NONCE_SIZE {
             assert_eq!(spdm_read_data.nonce.data[i], 100u8);
         }
+        for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
+            assert_eq!(spdm_read_data.requester_context.data[i], 100u8);
+        }
         for i in 0..RSASSA_4096_KEY_SIZE {
             assert_eq!(spdm_read_data.signature.data[i], 0x55u8);
         }
@@ -316,6 +394,7 @@ mod tests {
                 data_size: MAX_SPDM_OPAQUE_SIZE as u16,
                 data: [0xAAu8; MAX_SPDM_OPAQUE_SIZE],
             },
+            requester_context: SpdmChallengeContextStruct::default(),
             signature: SpdmSignatureStruct {
                 data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
                 data: [0x55u8; SPDM_MAX_ASYM_KEY_SIZE],
@@ -323,6 +402,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         context.runtime_info.need_measurement_summary_hash = false;
         context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;

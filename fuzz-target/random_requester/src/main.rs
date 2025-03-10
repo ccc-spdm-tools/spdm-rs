@@ -87,6 +87,7 @@ async fn run_spdm(spdm: Vec<i32>) {
                     .send_receive_spdm_challenge(
                         0,
                         SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                        Some(SpdmChallengeContextStruct::default()),
                     )
                     .await
                     .is_err()
