@@ -11,7 +11,7 @@ afl = { version = "=0.15.12", optional = true }
 spdmlib = { path = "../../spdmlib", default-features = false, features=["spdm-ring"] }
 simple_logger = "4.2.0"
 log = "0.4.13"
-ring = { version = "0.17.6" }
+ring = { version = "0.17.14" }
 flexi_logger = "0.27.2"
 spdmlib-test = { path = "../../test/spdmlib-test" }
 futures = { version = "0.3", default-features = false }
