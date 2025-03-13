@@ -10,7 +10,7 @@ use codec::u24;
 /// It should be 1024 according to SPDM spec.
 pub const MAX_SPDM_OPAQUE_SIZE: usize = 1024;
 
-pub const MAX_SECURE_SPDM_VERSION_COUNT: usize = 0x02;
+pub const MAX_SECURE_SPDM_VERSION_COUNT: usize = 0x03;
 
 pub const DMTF_SPEC_ID: u32 = 0x444D5446;
 pub const DMTF_OPAQUE_VERSION: u8 = 0x01;

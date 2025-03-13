@@ -80,6 +80,12 @@ fn test_case0_handle_spdm_psk_exchange() {
                                 update_version_number: 0,
                                 alpha: 0,
                             },
+                            SecuredMessageVersion {
+                                major_version: 1,
+                                minor_version: 2,
+                                update_version_number: 0,
+                                alpha: 0,
+                            },
                         ],
                     },
                 },
@@ -157,6 +163,12 @@ fn test_case1_handle_spdm_psk_exchange() {
                             SecuredMessageVersion {
                                 major_version: 1,
                                 minor_version: 1,
+                                update_version_number: 0,
+                                alpha: 0,
+                            },
+                            SecuredMessageVersion {
+                                major_version: 1,
+                                minor_version: 2,
                                 update_version_number: 0,
                                 alpha: 0,
                             },

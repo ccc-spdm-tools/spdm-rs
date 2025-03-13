@@ -308,6 +308,7 @@ async fn handle_message(
         secure_spdm_version: [
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
             Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
         ],
         ..Default::default()
     };
