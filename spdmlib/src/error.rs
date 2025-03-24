@@ -300,7 +300,7 @@ impl TryInto<u24> for StatusCode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct SpdmStatus {
     pub severity: StatusSeverity,
     pub status_code: StatusCode,
