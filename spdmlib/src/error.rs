@@ -300,10 +300,39 @@ impl TryInto<u24> for StatusCode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub const SPDM_ERROR_MESSAGE_DATA_MAX_LENGTH: usize = 36; // "SPDM error response message format":
+                                                          //     'SPDMVersion' (1B) +
+                                                          //     'RequestResponseCode' (1B) +
+                                                          //     'Param1' (1B) +
+                                                          //     'Param1' (1B) +
+                                                          //     'ExtendedErrorData' (0-32B)
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct SpdmErrorMessageData {
+    pub length: usize,
+    pub data: [u8; SPDM_ERROR_MESSAGE_DATA_MAX_LENGTH],
+}
+impl Default for SpdmErrorMessageData {
+    fn default() -> Self {
+        SpdmErrorMessageData {
+            length: Default::default(),
+            data: [Default::default(); SPDM_ERROR_MESSAGE_DATA_MAX_LENGTH],
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, Default)]
 pub struct SpdmStatus {
     pub severity: StatusSeverity,
     pub status_code: StatusCode,
+    pub error_data: Option<SpdmErrorMessageData>,
+}
+impl PartialEq for SpdmStatus {
+    fn eq(&self, other: &Self) -> bool {
+        // SpdmStatus with same serverity and status_code but different error_data shall be
+        // considered as same SpdmStatus.
+        // Thus, do not care about the error_data here.
+        self.severity == other.severity && self.status_code == other.status_code
+    }
 }
 
 impl Codec for SpdmStatus {
@@ -330,6 +359,7 @@ impl Codec for SpdmStatus {
         Some(Self {
             severity,
             status_code,
+            error_data: None,
         })
     }
 }
@@ -355,6 +385,21 @@ impl SpdmStatus {
     /// Returns true if severity is StatusSeverity::ERROR else it returns false.
     pub fn spdm_status_is_error(&self) -> bool {
         self.severity == StatusSeverity::ERROR
+    }
+
+    pub fn spdm_status_set_error_data(&mut self, error_data: &[u8]) {
+        // Ensure the slice has no more data than SpdmErrorMessageData  capacity
+        if error_data.len() <= SPDM_ERROR_MESSAGE_DATA_MAX_LENGTH {
+            let mut ed = SpdmErrorMessageData {
+                length: error_data.len(),
+                ..Default::default()
+            };
+            ed.data[..ed.length].copy_from_slice(error_data);
+            self.error_data = Some(ed);
+        } else {
+            // Do not expect more data than SpdmErrorMessageData  capacity.
+            self.error_data = None;
+        }
     }
 }
 
@@ -400,6 +445,7 @@ macro_rules! spdm_return_status {
         SpdmStatus {
             severity: $severity,
             status_code: $status_code,
+            error_data: None,
         }
     };
 }
