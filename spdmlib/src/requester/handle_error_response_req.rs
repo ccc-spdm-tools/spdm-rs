@@ -6,9 +6,9 @@ use codec::{Codec, Reader};
 
 use crate::common::session::SpdmSessionState;
 use crate::error::{
-    SpdmResult, SPDM_STATUS_BUSY_PEER, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_PEER, SPDM_STATUS_NOT_READY_PEER,
-    SPDM_STATUS_SESSION_MSG_ERROR,
+    SpdmResult, SpdmStatus, SPDM_STATUS_BUSY_PEER, SPDM_STATUS_ERROR_PEER,
+    SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_PEER,
+    SPDM_STATUS_NOT_READY_PEER, SPDM_STATUS_SESSION_MSG_ERROR,
 };
 use crate::message::*;
 use crate::requester::RequesterContext;
@@ -72,6 +72,7 @@ impl RequesterContext {
                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
             };
 
+        let mut spdm_status: SpdmStatus;
         if spdm_message_general_payload.param1 == SpdmErrorCode::SpdmErrorDecryptError.get_u8() {
             if let Some(sid) = session_id {
                 let session = if let Some(s) = self.common.get_session_via_id(sid) {
@@ -81,9 +82,17 @@ impl RequesterContext {
                 };
                 session.teardown();
             }
-            Err(SPDM_STATUS_SESSION_MSG_ERROR)
+            spdm_status = SPDM_STATUS_SESSION_MSG_ERROR;
         } else {
-            self.spdm_handle_simple_error_response(session_id, spdm_message_general_payload.param1)
+            spdm_status = match self
+                .spdm_handle_simple_error_response(session_id, spdm_message_general_payload.param1)
+            {
+                Err(e) => e,
+                _ => SPDM_STATUS_ERROR_PEER,
+            }
         }
+
+        spdm_status.spdm_status_set_error_data(response);
+        Err(spdm_status)
     }
 }
