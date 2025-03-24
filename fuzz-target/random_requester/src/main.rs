@@ -110,6 +110,7 @@ async fn run_spdm(spdm: Vec<i32>) {
                         SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
                         SpdmMeasurementOperation::SpdmMeasurementRequestAll,
                         None,
+                        None,
                         &mut content_changed,
                         &mut total_number,
                         &mut spdm_measurement_record_structure,

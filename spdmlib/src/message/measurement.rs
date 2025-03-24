@@ -8,7 +8,10 @@ use crate::common;
 use crate::common::opaque::SpdmOpaqueStruct;
 use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
-use crate::protocol::{SpdmMeasurementRecordStructure, SpdmNonceStruct, SpdmSignatureStruct};
+use crate::protocol::{
+    SpdmMeasurementContextStruct, SpdmMeasurementRecordStructure, SpdmNonceStruct,
+    SpdmSignatureStruct,
+};
 use codec::enum_builder;
 use codec::{Codec, Reader, Writer};
 
@@ -62,6 +65,7 @@ pub struct SpdmGetMeasurementsRequestPayload {
     pub measurement_operation: SpdmMeasurementOperation,
     pub nonce: SpdmNonceStruct,
     pub slot_id: u8,
+    pub context: SpdmMeasurementContextStruct,
 }
 
 impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
@@ -94,6 +98,12 @@ impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
                     .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
             }
         }
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .context
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
         Ok(cnt)
     }
 
@@ -119,12 +129,19 @@ impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
             } else {
                 0
             };
+        let requester_context =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                SpdmMeasurementContextStruct::read(r)?
+            } else {
+                SpdmMeasurementContextStruct::default()
+            };
 
         Some(SpdmGetMeasurementsRequestPayload {
             measurement_attributes,
             measurement_operation,
             nonce,
             slot_id,
+            context: requester_context,
         })
     }
 }
@@ -137,6 +154,7 @@ pub struct SpdmMeasurementsResponsePayload {
     pub measurement_record: SpdmMeasurementRecordStructure,
     pub nonce: SpdmNonceStruct,
     pub opaque: SpdmOpaqueStruct,
+    pub requester_context: SpdmMeasurementContextStruct,
     pub signature: SpdmSignatureStruct,
     pub measurement_operation: SpdmMeasurementOperation,
 }
@@ -182,6 +200,12 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         cnt += self.opaque.spdm_encode(context, bytes)?;
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .requester_context
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
         if context.runtime_info.need_measurement_signature {
             cnt += self.signature.spdm_encode(context, bytes)?;
         }
@@ -200,6 +224,12 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
         let measurement_record = SpdmMeasurementRecordStructure::spdm_read(context, r)?;
         let nonce = SpdmNonceStruct::read(r)?;
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
+        let requester_context =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                SpdmMeasurementContextStruct::read(r)?
+            } else {
+                SpdmMeasurementContextStruct::default()
+            };
         let signature = if context.runtime_info.need_measurement_signature {
             SpdmSignatureStruct::spdm_read(context, r)?
         } else {
@@ -212,6 +242,7 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
             measurement_record,
             nonce,
             opaque,
+            requester_context,
             signature,
             measurement_operation: SpdmMeasurementOperation::Unknown(0),
         })
@@ -259,6 +290,7 @@ mod tests {
                 data: [100u8; SPDM_NONCE_SIZE],
             },
             slot_id: 0x7,
+            context: SpdmMeasurementContextStruct::default(),
         };
 
         create_spdm_context!(context);
@@ -294,9 +326,11 @@ mod tests {
                 data: [100u8; SPDM_NONCE_SIZE],
             },
             slot_id: 0x7,
+            context: SpdmMeasurementContextStruct::default(),
         };
 
         create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -317,6 +351,52 @@ mod tests {
         }
         assert_eq!(0, reader.left());
     }
+
+    #[test]
+    fn test_case2_spdm_get_measurements_request_payload() {
+        let u8_slice = &mut [0u8; 2 + SPDM_NONCE_SIZE + SPDM_CHALLENGE_CONTEXT_SIZE + 1];
+        let mut writer = Writer::init(u8_slice);
+        let value = SpdmGetMeasurementsRequestPayload {
+            measurement_attributes: SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
+            measurement_operation: SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
+            nonce: SpdmNonceStruct {
+                data: [100u8; SPDM_NONCE_SIZE],
+            },
+            slot_id: 0x7,
+            context: SpdmMeasurementContextStruct {
+                data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+            },
+        };
+
+        create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(
+            2 + SPDM_NONCE_SIZE + SPDM_CHALLENGE_CONTEXT_SIZE + 1,
+            reader.left()
+        );
+        let get_measurements =
+            SpdmGetMeasurementsRequestPayload::spdm_read(&mut context, &mut reader).unwrap();
+        assert_eq!(
+            get_measurements.measurement_attributes,
+            SpdmMeasurementAttributes::SIGNATURE_REQUESTED
+        );
+        assert_eq!(
+            get_measurements.measurement_operation,
+            SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
+        );
+        assert_eq!(get_measurements.slot_id, 0x7);
+        for i in 0..SPDM_NONCE_SIZE {
+            assert_eq!(get_measurements.nonce.data[i], 100u8);
+        }
+        for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
+            assert_eq!(get_measurements.context.data[i], 100u8);
+        }
+        assert_eq!(0, reader.left());
+    }
+
     #[test]
     fn test_case0_spdm_measurements_response_payload() {
         create_spdm_context!(context);
@@ -362,6 +442,9 @@ mod tests {
             opaque: SpdmOpaqueStruct {
                 data_size: MAX_SPDM_OPAQUE_SIZE as u16,
                 data: [100u8; MAX_SPDM_OPAQUE_SIZE],
+            },
+            requester_context: SpdmMeasurementContextStruct {
+                data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
             },
             signature: SpdmSignatureStruct {
                 data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,

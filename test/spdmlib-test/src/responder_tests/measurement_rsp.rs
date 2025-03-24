@@ -65,6 +65,9 @@ fn test_case0_handle_spdm_measurement() {
                 data: [100u8; SPDM_NONCE_SIZE],
             },
             slot_id: 0,
+            context: SpdmMeasurementContextStruct {
+                data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+            },
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
@@ -171,6 +174,9 @@ fn test_case1_handle_spdm_measurement() {
                 data: [100u8; SPDM_NONCE_SIZE],
             },
             slot_id: 0,
+            context: SpdmMeasurementContextStruct {
+                data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+            },
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
