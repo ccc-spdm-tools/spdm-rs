@@ -239,6 +239,19 @@ impl SpdmCodec for SpdmDmtfMeasurementStructure {
                 }
                 _ => return None,
             },
+            8 => match representation {
+                SpdmDmtfMeasurementRepresentation::SpdmDmtfMeasurementDigest => {
+                    SpdmDmtfMeasurementType::SpdmDmtfMeasurementHashExtendMeasurement
+                }
+                _ => return None,
+            },
+            9 => match representation {
+                SpdmDmtfMeasurementRepresentation::SpdmDmtfMeasurementRawBit => {
+                    SpdmDmtfMeasurementType::SpdmDmtfMeasurementInformational
+                }
+                _ => return None,
+            },
+            0xA => SpdmDmtfMeasurementType::SpdmDmtfMeasurementStructuredManifest,
             val => SpdmDmtfMeasurementType::Unknown(val),
         };
 

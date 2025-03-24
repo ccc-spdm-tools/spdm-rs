@@ -1025,7 +1025,10 @@ enum_builder! {
         SpdmDmtfMeasurementManifest => 0x4,
         SpdmDmtfMeasurementStructuredRepresentationMode => 0x5,
         SpdmDmtfMeasurementMutableFirmwareVersionNumber => 0x6,
-        SpdmDmtfMeasurementMutableFirmwareSecurityVersionNumber => 0x7
+        SpdmDmtfMeasurementMutableFirmwareSecurityVersionNumber => 0x7,
+        SpdmDmtfMeasurementHashExtendMeasurement => 0x8,
+        SpdmDmtfMeasurementInformational => 0x9,
+        SpdmDmtfMeasurementStructuredManifest => 0xA
     }
 }
 
