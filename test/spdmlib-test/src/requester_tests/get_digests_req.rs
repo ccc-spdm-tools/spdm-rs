@@ -298,6 +298,7 @@ fn issue_other_request_before_vca_negotiated() {
                 SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
                 measurement_operation,
                 None,
+                None,
                 &mut content_changed,
                 &mut total_number,
                 &mut spdm_measurement_record_structure,

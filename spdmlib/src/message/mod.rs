@@ -1037,7 +1037,7 @@ mod tests {
     fn test_case8_spdm_message() {
         let value = SpdmMessage {
             header: SpdmMessageHeader {
-                version: SpdmVersion::SpdmVersion10,
+                version: SpdmVersion::SpdmVersion13,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestGetMeasurements,
             },
             payload: SpdmMessagePayload::SpdmGetMeasurementsRequest(
@@ -1049,11 +1049,14 @@ mod tests {
                         data: [100u8; SPDM_NONCE_SIZE],
                     },
                     slot_id: 0x7,
+                    context: SpdmMeasurementContextStruct {
+                        data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+                    },
                 },
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -1072,6 +1075,9 @@ mod tests {
             assert_eq!(payload.slot_id, 0x7);
             for i in 0..SPDM_NONCE_SIZE {
                 assert_eq!(payload.nonce.data[i], 100u8);
+            }
+            for i in 0..SPDM_MEASUREMENTS_CONTEXT_SIZE {
+                assert_eq!(payload.context.data[i], 100u8);
             }
         }
     }
@@ -1098,7 +1104,7 @@ mod tests {
 
         let value = SpdmMessage {
             header: SpdmMessageHeader {
-                version: SpdmVersion::SpdmVersion10,
+                version: SpdmVersion::SpdmVersion13,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseMeasurements,
             },
             payload: SpdmMessagePayload::SpdmMeasurementsResponse(
@@ -1118,6 +1124,9 @@ mod tests {
                         data_size: MAX_SPDM_OPAQUE_SIZE as u16,
                         data: [100u8; MAX_SPDM_OPAQUE_SIZE],
                     },
+                    requester_context: SpdmMeasurementContextStruct {
+                        data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+                    },
                     signature: SpdmSignatureStruct {
                         data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
                         data: [100u8; SPDM_MAX_ASYM_KEY_SIZE],
@@ -1128,7 +1137,7 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
         context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
@@ -1154,6 +1163,9 @@ mod tests {
             assert_eq!(payload.opaque.data_size, MAX_SPDM_OPAQUE_SIZE as u16);
             for i in 0..MAX_SPDM_OPAQUE_SIZE {
                 assert_eq!(payload.opaque.data[i], 100);
+            }
+            for i in 0..SPDM_MEASUREMENTS_CONTEXT_SIZE {
+                assert_eq!(payload.requester_context.data[i], 100);
             }
             assert_eq!(payload.signature.data_size, RSASSA_4096_KEY_SIZE as u16);
             for i in 0..RSASSA_4096_KEY_SIZE {

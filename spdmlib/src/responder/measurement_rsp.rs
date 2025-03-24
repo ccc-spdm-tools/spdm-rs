@@ -95,6 +95,7 @@ impl ResponderContext {
         }
         let get_measurements = get_measurements.unwrap();
         let slot_id = get_measurements.slot_id as usize;
+        let requester_context = get_measurements.context;
 
         let signature_size = self.common.negotiate_info.base_asym_sel.get_size();
 
@@ -242,6 +243,7 @@ impl ResponderContext {
                         data_size: 0,
                         data: [0u8; MAX_SPDM_OPAQUE_SIZE],
                     },
+                    requester_context,
                     signature: SpdmSignatureStruct {
                         data_size: signature_size,
                         data: [0x60u8; SPDM_MAX_ASYM_KEY_SIZE],

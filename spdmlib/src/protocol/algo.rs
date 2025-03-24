@@ -45,6 +45,7 @@ pub const AEAD_CHACHA20_POLY1305_TAG_SIZE: usize = 16;
 
 pub const SPDM_NONCE_SIZE: usize = 32;
 pub const SPDM_CHALLENGE_CONTEXT_SIZE: usize = 8;
+pub const SPDM_MEASUREMENTS_CONTEXT_SIZE: usize = 8;
 pub const SPDM_RANDOM_SIZE: usize = 32;
 pub const SPDM_MAX_HASH_SIZE: usize = 64;
 pub const SPDM_MAX_ASYM_KEY_SIZE: usize = 512;
@@ -858,6 +859,27 @@ impl Codec for SpdmChallengeContextStruct {
             *d = u8::read(r)?;
         }
         Some(SpdmChallengeContextStruct { data })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SpdmMeasurementContextStruct {
+    pub data: [u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+}
+
+impl Codec for SpdmMeasurementContextStruct {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        for d in self.data.iter() {
+            d.encode(bytes)?;
+        }
+        Ok(SPDM_MEASUREMENTS_CONTEXT_SIZE)
+    }
+    fn read(r: &mut Reader) -> Option<SpdmMeasurementContextStruct> {
+        let mut data = [0u8; SPDM_MEASUREMENTS_CONTEXT_SIZE];
+        for d in data.iter_mut() {
+            *d = u8::read(r)?;
+        }
+        Some(SpdmMeasurementContextStruct { data })
     }
 }
 
@@ -1783,6 +1805,30 @@ mod tests {
         let spdm_challenge_context_struct = SpdmChallengeContextStruct::default();
         for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
             assert_eq!(spdm_challenge_context_struct.data[i], 0);
+        }
+    }
+
+    #[test]
+    fn test_case0_spdm_measurement_context_struct() {
+        let u8_slice = &mut [0u8; SPDM_MEASUREMENTS_CONTEXT_SIZE];
+        let mut writer = Writer::init(u8_slice);
+        let value = SpdmMeasurementContextStruct {
+            data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+        };
+        assert!(value.encode(&mut writer).is_ok());
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(SPDM_MEASUREMENTS_CONTEXT_SIZE, reader.left());
+        let spdm_measurement_context_struct =
+            SpdmMeasurementContextStruct::read(&mut reader).unwrap();
+
+        for i in 0..SPDM_MEASUREMENTS_CONTEXT_SIZE {
+            assert_eq!(spdm_measurement_context_struct.data[i], 100);
+        }
+        assert_eq!(0, reader.left());
+
+        let spdm_measurement_context_struct = SpdmMeasurementContextStruct::default();
+        for i in 0..SPDM_MEASUREMENTS_CONTEXT_SIZE {
+            assert_eq!(spdm_measurement_context_struct.data[i], 0);
         }
     }
 

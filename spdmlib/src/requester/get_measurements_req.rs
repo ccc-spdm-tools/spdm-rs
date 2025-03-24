@@ -27,6 +27,7 @@ impl RequesterContext {
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
         transcript_meas: &mut Option<ManagedBufferM>,
         slot_id: u8,
+        requester_context_struct: Option<SpdmMeasurementContextStruct>,
     ) -> SpdmResult<u8> {
         if transcript_meas.is_none() {
             *transcript_meas = Some(ManagedBufferM::default());
@@ -42,6 +43,7 @@ impl RequesterContext {
                 spdm_measurement_record_structure,
                 transcript_meas,
                 slot_id,
+                requester_context_struct,
             )
             .await;
 
@@ -67,6 +69,7 @@ impl RequesterContext {
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
         transcript_meas: &mut Option<ManagedBufferM>,
         slot_id: u8,
+        requester_context_struct: Option<SpdmMeasurementContextStruct>,
     ) -> SpdmResult<u8> {
         info!("send spdm measurement\n");
 
@@ -79,12 +82,15 @@ impl RequesterContext {
             session_id,
         );
 
+        let requester_context = requester_context_struct.unwrap_or_default();
+
         let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let send_used = self.encode_spdm_measurement_record(
             measurement_attributes,
             measurement_operation,
             spdm_nonce_struct,
             slot_id,
+            &requester_context,
             &mut send_buffer,
         )?;
         self.send_message(session_id, &send_buffer[..send_used], false)
@@ -101,6 +107,7 @@ impl RequesterContext {
             slot_id,
             measurement_attributes,
             measurement_operation,
+            requester_context,
             content_changed,
             spdm_measurement_record_structure,
             &send_buffer[..send_used],
@@ -115,6 +122,7 @@ impl RequesterContext {
         measurement_operation: SpdmMeasurementOperation,
         spdm_nonce_struct: Option<SpdmNonceStruct>,
         slot_id: u8,
+        requester_context: &SpdmMeasurementContextStruct,
         buf: &mut [u8],
     ) -> SpdmResult<usize> {
         let mut writer = Writer::init(buf);
@@ -137,6 +145,7 @@ impl RequesterContext {
                     measurement_operation,
                     nonce: SpdmNonceStruct { data: nonce },
                     slot_id,
+                    context: requester_context.clone(),
                 },
             ),
         };
@@ -150,6 +159,7 @@ impl RequesterContext {
         slot_id: u8,
         measurement_attributes: SpdmMeasurementAttributes,
         measurement_operation: SpdmMeasurementOperation,
+        requester_context: SpdmMeasurementContextStruct,
         content_changed: &mut Option<SpdmMeasurementContentChanged>,
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
         send_buffer: &[u8],
@@ -226,6 +236,12 @@ impl RequesterContext {
                             }
                         }
 
+                        //verify context
+                        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                            && measurements.requester_context.data != requester_context.data
+                        {
+                            return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                        }
                         // verify signature
                         if measurement_attributes
                             .contains(SpdmMeasurementAttributes::SIGNATURE_REQUESTED)
@@ -289,6 +305,7 @@ impl RequesterContext {
         spdm_measuremente_attributes: SpdmMeasurementAttributes,
         measurement_operation: SpdmMeasurementOperation,
         spdm_nonce_struct: Option<SpdmNonceStruct>,
+        requester_context_struct: Option<SpdmMeasurementContextStruct>, // requester context, this is only used if spdm version >= 0x13
         content_changed: &mut Option<SpdmMeasurementContentChanged>, // out, None if spdm version < 0x12
         out_total_number: &mut u8, // out, total number when measurement_operation = SpdmMeasurementQueryTotalNumber
         //      number of blocks got measured.
@@ -305,6 +322,7 @@ impl RequesterContext {
                 spdm_measurement_record_structure,
                 transcript_meas,
                 slot_id,
+                requester_context_struct,
             )
             .await?;
         Ok(())
