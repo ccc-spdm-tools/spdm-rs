@@ -133,13 +133,13 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
             cnt += self.measurement_summary_hash.spdm_encode(context, bytes)?;
         }
         cnt += self.opaque.spdm_encode(context, bytes)?;
-        cnt += self.signature.spdm_encode(context, bytes)?;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             cnt += self
                 .requester_context
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
+        cnt += self.signature.spdm_encode(context, bytes)?;
         Ok(cnt)
     }
 
@@ -161,13 +161,13 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
             SpdmDigestStruct::default()
         };
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
-        let signature = SpdmSignatureStruct::spdm_read(context, r)?;
         let requester_context =
             if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 SpdmChallengeContextStruct::read(r)?
             } else {
                 SpdmChallengeContextStruct::default()
             };
+        let signature = SpdmSignatureStruct::spdm_read(context, r)?;
 
         Some(SpdmChallengeAuthResponsePayload {
             slot_id,
