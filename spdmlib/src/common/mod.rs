@@ -297,10 +297,12 @@ impl SpdmContext {
 
     pub fn get_signing_prefix_context(&self) -> [u8; 64] {
         let spdm_version = u8::from(self.negotiate_info.spdm_version_sel);
-        let mut signing_prefix = SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT;
-        for i in 0..4 {
-            signing_prefix[16 * i + 11] = 0x30 + ((spdm_version >> 4) & 0xF);
-            signing_prefix[16 * i + 13] = 0x30 + (spdm_version & 0xF);
+        let mut signing_prefix = SPDM_VERSION_1_X_SIGNING_PREFIX_CONTEXT;
+        for i in 0..SPDM_VERSION_SIGNING_PREFIX_NUMBER {
+            signing_prefix[SPDM_VERSION_SIGNING_PREFIX_LENGTH * i
+                + SPDM_VERSION_SIGNING_PREFIX_MAJOR_VER_INDEX] = 0x30 + ((spdm_version >> 4) & 0xF);
+            signing_prefix[SPDM_VERSION_SIGNING_PREFIX_LENGTH * i
+                + SPDM_VERSION_SIGNING_PREFIX_MINOR_VER_INDEX] = 0x30 + (spdm_version & 0xF);
         }
         signing_prefix
     }
@@ -1203,10 +1205,12 @@ pub const MAX_MANAGED_BUFFER_TH_SIZE: usize = MAX_MANAGED_BUFFER_A_SIZE
     + SPDM_MAX_HASH_SIZE
     + MAX_MANAGED_BUFFER_F_SIZE;
 
-pub const SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT_SIZE: usize = 64;
-pub const SPDM_VERSION_1_2_SIGN_CONTEXT_SIZE: usize = 36;
-pub const MAX_MANAGED_BUFFER_12SIGN_SIZE: usize = SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT_SIZE
-    + SPDM_VERSION_1_2_SIGN_CONTEXT_SIZE
+pub const SPDM_VERSION_1_X_SIGNING_PREFIX_CONTEXT_SIZE: usize =
+    SPDM_VERSION_SIGNING_PREFIX_LENGTH * SPDM_VERSION_SIGNING_PREFIX_NUMBER;
+pub const SPDM_VERSION_1_X_SIGN_CONTEXT_SIZE: usize = 36;
+
+pub const MAX_MANAGED_BUFFER_12SIGN_SIZE: usize = SPDM_VERSION_1_X_SIGNING_PREFIX_CONTEXT_SIZE
+    + SPDM_VERSION_1_X_SIGN_CONTEXT_SIZE
     + SPDM_MAX_HASH_SIZE;
 
 #[derive(Debug, Clone)]
