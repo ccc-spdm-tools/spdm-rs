@@ -628,7 +628,7 @@ fn test_case1_send_receive_spdm_measurement() {
                 .unwrap();
         message_l1l2.reset_message();
         message_l1l2
-            .append_message(&SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT)
+            .append_message(&requester.common.get_signing_prefix_context())
             .unwrap();
         message_l1l2
             .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_6)
@@ -845,7 +845,7 @@ fn test_case3_send_receive_spdm_measurement() {
                 .unwrap();
                 message_l1l2.reset_message();
                 message_l1l2
-                    .append_message(&SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT)
+                    .append_message(&requester.common.get_signing_prefix_context())
                     .unwrap();
                 message_l1l2
                     .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_6)

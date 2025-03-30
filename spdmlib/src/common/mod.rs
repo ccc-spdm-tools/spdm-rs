@@ -295,6 +295,16 @@ impl SpdmContext {
         Ok(())
     }
 
+    pub fn get_signing_prefix_context(&self) -> [u8; 64] {
+        let spdm_version = u8::from(self.negotiate_info.spdm_version_sel);
+        let mut signing_prefix = SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT;
+        for i in 0..4 {
+            signing_prefix[16 * i + 11] = 0x30 + ((spdm_version >> 4) & 0xF);
+            signing_prefix[16 * i + 13] = 0x30 + (spdm_version & 0xF);
+        }
+        signing_prefix
+    }
+
     pub fn append_message_a(&mut self, new_message: &[u8]) -> SpdmResult {
         self.runtime_info
             .message_a

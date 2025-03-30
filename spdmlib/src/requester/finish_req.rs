@@ -354,7 +354,7 @@ impl RequesterContext {
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
-                .append_message(&SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT)
+                .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             transcript_sign
                 .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_12)
@@ -391,7 +391,7 @@ impl RequesterContext {
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
-                .append_message(&SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT)
+                .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             transcript_sign
                 .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_12)

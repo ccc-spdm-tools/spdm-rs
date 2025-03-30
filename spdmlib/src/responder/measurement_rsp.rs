@@ -346,7 +346,7 @@ impl ResponderContext {
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_sign.reset_message();
             message_sign
-                .append_message(&SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT)
+                .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             message_sign
                 .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_6)
@@ -414,7 +414,7 @@ impl ResponderContext {
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_l1l2.reset_message();
             message_l1l2
-                .append_message(&SPDM_VERSION_1_2_SIGNING_PREFIX_CONTEXT)
+                .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             message_l1l2
                 .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_6)
