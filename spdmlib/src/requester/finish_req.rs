@@ -357,7 +357,7 @@ impl RequesterContext {
                 .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             transcript_sign
-                .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_12)
+                .append_message(&SPDM_VERSION_SIGNING_CONTEXT_ZEROPAD_12)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             transcript_sign
                 .append_message(&SPDM_FINISH_SIGN_CONTEXT)
@@ -394,7 +394,7 @@ impl RequesterContext {
                 .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             transcript_sign
-                .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_12)
+                .append_message(&SPDM_VERSION_SIGNING_CONTEXT_ZEROPAD_12)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             transcript_sign
                 .append_message(&SPDM_FINISH_SIGN_CONTEXT)

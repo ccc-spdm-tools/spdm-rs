@@ -266,7 +266,7 @@ impl ResponderContext {
                 .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             message_sign
-                .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_4)
+                .append_message(&SPDM_VERSION_SIGNING_CONTEXT_ZEROPAD_4)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             message_sign
                 .append_message(&SPDM_CHALLENGE_AUTH_SIGN_CONTEXT)
@@ -314,7 +314,7 @@ impl ResponderContext {
                 .append_message(&self.common.get_signing_prefix_context())
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             message_m1m2
-                .append_message(&SPDM_VERSION_1_2_SIGNING_CONTEXT_ZEROPAD_4)
+                .append_message(&SPDM_VERSION_SIGNING_CONTEXT_ZEROPAD_4)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             message_m1m2
                 .append_message(&SPDM_CHALLENGE_AUTH_SIGN_CONTEXT)
