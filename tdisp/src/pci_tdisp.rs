@@ -271,7 +271,7 @@ impl PartialOrd for TdispVersion {
 
 impl Codec for TdispVersion {
     fn encode(&self, bytes: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
-        (self.major_version << 4 | self.minor_version).encode(bytes)
+        ((self.major_version << 4) | self.minor_version).encode(bytes)
     }
 
     fn read(r: &mut codec::Reader) -> Option<Self> {
