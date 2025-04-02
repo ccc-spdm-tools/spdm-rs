@@ -29,7 +29,7 @@ chrono = "0.4"
 [dependencies.mbedtls-sys-auto]
 version = "2.25.0"
 default-features = false
-features = ["threading", "custom_printf"]
+features = ["threading"]
 
 [build-dependencies]
 cc = "1.0"
