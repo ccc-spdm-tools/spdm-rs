@@ -5,11 +5,10 @@
 use core::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug},
-    ops::{ControlFlow, FromResidual, Try},
+    //ops::{ControlFlow, /*FromResidual,*/ /*Try*/},
 };
 
 /// Reference: https://github.com/DMTF/libspdm/blob/main/include/library/spdm_return_status.h
-
 #[repr(u8)]
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -415,29 +414,29 @@ impl fmt::Display for SpdmStatus {
     }
 }
 
-impl FromResidual<SpdmStatus> for SpdmStatus {
-    fn from_residual(residual: SpdmStatus) -> Self {
-        residual
-    }
-}
+// impl FromResidual<SpdmStatus> for SpdmStatus {
+//     fn from_residual(residual: SpdmStatus) -> Self {
+//         residual
+//     }
+// }
 
-impl Try for SpdmStatus {
-    type Output = ();
+// impl Try for SpdmStatus {
+//     type Output = ();
 
-    type Residual = Self;
+//     type Residual = Self;
 
-    fn from_output(_output: Self::Output) -> Self {
-        SPDM_STATUS_SUCCESS
-    }
+//     fn from_output(_output: Self::Output) -> Self {
+//         SPDM_STATUS_SUCCESS
+//     }
 
-    fn branch(self) -> core::ops::ControlFlow<Self::Residual, Self::Output> {
-        if self == SPDM_STATUS_SUCCESS {
-            ControlFlow::Continue(())
-        } else {
-            ControlFlow::Break(self)
-        }
-    }
-}
+//     fn branch(self) -> core::ops::ControlFlow<Self::Residual, Self::Output> {
+//         if self == SPDM_STATUS_SUCCESS {
+//             ControlFlow::Continue(())
+//         } else {
+//             ControlFlow::Break(self)
+//         }
+//     }
+// }
 
 #[macro_export]
 macro_rules! spdm_return_status {

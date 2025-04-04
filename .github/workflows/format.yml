@@ -18,7 +18,7 @@ jobs:
         shell: bash
         run: |
             ./sh_script/pre-build.sh
-      - name: Install nightly toolchain with clippy available
+      - name: Install stable toolchain with clippy available
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
             ./sh_script/pre-build.sh
-      - name: Install nightly toolchain with rustfmt available
+      - name: Install stable toolchain with rustfmt available
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
@@ -77,7 +77,7 @@ jobs:
         shell: bash
         run: |
             ./sh_script/pre-build.sh
-      - name: Install nightly toolchain
+      - name: Install stable toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal

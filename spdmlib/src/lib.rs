@@ -4,8 +4,8 @@
 
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(stmt_expr_attributes)]
-#![feature(try_trait_v2)]
+// #![feature(stmt_expr_attributes)]
+// #![feature(try_trait_v2)]
 
 #[cfg(feature = "std")]
 extern crate std;

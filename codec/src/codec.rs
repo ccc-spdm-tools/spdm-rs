@@ -16,7 +16,7 @@ pub struct Reader<'a> {
     offs: usize,
 }
 
-impl<'a> Reader<'a> {
+impl Reader<'_> {
     pub fn init(bytes: &[u8]) -> Reader {
         Reader {
             buf: bytes,
@@ -69,7 +69,7 @@ pub struct Writer<'a> {
     offs: usize,
 }
 
-impl<'a> Writer<'a> {
+impl Writer<'_> {
     pub fn init(bytes: &mut [u8]) -> Writer {
         Writer {
             buf: bytes,
