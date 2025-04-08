@@ -68,6 +68,8 @@ jobs:
           toolchain: 1.83.0
           override: true
           components: rust-src, rustfmt, clippy
+      - name: Add `x86_64-unknown-none` target
+        run: rustup target add x86_64-unknown-none
       - name: Cache
         uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
 

@@ -35,6 +35,9 @@ jobs:
           override: true
           components: rust-src, rustfmt, clippy, llvm-tools-preview
 
+      - name: Add `x86_64-unknown-none` target
+        run: rustup target add x86_64-unknown-none
+
       - name: Run cargo install grcov
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
