@@ -8,7 +8,6 @@ use core::{
 };
 
 /// Reference: https://github.com/DMTF/libspdm/blob/main/include/library/spdm_return_status.h
-
 #[repr(u8)]
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
