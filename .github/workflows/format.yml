@@ -2,6 +2,10 @@ on: [push, pull_request]
 
 name: Nightly lints
 
+env:
+  RUST_TOOLCHAIN: 1.83.0
+  TOOLCHAIN_PROFILE: minimal
+
 permissions:
   contents: read
 
@@ -18,11 +22,11 @@ jobs:
         shell: bash
         run: |
             ./sh_script/pre-build.sh
-      - name: Install nightly toolchain with clippy available
+      - name: Install toolchain with clippy available
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
-          profile: minimal
-          toolchain: nightly-2024-07-19
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
           components: clippy
 
@@ -44,11 +48,11 @@ jobs:
         shell: bash
         run: |
             ./sh_script/pre-build.sh
-      - name: Install nightly toolchain with rustfmt available
+      - name: Install toolchain with rustfmt available
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
-          profile: minimal
-          toolchain: nightly-2024-07-19
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
           components: rustfmt
       - name: Cache
@@ -77,11 +81,11 @@ jobs:
         shell: bash
         run: |
             ./sh_script/pre-build.sh
-      - name: Install nightly toolchain
+      - name: Install toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
-          profile: minimal
-          toolchain: nightly-2024-07-19
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
           components: rustfmt, clippy
 
