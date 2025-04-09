@@ -97,7 +97,7 @@ impl SpdmTransportEncap for PciDoeTransportEncap {
         secured_message: bool,
     ) -> SpdmResult<usize> {
         let payload_len = spdm_buffer.len();
-        let aligned_payload_len = (payload_len + 3) / 4 * 4;
+        let aligned_payload_len = payload_len.div_ceil(4) * 4;
         let mut transport_buffer = transport_buffer.lock();
         let transport_buffer = transport_buffer.deref_mut();
         let mut writer = Writer::init(transport_buffer);
