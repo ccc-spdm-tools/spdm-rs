@@ -25,10 +25,7 @@ fn hkdf_extract(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Some(hash::Type::Sha384),
         _ => None,
     }?;
-    let md: hash::MdInfo = match md.into() {
-        Some(md) => md,
-        None => return None,
-    };
+    let md: hash::MdInfo = <mbedtls::hash::Type as Into<Option<hash::MdInfo>>>::into(md)?;
 
     let mut prk = SpdmHkdfPseudoRandomKey::default();
     unsafe {
@@ -60,10 +57,7 @@ fn hkdf_expand(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Some(hash::Type::Sha384),
         _ => None,
     }?;
-    let md: hash::MdInfo = match md.into() {
-        Some(md) => md,
-        None => return None,
-    };
+    let md: hash::MdInfo = <mbedtls::hash::Type as Into<Option<hash::MdInfo>>>::into(md)?;
     let mut okm = SpdmHkdfOutputKeyingMaterial::default();
     unsafe {
         let res = hkdf_expand(
