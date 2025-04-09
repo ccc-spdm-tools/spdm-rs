@@ -5,7 +5,6 @@
 use core::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug},
-    ops::{ControlFlow},
 };
 
 /// Reference: https://github.com/DMTF/libspdm/blob/main/include/library/spdm_return_status.h
