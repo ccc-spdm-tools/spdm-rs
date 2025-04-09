@@ -5,7 +5,7 @@
 use core::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug},
-    ops::{ControlFlow, FromResidual, Try},
+    ops::{ControlFlow},
 };
 
 /// Reference: https://github.com/DMTF/libspdm/blob/main/include/library/spdm_return_status.h
@@ -412,30 +412,6 @@ impl fmt::Display for SpdmStatus {
             self.status_code,
             self.get_u32()
         )
-    }
-}
-
-impl FromResidual<SpdmStatus> for SpdmStatus {
-    fn from_residual(residual: SpdmStatus) -> Self {
-        residual
-    }
-}
-
-impl Try for SpdmStatus {
-    type Output = ();
-
-    type Residual = Self;
-
-    fn from_output(_output: Self::Output) -> Self {
-        SPDM_STATUS_SUCCESS
-    }
-
-    fn branch(self) -> core::ops::ControlFlow<Self::Residual, Self::Output> {
-        if self == SPDM_STATUS_SUCCESS {
-            ControlFlow::Continue(())
-        } else {
-            ControlFlow::Break(self)
-        }
     }
 }
 
