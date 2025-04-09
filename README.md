@@ -90,7 +90,7 @@ sh_script/pre-build.sh
 
 1. Install [RUST](https://www.rust-lang.org/)
 
-Please use nightly-2024-07-19.
+Please use stable version.
 
 2. Install [NASM](https://www.nasm.us/)
 
@@ -131,13 +131,13 @@ cargo build
 ### Build async `no_std` spdm
 ```
 pushd spdmlib
-cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring"
+cargo build --target x86_64-unknown-none --release --no-default-features --features="spdm-ring"
 ```
 
 ### Build sync `no_std` spdm
 ```
 pushd spdmlib
-cargo build -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,is_sync"
+cargo build --target x86_64-unknown-none --release --no-default-features --features="spdm-ring,is_sync"
 ```
 
 ## Run Rust SPDM emulator

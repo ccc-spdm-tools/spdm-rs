@@ -2,6 +2,10 @@
 
 name: RUN CODE
 
+env:
+  RUST_TOOLCHAIN: 1.83.0
+  TOOLCHAIN_PROFILE: minimal
+
 # Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
@@ -64,10 +68,14 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
-          profile: minimal
-          toolchain: nightly-2024-07-19
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
           components: rust-src, rustfmt, clippy
+
+      - name: Add `x86_64-unknown-none` target
+        run: rustup target add x86_64-unknown-none
+
       - name: Cache
         uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
 
