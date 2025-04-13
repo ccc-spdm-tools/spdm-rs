@@ -365,6 +365,10 @@ async fn handle_message(
         ],
         my_cert_chain: [None, None, None, None, None, None, None, None],
         peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+        local_supported_slot_mask: 0xff,
+        local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
+        local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
+        local_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
     };
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());

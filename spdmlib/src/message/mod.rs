@@ -1686,6 +1686,13 @@ mod tests {
                     },
                     SPDM_MAX_SLOT_NUMBER,
                 ),
+                supported_slot_mask: 0b11111111,
+                key_pair_id: gen_array_clone(0u8, SPDM_MAX_SLOT_NUMBER),
+                certificate_info: gen_array_clone(
+                    SpdmCertificateModelType::SpdmCertModelTypeNone,
+                    SPDM_MAX_SLOT_NUMBER,
+                ),
+                key_usage_mask: gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER),
             }),
         };
         create_spdm_context!(context);
