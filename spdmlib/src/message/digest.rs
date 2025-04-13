@@ -5,11 +5,16 @@
 use crate::common;
 use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
-use crate::protocol::{gen_array_clone, SpdmDigestStruct, SPDM_MAX_SLOT_NUMBER};
+use crate::protocol::{
+    gen_array_clone, SpdmCertificateModelType, SpdmDigestStruct, SpdmKeyUsageMask, SpdmVersion,
+    SPDM_MAX_SLOT_NUMBER,
+};
 use codec::{Codec, Reader, Writer};
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmGetDigestsRequestPayload {}
+
+pub const SPDM_DIGESTS_RESPONSE_DIGEST_FIELD_BYTE_OFFSET: usize = 4;
 
 impl SpdmCodec for SpdmGetDigestsRequestPayload {
     fn spdm_encode(
@@ -38,6 +43,10 @@ impl SpdmCodec for SpdmGetDigestsRequestPayload {
 pub struct SpdmDigestsResponsePayload {
     pub slot_mask: u8,
     pub digests: [SpdmDigestStruct; SPDM_MAX_SLOT_NUMBER],
+    pub supported_slot_mask: u8,                 // Spdm 1.3
+    pub key_pair_id: [u8; SPDM_MAX_SLOT_NUMBER], // Spdm 1.3
+    pub certificate_info: [SpdmCertificateModelType; SPDM_MAX_SLOT_NUMBER], // Spdm 1.3
+    pub key_usage_mask: [SpdmKeyUsageMask; SPDM_MAX_SLOT_NUMBER], // Spdm 1.3
 }
 
 impl SpdmCodec for SpdmDigestsResponsePayload {
@@ -47,7 +56,16 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
-        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            cnt += self
+                .supported_slot_mask
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        } else {
+            cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        }
+
         cnt += self
             .slot_mask
             .encode(bytes)
@@ -63,6 +81,26 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         for digest in self.digests.iter().take(count as usize) {
             cnt += digest.spdm_encode(context, bytes)?;
         }
+
+        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
+            && (context.negotiate_info.multi_key_conn_rsp)
+        {
+            for key_pair_id in self.key_pair_id.iter().take(count as usize) {
+                cnt += key_pair_id
+                    .encode(bytes)
+                    .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            }
+            for cert_info in self.certificate_info.iter().take(count as usize) {
+                cnt += cert_info
+                    .encode(bytes)
+                    .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            }
+            for key_usage_mask in self.key_usage_mask.iter().take(count as usize) {
+                cnt += key_usage_mask
+                    .encode(bytes)
+                    .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            }
+        }
         Ok(cnt)
     }
 
@@ -70,7 +108,13 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmDigestsResponsePayload> {
-        u8::read(r)?; // param1
+        let supported_slot_mask =
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                u8::read(r)? // param1
+            } else {
+                u8::read(r)?; // param1
+                0u8
+            };
         let slot_mask = u8::read(r)?; // param2
 
         let mut slot_count = 0u8;
@@ -84,7 +128,35 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         for digest in digests.iter_mut().take(slot_count as usize) {
             *digest = SpdmDigestStruct::spdm_read(context, r)?;
         }
-        Some(SpdmDigestsResponsePayload { slot_mask, digests })
+
+        let mut key_pair_id = gen_array_clone(0u8, SPDM_MAX_SLOT_NUMBER);
+        let mut certificate_info = gen_array_clone(
+            SpdmCertificateModelType::SpdmCertModelTypeNone,
+            SPDM_MAX_SLOT_NUMBER,
+        );
+        let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
+        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
+            && context.negotiate_info.multi_key_conn_rsp
+        {
+            for key_pair_id in key_pair_id.iter_mut().take(slot_count as usize) {
+                *key_pair_id = u8::read(r)?;
+            }
+            for cert_info in certificate_info.iter_mut().take(slot_count as usize) {
+                *cert_info = SpdmCertificateModelType::read(r)?;
+            }
+            for key_usage_mask in key_usage_mask.iter_mut().take(slot_count as usize) {
+                *key_usage_mask = SpdmKeyUsageMask::read(r)?;
+            }
+        }
+
+        Some(SpdmDigestsResponsePayload {
+            slot_mask,
+            digests,
+            supported_slot_mask,
+            key_pair_id,
+            certificate_info,
+            key_usage_mask,
+        })
     }
 }
 
@@ -115,6 +187,13 @@ mod tests {
                 },
                 SPDM_MAX_SLOT_NUMBER,
             ),
+            supported_slot_mask: 0b11111111,
+            key_pair_id: gen_array_clone(0u8, SPDM_MAX_SLOT_NUMBER),
+            certificate_info: gen_array_clone(
+                SpdmCertificateModelType::SpdmCertModelTypeNone,
+                SPDM_MAX_SLOT_NUMBER,
+            ),
+            key_usage_mask: gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER),
         };
         for i in 0..SPDM_MAX_SLOT_NUMBER {
             for j in 0..SPDM_MAX_HASH_SIZE {

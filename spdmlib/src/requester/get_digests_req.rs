@@ -4,6 +4,7 @@
 
 use crate::error::{SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD};
 use crate::message::*;
+use crate::protocol::{SpdmVersion, SPDM_MAX_SLOT_NUMBER};
 use crate::requester::*;
 
 impl RequesterContext {
@@ -72,6 +73,30 @@ impl RequesterContext {
                                     self.common.append_message_b(&receive_buffer[..used])?;
                                 }
                                 Some(_session_id) => {}
+                            }
+
+                            self.common.peer_info.peer_provisioned_slot_mask = digests.slot_mask;
+                            if self.common.negotiate_info.spdm_version_sel
+                                >= SpdmVersion::SpdmVersion13
+                            {
+                                self.common.peer_info.peer_supported_slot_mask =
+                                    digests.supported_slot_mask;
+                            }
+
+                            if self.common.negotiate_info.spdm_version_sel
+                                >= SpdmVersion::SpdmVersion13
+                                && self.common.negotiate_info.multi_key_conn_rsp
+                            {
+                                for slot_index in 0..SPDM_MAX_SLOT_NUMBER {
+                                    if (digests.slot_mask & (1 << slot_index)) != 0 {
+                                        self.common.peer_info.peer_key_pair_id[slot_index] =
+                                            Some(digests.key_pair_id[slot_index]);
+                                        self.common.peer_info.peer_cert_info[slot_index] =
+                                            Some(digests.certificate_info[slot_index]);
+                                        self.common.peer_info.peer_key_usage_bit_mask[slot_index] =
+                                            Some(digests.key_usage_mask[slot_index]);
+                                    }
+                                }
                             }
 
                             Ok(())

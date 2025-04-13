@@ -136,6 +136,28 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         ],
         my_cert_chain: [None, None, None, None, None, None, None, None],
         peer_root_cert_data: peer_root_cert_data_list,
+        local_supported_slot_mask: 0xff,
+        local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
+        local_cert_info: [
+            Some(SpdmCertificateModelType::SpdmCertModelTypeNone),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
+        local_key_usage_bit_mask: [
+            Some(SpdmKeyUsageMask::empty()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
     };
 
     (config_info, provision_info)
@@ -287,12 +309,35 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             ],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            local_supported_slot_mask: 0xff,
+            local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
+            local_cert_info: [
+                Some(SpdmCertificateModelType::SpdmCertModelTypeNone),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            local_key_usage_bit_mask: [
+                Some(SpdmKeyUsageMask::empty()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
         }
     } else {
         SpdmProvisionInfo {
             my_cert_chain_data: [None, None, None, None, None, None, None, None],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            ..Default::default()
         }
     };
 
@@ -417,6 +462,28 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         ],
         my_cert_chain: [None, None, None, None, None, None, None, None],
         peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+        local_supported_slot_mask: 0xff,
+        local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
+        local_cert_info: [
+            Some(SpdmCertificateModelType::SpdmCertModelTypeNone),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
+        local_key_usage_bit_mask: [
+            Some(SpdmKeyUsageMask::empty()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
     };
 
     (config_info, provision_info)

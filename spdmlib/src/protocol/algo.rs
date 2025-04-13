@@ -806,6 +806,53 @@ pub const SPDM_MAX_SLOT_NUMBER: usize = 8;
 
 enum_builder! {
     @U8
+    EnumName: SpdmCertificateModelType;
+    EnumVal{
+        SpdmCertModelTypeNone         => 0x0,
+        SpdmCertModelTypeDeviceCert   => 0x1,
+        SpdmCertModelTypeAliasCert    => 0x2,
+        SpdmCertModelTypeGenericCert  => 0x3
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for SpdmCertificateModelType {
+    fn default() -> SpdmCertificateModelType {
+        SpdmCertificateModelType::SpdmCertModelTypeNone
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
+    pub struct SpdmKeyUsageMask: u16 {
+        const KEY_USAGE_MASK_KEY_EX_USE          =           0b0000_0001;
+        const KEY_USAGE_MASK_CHALLENGE_USE       =           0b0000_0010;
+        const KEY_USAGE_MASK_MEASUREMENT_USE     =           0b0000_0100;
+        const KEY_USAGE_MASK_ENDPOINT_INFO_USE   =           0b0000_1000;
+        const KEY_USAGE_MASK_STANDARDS_KEY_USE   = 0b0100_0000_0000_0000;
+        const KEY_USAGE_MASK_VENDER_KEY_USE      = 0b1000_0000_0000_0000;
+        const VALID_MASK = Self::KEY_USAGE_MASK_KEY_EX_USE.bits
+        | Self::KEY_USAGE_MASK_CHALLENGE_USE.bits
+        | Self::KEY_USAGE_MASK_MEASUREMENT_USE.bits
+        | Self::KEY_USAGE_MASK_ENDPOINT_INFO_USE.bits
+        | Self::KEY_USAGE_MASK_STANDARDS_KEY_USE.bits
+        | Self::KEY_USAGE_MASK_VENDER_KEY_USE.bits;
+    }
+}
+
+impl Codec for SpdmKeyUsageMask {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmKeyUsageMask> {
+        let bits = u16::read(r)?;
+
+        SpdmKeyUsageMask::from_bits(bits & SpdmKeyUsageMask::VALID_MASK.bits)
+    }
+}
+
+enum_builder! {
+    @U8
     EnumName: SpdmMeasurementSummaryHashType;
     EnumVal{
         SpdmMeasurementSummaryHashTypeNone => 0x0,
@@ -934,7 +981,7 @@ impl From<BytesMut> for SpdmSignatureStruct {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SpdmCertChainData {
     pub data_size: u16,
     pub data: [u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -954,7 +1001,7 @@ impl AsRef<[u8]> for SpdmCertChainData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SpdmCertChainBuffer {
     pub data_size: u16,
     pub data: [u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
