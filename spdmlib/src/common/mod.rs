@@ -1598,17 +1598,40 @@ impl SpdmRuntimeInfo {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
     pub my_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
     pub peer_root_cert_data: [Option<SpdmCertChainData>; MAX_ROOT_CERT_SUPPORT],
+    pub local_supported_slot_mask: u8,
+    pub local_key_pair_id: [Option<u8>; SPDM_MAX_SLOT_NUMBER],
+    pub local_cert_info: [Option<SpdmCertificateModelType>; SPDM_MAX_SLOT_NUMBER],
+    pub local_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
+}
+
+impl Default for SpdmProvisionInfo {
+    fn default() -> Self {
+        SpdmProvisionInfo {
+            my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
+            my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
+            peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+            local_supported_slot_mask: 0xff,
+            local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
+            local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
+            local_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
+        }
+    }
 }
 
 #[derive(Default)]
 pub struct SpdmPeerInfo {
     pub peer_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
     pub peer_cert_chain_temp: Option<SpdmCertChainBuffer>,
+    pub peer_supported_slot_mask: u8,
+    pub peer_provisioned_slot_mask: u8,
+    pub peer_key_pair_id: [Option<u8>; SPDM_MAX_SLOT_NUMBER],
+    pub peer_cert_info: [Option<SpdmCertificateModelType>; SPDM_MAX_SLOT_NUMBER],
+    pub peer_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
 }
 
 #[cfg(feature = "mut-auth")]
