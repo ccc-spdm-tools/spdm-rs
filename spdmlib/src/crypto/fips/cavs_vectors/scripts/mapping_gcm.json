@@ -1,0 +1,9 @@
+{
+    "Count": {"name": "count", "type": "u32"},
+    "Key": {"name": "key", "type": "Vec<u8>"},
+    "IV": {"name": "iv", "type": "Vec<u8>"},
+    "AAD": {"name": "aad", "type": "Vec<u8>"},
+    "PT": {"name": "pt", "type": "Vec<u8>"},
+    "CT": {"name": "ct", "type": "Vec<u8>"},
+    "Tag": {"name": "tag", "type": "Vec<u8>"}
+}
