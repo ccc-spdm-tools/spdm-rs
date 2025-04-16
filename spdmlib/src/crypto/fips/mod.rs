@@ -22,7 +22,10 @@ pub enum SelfTestError {
 
 pub fn run_self_tests() -> Result<(), SelfTestError> {
     // aead
-    // TBD
+    match aead_st::run_self_test() {
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
 
     // asym_verify
     // TBD
