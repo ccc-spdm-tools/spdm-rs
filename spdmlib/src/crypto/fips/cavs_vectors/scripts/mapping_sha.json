@@ -1,0 +1,5 @@
+{
+    "Len": {"name": "len", "type": "u32"},
+    "Msg": {"name": "msg", "type": "Vec<u8>"},
+    "MD": {"name": "md", "type": "Vec<u8>"}
+}

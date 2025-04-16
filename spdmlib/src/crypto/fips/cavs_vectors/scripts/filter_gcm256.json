@@ -1,0 +1,7 @@
+{
+    "Keylen": 256,
+    "IVlen": 96,
+    "PTlen": "any",
+    "AADlen": "any",
+    "Taglen": 128
+}
