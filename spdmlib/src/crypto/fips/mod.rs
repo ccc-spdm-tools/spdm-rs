@@ -14,6 +14,7 @@ mod hash_st;
 
 use crate::error::SpdmResult;
 
+#[test]
 pub fn run_self_tests() -> SpdmResult {
     // aead
     match aead_st::run_self_tests() {
