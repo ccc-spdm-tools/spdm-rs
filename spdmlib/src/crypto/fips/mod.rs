@@ -7,6 +7,7 @@
 use super::*;
 
 mod aead_st;
+mod cavs_vectors;
 mod hash_st;
 
 use crate::error::SpdmResult;
