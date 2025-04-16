@@ -5,3 +5,5 @@
 //
 
 pub mod SHA256ShortMsg;
+pub mod gcmDecrypt256;
+pub mod gcmEncryptExtIV256;
