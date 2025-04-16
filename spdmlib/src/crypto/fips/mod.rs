@@ -8,6 +8,7 @@ use super::*;
 
 mod aead_st;
 mod asym_verify_st;
+mod cavs_vectors;
 mod dhe_st;
 mod hash_st;
 mod hkdf_st;
