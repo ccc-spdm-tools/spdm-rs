@@ -106,6 +106,7 @@ pub enum StatusCodeCrypto {
     VERIF_FAIL = 1,
     SEQUENCE_NUMBER_OVERFLOW = 2,
     VERIF_NO_AUTHORITY = 3,
+    FIPS_SELF_TEST_FAIL = 4,
 }
 
 impl TryFrom<u16> for StatusCodeCrypto {
@@ -117,6 +118,7 @@ impl TryFrom<u16> for StatusCodeCrypto {
             1 => Ok(Self::VERIF_FAIL),
             2 => Ok(Self::SEQUENCE_NUMBER_OVERFLOW),
             3 => Ok(Self::VERIF_NO_AUTHORITY),
+            4 => Ok(Self::FIPS_SELF_TEST_FAIL),
             _ => Err(()),
         }
     }
@@ -565,6 +567,12 @@ pub const SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW: SpdmStatus = spdm_return_status!
 pub const SPDM_STATUS_VERIF_NO_AUTHORITY: SpdmStatus = spdm_return_status!(
     StatusSeverity::ERROR,
     StatusCode::CRYPTO(StatusCodeCrypto::VERIF_NO_AUTHORITY)
+);
+
+/*  FIPS self test failed. */
+pub const SPDM_STATUS_FIPS_SELF_TEST_FAIL: SpdmStatus = spdm_return_status!(
+    StatusSeverity::ERROR,
+    StatusCode::CRYPTO(StatusCodeCrypto::FIPS_SELF_TEST_FAIL)
 );
 
 /* - Certificate Parsing Errors - */

@@ -378,6 +378,8 @@ pub mod rand {
             .get_random_cb)(data)
     }
 }
+#[cfg(feature = "fips")]
+pub mod fips;
 
 #[cfg(test)]
 mod crypto_tests;
