@@ -16,6 +16,7 @@ members = [
     "sys_time",
     "idekm",
     "tdisp",
+    "test/cavp_acvts_test",
     "test/spdm-requester-emu",
     "test/spdm-responder-emu",
     "test/spdmlib-test",
