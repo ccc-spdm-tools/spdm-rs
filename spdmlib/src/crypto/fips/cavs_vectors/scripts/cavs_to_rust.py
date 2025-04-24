@@ -40,8 +40,12 @@ def parse_hex_string(hex_str):
 def parse_int_string(int_str):
     return int(int_str.strip())
 
+def parse_string_string(str_str):
+    return f"\"{str_str}\""
+
 # Function to read and parse the CAVS input data
 def read_cavs_input(filename, mapping, cavs_params_filter):
+    cavs_params_global = {} # Keeps global CAVS vectors parameters
     cavs_params = {} # Keeps current value of CAVS vectors parameters
     cavs_vectors = [] # Keeps list of items added later to the output file
     current_cavs_vector = {} # Keeps elements for currently collected CAVS vector
@@ -54,6 +58,11 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
                 # cavs_vectors.append("        //" + line)
 
                 if len(current_cavs_vector) > 0:
+                    # Handle all the parameters (struct fields) with attribute "global"
+                    # Just add them blindly to the final CAVS vector
+                    for struct_field, value in cavs_params_global.items():
+                        current_cavs_vector[struct_field] = value
+
                     cavs_vectors.append("        CavsVector {\n" + ",\n".join(f"            {k}: {v}" for k, v in current_cavs_vector.items()) + "}")
 
                 # Just clear current CAVS collection since starting collecting the new one
@@ -102,15 +111,25 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
             for cavs_field, struct_info in mapping.items():
                 struct_field = struct_info['name']
                 struct_type = struct_info['type']
+                attr = struct_info['attr']
                 re_res = re.search("^{0}\s+=\s+(.*)$".format(cavs_field), line)
                 if re_res:
                     entry_matched = True
                     value = re_res.group(1)
                     if struct_type == "&'a [u8]":
-                        current_cavs_vector[struct_field] = parse_hex_string(value)
+                        value_conv = parse_hex_string(value)
                     elif struct_type == "u32":
-                        current_cavs_vector[struct_field] = parse_int_string(value)
+                        value_conv = parse_int_string(value)
+                    elif struct_type == "&'a str":
+                        value_conv = parse_string_string(value)
                     # Add more types if required
+
+                    # In case parameter with attribute "global" just put it into extra dictionary and use later
+                    if attr == "global":
+                        # Do not use this entry
+                        cavs_params_global.update({struct_field : value_conv})
+                    else:
+                        current_cavs_vector[struct_field] = value_conv
 
                     continue
 

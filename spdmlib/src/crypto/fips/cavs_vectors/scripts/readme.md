@@ -21,7 +21,7 @@ cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip
 unzip shabytetestvectors.zip
 python3 ./scripts/cavs_to_rust.py -i shabytetestvectors/SHA256ShortMsg.rsp -m ./scripts/mapping_sha.json -o sha256_short_msg.rs
-rm shabytetestvectors.zip shabytetestvectors -rf
+rm -rf shabytetestvectors.zip shabytetestvectors
 ```
 
 SHA2-384
@@ -31,7 +31,7 @@ cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip
 unzip shabytetestvectors.zip
 python3 ./scripts/cavs_to_rust.py -i shabytetestvectors/SHA384ShortMsg.rsp -m ./scripts/mapping_sha.json -o sha384_short_msg.rs
-rm shabytetestvectors.zip shabytetestvectors -rf
+rm -rf shabytetestvectors.zip shabytetestvectors
 ```
 
 AEAD (AES-256-GCM) encryption
@@ -41,7 +41,7 @@ cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/gcmtestvectors.zip
 unzip gcmtestvectors.zip -d gcmtestvectors
 python3 ./scripts/cavs_to_rust.py -i gcmtestvectors/gcmEncryptExtIV256.rsp -m ./scripts/mapping_gcm.json -f ./scripts/filter_gcm256.json -o gcm_encrypt_ext_iv256.rs
-rm gcmtestvectors.zip gcmtestvectors -rf
+rm -rf gcmtestvectors.zip gcmtestvectors
 ```
 
 AEAD (AES-256-GCM) decryption
@@ -51,5 +51,5 @@ cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/gcmtestvectors.zip
 unzip gcmtestvectors.zip -d gcmtestvectors
 python3 ./scripts/cavs_to_rust.py -i gcmtestvectors/gcmDecrypt256.rsp -m ./scripts/mapping_gcm.json -f ./scripts/filter_gcm256.json -o gcm_decrypt256.rs
-rm gcmtestvectors.zip gcmtestvectors -rf
+rm -rf gcmtestvectors.zip gcmtestvectors
 ```
