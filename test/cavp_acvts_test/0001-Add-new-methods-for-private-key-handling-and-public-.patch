@@ -1,0 +1,89 @@
+From 426a39542cabf540c97ffa6a41a33737d8963155 Mon Sep 17 00:00:00 2001
+From: xiaoyuxlu <xiaoyu1.lu@intel.com>
+Date: Wed, 23 Apr 2025 02:35:18 -0400
+Subject: [PATCH] Add new methods for private key handling and public key
+ computation in EC keys
+
+---
+ src/agreement.rs |  7 +++++++
+ src/ec/keys.rs   | 32 ++++++++++++++++++++++++++++++++
+ src/lib.rs       |  2 +-
+ 3 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/agreement.rs b/src/agreement.rs
+index 770423f2b..75e6abe77 100644
+--- a/src/agreement.rs
++++ b/src/agreement.rs
+@@ -153,6 +153,13 @@ impl EphemeralPrivateKey {
+     pub(super) fn bytes_for_test(&self) -> &[u8] {
+         self.private_key.bytes_less_safe()
+     }
++
++    pub fn new(algorithm: &'static Algorithm, private_key: ec::Seed) -> Self {
++        Self {
++            private_key,
++            algorithm,
++        }
++    }
+ }
+ 
+ /// A public key for key agreement.
+diff --git a/src/ec/keys.rs b/src/ec/keys.rs
+index 6cf925035..f907111a3 100644
+--- a/src/ec/keys.rs
++++ b/src/ec/keys.rs
+@@ -60,6 +60,38 @@ impl Seed {
+         Ok(r)
+     }
+ 
++    pub fn load_private_bytes(
++        curve: &'static Curve,
++        bytes: untrusted::Input,
++    ) -> Result<Self, error::Unspecified> {
++        let cpu = cpu::features();
++        let bytes = bytes.as_slice_less_safe();
++        if curve.elem_scalar_seed_len != bytes.len() {
++            return Err(error::Unspecified);
++        }
++        (curve.check_private_key_bytes)(bytes, cpu)?;
++        let mut r = Self {
++            bytes: [0; SEED_MAX_BYTES],
++            curve,
++        };
++        r.bytes[..curve.elem_scalar_seed_len].copy_from_slice(bytes);
++        Ok(r)
++    }
++
++    pub fn get_compute_public_key(&self) -> Result<PublicKey, error::Unspecified> {
++        let cpu_features = cpu::features();
++        let mut public_key = PublicKey {
++            bytes: [0u8; PUBLIC_KEY_MAX_LEN],
++            len: self.curve.public_key_len,
++        };
++        (self.curve.public_from_private)(
++            &mut public_key.bytes[..public_key.len],
++            self,
++            cpu_features,
++        )?;
++        Ok(public_key)
++    }
++
+     pub fn bytes_less_safe(&self) -> &[u8] {
+         &self.bytes[..self.curve.elem_scalar_seed_len]
+     }
+diff --git a/src/lib.rs b/src/lib.rs
+index 888180953..76be61cb6 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -136,7 +136,7 @@ pub mod io;
+ 
+ mod cpu;
+ pub mod digest;
+-mod ec;
++pub mod ec;
+ pub mod error;
+ pub mod hkdf;
+ pub mod hmac;
+-- 
+2.47.1
+

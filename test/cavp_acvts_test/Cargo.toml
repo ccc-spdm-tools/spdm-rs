@@ -1,0 +1,13 @@
+[package]
+name = "cavp_acvts_test"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 or MIT"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+spdmlib = { path = "../../spdmlib", default-features = false, features = ["spdm-ring", "downcast", "hashed-transcript-data"]}
+ring = { version = "0.17.14", default-features = false, features = ["alloc", "less-safe-getrandom-custom-or-rdrand"] }
+untrusted = { version = "0.9" }
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
