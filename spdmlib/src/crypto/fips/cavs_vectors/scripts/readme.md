@@ -53,3 +53,12 @@ unzip gcmtestvectors.zip -d gcmtestvectors
 python3 ./scripts/cavs_to_rust.py -i gcmtestvectors/gcmDecrypt256.rsp -m ./scripts/mapping_gcm.json -f ./scripts/filter_gcm256.json -o gcm_decrypt256.rs
 rm -rf gcmtestvectors.zip gcmtestvectors
 ```
+
+RSA (RSASSA-PKCS#1 v1.5)
+https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Digital-Signatures#rsa2vs
+```
+wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/dss/186-3rsatestvectors.zip
+unzip 186-3rsatestvectors.zip -d 186-3rsatestvectors
+python3 ./scripts/cavs_to_rust.py -i 186-3rsatestvectors/SigVer15_186-3.rsp -m ./scripts/mapping_rsa.json -f ./scripts/filter_rsa.json -o rsa_sig_ver.rs
+rm -rf 186-3rsatestvectors.zip 186-3rsatestvectors
+```

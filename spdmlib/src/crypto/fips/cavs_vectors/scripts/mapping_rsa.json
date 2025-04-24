@@ -1,0 +1,8 @@
+{
+    "n": {"name": "n", "type": "&'a [u8]", "attr": "global"},
+    "SHAAlg": {"name": "hash", "type": "&'a str", "attr": ""},
+    "e": {"name": "e", "type": "&'a [u8]", "attr": ""},
+    "Msg": {"name": "msg", "type": "&'a [u8]", "attr": ""},
+    "S": {"name": "sig", "type": "&'a [u8]", "attr": ""},
+    "Result" : {"name": "res", "type": "&'a str", "attr": ""}
+}
