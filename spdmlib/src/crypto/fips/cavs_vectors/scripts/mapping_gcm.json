@@ -1,8 +1,8 @@
 {
-    "Key": {"name": "key", "type": "&'a [u8]"},
-    "IV": {"name": "iv", "type": "&'a [u8]"},
-    "AAD": {"name": "aad", "type": "&'a [u8]"},
-    "PT": {"name": "pt", "type": "&'a [u8]"},
-    "CT": {"name": "ct", "type": "&'a [u8]"},
-    "Tag": {"name": "tag", "type": "&'a [u8]"}
+    "Key": {"name": "key", "type": "&'a [u8]", "attr": ""},
+    "IV": {"name": "iv", "type": "&'a [u8]", "attr": ""},
+    "AAD": {"name": "aad", "type": "&'a [u8]", "attr": ""},
+    "PT": {"name": "pt", "type": "&'a [u8]", "attr": ""},
+    "CT": {"name": "ct", "type": "&'a [u8]", "attr": ""},
+    "Tag": {"name": "tag", "type": "&'a [u8]", "attr": ""}
 }
