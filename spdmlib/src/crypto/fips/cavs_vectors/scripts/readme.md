@@ -62,3 +62,15 @@ unzip 186-3rsatestvectors.zip -d 186-3rsatestvectors
 python3 ./scripts/cavs_to_rust.py -i 186-3rsatestvectors/SigVer15_186-3.rsp -m ./scripts/mapping_rsa.json -f ./scripts/filter_rsa.json -o rsa_sig_ver.rs
 rm -rf 186-3rsatestvectors.zip 186-3rsatestvectors
 ```
+
+ECDSA
+https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Digital-Signatures#ecdsa2vs
+```
+wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/dss/186-4ecdsatestvectors.zip
+unzip 186-4ecdsatestvectors.zip
+python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scripts/mapping_ecdsa.json -f ./scripts/filter_ecdsa_p256_sha256.json -o ecdsa_p256_sha256_sig_ver.rs
+python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scripts/mapping_ecdsa.json -f ./scripts/filter_ecdsa_p256_sha384.json -o ecdsa_p256_sha384_sig_ver.rs
+python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scripts/mapping_ecdsa.json -f ./scripts/filter_ecdsa_p384_sha256.json -o ecdsa_p384_sha256_sig_ver.rs
+python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scripts/mapping_ecdsa.json -f ./scripts/filter_ecdsa_p384_sha384.json -o ecdsa_p384_sha384_sig_ver.rs
+rm -rf 186-4ecdsatestvectors.zip 186-4ecdsatestvectors
+```
