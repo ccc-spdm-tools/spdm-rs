@@ -1,0 +1,8 @@
+{
+    "Msg": {"name": "msg", "type": "&'a [u8]", "attr": ""},
+    "Qx": {"name": "qx", "type": "&'a [u8]", "attr": ""},
+    "Qy": {"name": "qy", "type": "&'a [u8]", "attr": ""},
+    "R": {"name": "r", "type": "&'a [u8]", "attr": ""},
+    "S": {"name": "s", "type": "&'a [u8]", "attr": ""},
+    "Result" : {"name": "res", "type": "&'a str", "attr": ""}
+}

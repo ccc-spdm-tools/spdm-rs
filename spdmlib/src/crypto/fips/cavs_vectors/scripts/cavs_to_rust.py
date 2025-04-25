@@ -70,7 +70,7 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
 
                 continue
 
-            # Let's search for CAVS parameters - it shall be makred by "['Param' = 'Value']"
+            # Let's search for CAVS parameters - it shall be marked by "['Param' = 'Value']"
             re_res = re.search("^\[(.+)\s+=\s+(.+)\]$", line)
             if re_res:
                 cavs_params.update({re_res.group(1) : parse_int_string(re_res.group(2))})
@@ -82,6 +82,20 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
                 current_cavs_vector = {}
 
                 continue
+            else:
+                # Let's search for CAVS configuration - it could be marked by "['configuration']"
+                re_res = re.search("^\[(.+)\]$", line)
+                if re_res:
+                    cavs_params.update({"configuration" : re_res.group(1)})
+
+                    # Add the current line as comment
+                    # cavs_vectors.append("        //" + line)
+
+                    # Clear collecting CAVS parameters so just for sure clear current CAVS collection
+                    current_cavs_vector = {}
+
+                    continue
+
 
             # Check if current CAVS parametes matches the one from user CAVS parameters filter file
             filter_matched = True
