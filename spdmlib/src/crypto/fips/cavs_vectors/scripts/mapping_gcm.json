@@ -1,5 +1,4 @@
 {
-    "Count": {"name": "count", "type": "u32"},
     "Key": {"name": "key", "type": "&'a [u8]"},
     "IV": {"name": "iv", "type": "&'a [u8]"},
     "AAD": {"name": "aad", "type": "&'a [u8]"},
