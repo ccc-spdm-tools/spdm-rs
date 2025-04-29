@@ -5,7 +5,7 @@
 //
 
 extern crate alloc;
-use std::{boxed::Box, vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 
 use super::aead::{decrypt, encrypt};
 use crate::{
