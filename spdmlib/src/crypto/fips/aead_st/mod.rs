@@ -17,12 +17,12 @@ use crate::{
 
 use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
 
-use crate::crypto::fips::cavs_vectors::gcmDecrypt256;
-use crate::crypto::fips::cavs_vectors::gcmEncryptExtIV256;
+use crate::crypto::fips::cavs_vectors::gcm_decrypt256;
+use crate::crypto::fips::cavs_vectors::gcm_encrypt_ext_iv256;
 
 fn encrypt_self_test() -> SpdmResult {
     let aead_algo = SpdmAeadAlgo::AES_256_GCM;
-    let cavs_vectors = gcmEncryptExtIV256::get_cavs_vectors();
+    let cavs_vectors = gcm_encrypt_ext_iv256::get_cavs_vectors();
 
     for cv in cavs_vectors.iter() {
         // Sanity check, expecting CAVS vectors with specific parameters
@@ -72,7 +72,7 @@ fn encrypt_self_test() -> SpdmResult {
 
 fn decrypt_self_test() -> SpdmResult {
     let aead_algo = SpdmAeadAlgo::AES_256_GCM;
-    let cavs_vectors = gcmDecrypt256::get_cavs_vectors();
+    let cavs_vectors = gcm_decrypt256::get_cavs_vectors();
 
     for cv in cavs_vectors.iter() {
         // Sanity check, expecting CAVS vectors with specific parameters
