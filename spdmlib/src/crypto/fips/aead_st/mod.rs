@@ -5,7 +5,7 @@
 //
 
 extern crate alloc;
-use alloc::{boxed::Box, vec, vec::Vec};
+use alloc::{boxed::Box, vec};
 
 use super::aead::{decrypt, encrypt};
 use crate::{
@@ -33,7 +33,7 @@ fn encrypt_self_test() -> SpdmResult {
             return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
 
-        let mut key = &mut SpdmAeadKeyStruct {
+        let key = &mut SpdmAeadKeyStruct {
             data_size: cv.key.len() as u16,
             data: Box::new([0u8; SPDM_MAX_AEAD_KEY_SIZE]),
         };
@@ -41,7 +41,7 @@ fn encrypt_self_test() -> SpdmResult {
             key.data[i] = cv.key[i];
         }
 
-        let mut iv = &mut SpdmAeadIvStruct {
+        let iv = &mut SpdmAeadIvStruct {
             data_size: cv.iv.len() as u16,
             data: Box::new([0u8; SPDM_MAX_AEAD_IV_SIZE]),
         };
@@ -49,10 +49,10 @@ fn encrypt_self_test() -> SpdmResult {
             iv.data[i] = cv.iv[i];
         }
 
-        let pt = &cv.pt;
-        let tag = &cv.tag;
-        let aad = &cv.aad;
-        let ct = &cv.ct;
+        let pt = cv.pt;
+        let tag = cv.tag;
+        let aad = cv.aad;
+        let ct = cv.ct;
         let out_tag = &mut vec![0u8; cv.tag.len()][..];
         let out_ct = &mut vec![0u8; cv.ct.len()][..];
 
@@ -83,7 +83,7 @@ fn decrypt_self_test() -> SpdmResult {
             return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
         }
 
-        let mut key = &mut SpdmAeadKeyStruct {
+        let key = &mut SpdmAeadKeyStruct {
             data_size: cv.key.len() as u16,
             data: Box::new([0u8; SPDM_MAX_AEAD_KEY_SIZE]),
         };
@@ -91,7 +91,7 @@ fn decrypt_self_test() -> SpdmResult {
             key.data[i] = cv.key[i];
         }
 
-        let mut iv = &mut SpdmAeadIvStruct {
+        let iv = &mut SpdmAeadIvStruct {
             data_size: cv.iv.len() as u16,
             data: Box::new([0u8; SPDM_MAX_AEAD_IV_SIZE]),
         };
@@ -99,10 +99,10 @@ fn decrypt_self_test() -> SpdmResult {
             iv.data[i] = cv.iv[i];
         }
 
-        let pt = &cv.pt;
-        let tag = &cv.tag;
-        let aad = &cv.aad;
-        let ct = &cv.ct;
+        let pt = cv.pt;
+        let tag = cv.tag;
+        let aad = cv.aad;
+        let ct = cv.ct;
         let out_pt = &mut vec![0u8; cv.pt.len()][..];
 
         let out_pt_len = decrypt(aead_algo, key, iv, aad, ct, tag, out_pt).unwrap();
