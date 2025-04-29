@@ -116,10 +116,16 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
 
             if not entry_matched:
                 # Unreconized entry in the CAVS input cavs_vectors
-                # Just put it as comment and start collecting CAVS input
-                # vector data from scratch
-                # cavs_vectors.append("        //" + line)
-                current_cavs_vector = {}
+                # Check if CAVS input data matches the pattern 'Param = value'
+                re_res = re.search("^.+\s+=\s+.*$", line)
+                if not re_res:
+                    # Entry does not follow the required pattern. Stop collecting CAVS
+                    # params
+                    current_cavs_vector = {}
+                # else:
+                    # Found 'Param' which is not required so just continue collecting
+                    # CAVS params and put the line as comment
+                    # cavs_vectors.append("        //" + line)
 
     return cavs_vectors
 
