@@ -214,12 +214,20 @@ async fn test_spdm(
             ],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            local_supported_slot_mask: 0xff,
+            local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
+            local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
+            local_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
         }
     } else {
         common::SpdmProvisionInfo {
             my_cert_chain_data: [None, None, None, None, None, None, None, None],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            local_supported_slot_mask: 0xff,
+            local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
+            local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
+            local_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
         }
     };
 
@@ -707,12 +715,20 @@ async fn test_idekm_tdisp(
             ],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            local_supported_slot_mask: 0xff,
+            local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
+            local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
+            local_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
         }
     } else {
         common::SpdmProvisionInfo {
             my_cert_chain_data: [None, None, None, None, None, None, None, None],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            local_supported_slot_mask: 0xff,
+            local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
+            local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
+            local_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
         }
     };
 

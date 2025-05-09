@@ -12,8 +12,8 @@ use crate::{
         SpdmMessageHeader, SpdmMessagePayload, SpdmRequestResponseCode,
     },
     protocol::{
-        gen_array_clone, SpdmDigestStruct, SpdmRequestCapabilityFlags, SPDM_MAX_HASH_SIZE,
-        SPDM_MAX_SLOT_NUMBER,
+        gen_array_clone, SpdmCertificateModelType, SpdmDigestStruct, SpdmKeyUsageMask,
+        SpdmRequestCapabilityFlags, SpdmVersion, SPDM_MAX_HASH_SIZE, SPDM_MAX_SLOT_NUMBER,
     },
 };
 extern crate alloc;
@@ -78,6 +78,30 @@ impl RequesterContext {
             }
         }
 
+        let mut key_pair_id = gen_array_clone(0u8, SPDM_MAX_SLOT_NUMBER);
+        let mut certificate_info = gen_array_clone(
+            SpdmCertificateModelType::SpdmCertModelTypeNone,
+            SPDM_MAX_SLOT_NUMBER,
+        );
+        let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
+
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+            && self.common.negotiate_info.multi_key_conn_rsp
+        {
+            let mut slot_count = 0usize;
+            for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
+                if self.common.provision_info.my_cert_chain[slot_id].is_some() {
+                    key_pair_id[slot_count] =
+                        self.common.provision_info.local_key_pair_id[slot_id].unwrap();
+                    certificate_info[slot_count] =
+                        self.common.provision_info.local_cert_info[slot_id].unwrap();
+                    key_usage_mask[slot_count] =
+                        self.common.provision_info.local_key_usage_bit_mask[slot_id].unwrap();
+                    slot_count += 1;
+                }
+            }
+        }
+
         let response = SpdmMessage {
             header: SpdmMessageHeader {
                 version: self.common.negotiate_info.spdm_version_sel,
@@ -92,6 +116,10 @@ impl RequesterContext {
                     },
                     SPDM_MAX_SLOT_NUMBER,
                 ),
+                supported_slot_mask: self.common.provision_info.local_supported_slot_mask,
+                key_pair_id,
+                certificate_info,
+                key_usage_mask,
             }),
         };
 

@@ -103,6 +103,30 @@ impl ResponderContext {
             }
         }
 
+        let mut key_pair_id = gen_array_clone(0u8, SPDM_MAX_SLOT_NUMBER);
+        let mut certificate_info = gen_array_clone(
+            SpdmCertificateModelType::SpdmCertModelTypeNone,
+            SPDM_MAX_SLOT_NUMBER,
+        );
+        let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
+
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+            && self.common.negotiate_info.multi_key_conn_rsp
+        {
+            let mut slot_count = 0usize;
+            for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
+                if self.common.provision_info.my_cert_chain[slot_id].is_some() {
+                    key_pair_id[slot_count] =
+                        self.common.provision_info.local_key_pair_id[slot_id].unwrap();
+                    certificate_info[slot_count] =
+                        self.common.provision_info.local_cert_info[slot_id].unwrap();
+                    key_usage_mask[slot_count] =
+                        self.common.provision_info.local_key_usage_bit_mask[slot_id].unwrap();
+                    slot_count += 1;
+                }
+            }
+        }
+
         info!("send spdm digest\n");
         let response = SpdmMessage {
             header: SpdmMessageHeader {
@@ -118,6 +142,10 @@ impl ResponderContext {
                     },
                     SPDM_MAX_SLOT_NUMBER,
                 ),
+                supported_slot_mask: self.common.provision_info.local_supported_slot_mask,
+                key_pair_id,
+                certificate_info,
+                key_usage_mask,
             }),
         };
         let res = response.spdm_encode(&mut self.common, writer);
@@ -128,6 +156,8 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
+
+        let mut digest_offset = SPDM_DIGESTS_RESPONSE_DIGEST_FIELD_BYTE_OFFSET;
 
         for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
             if self.common.provision_info.my_cert_chain[slot_id].is_some() {
@@ -146,9 +176,10 @@ impl ResponderContext {
                 };
 
                 // patch the message before send
-                let used = writer.used();
-                writer.mut_used_slice()[(used - cert_chain_hash.data_size as usize)..used]
+                writer.mut_used_slice()
+                    [digest_offset..(digest_offset + cert_chain_hash.data_size as usize)]
                     .copy_from_slice(cert_chain_hash.as_ref());
+                digest_offset += cert_chain_hash.data_size as usize;
             }
         }
 
