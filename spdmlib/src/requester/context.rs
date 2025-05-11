@@ -383,7 +383,9 @@ impl RequesterContext {
         crypto_request: bool,
     ) -> SpdmResult<usize> {
         let timeout: usize = if crypto_request {
-            2 << self.common.negotiate_info.rsp_ct_exponent_sel
+            2usize
+                .checked_shl(self.common.negotiate_info.rsp_ct_exponent_sel as u32)
+                .unwrap_or(usize::MAX)
         } else {
             ST1
         };
