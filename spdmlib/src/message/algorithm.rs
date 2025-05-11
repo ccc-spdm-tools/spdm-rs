@@ -486,7 +486,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             return None;
         }
 
-        let pqc_asym_sel = if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
+        let pqc_asym_sel = if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
         {
             SpdmPqcAsymAlgo::read(r)?
         } else {
