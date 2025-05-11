@@ -481,7 +481,9 @@ impl ResponderContext {
         info!("receive_message!\n");
 
         let timeout: usize = if crypto_request {
-            2 << self.common.negotiate_info.req_ct_exponent_sel
+            2usize
+                .checked_shl(self.common.negotiate_info.req_ct_exponent_sel as u32)
+                .unwrap_or(usize::MAX)
         } else {
             ST1
         };
