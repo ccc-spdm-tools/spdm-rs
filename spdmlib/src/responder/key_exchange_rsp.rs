@@ -135,6 +135,21 @@ impl ResponderContext {
                 & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
                 == KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_VALUE;
 
+            if (key_exchange_req.session_policy
+                & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_MASK
+                == KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_VALUE)
+                && self
+                    .common
+                    .negotiate_info
+                    .rsp_capabilities_sel
+                    .contains(SpdmResponseCapabilityFlags::EVENT_CAP)
+            {
+                return (
+                    Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                    Some(writer.used_slice()),
+                );
+            }
+
             if let Some(secured_message_version_list) = key_exchange_req
                 .opaque
                 .rsp_get_dmtf_supported_secure_spdm_version_list(&mut self.common)

@@ -16,6 +16,8 @@ use super::SpdmVersion;
 
 pub const KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK: u8 = 0b0000_0001;
 pub const KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_VALUE: u8 = 0b0000_0001;
+pub const KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_MASK: u8 = 0b0000_0010;
+pub const KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_VALUE: u8 = 0b0000_0010;
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmKeyExchangeRequestPayload {
@@ -48,9 +50,20 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
+        let session_policy = match context.negotiate_info.spdm_version_sel {
+            v if v >= SpdmVersion::SpdmVersion13 => {
+                self.session_policy
+                    & (KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
+                        | KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_MASK)
+            }
+            SpdmVersion::SpdmVersion12 => {
+                self.session_policy & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
+            }
+            _ => 0u8,
+        };
+
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            cnt += self
-                .session_policy
+            cnt += session_policy
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         } else {
@@ -93,7 +106,20 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
         }
         let slot_id = u8::read(r)?; // param2
         let req_session_id = u16::read(r)?;
-        let session_policy = u8::read(r)?;
+        let session_policy = match context.negotiate_info.spdm_version_sel {
+            v if v >= SpdmVersion::SpdmVersion13 => {
+                u8::read(r)?
+                    & (KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
+                        | KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_MASK)
+            }
+            SpdmVersion::SpdmVersion12 => {
+                u8::read(r)? & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
+            }
+            _ => {
+                u8::read(r)?;
+                0u8
+            }
+        };
         u8::read(r)?;
 
         let random = SpdmRandomStruct::read(r)?;
@@ -296,7 +322,7 @@ mod tests {
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
             slot_id: 100u8,
             req_session_id: 100u16,
-            session_policy: 1,
+            session_policy: 3,
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
@@ -311,6 +337,8 @@ mod tests {
         };
 
         create_spdm_context!(context);
+
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
 
@@ -328,6 +356,7 @@ mod tests {
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone
         );
         assert_eq!(exchange_request_payload.slot_id, 100);
+        assert_eq!(exchange_request_payload.session_policy, 3);
         for i in 0..SPDM_RANDOM_SIZE {
             assert_eq!(exchange_request_payload.random.data[i], 100);
         }
