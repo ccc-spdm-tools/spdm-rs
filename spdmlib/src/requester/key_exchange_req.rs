@@ -14,6 +14,7 @@ use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_PARAMETER;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::SPDM_STATUS_SESSION_NUMBER_EXCEED;
+use crate::error::SPDM_STATUS_UNSUPPORTED_CAP;
 use crate::error::SPDM_STATUS_VERIF_FAIL;
 use crate::protocol::*;
 use crate::requester::*;
@@ -88,6 +89,20 @@ impl RequesterContext {
     ) -> SpdmResult<(Box<dyn crypto::SpdmDheKeyExchange + Send>, usize)> {
         let mut writer = Writer::init(buf);
 
+        let session_policy = self.common.config_info.session_policy;
+
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+            && session_policy & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_MASK
+                == KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_VALUE
+            && self
+                .common
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::EVENT_CAP)
+        {
+            return Err(SPDM_STATUS_UNSUPPORTED_CAP);
+        }
+
         let mut random = [0u8; SPDM_RANDOM_SIZE];
         crypto::rand::get_random(&mut random)?;
 
@@ -124,7 +139,7 @@ impl RequesterContext {
                 slot_id,
                 measurement_summary_hash_type,
                 req_session_id,
-                session_policy: self.common.config_info.session_policy,
+                session_policy,
                 random: SpdmRandomStruct { data: random },
                 exchange,
                 opaque,
