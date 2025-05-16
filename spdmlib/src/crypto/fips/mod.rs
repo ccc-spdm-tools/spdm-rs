@@ -14,23 +14,9 @@ mod hash_st;
 use crate::error::SpdmResult;
 
 pub fn run_self_tests() -> SpdmResult {
-    // aead
-    match aead_st::run_self_tests() {
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
-
-    // asym_verify_st
-    match asym_verify_st::run_self_tests() {
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
-
-    // hash
-    match hash_st::run_self_tests() {
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
+    aead_st::run_self_tests()?;
+    asym_verify_st::run_self_tests()?;
+    hash_st::run_self_tests()?;
 
     Ok(())
 }
