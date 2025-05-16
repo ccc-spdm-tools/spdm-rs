@@ -119,17 +119,8 @@ fn decrypt_self_test() -> SpdmResult {
 }
 
 pub fn run_self_tests() -> SpdmResult {
-    // encrypt
-    match encrypt_self_test() {
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
-
-    // decrypt
-    match decrypt_self_test() {
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
+    encrypt_self_test()?;
+    decrypt_self_test()?;
 
     Ok(())
 }

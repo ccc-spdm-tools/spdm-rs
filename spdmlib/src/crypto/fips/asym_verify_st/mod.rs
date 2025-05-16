@@ -102,6 +102,7 @@ lazy_static! {
     ];
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ecdsa_verify(
     asym_algo: SpdmBaseAsymAlgo,
     hash_algo: SpdmBaseHashAlgo,
@@ -187,10 +188,8 @@ pub fn run_self_tests() -> SpdmResult {
                     return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
                 }
             // Expecting negative result but got a success
-            } else {
-                if ret {
-                    return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
-                }
+            } else if ret {
+                return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
     }
@@ -215,10 +214,8 @@ pub fn run_self_tests() -> SpdmResult {
                     return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
                 }
             // Expecting negative result but got a success
-            } else {
-                if ret {
-                    return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
-                }
+            } else if ret {
+                return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
     }
@@ -243,10 +240,8 @@ pub fn run_self_tests() -> SpdmResult {
                     return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
                 }
             // Expecting negative result but got a success
-            } else {
-                if ret {
-                    return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
-                }
+            } else if ret {
+                return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
     }
@@ -271,10 +266,8 @@ pub fn run_self_tests() -> SpdmResult {
                     return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
                 }
             // Expecting negative result but got a success
-            } else {
-                if ret {
-                    return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
-                }
+            } else if ret {
+                return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
     }
