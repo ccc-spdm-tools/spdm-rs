@@ -4,6 +4,8 @@
 //
 //
 
+pub mod dhe_vectors_p256;
+pub mod dhe_vectors_p384;
 pub mod ecdsa_p256_sha256_sig_ver;
 pub mod ecdsa_p256_sha384_sig_ver;
 pub mod ecdsa_p384_sha256_sig_ver;
