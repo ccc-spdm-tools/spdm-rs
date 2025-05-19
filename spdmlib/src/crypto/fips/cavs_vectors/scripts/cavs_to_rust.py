@@ -125,7 +125,15 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
             for cavs_field, struct_info in mapping.items():
                 struct_field = struct_info['name']
                 struct_type = struct_info['type']
-                attr = struct_info['attr']
+                try:
+                    attr = struct_info['attr']
+                except:
+                    attr = ""
+                try:
+                    match = struct_info['match']
+                except:
+                    match = ""
+
                 re_res = re.search("^{0}\s+=\s+(.*)$".format(cavs_field), line)
                 if re_res:
                     entry_matched = True
@@ -138,12 +146,39 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
                         value_conv = parse_string_string(value)
                     # Add more types if required
 
+                    # Check if CAVS field shall be matched with the pattern
+                    matching = "NA"
+                    if match != "":
+                        re_res = re.search("^(.*):(.*)$", match)
+                        if re_res:
+                            if re_res.group(1) == "equal":
+                                if value_conv == re_res.group(2):
+                                    matching = "YES"
+                                else:
+                                    matching = "NO"
+                            elif re_res.group(1) == "any":
+                                for value_in_match in re_res.group(2).split(";"):
+                                    value_conv = value_conv.strip().strip("\"")
+                                    if value_conv in value_in_match:
+                                        matching = "YES"
+                                        break
+                                    else:
+                                        matching = "NO"
+
                     # In case parameter with attribute "global" just put it into extra dictionary and use later
                     if attr == "global":
                         # Do not use this entry
                         cavs_params_global.update({struct_field : value_conv})
                     else:
-                        current_cavs_vector[struct_field] = value_conv
+                        if matching == "NA":
+                            # There was no matching so adding the value
+                            current_cavs_vector[struct_field] = value_conv
+                        elif matching == "NO":
+                            # There was matching but failed so stop collecting current vector
+                            current_cavs_vector = {}
+                        # elif matching == "YES":
+                            # There was matching and it succeeded so continue collecting currnent
+                            # vector but do not add this field
 
                     continue
 
@@ -166,7 +201,8 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
 def generate_rust_code(cavs_vectors, mapping):
     # Generate the fields for the Rust struct
     cavs_vector_field_code = "    "
-    cavs_vector_field_code += "\n    ".join([f"pub {info['name']}: {info['type']}," for info in mapping.values()])
+    filtered_mapping = {k: v for k, v in mapping.items() if "match" not in v}
+    cavs_vector_field_code += "\n    ".join([f"pub {info['name']}: {info['type']}," for info in filtered_mapping.values()])
 
     cavs_vectors_code = ""
     cavs_vectors_count = 0
