@@ -24,6 +24,7 @@ patch-ring() {
         "x86_64-unknown-none")
             git apply ../patches/ring/0001-Support-x86_64-unknown-none-target.patch
             git apply ../patches/ring/0002-Disable-checks-for-SSE-and-SSE2.patch
+            git apply ../patches/ring/0003-EphemeralPrivateKey-from-bytes.patch
         ;;
         *)
             echo "Unsupported target for ring, builds may not work!"
