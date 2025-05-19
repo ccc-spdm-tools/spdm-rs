@@ -74,3 +74,13 @@ python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scrip
 python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scripts/mapping_ecdsa.json -f ./scripts/filter_ecdsa_p384_sha384.json -o ecdsa_p384_sha384_sig_ver.rs
 rm -rf 186-4ecdsatestvectors.zip 186-4ecdsatestvectors
 ```
+
+ECDHE
+https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/key-management
+```
+wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/keymgmt/KASTestVectorsECC2014.zip
+unzip KASTestVectorsECC2014.zip
+python3 ./scripts/cavs_to_rust.py -i "KASTestVectorsECC2014/No Key Confirmation/ECC Ephemeral Unified Scheme/KASValidityTest_ECCEphemeralUnified_KDFConcat_NOKC_resp.fax" -m ./scripts/mapping_dhe.json -f ./scripts/filter_dhe_p256.json -o dhe_vectors_p256.rs
+python3 ./scripts/cavs_to_rust.py -i "KASTestVectorsECC2014/No Key Confirmation/ECC Ephemeral Unified Scheme/KASValidityTest_ECCEphemeralUnified_KDFConcat_NOKC_resp.fax" -m ./scripts/mapping_dhe.json -f ./scripts/filter_dhe_p384.json -o dhe_vectors_p384.rs
+rm -rf KASTestVectorsECC2014.zip KASTestVectorsECC2014
+```

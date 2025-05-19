@@ -1,0 +1,7 @@
+{
+    "QeCAVSx": {"name": "qe_cavs_x", "type": "&'a [u8]", "attr": ""},
+    "QeCAVSy": {"name": "qe_cavs_y", "type": "&'a [u8]", "attr": ""},
+    "deIUT": {"name": "de_iut", "type": "&'a [u8]", "attr": ""},
+    "Z": {"name": "z", "type": "&'a [u8]", "attr": ""},
+    "Result" : {"name": "res", "type": "&'a str", "attr": "", "match": "any:P (0 - Correct);F (10 - OI changed );F (11 - MACData changed );F (9 - DKM changed );F (12 - Tag changed );P (14 - DKM value should have leading 0 nibble )"}
+}
