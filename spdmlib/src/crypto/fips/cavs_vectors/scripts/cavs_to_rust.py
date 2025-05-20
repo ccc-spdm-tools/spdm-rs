@@ -50,6 +50,7 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
     cavs_vectors = [] # Keeps list of items added later to the output file
     current_cavs_vector = {} # Keeps elements for currently collected CAVS vector
     with open(filename, 'r') as file:
+        stop_collecting_current_vector = False
         for line in file:
 
             # Let's search for end of the CAVS group - it shall be marked by empty line
@@ -68,6 +69,11 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
                 # Just clear current CAVS collection since starting collecting the new one
                 current_cavs_vector = {}
 
+                stop_collecting_current_vector = False
+
+                continue
+
+            if stop_collecting_current_vector:
                 continue
 
             # Let's search for CAVS parameters - it shall be marked by "['Param' = 'Value']"
@@ -152,14 +158,14 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
                         re_res = re.search("^(.*):(.*)$", match)
                         if re_res:
                             if re_res.group(1) == "equal":
-                                if value_conv == re_res.group(2):
+                                if value.strip() == re_res.group(2):
                                     matching = "YES"
                                 else:
                                     matching = "NO"
                             elif re_res.group(1) == "any":
                                 for value_in_match in re_res.group(2).split(";"):
-                                    value_conv = value_conv.strip().strip("\"")
-                                    if value_conv in value_in_match:
+                                    value_str = value.strip().strip("\"")
+                                    if value_str in value_in_match:
                                         matching = "YES"
                                         break
                                     else:
@@ -175,12 +181,21 @@ def read_cavs_input(filename, mapping, cavs_params_filter):
                             current_cavs_vector[struct_field] = value_conv
                         elif matching == "NO":
                             # There was matching but failed so stop collecting current vector
+                            stop_collecting_current_vector = True
                             current_cavs_vector = {}
-                        # elif matching == "YES":
-                            # There was matching and it succeeded so continue collecting currnent
+                        elif matching == "YES":
+                            # Just in case 'matching' was previously set to True
+                            stop_collecting_current_vector = False
+                            # There was matching and it succeeded so continue collecting current
                             # vector but do not add this field
 
                     continue
+
+                if stop_collecting_current_vector:
+                    break
+
+            if stop_collecting_current_vector:
+                continue
 
             if not entry_matched:
                 # Unreconized entry in the CAVS input cavs_vectors
