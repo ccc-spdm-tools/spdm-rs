@@ -34,6 +34,17 @@ python3 ./scripts/cavs_to_rust.py -i shabytetestvectors/SHA384ShortMsg.rsp -m ./
 rm -rf shabytetestvectors.zip shabytetestvectors
 ```
 
+HMAC
+```
+cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
+wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/hmactestvectors.zip
+unzip hmactestvectors.zip -d hmactestvectors
+python3 ./scripts/cavs_to_rust.py -i hmactestvectors/HMAC.rsp -m ./scripts/mapping_hmac_sha256.json -f ./scripts/filter_hmac_sha256.json -o hmac_sha256.rs
+python3 ./scripts/cavs_to_rust.py -i hmactestvectors/HMAC.rsp -m ./scripts/mapping_hmac_sha384.json -f ./scripts/filter_hmac_sha384.json -o hmac_sha384.rs
+python3 ./scripts/cavs_to_rust.py -i hmactestvectors/HMAC.rsp -m ./scripts/mapping_hmac_sha512.json -f ./scripts/filter_hmac_sha512.json -o hmac_sha512.rs
+rm -rf hmactestvectors.zip hmactestvectors
+```
+
 AEAD (AES-256-GCM) encryption
 https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/CAVP-TESTING-BLOCK-CIPHER-MODES#GCMVS
 ```
@@ -57,6 +68,7 @@ rm -rf gcmtestvectors.zip gcmtestvectors
 RSA (RSASSA-PKCS#1 v1.5)
 https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Digital-Signatures#rsa2vs
 ```
+cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/dss/186-3rsatestvectors.zip
 unzip 186-3rsatestvectors.zip -d 186-3rsatestvectors
 python3 ./scripts/cavs_to_rust.py -i 186-3rsatestvectors/SigVer15_186-3.rsp -m ./scripts/mapping_rsa.json -f ./scripts/filter_rsa.json -o rsa_sig_ver.rs
@@ -66,6 +78,7 @@ rm -rf 186-3rsatestvectors.zip 186-3rsatestvectors
 ECDSA
 https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Digital-Signatures#ecdsa2vs
 ```
+cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/dss/186-4ecdsatestvectors.zip
 unzip 186-4ecdsatestvectors.zip
 python3 ./scripts/cavs_to_rust.py -i 186-4ecdsatestvectors/SigVer.rsp -m ./scripts/mapping_ecdsa.json -f ./scripts/filter_ecdsa_p256_sha256.json -o ecdsa_p256_sha256_sig_ver.rs
@@ -78,6 +91,7 @@ rm -rf 186-4ecdsatestvectors.zip 186-4ecdsatestvectors
 ECDHE
 https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/key-management
 ```
+cd <WORKDIR>/spdm-rs/spdmlib/src/crypto/fips/cavs_vectors
 wget https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/keymgmt/KASTestVectorsECC2014.zip
 unzip KASTestVectorsECC2014.zip
 python3 ./scripts/cavs_to_rust.py -i "KASTestVectorsECC2014/No Key Confirmation/ECC Ephemeral Unified Scheme/KASValidityTest_ECCEphemeralUnified_KDFConcat_NOKC_resp.fax" -m ./scripts/mapping_dhe.json -f ./scripts/filter_dhe_p256.json -o dhe_vectors_p256.rs

@@ -1,0 +1,6 @@
+{
+    "Key": {"name": "key", "type": "&'a [u8]", "attr": ""},
+    "Msg": {"name": "msg", "type": "&'a [u8]", "attr": ""},
+    "Mac": {"name": "mac", "type": "&'a [u8]", "attr": ""},
+    "Tlen" : {"name": "tlen", "type": "u32", "attr": "", "match": "equal:48"}
+}
