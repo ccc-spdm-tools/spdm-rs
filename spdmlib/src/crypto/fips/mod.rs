@@ -11,6 +11,7 @@ mod asym_verify_st;
 mod cavs_vectors;
 mod dhe_st;
 mod hash_st;
+mod hmac_st;
 
 use crate::error::SpdmResult;
 
@@ -19,6 +20,7 @@ pub fn run_self_tests() -> SpdmResult {
     asym_verify_st::run_self_tests()?;
     dhe_st::run_self_tests()?;
     hash_st::run_self_tests()?;
+    hmac_st::run_self_tests()?;
 
     Ok(())
 }
