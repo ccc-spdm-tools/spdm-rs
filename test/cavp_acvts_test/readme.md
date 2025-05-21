@@ -14,7 +14,6 @@ Process test JSON inputs from ACVTS and return JSON result.
 
 ```
 pushd test/cavp_acvts_test
-bash pre-build.sh
 cat vectors/vector-set_SHA2-256.json | cargo run -p cavp_acvts_test
 popd
 ```
