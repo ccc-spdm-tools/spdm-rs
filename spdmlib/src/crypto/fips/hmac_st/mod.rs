@@ -31,7 +31,6 @@ pub fn run_self_tests() -> SpdmResult {
             mac.data.copy_from_slice(&vecc);
 
             if hmac::hmac_verify(SpdmBaseHashAlgo::TPM_ALG_SHA_256, cv.key, cv.msg, &mac).is_err() {
-                assert!(false, "Failed to run verify");
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
@@ -51,7 +50,6 @@ pub fn run_self_tests() -> SpdmResult {
             mac.data.copy_from_slice(&vecc);
 
             if hmac::hmac_verify(SpdmBaseHashAlgo::TPM_ALG_SHA_384, cv.key, cv.msg, &mac).is_err() {
-                assert!(false, "Failed to run verify");
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
@@ -71,7 +69,6 @@ pub fn run_self_tests() -> SpdmResult {
             mac.data.copy_from_slice(&vecc);
 
             if hmac::hmac_verify(SpdmBaseHashAlgo::TPM_ALG_SHA_512, cv.key, cv.msg, &mac).is_err() {
-                assert!(false, "Failed to run verify");
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
