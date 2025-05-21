@@ -527,6 +527,7 @@ fn handle_algorithm_aead(test_groups: &Vec<Value>) -> Vec<Value> {
 }
 
 fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
+    use ring::agreement::{EphemeralPrivateKey, ECDH_P256, ECDH_P384};
     use spdmlib::crypto::dhe;
     use spdmlib::crypto::hash;
     use spdmlib::protocol::SpdmBaseHashAlgo;
@@ -556,20 +557,17 @@ fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
         };
         let tg_result: Value = match test_type {
             "VAL" => {
-                use ring::ec::Seed;
-
                 let mut results = Value::Array(Vec::new());
                 let tests = group["tests"].as_array().unwrap();
 
                 let curve = match domain_parameter_generation_mode {
-                    "P-256" => &ring::ec::suite_b::curve::P256,
-                    "P-384" => &ring::ec::suite_b::curve::P384,
+                    "P-256" => &ECDH_P256,
+                    "P-384" => &ECDH_P384,
                     _ => panic!(
                         "dhe_algo not supported, {}",
                         domain_parameter_generation_mode
                     ),
                 };
-                use untrusted::Input;
 
                 for test in tests {
                     let ephemeral_private_iut =
@@ -583,13 +581,14 @@ fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
                     let ephemeral_public_server_y =
                         from_hex(test["ephemeralPublicServerY"].as_str().unwrap()).unwrap();
 
-                    let seed = Seed::load_private_bytes(
+                    let private = EphemeralPrivateKey::from_bytes_for_test(
                         curve,
-                        Input::from(ephemeral_private_iut.as_slice()),
+                        ephemeral_private_iut.as_slice(),
                     )
                     .unwrap();
+
                     let ephemeral_public_iut_actual =
-                        seed.get_compute_public_key().unwrap().as_ref()[1..].to_vec();
+                        private.compute_public_key().unwrap().as_ref()[1..].to_vec();
                     let len = ephemeral_public_iut_actual.len() / 2;
                     let mut passed = true;
                     if ephemeral_public_iut_x_expected.as_slice()
@@ -611,7 +610,6 @@ fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
                             domain_parameter_generation_mode
                         ),
                     };
-                    let private_key = ring::agreement::EphemeralPrivateKey::new(algo, seed);
 
                     let mut unparsed_public_key = Vec::new();
                     unparsed_public_key.push(0x4u8);
@@ -620,19 +618,16 @@ fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
                     let unparsed_pub_key =
                         ring::agreement::UnparsedPublicKey::new(algo, unparsed_public_key);
 
-                    let ret = ring::agreement::agree_ephemeral(
-                        private_key,
-                        &unparsed_pub_key,
-                        |peer_key| {
+                    let ret =
+                        ring::agreement::agree_ephemeral(private, &unparsed_pub_key, |peer_key| {
                             let hash_z = hash::hash_all(hash_algo, peer_key).unwrap();
                             let hash_z_actual = to_hex(hash_z.as_ref());
                             let hash_z_expected = test["hashZ"].as_str().unwrap();
                             if hash_z_expected != hash_z_actual.as_str() {
                                 passed = false;
                             }
-                        },
-                    )
-                    .is_ok();
+                        })
+                        .is_ok();
                     if ret == false {
                         passed = false;
                     }
