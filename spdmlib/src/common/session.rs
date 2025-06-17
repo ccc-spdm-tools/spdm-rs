@@ -11,7 +11,7 @@ use crate::message::SpdmKeyExchangeMutAuthAttributes;
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use codec::enum_builder;
+use codec::{enum_builder, Codec, Writer, Reader};
 
 use super::*;
 
@@ -43,6 +43,26 @@ pub struct SpdmSessionCryptoParam {
     pub key_schedule_algo: SpdmKeyScheduleAlgo,
 }
 
+impl Codec for SpdmSessionCryptoParam {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.base_hash_algo.encode(writer)?;
+        size += self.dhe_algo.encode(writer)?;
+        size += self.aead_algo.encode(writer)?;
+        size += self.key_schedule_algo.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            base_hash_algo: SpdmBaseHashAlgo::read(reader)?,
+            dhe_algo: SpdmDheAlgo::read(reader)?,
+            aead_algo: SpdmAeadAlgo::read(reader)?,
+            key_schedule_algo: SpdmKeyScheduleAlgo::read(reader)?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct SpdmSessionDheSecretRoot {
     pub dhe_secret: SpdmDheFinalKeyStruct,
@@ -50,11 +70,47 @@ pub struct SpdmSessionDheSecretRoot {
     pub master_secret: SpdmMasterSecretStruct,
 }
 
+impl Codec for SpdmSessionDheSecretRoot {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.dhe_secret.encode(writer)?;
+        size += self.handshake_secret.encode(writer)?;
+        size += self.master_secret.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            dhe_secret: SpdmDheFinalKeyStruct::read(reader)?,
+            handshake_secret: SpdmHandshakeSecretStruct::read(reader)?,
+            master_secret: SpdmMasterSecretStruct::read(reader)?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct SpdmSessionSecretParam {
     pub encryption_key: SpdmAeadKeyStruct,
     pub salt: SpdmAeadIvStruct,
     pub sequence_number: u64,
+}
+
+impl Codec for SpdmSessionSecretParam {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.encryption_key.encode(writer)?;
+        size += self.salt.encode(writer)?;
+        size += self.sequence_number.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            encryption_key: SpdmAeadKeyStruct::read(reader)?,
+            salt: SpdmAeadIvStruct::read(reader)?,
+            sequence_number: u64::read(reader)?,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
@@ -67,6 +123,30 @@ pub struct SpdmSessionHandshakeSecret {
     pub response_direction: SpdmSessionSecretParam,
 }
 
+impl Codec for SpdmSessionHandshakeSecret {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.request_handshake_secret.encode(writer)?;
+        size += self.response_handshake_secret.encode(writer)?;
+        size += self.request_finished_key.encode(writer)?;
+        size += self.response_finished_key.encode(writer)?;
+        size += self.request_direction.encode(writer)?;
+        size += self.response_direction.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            request_handshake_secret: SpdmDirectionHandshakeSecretStruct::read(reader)?,
+            response_handshake_secret: SpdmDirectionHandshakeSecretStruct::read(reader)?,
+            request_finished_key: SpdmFinishedKeyStruct::read(reader)?,
+            response_finished_key: SpdmFinishedKeyStruct::read(reader)?,
+            request_direction: SpdmSessionSecretParam::read(reader)?,
+            response_direction: SpdmSessionSecretParam::read(reader)?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct SpdmSessionAppliationSecret {
     pub request_data_secret: SpdmDirectionDataSecretStruct,
@@ -76,10 +156,48 @@ pub struct SpdmSessionAppliationSecret {
     pub export_master_secret: SpdmExportMasterSecretStruct,
 }
 
+impl Codec for SpdmSessionAppliationSecret {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.request_data_secret.encode(writer)?;
+        size += self.response_data_secret.encode(writer)?;
+        size += self.request_direction.encode(writer)?;
+        size += self.response_direction.encode(writer)?;
+        size += self.export_master_secret.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            request_data_secret: SpdmDirectionDataSecretStruct::read(reader)?,
+            response_data_secret: SpdmDirectionDataSecretStruct::read(reader)?,
+            request_direction: SpdmSessionSecretParam::read(reader)?,
+            response_direction: SpdmSessionSecretParam::read(reader)?,
+            export_master_secret: SpdmExportMasterSecretStruct::read(reader)?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct SpdmSessionTransportParam {
     pub sequence_number_count: u8,
     pub max_random_count: u16,
+}
+
+impl Codec for SpdmSessionTransportParam {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.sequence_number_count.encode(writer)?;
+        size += self.max_random_count.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            sequence_number_count: u8::read(reader)?,
+            max_random_count: u16::read(reader)?,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -106,6 +224,60 @@ pub struct SpdmSessionRuntimeInfo {
     pub digest_context_l1l2: Option<SpdmHashCtx>,
 }
 
+#[cfg(not(feature = "hashed-transcript-data"))]
+impl Codec for SpdmSessionRuntimeInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.psk_hint.encode(writer)?;
+        size += self.message_a.encode(writer)?;
+        size += self.rsp_cert_hash.encode(writer)?;
+        size += self.req_cert_hash.encode(writer)?;
+        size += self.message_k.encode(writer)?;
+        size += self.message_f.encode(writer)?;
+        size += self.message_m.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            psk_hint: Option::<SpdmPskHintStruct>::read(reader)?,
+            message_a: ManagedBufferA::read(reader)?,
+            rsp_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
+            req_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
+            message_k: ManagedBufferK::read(reader)?,
+            message_f: ManagedBufferF::read(reader)?,
+            message_m: ManagedBufferM::read(reader)?,
+        })
+    }
+}
+
+#[cfg(feature = "hashed-transcript-data")]
+impl Codec for SpdmSessionRuntimeInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.psk_hint.encode(writer)?;
+        size += self.message_a.encode(writer)?;
+        size += (self.message_f_initialized as u8).encode(writer)?;
+        size += self.rsp_cert_hash.encode(writer)?;
+        size += self.req_cert_hash.encode(writer)?;
+        size += self.digest_context_th.encode(writer)?;
+        size += self.digest_context_l1l2.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            psk_hint: Option::<SpdmPskHintStruct>::read(reader)?,
+            message_a: ManagedBufferA::read(reader)?,
+            message_f_initialized: u8::read(reader)? != 0,
+            rsp_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
+            req_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
+            digest_context_th: Option::<SpdmHashCtx>::read(reader)?,
+            digest_context_l1l2: Option::<SpdmHashCtx>::read(reader)?,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct SpdmSession {
     session_id: u32,
@@ -130,6 +302,52 @@ pub struct SpdmSession {
 impl Default for SpdmSession {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Codec for SpdmSession {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.session_id.encode(writer)?;
+        size += (self.use_psk as u8).encode(writer)?;
+        size += self.mut_auth_requested.encode(writer)?;
+        size += self.session_state.encode(writer)?;
+        size += self.crypto_param.encode(writer)?;
+        size += self.dhe_secret_root.encode(writer)?;
+        size += self.handshake_secret.encode(writer)?;
+        size += self.application_secret.encode(writer)?;
+        size += self.application_secret_backup.encode(writer)?;
+        size += (self.responder_backup_valid as u8).encode(writer)?;
+        size += (self.requester_backup_valid as u8).encode(writer)?;
+        size += self.transport_param.encode(writer)?;
+        size += self.runtime_info.encode(writer)?;
+        size += self.key_schedule.encode(writer)?;
+        size += self.slot_id.encode(writer)?;
+        size += self.heartbeat_period.encode(writer)?;
+        size += self.secure_spdm_version_sel.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            session_id: u32::read(reader)?,
+            use_psk: u8::read(reader)? != 0,
+            mut_auth_requested: SpdmKeyExchangeMutAuthAttributes::read(reader)?,
+            session_state: SpdmSessionState::read(reader)?,
+            crypto_param: SpdmSessionCryptoParam::read(reader)?,
+            dhe_secret_root: SpdmSessionDheSecretRoot::read(reader)?,
+            handshake_secret: SpdmSessionHandshakeSecret::read(reader)?,
+            application_secret: SpdmSessionAppliationSecret::read(reader)?,
+            application_secret_backup: SpdmSessionAppliationSecret::read(reader)?,
+            responder_backup_valid: u8::read(reader)? != 0,
+            requester_backup_valid: u8::read(reader)? != 0,
+            transport_param: SpdmSessionTransportParam::read(reader)?,
+            runtime_info: SpdmSessionRuntimeInfo::read(reader)?,
+            key_schedule: SpdmKeySchedule::read(reader)?,
+            slot_id: u8::read(reader)?,
+            heartbeat_period: u8::read(reader)?,
+            secure_spdm_version_sel: SecuredMessageVersion::read(reader)?,
+        })
     }
 }
 
