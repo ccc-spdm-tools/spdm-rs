@@ -1329,6 +1329,29 @@ macro_rules! create_sensitive_datatype {
                 Self { data_size, data }
             }
         }
+
+        impl Codec for $name {
+            fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+                let mut size = 0usize;
+                size += self.data_size.encode(bytes)?;
+                for d in self.data.iter().take(self.data_size as usize) {
+                    size += d.encode(bytes)?;
+                }
+                Ok(size)
+            }
+
+            fn read(r: &mut Reader) -> Option<$name> {
+                let data_size = u16::read(r)?;
+                if data_size > $size as u16 {
+                    return None;
+                }
+                let mut data = Box::new([0u8; $size]);
+                for d in data.iter_mut().take(data_size as usize) {
+                    *d = u8::read(r)?;
+                }
+                Some($name { data_size, data })
+            }
+        }
     };
 }
 
