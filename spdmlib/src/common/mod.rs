@@ -1153,6 +1153,77 @@ pub struct SpdmConfigInfo {
     pub mel_specification: SpdmMelSpecification, // spdm 1.3
 }
 
+impl Codec for SpdmConfigInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        for v in &self.spdm_version {
+            if v.is_some() {
+                size += v.unwrap().encode(writer)?;
+            }
+        }
+        size += self.req_capabilities.encode(writer)?;
+        size += self.rsp_capabilities.encode(writer)?;
+        size += self.req_ct_exponent.encode(writer)?;
+        size += self.rsp_ct_exponent.encode(writer)?;
+        size += self.measurement_specification.encode(writer)?;
+        size += self.measurement_hash_algo.encode(writer)?;
+        size += self.base_hash_algo.encode(writer)?;
+        size += self.base_asym_algo.encode(writer)?;
+        size += self.dhe_algo.encode(writer)?;
+        size += self.aead_algo.encode(writer)?;
+        size += self.req_asym_algo.encode(writer)?;
+        size += self.key_schedule_algo.encode(writer)?;
+        size += self.other_params_support.encode(writer)?;
+        size += self.session_policy.encode(writer)?;
+        size += (self.runtime_content_change_support as u8).encode(writer)?;
+        size += self.data_transfer_size.encode(writer)?;
+        size += self.max_spdm_msg_size.encode(writer)?;
+        size += self.heartbeat_period.encode(writer)?;
+        for v in &self.secure_spdm_version {
+            if v.is_some() {
+                size += v.unwrap().encode(writer)?;
+            }
+        }
+        size += self.mel_specification.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            // FIXME : replace with dynamic method
+            spdm_version: [
+                Option::<SpdmVersion>::read(reader)?,
+                Option::<SpdmVersion>::read(reader)?,
+                Option::<SpdmVersion>::read(reader)?,
+                Option::<SpdmVersion>::read(reader)?,
+            ],
+            req_capabilities: SpdmRequestCapabilityFlags::read(reader)?,
+            rsp_capabilities: SpdmResponseCapabilityFlags::read(reader)?,
+            req_ct_exponent: u8::read(reader)?,
+            rsp_ct_exponent: u8::read(reader)?,
+            measurement_specification: SpdmMeasurementSpecification::read(reader)?,
+            measurement_hash_algo: SpdmMeasurementHashAlgo::read(reader)?,
+            base_hash_algo: SpdmBaseHashAlgo::read(reader)?,
+            base_asym_algo: SpdmBaseAsymAlgo::read(reader)?,
+            dhe_algo: SpdmDheAlgo::read(reader)?,
+            aead_algo: SpdmAeadAlgo::read(reader)?,
+            req_asym_algo: SpdmReqAsymAlgo::read(reader)?,
+            key_schedule_algo: SpdmKeyScheduleAlgo::read(reader)?,
+            other_params_support: SpdmAlgoOtherParams::read(reader)?,
+            session_policy: u8::read(reader)?,
+            runtime_content_change_support: u8::read(reader)? != 0,
+            data_transfer_size: u32::read(reader)?,
+            max_spdm_msg_size: u32::read(reader)?,
+            heartbeat_period: u8::read(reader)?,
+            secure_spdm_version: [
+                Option::<SecuredMessageVersion>::read(reader)?,
+                Option::<SecuredMessageVersion>::read(reader)?,
+            ],
+            mel_specification: SpdmMelSpecification::read(reader)?,
+        })
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct SpdmNegotiateInfo {
     pub spdm_version_sel: SpdmVersion,
@@ -1177,6 +1248,62 @@ pub struct SpdmNegotiateInfo {
     pub mel_specification_sel: SpdmMelSpecification, // spdm 1.3
     pub multi_key_conn_req: bool,     // spdm 1.3
     pub multi_key_conn_rsp: bool,     // spdm 1.3
+}
+
+impl Codec for SpdmNegotiateInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.spdm_version_sel.encode(writer)?;
+        size += self.req_capabilities_sel.encode(writer)?;
+        size += self.rsp_capabilities_sel.encode(writer)?;
+        size += self.req_ct_exponent_sel.encode(writer)?;
+        size += self.rsp_ct_exponent_sel.encode(writer)?;
+        size += self.measurement_specification_sel.encode(writer)?;
+        size += self.measurement_hash_sel.encode(writer)?;
+        size += self.base_hash_sel.encode(writer)?;
+        size += self.base_asym_sel.encode(writer)?;
+        size += self.dhe_sel.encode(writer)?;
+        size += self.aead_sel.encode(writer)?;
+        size += self.req_asym_sel.encode(writer)?;
+        size += self.key_schedule_sel.encode(writer)?;
+        size += self.other_params_support.encode(writer)?;
+        size += self.termination_policy_set.encode(writer)?;
+        size += self.req_data_transfer_size_sel.encode(writer)?;
+        size += self.req_max_spdm_msg_size_sel.encode(writer)?;
+        size += self.rsp_data_transfer_size_sel.encode(writer)?;
+        size += self.rsp_max_spdm_msg_size_sel.encode(writer)?;
+        size += self.mel_specification_sel.encode(writer)?;
+        size += (self.multi_key_conn_req as u8).encode(writer)?;
+        size += (self.multi_key_conn_rsp as u8).encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            spdm_version_sel: SpdmVersion::read(reader)?,
+            req_capabilities_sel: SpdmRequestCapabilityFlags::read(reader)?,
+            rsp_capabilities_sel: SpdmResponseCapabilityFlags::read(reader)?,
+            req_ct_exponent_sel: u8::read(reader)?,
+            rsp_ct_exponent_sel: u8::read(reader)?,
+            measurement_specification_sel: SpdmMeasurementSpecification::read(reader)?,
+            measurement_hash_sel: SpdmMeasurementHashAlgo::read(reader)?,
+            base_hash_sel: SpdmBaseHashAlgo::read(reader)?,
+            base_asym_sel: SpdmBaseAsymAlgo::read(reader)?,
+            dhe_sel: SpdmDheAlgo::read(reader)?,
+            aead_sel: SpdmAeadAlgo::read(reader)?,
+            req_asym_sel: SpdmReqAsymAlgo::read(reader)?,
+            key_schedule_sel: SpdmKeyScheduleAlgo::read(reader)?,
+            other_params_support: SpdmAlgoOtherParams::read(reader)?,
+            termination_policy_set: u8::read(reader)? != 0,
+            req_data_transfer_size_sel: u32::read(reader)?,
+            req_max_spdm_msg_size_sel: u32::read(reader)?,
+            rsp_data_transfer_size_sel: u32::read(reader)?,
+            rsp_max_spdm_msg_size_sel: u32::read(reader)?,
+            mel_specification_sel: SpdmMelSpecification::read(reader)?,
+            multi_key_conn_req: u8::read(reader)? != 0,
+            multi_key_conn_rsp: u8::read(reader)? != 0,
+        })
+    }
 }
 
 pub const MAX_MANAGED_BUFFER_A_SIZE: usize = 150 + 2 * 255; // for version response, there can be more than MAX_SPDM_VERSION_COUNT versions.
@@ -1548,7 +1675,7 @@ pub struct SpdmRuntimeInfo {
                                                         // used by requester, consume when measurement response report content changed.
 }
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 #[cfg(feature = "hashed-transcript-data")]
 pub struct SpdmRuntimeInfo {
     connection_state: SpdmConnectionState,
@@ -1598,6 +1725,96 @@ impl SpdmRuntimeInfo {
     }
 }
 
+#[cfg(not(feature = "hashed-transcript-data"))]
+impl Codec for SpdmRuntimeInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.connection_state.encode(writer)?;
+        size += self.last_session_id.encode(writer)?;
+        size += self.local_used_cert_chain_slot_id.encode(writer)?;
+        size += self.peer_used_cert_chain_slot_id.encode(writer)?;
+        size += (self.need_measurement_summary_hash as u8).encode(writer)?;
+        size += (self.need_measurement_signature as u8).encode(writer)?;
+        size += self.message_a.encode(writer)?;
+        size += self.message_b.encode(writer)?;
+        size += self.message_c.encode(writer)?;
+        size += self.message_m.encode(writer)?;
+        size += self.content_changed.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            connection_state: SpdmConnectionState::read(reader)?,
+            last_session_id: Option::<u32>::read(reader)?,
+            local_used_cert_chain_slot_id: u8::read(reader)?,
+            peer_used_cert_chain_slot_id: u8::read(reader)?,
+            need_measurement_summary_hash: u8::read(reader)? != 0,
+            need_measurement_signature: u8::read(reader)? != 0,
+            message_a: ManagedBufferA::read(reader)?,
+            message_b: ManagedBufferB::read(reader)?,
+            message_c: ManagedBufferC::read(reader)?,
+            message_m: ManagedBufferM::read(reader)?,
+            content_changed: SpdmMeasurementContentChanged::read(reader)?,
+        })
+    }
+}
+
+#[cfg(feature = "hashed-transcript-data")]
+impl Codec for SpdmRuntimeInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.connection_state.encode(writer)?;
+        // FIXME: add bool if last_session_id is present
+        size += self.last_session_id.encode(writer)?;
+        size += self.local_used_cert_chain_slot_id.encode(writer)?;
+        size += self.peer_used_cert_chain_slot_id.encode(writer)?;
+        size += (self.need_measurement_summary_hash as u8).encode(writer)?;
+        size += (self.need_measurement_signature as u8).encode(writer)?;
+        size += self.message_a.encode(writer)?;
+        // Option<SpdmHashCtx>
+        size += match &self.digest_context_m1m2 {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        size += match &self.digest_context_l1l2 {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        size += self.content_changed.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            connection_state: SpdmConnectionState::read(reader)?,
+            last_session_id: Option::<u32>::read(reader)?,
+            local_used_cert_chain_slot_id: u8::read(reader)?,
+            peer_used_cert_chain_slot_id: u8::read(reader)?,
+            need_measurement_summary_hash: u8::read(reader)? != 0,
+            need_measurement_signature: u8::read(reader)? != 0,
+            message_a: ManagedBufferA::read(reader)?,
+            digest_context_m1m2: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(SpdmHashCtx::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            digest_context_l1l2: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(SpdmHashCtx::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            content_changed: SpdmMeasurementContentChanged::read(reader)?,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
@@ -1640,4 +1857,23 @@ pub struct SpdmEncapContext {
     pub req_slot_id: u8,
     pub request_id: u8,
     pub encap_cert_size: u16,
+}
+
+#[cfg(feature = "mut-auth")]
+impl Codec for SpdmEncapContext {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        size += self.req_slot_id.encode(writer)?;
+        size += self.request_id.encode(writer)?;
+        size += self.encap_cert_size.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            req_slot_id: u8::read(reader)?,
+            request_id: u8::read(reader)?,
+            encap_cert_size: u16::read(reader)?,
+        })
+    }
 }
