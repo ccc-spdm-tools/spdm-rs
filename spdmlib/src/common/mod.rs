@@ -1851,6 +1851,61 @@ pub struct SpdmPeerInfo {
     pub peer_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
 }
 
+impl Codec for SpdmPeerInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+        let mut size = 0;
+        for v in &self.peer_cert_chain {
+            size += v.encode(writer)?;
+        }
+        size += self.peer_cert_chain_temp.encode(writer)?;
+        size += self.peer_supported_slot_mask.encode(writer)?;
+        size += self.peer_provisioned_slot_mask.encode(writer)?;
+        for v in &self.peer_key_pair_id {
+            size += v.encode(writer)?;
+        }
+        for v in &self.peer_cert_info {
+            size += v.encode(writer)?;
+        }
+        for v in &self.peer_key_usage_bit_mask {
+            size += v.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let mut peer_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut peer_cert_chain {
+            *v = Option::<SpdmCertChainBuffer>::read(reader)?;
+        }
+        let peer_cert_chain_temp = Option::<SpdmCertChainBuffer>::read(reader)?;
+        let peer_supported_slot_mask = u8::read(reader)?;
+        let peer_provisioned_slot_mask = u8::read(reader)?;
+
+        let mut peer_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut peer_key_pair_id {
+            *v = Option::<u8>::read(reader)?;
+        }
+        let mut peer_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut peer_cert_info {
+            *v = Option::<SpdmCertificateModelType>::read(reader)?;
+        }
+        let mut peer_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut peer_key_usage_bit_mask {
+            *v = Option::<SpdmKeyUsageMask>::read(reader)?;
+        }
+
+        Some(Self {
+            peer_cert_chain,
+            peer_cert_chain_temp,
+            peer_supported_slot_mask,
+            peer_provisioned_slot_mask,
+            peer_key_pair_id,
+            peer_cert_info,
+            peer_key_usage_bit_mask,
+        })
+    }
+}
+
 #[cfg(feature = "mut-auth")]
 #[derive(Default)]
 pub struct SpdmEncapContext {
