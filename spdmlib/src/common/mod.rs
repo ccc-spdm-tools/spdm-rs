@@ -1505,6 +1505,18 @@ impl Default for SpdmMeasurementContentChanged {
     }
 }
 
+impl Codec for SpdmMeasurementContentChanged {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let value: u8 = (*self).into();
+        value.encode(writer)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let value = u8::read(reader)?;
+        Self::try_from(value).ok()
+    }
+}
+
 impl TryFrom<u8> for SpdmMeasurementContentChanged {
     type Error = ();
     fn try_from(content_changed: u8) -> Result<Self, <Self as TryFrom<u8>>::Error> {
@@ -1781,7 +1793,7 @@ impl Default for SpdmProvisionInfo {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SpdmPeerInfo {
     pub peer_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
     pub peer_cert_chain_temp: Option<SpdmCertChainBuffer>,
