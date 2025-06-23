@@ -177,6 +177,31 @@ impl<T: Codec + Copy> Codec for alloc::vec::Vec<T> {
 }
 
 // Encoding functions.
+impl<T: Codec> Codec for Option<T> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, EncodeErr> {
+        match self {
+            Some(val) => {
+                let mut size = 0;
+                size += 1u8.encode(writer)?; // 1 means present
+                size += val.encode(writer)?;
+                Ok(size)
+            }
+            None => {
+                0u8.encode(writer) // 0 means absent
+            }
+        }
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let present = u8::read(reader)?;
+        if present != 0 {
+            Some(T::read(reader))
+        } else {
+            Some(None)
+        }
+    }
+}
+
 pub fn decode_u8(bytes: &[u8]) -> Option<u8> {
     Some(bytes[0])
 }
