@@ -25,8 +25,7 @@ use crate::error::{
     SPDM_STATUS_SESSION_NUMBER_EXCEED,
 };
 
-use codec::enum_builder;
-use codec::{Codec, Reader, Writer};
+use codec::{enum_builder, Codec, Reader, Writer};
 use session::*;
 
 enum_builder! {
@@ -1154,7 +1153,7 @@ pub struct SpdmConfigInfo {
 }
 
 impl Codec for SpdmConfigInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         for v in &self.spdm_version {
             if v.is_some() {
@@ -1251,7 +1250,7 @@ pub struct SpdmNegotiateInfo {
 }
 
 impl Codec for SpdmNegotiateInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.spdm_version_sel.encode(writer)?;
         size += self.req_capabilities_sel.encode(writer)?;
@@ -1739,7 +1738,7 @@ impl SpdmRuntimeInfo {
 
 #[cfg(not(feature = "hashed-transcript-data"))]
 impl Codec for SpdmRuntimeInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.connection_state.encode(writer)?;
         size += self.last_session_id.encode(writer)?;
@@ -1774,7 +1773,7 @@ impl Codec for SpdmRuntimeInfo {
 
 #[cfg(feature = "hashed-transcript-data")]
 impl Codec for SpdmRuntimeInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.connection_state.encode(writer)?;
         // FIXME: add bool if last_session_id is present
@@ -1864,7 +1863,7 @@ pub struct SpdmPeerInfo {
 }
 
 impl Codec for SpdmPeerInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         for v in &self.peer_cert_chain {
             size += v.encode(writer)?;
@@ -1928,7 +1927,7 @@ pub struct SpdmEncapContext {
 
 #[cfg(feature = "mut-auth")]
 impl Codec for SpdmEncapContext {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.req_slot_id.encode(writer)?;
         size += self.request_id.encode(writer)?;

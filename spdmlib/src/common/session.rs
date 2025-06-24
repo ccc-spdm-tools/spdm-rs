@@ -44,7 +44,7 @@ pub struct SpdmSessionCryptoParam {
 }
 
 impl Codec for SpdmSessionCryptoParam {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.base_hash_algo.encode(writer)?;
         size += self.dhe_algo.encode(writer)?;
@@ -71,7 +71,7 @@ pub struct SpdmSessionDheSecretRoot {
 }
 
 impl Codec for SpdmSessionDheSecretRoot {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.dhe_secret.encode(writer)?;
         size += self.handshake_secret.encode(writer)?;
@@ -96,7 +96,7 @@ pub struct SpdmSessionSecretParam {
 }
 
 impl Codec for SpdmSessionSecretParam {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.encryption_key.encode(writer)?;
         size += self.salt.encode(writer)?;
@@ -124,7 +124,7 @@ pub struct SpdmSessionHandshakeSecret {
 }
 
 impl Codec for SpdmSessionHandshakeSecret {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.request_handshake_secret.encode(writer)?;
         size += self.response_handshake_secret.encode(writer)?;
@@ -157,7 +157,7 @@ pub struct SpdmSessionAppliationSecret {
 }
 
 impl Codec for SpdmSessionAppliationSecret {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.request_data_secret.encode(writer)?;
         size += self.response_data_secret.encode(writer)?;
@@ -185,7 +185,7 @@ pub struct SpdmSessionTransportParam {
 }
 
 impl Codec for SpdmSessionTransportParam {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.sequence_number_count.encode(writer)?;
         size += self.max_random_count.encode(writer)?;
@@ -226,7 +226,7 @@ pub struct SpdmSessionRuntimeInfo {
 
 #[cfg(not(feature = "hashed-transcript-data"))]
 impl Codec for SpdmSessionRuntimeInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.psk_hint.encode(writer)?;
         size += self.message_a.encode(writer)?;
@@ -253,7 +253,7 @@ impl Codec for SpdmSessionRuntimeInfo {
 
 #[cfg(feature = "hashed-transcript-data")]
 impl Codec for SpdmSessionRuntimeInfo {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.psk_hint.encode(writer)?;
         size += self.message_a.encode(writer)?;
@@ -306,7 +306,7 @@ impl Default for SpdmSession {
 }
 
 impl Codec for SpdmSession {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::Error> {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.session_id.encode(writer)?;
         size += (self.use_psk as u8).encode(writer)?;
