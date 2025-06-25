@@ -212,7 +212,7 @@ pub struct SpdmSessionRuntimeInfo {
     pub message_m: ManagedBufferM,
 }
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 #[cfg(feature = "hashed-transcript-data")]
 pub struct SpdmSessionRuntimeInfo {
     pub psk_hint: Option<SpdmPskHintStruct>,
