@@ -1287,6 +1287,29 @@ impl AsRef<[u8]> for SpdmPskHintStruct {
     }
 }
 
+impl Codec for SpdmPskHintStruct {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0usize;
+        size += self.data_size.encode(bytes)?;
+        for d in self.data.iter().take(self.data_size as usize) {
+            size += d.encode(bytes)?;
+        }
+        Ok(size)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmPskHintStruct> {
+        let data_size = u16::read(r)?;
+        if data_size > config::MAX_SPDM_PSK_HINT_SIZE as u16 {
+            return None;
+        }
+        let mut data = [0u8; config::MAX_SPDM_PSK_HINT_SIZE];
+        for d in data.iter_mut().take(data_size as usize) {
+            *d = u8::read(r)?;
+        }
+        Some(SpdmPskHintStruct { data_size, data })
+    }
+}
+
 macro_rules! create_sensitive_datatype {
     (Name: $name:ident, Size: $size:expr) => {
         #[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
