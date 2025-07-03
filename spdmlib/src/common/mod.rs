@@ -1345,6 +1345,29 @@ impl Default for ManagedBufferA {
     }
 }
 
+impl Codec for ManagedBufferA {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_A_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_A_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferA(data_size, data))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ManagedBufferB(usize, [u8; MAX_MANAGED_BUFFER_B_SIZE]);
 
@@ -1370,6 +1393,29 @@ impl AsRef<[u8]> for ManagedBufferB {
 impl Default for ManagedBufferB {
     fn default() -> Self {
         ManagedBufferB(0usize, [0u8; MAX_MANAGED_BUFFER_B_SIZE])
+    }
+}
+
+impl Codec for ManagedBufferB {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_B_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_B_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferB(data_size, data))
     }
 }
 
@@ -1594,6 +1640,190 @@ impl AsRef<[u8]> for ManagedBuffer12Sign {
 impl Default for ManagedBuffer12Sign {
     fn default() -> Self {
         ManagedBuffer12Sign(0usize, [0u8; MAX_MANAGED_BUFFER_12SIGN_SIZE])
+    }
+}
+
+impl Codec for ManagedBufferC {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_C_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_C_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferC(data_size, data))
+    }
+}
+
+impl Codec for ManagedBufferM {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_M_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_M_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferM(data_size, data))
+    }
+}
+
+impl Codec for ManagedBufferK {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_K_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_K_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferK(data_size, data))
+    }
+}
+
+impl Codec for ManagedBufferF {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_F_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_F_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferF(data_size, data))
+    }
+}
+
+impl Codec for ManagedBufferM1M2 {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_M1M2_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_M1M2_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferM1M2(data_size, data))
+    }
+}
+
+impl Codec for ManagedBufferL1L2 {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_L1L2_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_L1L2_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferL1L2(data_size, data))
+    }
+}
+
+impl Codec for ManagedBufferTH {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_TH_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_TH_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBufferTH(data_size, data))
+    }
+}
+
+impl Codec for ManagedBuffer12Sign {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_12SIGN_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_12SIGN_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedBuffer12Sign(data_size, data))
     }
 }
 
