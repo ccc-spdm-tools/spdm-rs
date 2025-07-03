@@ -1302,7 +1302,7 @@ impl Codec for SpdmNegotiateInfo {
         size += self.req_asym_sel.encode(writer)?;
         size += self.key_schedule_sel.encode(writer)?;
         size += self.other_params_support.encode(writer)?;
-        size += self.termination_policy_set.encode(writer)?;
+        size += (self.termination_policy_set as u8).encode(writer)?;
         size += self.req_data_transfer_size_sel.encode(writer)?;
         size += self.req_max_spdm_msg_size_sel.encode(writer)?;
         size += self.rsp_data_transfer_size_sel.encode(writer)?;
