@@ -67,6 +67,7 @@ pub mod hash {
     mod hash_ext {
         use super::{SpdmBaseHashAlgo, SpdmDigestStruct, CRYPTO_HASH};
         use crate::error::SpdmResult;
+        use codec::Codec;
         #[derive(Ord, PartialEq, PartialOrd, Eq, Debug, Default)]
         pub struct SpdmHashCtx(usize);
 
@@ -81,6 +82,17 @@ pub mod hash {
                 if self.0 != 0 {
                     hash_ctx_finalize(SpdmHashCtx(self.0));
                 }
+            }
+        }
+
+        impl Codec for SpdmHashCtx {
+            fn encode(&self, writer: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
+                (self.0 as u64).encode(writer)
+            }
+
+            fn read(reader: &mut codec::Reader) -> Option<Self> {
+                let handle = u64::read(reader)? as usize;
+                Some(SpdmHashCtx(handle))
             }
         }
 
