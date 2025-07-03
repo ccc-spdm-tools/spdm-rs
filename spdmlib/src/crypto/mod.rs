@@ -84,6 +84,17 @@ pub mod hash {
             }
         }
 
+        impl codec::Codec for SpdmHashCtx {
+            fn encode(&self, writer: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
+                (self.0 as u64).encode(writer)
+            }
+
+            fn read(reader: &mut codec::Reader) -> Option<Self> {
+                let handle = u64::read(reader)? as usize;
+                Some(SpdmHashCtx(handle))
+            }
+        }
+
         pub fn hash_ctx_init(base_hash_algo: SpdmBaseHashAlgo) -> Option<SpdmHashCtx> {
             let ret = (CRYPTO_HASH
                 .try_get_or_init(|| DEFAULT.clone())
