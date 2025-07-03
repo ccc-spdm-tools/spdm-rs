@@ -4,7 +4,7 @@
 
 use crate::crypto;
 use crate::protocol::*;
-use codec::{Codec, Writer};
+use codec::{Codec, Reader, Writer};
 extern crate alloc;
 use crate::secret;
 use alloc::boxed::Box;
@@ -31,6 +31,18 @@ pub struct SpdmKeySchedule;
 impl Default for SpdmKeySchedule {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Codec for SpdmKeySchedule {
+    fn encode(&self, _writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        // SpdmKeySchedule is a unit struct with no data to encode
+        Ok(0)
+    }
+
+    fn read(_reader: &mut Reader) -> Option<Self> {
+        // SpdmKeySchedule is a unit struct with no data to read
+        Some(SpdmKeySchedule)
     }
 }
 
