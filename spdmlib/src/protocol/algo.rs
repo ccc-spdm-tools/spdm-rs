@@ -1061,6 +1061,29 @@ impl SpdmCertChainBuffer {
     }
 }
 
+impl Codec for SpdmCertChainBuffer {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0usize;
+        size += self.data_size.encode(bytes)?;
+        for d in self.data.iter().take(self.data_size as usize) {
+            size += d.encode(bytes)?;
+        }
+        Ok(size)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmCertChainBuffer> {
+        let data_size = u16::read(r)?;
+        if data_size > (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u16 {
+            return None;
+        }
+        let mut data = [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        for d in data.iter_mut().take(data_size as usize) {
+            *d = u8::read(r)?;
+        }
+        Some(SpdmCertChainBuffer { data_size, data })
+    }
+}
+
 enum_builder! {
     @U8
     EnumName: SpdmDmtfMeasurementType;
