@@ -278,7 +278,7 @@ impl Codec for SpdmSessionRuntimeInfo {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SpdmSession {
     session_id: u32,
     use_psk: bool,
