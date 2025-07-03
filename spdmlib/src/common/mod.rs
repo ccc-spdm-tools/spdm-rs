@@ -1155,11 +1155,16 @@ pub struct SpdmConfigInfo {
 impl Codec for SpdmConfigInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
+
+        // Count and encode populated spdm_version entries
+        let spdm_version_count = self.spdm_version.iter().filter(|v| v.is_some()).count() as u8;
+        size += spdm_version_count.encode(writer)?;
         for v in &self.spdm_version {
-            if v.is_some() {
-                size += v.unwrap().encode(writer)?;
+            if let Some(version) = v {
+                size += version.encode(writer)?;
             }
         }
+
         size += self.req_capabilities.encode(writer)?;
         size += self.rsp_capabilities.encode(writer)?;
         size += self.req_ct_exponent.encode(writer)?;
@@ -1178,47 +1183,78 @@ impl Codec for SpdmConfigInfo {
         size += self.data_transfer_size.encode(writer)?;
         size += self.max_spdm_msg_size.encode(writer)?;
         size += self.heartbeat_period.encode(writer)?;
+
+        // Count and encode populated secure_spdm_version entries
+        let secure_spdm_version_count = self.secure_spdm_version.iter().filter(|v| v.is_some()).count() as u8;
+        size += secure_spdm_version_count.encode(writer)?;
         for v in &self.secure_spdm_version {
-            if v.is_some() {
-                size += v.unwrap().encode(writer)?;
+            if let Some(version) = v {
+                size += version.encode(writer)?;
             }
         }
+
         size += self.mel_specification.encode(writer)?;
         Ok(size)
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
+        // Read spdm_version count and entries
+        let spdm_version_count = u8::read(reader)? as usize;
+        let mut spdm_version = [None; MAX_SPDM_VERSION_COUNT];
+        for i in 0..spdm_version_count.min(MAX_SPDM_VERSION_COUNT) {
+            spdm_version[i] = Some(SpdmVersion::read(reader)?);
+        }
+
+        let req_capabilities = SpdmRequestCapabilityFlags::read(reader)?;
+        let rsp_capabilities = SpdmResponseCapabilityFlags::read(reader)?;
+        let req_ct_exponent = u8::read(reader)?;
+        let rsp_ct_exponent = u8::read(reader)?;
+        let measurement_specification = SpdmMeasurementSpecification::read(reader)?;
+        let measurement_hash_algo = SpdmMeasurementHashAlgo::read(reader)?;
+        let base_hash_algo = SpdmBaseHashAlgo::read(reader)?;
+        let base_asym_algo = SpdmBaseAsymAlgo::read(reader)?;
+        let dhe_algo = SpdmDheAlgo::read(reader)?;
+        let aead_algo = SpdmAeadAlgo::read(reader)?;
+        let req_asym_algo = SpdmReqAsymAlgo::read(reader)?;
+        let key_schedule_algo = SpdmKeyScheduleAlgo::read(reader)?;
+        let other_params_support = SpdmAlgoOtherParams::read(reader)?;
+        let session_policy = u8::read(reader)?;
+        let runtime_content_change_support = u8::read(reader)? != 0;
+        let data_transfer_size = u32::read(reader)?;
+        let max_spdm_msg_size = u32::read(reader)?;
+        let heartbeat_period = u8::read(reader)?;
+
+        // Read secure_spdm_version count and entries
+        let secure_spdm_version_count = u8::read(reader)? as usize;
+        let mut secure_spdm_version = [None; MAX_SECURE_SPDM_VERSION_COUNT];
+        for i in 0..secure_spdm_version_count.min(MAX_SECURE_SPDM_VERSION_COUNT) {
+            secure_spdm_version[i] = Some(SecuredMessageVersion::read(reader)?);
+        }
+
+        let mel_specification = SpdmMelSpecification::read(reader)?;
+
         Some(Self {
-            // FIXME : replace with dynamic method
-            spdm_version: [
-                Option::<SpdmVersion>::read(reader)?,
-                Option::<SpdmVersion>::read(reader)?,
-                Option::<SpdmVersion>::read(reader)?,
-                Option::<SpdmVersion>::read(reader)?,
-            ],
-            req_capabilities: SpdmRequestCapabilityFlags::read(reader)?,
-            rsp_capabilities: SpdmResponseCapabilityFlags::read(reader)?,
-            req_ct_exponent: u8::read(reader)?,
-            rsp_ct_exponent: u8::read(reader)?,
-            measurement_specification: SpdmMeasurementSpecification::read(reader)?,
-            measurement_hash_algo: SpdmMeasurementHashAlgo::read(reader)?,
-            base_hash_algo: SpdmBaseHashAlgo::read(reader)?,
-            base_asym_algo: SpdmBaseAsymAlgo::read(reader)?,
-            dhe_algo: SpdmDheAlgo::read(reader)?,
-            aead_algo: SpdmAeadAlgo::read(reader)?,
-            req_asym_algo: SpdmReqAsymAlgo::read(reader)?,
-            key_schedule_algo: SpdmKeyScheduleAlgo::read(reader)?,
-            other_params_support: SpdmAlgoOtherParams::read(reader)?,
-            session_policy: u8::read(reader)?,
-            runtime_content_change_support: u8::read(reader)? != 0,
-            data_transfer_size: u32::read(reader)?,
-            max_spdm_msg_size: u32::read(reader)?,
-            heartbeat_period: u8::read(reader)?,
-            secure_spdm_version: [
-                Option::<SecuredMessageVersion>::read(reader)?,
-                Option::<SecuredMessageVersion>::read(reader)?,
-            ],
-            mel_specification: SpdmMelSpecification::read(reader)?,
+            spdm_version,
+            req_capabilities,
+            rsp_capabilities,
+            req_ct_exponent,
+            rsp_ct_exponent,
+            measurement_specification,
+            measurement_hash_algo,
+            base_hash_algo,
+            base_asym_algo,
+            dhe_algo,
+            aead_algo,
+            req_asym_algo,
+            key_schedule_algo,
+            other_params_support,
+            session_policy,
+            runtime_content_change_support,
+            data_transfer_size,
+            max_spdm_msg_size,
+            heartbeat_period,
+            secure_spdm_version,
+            mel_specification,
         })
     }
 }
