@@ -1283,6 +1283,62 @@ pub struct SpdmNegotiateInfo {
     pub multi_key_conn_rsp: bool,     // spdm 1.3
 }
 
+impl Codec for SpdmNegotiateInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.spdm_version_sel.encode(writer)?;
+        size += self.req_capabilities_sel.encode(writer)?;
+        size += self.rsp_capabilities_sel.encode(writer)?;
+        size += self.req_ct_exponent_sel.encode(writer)?;
+        size += self.rsp_ct_exponent_sel.encode(writer)?;
+        size += self.measurement_specification_sel.encode(writer)?;
+        size += self.measurement_hash_sel.encode(writer)?;
+        size += self.base_hash_sel.encode(writer)?;
+        size += self.base_asym_sel.encode(writer)?;
+        size += self.dhe_sel.encode(writer)?;
+        size += self.aead_sel.encode(writer)?;
+        size += self.req_asym_sel.encode(writer)?;
+        size += self.key_schedule_sel.encode(writer)?;
+        size += self.other_params_support.encode(writer)?;
+        size += (self.termination_policy_set as u8).encode(writer)?;
+        size += self.req_data_transfer_size_sel.encode(writer)?;
+        size += self.req_max_spdm_msg_size_sel.encode(writer)?;
+        size += self.rsp_data_transfer_size_sel.encode(writer)?;
+        size += self.rsp_max_spdm_msg_size_sel.encode(writer)?;
+        size += self.mel_specification_sel.encode(writer)?;
+        size += (self.multi_key_conn_req as u8).encode(writer)?;
+        size += (self.multi_key_conn_rsp as u8).encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            spdm_version_sel: SpdmVersion::read(reader)?,
+            req_capabilities_sel: SpdmRequestCapabilityFlags::read(reader)?,
+            rsp_capabilities_sel: SpdmResponseCapabilityFlags::read(reader)?,
+            req_ct_exponent_sel: u8::read(reader)?,
+            rsp_ct_exponent_sel: u8::read(reader)?,
+            measurement_specification_sel: SpdmMeasurementSpecification::read(reader)?,
+            measurement_hash_sel: SpdmMeasurementHashAlgo::read(reader)?,
+            base_hash_sel: SpdmBaseHashAlgo::read(reader)?,
+            base_asym_sel: SpdmBaseAsymAlgo::read(reader)?,
+            dhe_sel: SpdmDheAlgo::read(reader)?,
+            aead_sel: SpdmAeadAlgo::read(reader)?,
+            req_asym_sel: SpdmReqAsymAlgo::read(reader)?,
+            key_schedule_sel: SpdmKeyScheduleAlgo::read(reader)?,
+            other_params_support: SpdmAlgoOtherParams::read(reader)?,
+            termination_policy_set: u8::read(reader)? != 0,
+            req_data_transfer_size_sel: u32::read(reader)?,
+            req_max_spdm_msg_size_sel: u32::read(reader)?,
+            rsp_data_transfer_size_sel: u32::read(reader)?,
+            rsp_max_spdm_msg_size_sel: u32::read(reader)?,
+            mel_specification_sel: SpdmMelSpecification::read(reader)?,
+            multi_key_conn_req: u8::read(reader)? != 0,
+            multi_key_conn_rsp: u8::read(reader)? != 0,
+        })
+    }
+}
+
 pub const MAX_MANAGED_BUFFER_A_SIZE: usize = 150 + 2 * 255; // for version response, there can be more than MAX_SPDM_VERSION_COUNT versions.
 pub const MAX_MANAGED_BUFFER_B_SIZE: usize =
     24 + SPDM_MAX_HASH_SIZE * SPDM_MAX_SLOT_NUMBER + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE;
