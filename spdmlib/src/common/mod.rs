@@ -128,10 +128,7 @@ pub trait SpdmTransportEncap {
     fn get_max_random_count(&mut self) -> u16;
 }
 
-pub struct SpdmContext {
-    pub device_io: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>>,
-    pub transport_encap: Arc<Mutex<dyn SpdmTransportEncap + Send + Sync>>,
-
+pub struct SpdmContextData {
     pub config_info: SpdmConfigInfo,
     pub negotiate_info: SpdmNegotiateInfo,
     pub runtime_info: SpdmRuntimeInfo,
@@ -148,6 +145,12 @@ pub struct SpdmContext {
     pub session: [SpdmSession; config::MAX_SPDM_SESSION_COUNT],
 }
 
+pub struct SpdmContext {
+    pub device_io: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>>,
+    pub transport_encap: Arc<Mutex<dyn SpdmTransportEncap + Send + Sync>>,
+    pub data: SpdmContextData,
+}
+
 impl SpdmContext {
     pub fn new(
         device_io: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>>,
@@ -158,16 +161,18 @@ impl SpdmContext {
         SpdmContext {
             device_io,
             transport_encap,
-            config_info,
-            negotiate_info: SpdmNegotiateInfo::default(),
-            runtime_info: SpdmRuntimeInfo::default(),
-            provision_info,
-            peer_info: SpdmPeerInfo::default(),
-            #[cfg(feature = "mut-auth")]
-            encap_context: SpdmEncapContext::default(),
-            #[cfg(feature = "mandatory-mut-auth")]
-            mut_auth_done: false,
-            session: gen_array(config::MAX_SPDM_SESSION_COUNT),
+            data: SpdmContextData {
+                config_info,
+                negotiate_info: SpdmNegotiateInfo::default(),
+                runtime_info: SpdmRuntimeInfo::default(),
+                provision_info,
+                peer_info: SpdmPeerInfo::default(),
+                #[cfg(feature = "mut-auth")]
+                encap_context: SpdmEncapContext::default(),
+                #[cfg(feature = "mandatory-mut-auth")]
+                mut_auth_done: false,
+                session: gen_array(config::MAX_SPDM_SESSION_COUNT),
+            },
         }
     }
 
