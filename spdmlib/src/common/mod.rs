@@ -2001,7 +2001,7 @@ impl Codec for SpdmPeerInfo {
 }
 
 #[cfg(feature = "mut-auth")]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SpdmEncapContext {
     pub req_slot_id: u8,
     pub request_id: u8,
