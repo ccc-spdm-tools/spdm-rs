@@ -26,6 +26,7 @@ impl RequesterContext {
 
         if !self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::CERT_CAP)
@@ -39,7 +40,7 @@ impl RequesterContext {
         }
 
         if let Some(message_header) = SpdmMessageHeader::read(&mut reader) {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.encode_encap_error_response(
                     SpdmErrorCode::SpdmErrorVersionMismatch,
                     0,
@@ -81,7 +82,7 @@ impl RequesterContext {
 
         let slot_id = get_certificate.slot_id as usize;
         if slot_id >= SPDM_MAX_SLOT_NUMBER
-            || self.common.provision_info.my_cert_chain[slot_id].is_none()
+            || self.common.data.provision_info.my_cert_chain[slot_id].is_none()
         {
             self.encode_encap_error_response(
                 SpdmErrorCode::SpdmErrorInvalidRequest,
@@ -91,7 +92,7 @@ impl RequesterContext {
             return;
         }
 
-        let my_cert_chain = self.common.provision_info.my_cert_chain[slot_id]
+        let my_cert_chain = self.common.data.provision_info.my_cert_chain[slot_id]
             .as_ref()
             .unwrap();
 
@@ -124,7 +125,7 @@ impl RequesterContext {
         cert_chain[..cert_chain_data.len()].copy_from_slice(cert_chain_data);
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseCertificate,
             },
             payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {

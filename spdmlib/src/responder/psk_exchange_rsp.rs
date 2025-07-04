@@ -52,7 +52,7 @@ impl ResponderContext {
         writer: &'a mut Writer,
         target_session_id: &mut Option<u32>,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.runtime_info.get_connection_state().get_u8()
+        if self.common.data.runtime_info.get_connection_state().get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -64,7 +64,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -104,13 +104,13 @@ impl ResponderContext {
                 || (psk_exchange_req.measurement_summary_hash_type
                     == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll)
             {
-                self.common.runtime_info.need_measurement_summary_hash = true;
+                self.common.data.runtime_info.need_measurement_summary_hash = true;
                 let measurement_summary_hash_res =
                     secret::measurement::generate_measurement_summary_hash(
-                        self.common.negotiate_info.spdm_version_sel,
-                        self.common.negotiate_info.base_hash_sel,
-                        self.common.negotiate_info.measurement_specification_sel,
-                        self.common.negotiate_info.measurement_hash_sel,
+                        self.common.data.negotiate_info.spdm_version_sel,
+                        self.common.data.negotiate_info.base_hash_sel,
+                        self.common.data.negotiate_info.measurement_specification_sel,
+                        self.common.data.negotiate_info.measurement_hash_sel,
                         psk_exchange_req.measurement_summary_hash_type,
                     );
                 if measurement_summary_hash_res.is_none() {
@@ -123,7 +123,7 @@ impl ResponderContext {
                     return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
                 }
             } else {
-                self.common.runtime_info.need_measurement_summary_hash = false;
+                self.common.data.runtime_info.need_measurement_summary_hash = false;
                 measurement_summary_hash = SpdmDigestStruct::default();
             }
 
@@ -146,7 +146,7 @@ impl ResponderContext {
                 let mut selected_version: Option<SecuredMessageVersion> = None;
                 for index in 0..secured_message_version_list.version_count as usize {
                     for local_version in
-                        self.common.config_info.secure_spdm_version.iter().flatten()
+                        self.common.data.config_info.secure_spdm_version.iter().flatten()
                     {
                         if secured_message_version_list.versions_list[index] == *local_version {
                             selected_version = Some(*local_version);
@@ -193,6 +193,7 @@ impl ResponderContext {
 
         let psk_without_context = self
             .common
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT);
@@ -221,10 +222,10 @@ impl ResponderContext {
         let rsp_session_id = rsp_session_id.unwrap();
 
         // create session structure
-        let hash_algo = self.common.negotiate_info.base_hash_sel;
-        let dhe_algo = self.common.negotiate_info.dhe_sel;
-        let aead_algo = self.common.negotiate_info.aead_sel;
-        let key_schedule_algo = self.common.negotiate_info.key_schedule_sel;
+        let hash_algo = self.common.data.negotiate_info.base_hash_sel;
+        let dhe_algo = self.common.data.negotiate_info.dhe_sel;
+        let aead_algo = self.common.data.negotiate_info.aead_sel;
+        let key_schedule_algo = self.common.data.negotiate_info.key_schedule_sel;
         let sequence_number_count = {
             let mut transport_encap = self.common.transport_encap.lock();
             let transport_encap: &mut (dyn SpdmTransportEncap + Send + Sync) =
@@ -238,8 +239,8 @@ impl ResponderContext {
             transport_encap.get_max_random_count()
         };
 
-        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-        let message_a = self.common.runtime_info.message_a.clone();
+        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
+        let message_a = self.common.data.runtime_info.message_a.clone();
 
         let session = self.common.get_next_avaiable_session();
         if session.is_none() {
@@ -271,11 +272,11 @@ impl ResponderContext {
         // prepare response
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponsePskExchangeRsp,
             },
             payload: SpdmMessagePayload::SpdmPskExchangeResponse(SpdmPskExchangeResponsePayload {
-                heartbeat_period: self.common.config_info.heartbeat_period,
+                heartbeat_period: self.common.data.config_info.heartbeat_period,
                 rsp_session_id,
                 measurement_summary_hash,
                 psk_context: SpdmPskContextStruct {
@@ -284,7 +285,7 @@ impl ResponderContext {
                 },
                 opaque: return_opaque,
                 verify_data: SpdmDigestStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.data.negotiate_info.base_hash_sel.get_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
             }),
@@ -300,7 +301,7 @@ impl ResponderContext {
         }
         let used = writer.used();
 
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
         let temp_used = used - base_hash_size;
 
         if self
@@ -422,7 +423,7 @@ impl ResponderContext {
 
         // patch the message before send
         writer.mut_used_slice()[(used - base_hash_size)..used].copy_from_slice(hmac.as_ref());
-        let heartbeat_period = self.common.config_info.heartbeat_period;
+        let heartbeat_period = self.common.data.config_info.heartbeat_period;
         let session = if let Some(session) = self.common.get_session_via_id(session_id) {
             session
         } else {
@@ -455,7 +456,7 @@ impl ResponderContext {
             }
             let th2 = th2.unwrap();
             debug!("!!! th2 : {:02x?}\n", th2.as_ref());
-            let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+            let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
             let heartbeat_period = {
                 let session = if let Some(session) = self.common.get_session_via_id(session_id) {
                     session
@@ -481,11 +482,13 @@ impl ResponderContext {
             };
             if self
                 .common
+                .data
                 .negotiate_info
                 .req_capabilities_sel
                 .contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
                 && self
                     .common
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::HBEAT_CAP)

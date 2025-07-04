@@ -32,7 +32,7 @@ fn test_encap_handle_get_digest() {
         config_info,
         provision_info,
     );
-    context.common.provision_info.my_cert_chain = [
+    context.common.data.provision_info.my_cert_chain = [
         Some(SpdmCertChainBuffer {
             data_size: 512u16,
             data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -45,9 +45,9 @@ fn test_encap_handle_get_digest() {
         None,
         None,
     ];
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    context.common.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP;
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP;
 
     let encap_request = &mut [0u8; 1024];
     let mut writer = Writer::init(encap_request);

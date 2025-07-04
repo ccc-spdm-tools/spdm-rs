@@ -16,7 +16,7 @@ fn test_digest_struct() {
 
     create_spdm_context!(context);
 
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
 
     // 1. [Negative] Param2 equal 0b11111111 total length less than 4 +(H * 8). Expectation: None
     let u8_slice = &mut [0u8; 4 + SHA256_DIGEST_SIZE * 7];
@@ -33,7 +33,7 @@ fn test_digest_struct_case2() {
 
     create_spdm_context!(context);
 
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
     // 2. [Negative] Param2 equal 0b11001111 total read length equal 4 +(H * 6). Expectation: true
     let u8_slice = &mut [0u8; 4 + SHA384_DIGEST_SIZE * 9];
@@ -43,7 +43,7 @@ fn test_digest_struct_case2() {
     let ret = SpdmDigestsResponsePayload::spdm_read(&mut context, &mut reader);
     assert_eq!(
         reader.used() + 2,
-        4 + context.negotiate_info.base_hash_sel.get_size() as usize * 6
+        4 + context.data.negotiate_info.base_hash_sel.get_size() as usize * 6
     );
     assert!(ret.is_some());
 }

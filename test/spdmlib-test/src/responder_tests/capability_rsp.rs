@@ -32,9 +32,10 @@ fn test_case0_handle_spdm_capability() {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
 
@@ -80,7 +81,7 @@ fn test_case0_handle_spdm_capability() {
             | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
             | SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP
             | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP;
-        let data = context.common.runtime_info.message_a.as_ref();
+        let data = context.common.data.runtime_info.message_a.as_ref();
         let u8_slice = &mut [0u8; 2048];
         for (i, data) in data.iter().enumerate() {
             u8_slice[i] = *data;

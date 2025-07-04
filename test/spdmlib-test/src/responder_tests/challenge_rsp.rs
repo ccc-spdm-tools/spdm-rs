@@ -44,7 +44,7 @@ fn test_case0_handle_spdm_challenge() {
             config_info,
             provision_info,
         );
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -58,30 +58,38 @@ fn test_case0_handle_spdm_challenge() {
             None,
         ];
 
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.runtime_info.need_measurement_summary_hash = true;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         context
             .common
+            .data
+            .runtime_info
+            .need_measurement_summary_hash = true;
+        context
+            .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::CHAL_CAP
-            | SpdmResponseCapabilityFlags::MEAS_CAP_SIG
-            | SpdmResponseCapabilityFlags::ENCRYPT_CAP
-            | SpdmResponseCapabilityFlags::MAC_CAP
-            | SpdmResponseCapabilityFlags::KEY_EX_CAP
-            | SpdmResponseCapabilityFlags::HBEAT_CAP
-            | SpdmResponseCapabilityFlags::KEY_UPD_CAP
-            | SpdmResponseCapabilityFlags::ENCAP_CAP;
-        context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP
-            | SpdmRequestCapabilityFlags::ENCRYPT_CAP
-            | SpdmRequestCapabilityFlags::MAC_CAP
-            | SpdmRequestCapabilityFlags::KEY_EX_CAP
-            | SpdmRequestCapabilityFlags::HBEAT_CAP
-            | SpdmRequestCapabilityFlags::KEY_UPD_CAP
-            | SpdmRequestCapabilityFlags::ENCAP_CAP;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP
+                | SpdmResponseCapabilityFlags::CHAL_CAP
+                | SpdmResponseCapabilityFlags::MEAS_CAP_SIG
+                | SpdmResponseCapabilityFlags::ENCRYPT_CAP
+                | SpdmResponseCapabilityFlags::MAC_CAP
+                | SpdmResponseCapabilityFlags::KEY_EX_CAP
+                | SpdmResponseCapabilityFlags::HBEAT_CAP
+                | SpdmResponseCapabilityFlags::KEY_UPD_CAP
+                | SpdmResponseCapabilityFlags::ENCAP_CAP;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP
+                | SpdmRequestCapabilityFlags::ENCRYPT_CAP
+                | SpdmRequestCapabilityFlags::MAC_CAP
+                | SpdmRequestCapabilityFlags::KEY_EX_CAP
+                | SpdmRequestCapabilityFlags::HBEAT_CAP
+                | SpdmRequestCapabilityFlags::KEY_UPD_CAP
+                | SpdmRequestCapabilityFlags::ENCAP_CAP;
 
         let spdm_message_header = &mut [0u8; 2];
         let mut writer = Writer::init(spdm_message_header);
@@ -116,7 +124,7 @@ fn test_case0_handle_spdm_challenge() {
 
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            let data = context.common.runtime_info.message_c.as_ref();
+            let data = context.common.data.runtime_info.message_c.as_ref();
             let u8_slice = &mut [0u8; 4
                 + SPDM_MAX_HASH_SIZE
                 + SPDM_NONCE_SIZE
@@ -160,9 +168,10 @@ fn test_case0_handle_spdm_challenge() {
             );
 
             let cert_chain_hash = crypto::hash::hash_all(
-                context.common.negotiate_info.base_hash_sel,
+                context.common.data.negotiate_info.base_hash_sel,
                 context
                     .common
+                    .data
                     .provision_info
                     .my_cert_chain
                     .unwrap()

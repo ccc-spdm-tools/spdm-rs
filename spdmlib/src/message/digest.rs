@@ -57,7 +57,7 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
     ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             cnt += self
                 .supported_slot_mask
                 .encode(bytes)
@@ -82,8 +82,8 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
             cnt += digest.spdm_encode(context, bytes)?;
         }
 
-        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
-            && (context.negotiate_info.multi_key_conn_rsp)
+        if (context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
+            && (context.data.negotiate_info.multi_key_conn_rsp)
         {
             for key_pair_id in self.key_pair_id.iter().take(count as usize) {
                 cnt += key_pair_id
@@ -109,7 +109,7 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         r: &mut Reader,
     ) -> Option<SpdmDigestsResponsePayload> {
         let supported_slot_mask =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 u8::read(r)? // param1
             } else {
                 u8::read(r)?; // param1
@@ -135,8 +135,8 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
             SPDM_MAX_SLOT_NUMBER,
         );
         let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
-        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
-            && context.negotiate_info.multi_key_conn_rsp
+        if (context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
+            && context.data.negotiate_info.multi_key_conn_rsp
         {
             for key_pair_id in key_pair_id.iter_mut().take(slot_count as usize) {
                 *key_pair_id = u8::read(r)?;
@@ -203,7 +203,7 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -233,7 +233,7 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
         SpdmDigestsResponsePayload::spdm_read(&mut context, &mut reader).unwrap();
@@ -246,7 +246,7 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     }
     #[test]

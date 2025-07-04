@@ -69,6 +69,7 @@ impl RequesterContext {
                         {
                             if self
                                 .common
+                                .data
                                 .config_info
                                 .spdm_version
                                 .contains(&Some(spdm_version_struct.version))
@@ -79,10 +80,10 @@ impl RequesterContext {
                         }
 
                         if let Some(negotiate_version) = negotiate_version {
-                            self.common.negotiate_info.spdm_version_sel = negotiate_version;
+                            self.common.data.negotiate_info.spdm_version_sel = negotiate_version;
                             debug!(
                                 "Version negotiated: {:?}",
-                                self.common.negotiate_info.spdm_version_sel
+                                self.common.data.negotiate_info.spdm_version_sel
                             );
                         } else {
                             debug!(

@@ -37,29 +37,30 @@ fn test_case0_handle_spdm_key_update() {
 
         let rsp_session_id = 0xFFFEu16;
         let session_id = (0xffu32 << 16) + rsp_session_id as u32;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.session = gen_array_clone(SpdmSession::new(), 4);
-        context.common.session[0].setup(session_id).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        context.common.data.session[0].setup(session_id).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
         let dhe_secret = SpdmDheFinalKeyStruct {
             data_size: 48,
             data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
         };
-        let _ = context.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
-        let _ = context.common.session[0].generate_handshake_secret(
+        let _ =
+            context.common.data.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = context.common.data.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 48,
                 data: Box::new([0; SPDM_MAX_HASH_SIZE]),
             },
         );
-        let _ = context.common.session[0].generate_data_secret(
+        let _ = context.common.data.session[0].generate_data_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 48,
@@ -112,29 +113,30 @@ fn test_case1_handle_spdm_key_update() {
 
         let rsp_session_id = 0xFFFEu16;
         let session_id = (0xffu32 << 16) + rsp_session_id as u32;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.session = gen_array_clone(SpdmSession::new(), 4);
-        context.common.session[0].setup(session_id).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        context.common.data.session[0].setup(session_id).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
         let dhe_secret = SpdmDheFinalKeyStruct {
             data_size: 48,
             data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
         };
-        let _ = context.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
-        let _ = context.common.session[0].generate_handshake_secret(
+        let _ =
+            context.common.data.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = context.common.data.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 48,
                 data: Box::new([0; SPDM_MAX_HASH_SIZE]),
             },
         );
-        let _ = context.common.session[0].generate_data_secret(
+        let _ = context.common.data.session[0].generate_data_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 48,

@@ -31,18 +31,18 @@ fn test_case0_send_secured_message() {
         provision_info,
     );
 
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
     let rsp_session_id = 0xffu16;
     let session_id = (0xffu32 << 16) + rsp_session_id as u32;
-    context.common.session = gen_array_clone(SpdmSession::new(), 4);
-    context.common.session[0].setup(session_id).unwrap();
-    context.common.session[0].set_crypto_param(
+    context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+    context.common.data.session[0].setup(session_id).unwrap();
+    context.common.data.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         SpdmDheAlgo::SECP_384_R1,
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
-    context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+    context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
 
     let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
     let mut writer = Writer::init(&mut send_buffer);
@@ -150,16 +150,16 @@ fn test_case0_process_message() {
 
     let rsp_session_id = 0xFFFEu16;
     let session_id = (0xffu32 << 16) + rsp_session_id as u32;
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    context.common.session = gen_array_clone(SpdmSession::new(), 4);
-    context.common.session[0].setup(session_id).unwrap();
-    context.common.session[0].set_crypto_param(
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+    context.common.data.session[0].setup(session_id).unwrap();
+    context.common.data.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         SpdmDheAlgo::SECP_384_R1,
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
-    context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+    context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
 
     let status = context.process_message(false, &[0]).is_err();
     assert!(status);
@@ -184,11 +184,11 @@ fn test_case0_dispatch_secured_message() {
     let rsp_session_id = 0xFFFEu16;
     let session_id = (0xffu32 << 16) + rsp_session_id as u32;
     let patch_context = |context: &mut SpdmContext| {
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        context.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
+        context.data.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
         context.data.session = gen_array_clone(SpdmSession::new(), 4);
         context.data.session[0].setup(session_id).unwrap();
@@ -221,6 +221,7 @@ fn test_case0_dispatch_secured_message() {
         }
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(connection_state);
         let bytes = &mut [0u8; 4];
@@ -246,6 +247,7 @@ fn test_case0_dispatch_secured_message() {
         }
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(connection_state);
         let bytes = &mut [0u8; 4];
@@ -270,9 +272,10 @@ fn test_case0_dispatch_secured_message() {
         }
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(connection_state);
-        context.common.session[0].set_session_state(session_state);
+        context.common.data.session[0].set_session_state(session_state);
         let bytes = &mut [0u8; 4];
         let mut writer = Writer::init(bytes);
         let value = SpdmMessageHeader {
@@ -293,9 +296,10 @@ fn test_case0_dispatch_secured_message() {
         }
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(connection_state);
-        context.common.session[0].set_session_state(session_state);
+        context.common.data.session[0].set_session_state(session_state);
         let bytes = &mut [0u8; 4];
         let mut writer = Writer::init(bytes);
         let value = SpdmMessageHeader {

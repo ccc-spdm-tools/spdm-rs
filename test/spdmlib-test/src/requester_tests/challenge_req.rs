@@ -40,7 +40,7 @@ fn test_case0_send_receive_spdm_challenge() {
     );
 
     responder.common.reset_runtime_info();
-    responder.common.provision_info.my_cert_chain = [
+    responder.common.data.provision_info.my_cert_chain = [
         Some(SpdmCertChainBuffer {
             data_size: 512u16,
             data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -53,14 +53,20 @@ fn test_case0_send_receive_spdm_challenge() {
         None,
         None,
     ];
-    responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
-    responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    responder.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-    responder.common.runtime_info.need_measurement_summary_hash = true;
+    responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    responder.common.data.negotiate_info.base_asym_sel =
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    responder
+        .common
+        .data
+        .runtime_info
+        .need_measurement_summary_hash = true;
 
     responder
         .common
+        .data
         .runtime_info
         .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -83,16 +89,23 @@ fn test_case0_send_receive_spdm_challenge() {
 
     requester
         .common
+        .data
         .negotiate_info
         .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-    requester.common.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-    requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    requester.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-    requester.common.runtime_info.need_measurement_summary_hash = true;
+    requester.common.data.negotiate_info.measurement_hash_sel =
+        SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.base_asym_sel =
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    requester
+        .common
+        .data
+        .runtime_info
+        .need_measurement_summary_hash = true;
 
-    requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
     let task = async move {
         let status = requester

@@ -40,10 +40,11 @@ fn test_case0_handle_spdm_key_exchange() {
             provision_info,
         );
 
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -137,10 +138,11 @@ fn test_case1_handle_spdm_key_exchange() {
             provision_info,
         );
 
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -210,7 +212,7 @@ fn test_case1_handle_spdm_key_exchange() {
         let mut writer = Writer::init(&mut response_buffer);
         let (status, send_buffer) = context.handle_spdm_key_exchange(bytes, &mut writer);
 
-        for session in context.common.session.iter() {
+        for session in context.common.data.session.iter() {
             assert_eq!(
                 session.get_session_id(),
                 spdmlib::common::INVALID_SESSION_ID

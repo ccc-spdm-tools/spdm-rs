@@ -35,9 +35,9 @@ fn test_encode_encap_requst_get_certificate() {
         config_info,
         provision_info,
     );
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    context.common.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP;
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP;
 
     let encap_request = &mut [0u8; config::MAX_SPDM_MSG_SIZE];
     let mut writer = Writer::init(encap_request);
@@ -50,7 +50,7 @@ fn test_encode_encap_requst_get_certificate() {
     let payload =
         SpdmGetCertificateRequestPayload::spdm_read(&mut context.common, &mut reader).unwrap();
 
-    assert!(context.common.peer_info.peer_cert_chain_temp.is_some());
+    assert!(context.common.data.peer_info.peer_cert_chain_temp.is_some());
     assert_eq!(header.version, SpdmVersion::SpdmVersion12);
     assert_eq!(
         header.request_response_code,
@@ -78,9 +78,9 @@ fn test_handle_encap_response_certificate() {
         config_info,
         provision_info,
     );
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    context.common.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP;
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP;
 
     let encap_response = &mut [0u8; config::MAX_SPDM_MSG_SIZE];
     let mut writer = Writer::init(encap_response);
@@ -105,8 +105,8 @@ fn test_handle_encap_response_certificate() {
         .handle_encap_response_certificate(encap_response)
         .is_err());
 
-    if context.common.peer_info.peer_cert_chain_temp.is_none() {
-        context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+    if context.common.data.peer_info.peer_cert_chain_temp.is_none() {
+        context.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
     }
     let result = context
         .handle_encap_response_certificate(encap_response)
@@ -116,13 +116,17 @@ fn test_handle_encap_response_certificate() {
     assert!(result);
     let offset = context
         .common
+        .data
         .peer_info
         .peer_cert_chain_temp
         .as_mut()
         .unwrap()
         .data_size;
     assert_eq!(offset, CERT_PORTION_LEN as u16);
-    assert_eq!(context.common.encap_context.encap_cert_size, offset + 0x600);
+    assert_eq!(
+        context.common.data.encap_context.encap_cert_size,
+        offset + 0x600
+    );
 
     let mut writer = Writer::init(encap_response);
     cert_rsp.payload =
@@ -158,11 +162,15 @@ fn test_handle_encap_response_certificate() {
         .is_ok());
     let offset = context
         .common
+        .data
         .peer_info
         .peer_cert_chain_temp
         .as_mut()
         .unwrap()
         .data_size;
     assert_eq!(offset, 0x400 as u16);
-    assert_eq!(context.common.encap_context.encap_cert_size, offset + 0x400);
+    assert_eq!(
+        context.common.data.encap_context.encap_cert_size,
+        offset + 0x400
+    );
 }

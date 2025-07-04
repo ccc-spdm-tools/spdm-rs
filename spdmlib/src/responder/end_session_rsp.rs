@@ -21,11 +21,13 @@ impl ResponderContext {
     ) -> (SpdmResult, Option<&'a [u8]>) {
         if self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
             && self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HBEAT_CAP)
@@ -46,7 +48,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -83,7 +85,7 @@ impl ResponderContext {
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseEndSessionAck,
             },
             payload: SpdmMessagePayload::SpdmEndSessionResponse(SpdmEndSessionResponsePayload {}),

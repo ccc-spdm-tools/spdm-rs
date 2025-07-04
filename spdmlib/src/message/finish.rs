@@ -99,10 +99,12 @@ impl SpdmCodec for SpdmFinishResponsePayload {
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
         let in_clear_text = context
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -120,10 +122,12 @@ impl SpdmCodec for SpdmFinishResponsePayload {
         u8::read(r)?; // param2
 
         let in_clear_text = context
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -170,8 +174,8 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -220,8 +224,8 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -251,10 +255,10 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.req_capabilities_sel =
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        context.negotiate_info.rsp_capabilities_sel =
+        context.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
@@ -280,10 +284,10 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.req_capabilities_sel =
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        context.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::KEY_UPD_CAP;
+        context.data.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::KEY_UPD_CAP;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);

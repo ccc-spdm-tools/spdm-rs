@@ -29,7 +29,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -62,7 +62,7 @@ impl ResponderContext {
         }
         let key_update_req = key_update_req.unwrap();
 
-        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
         let session = if let Some(session) = self.common.get_session_via_id(session_id) {
             session
         } else {
@@ -97,7 +97,7 @@ impl ResponderContext {
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseKeyUpdateAck,
             },
             payload: SpdmMessagePayload::SpdmKeyUpdateResponse(SpdmKeyUpdateResponsePayload {

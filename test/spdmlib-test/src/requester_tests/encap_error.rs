@@ -29,7 +29,7 @@ fn test_encode_encap_error_response() {
         config_info,
         provision_info,
     );
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
     let encap_response = &mut [0u8; config::MAX_SPDM_MSG_SIZE];
     let mut writer = Writer::init(encap_response);

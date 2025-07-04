@@ -38,7 +38,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -75,7 +75,7 @@ impl ResponderContext {
         let read_used = reader.used();
 
         // verify HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
 
         let temp_used = read_used - base_hash_size;
 
@@ -172,7 +172,7 @@ impl ResponderContext {
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponsePskFinishRsp,
             },
             payload: SpdmMessagePayload::SpdmPskFinishResponse(SpdmPskFinishResponsePayload {}),
@@ -220,7 +220,7 @@ impl ResponderContext {
         // Safely to call unwrap;
         let th2 = th2.unwrap();
         debug!("!!! th2 : {:02x?}\n", th2.as_ref());
-        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
         let session = if let Some(session) = self.common.get_session_via_id(session_id) {
             session
         } else {

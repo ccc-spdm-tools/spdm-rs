@@ -40,34 +40,37 @@ fn test_case0_send_receive_spdm_psk_finish() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        responder.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         // let rsp_session_id = 0x11u16;
         // let session_id = (0x11u32 << 16) + rsp_session_id as u32;
-        responder.common.session = gen_array_clone(SpdmSession::new(), 4);
-        responder.common.session[0].setup(4294901758).unwrap();
-        responder.common.session[0].set_crypto_param(
+        responder.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        responder.common.data.session[0].setup(4294901758).unwrap();
+        responder.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        responder.common.session[0].set_use_psk(true);
-        responder.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
+        responder.common.data.session[0].set_use_psk(true);
+        responder.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
             data_size: 5,
             data: [0u8; MAX_SPDM_PSK_HINT_SIZE],
         });
-        responder.common.session[0]
+        responder.common.data.session[0]
             .set_session_state(session::SpdmSessionState::SpdmSessionHandshaking);
-        responder.common.session[0].runtime_info.digest_context_th = Some(
-            crypto::hash::hash_ctx_init(responder.common.negotiate_info.base_hash_sel).unwrap(),
+        responder.common.data.session[0]
+            .runtime_info
+            .digest_context_th = Some(
+            crypto::hash::hash_ctx_init(responder.common.data.negotiate_info.base_hash_sel)
+                .unwrap(),
         );
 
-        let _ = responder.common.session[0].generate_handshake_secret(
+        let _ = responder.common.data.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 5,
@@ -88,34 +91,37 @@ fn test_case0_send_receive_spdm_psk_finish() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         // let rsp_session_id = 0x11u16;
         // let session_id = (0x11u32 << 16) + rsp_session_id as u32;
-        requester.common.session = gen_array_clone(SpdmSession::new(), 4);
-        requester.common.session[0].setup(4294901758).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        requester.common.data.session[0].setup(4294901758).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        requester.common.session[0].set_use_psk(true);
-        requester.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
+        requester.common.data.session[0].set_use_psk(true);
+        requester.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
             data_size: 5,
             data: [0u8; MAX_SPDM_PSK_HINT_SIZE],
         });
-        requester.common.session[0]
+        requester.common.data.session[0]
             .set_session_state(session::SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].runtime_info.digest_context_th = Some(
-            crypto::hash::hash_ctx_init(requester.common.negotiate_info.base_hash_sel).unwrap(),
+        requester.common.data.session[0]
+            .runtime_info
+            .digest_context_th = Some(
+            crypto::hash::hash_ctx_init(requester.common.data.negotiate_info.base_hash_sel)
+                .unwrap(),
         );
 
-        let _ = requester.common.session[0].generate_handshake_secret(
+        let _ = requester.common.data.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 5,
@@ -153,34 +159,37 @@ fn test_case1_send_receive_spdm_psk_finish() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        responder.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         // let rsp_session_id = 0x11u16;
         // let session_id = (0x11u32 << 16) + rsp_session_id as u32;
-        responder.common.session = gen_array_clone(SpdmSession::new(), 4);
-        responder.common.session[0].setup(4294901758).unwrap();
-        responder.common.session[0].set_crypto_param(
+        responder.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        responder.common.data.session[0].setup(4294901758).unwrap();
+        responder.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        responder.common.session[0].set_use_psk(true);
-        responder.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
+        responder.common.data.session[0].set_use_psk(true);
+        responder.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
             data_size: 5,
             data: [0u8; MAX_SPDM_PSK_HINT_SIZE],
         });
-        responder.common.session[0]
+        responder.common.data.session[0]
             .set_session_state(session::SpdmSessionState::SpdmSessionHandshaking);
-        responder.common.session[0].runtime_info.digest_context_th = Some(
-            crypto::hash::hash_ctx_init(responder.common.negotiate_info.base_hash_sel).unwrap(),
+        responder.common.data.session[0]
+            .runtime_info
+            .digest_context_th = Some(
+            crypto::hash::hash_ctx_init(responder.common.data.negotiate_info.base_hash_sel)
+                .unwrap(),
         );
 
-        let _ = responder.common.session[0].generate_handshake_secret(
+        let _ = responder.common.data.session[0].generate_handshake_secret(
             // different handshake will cause psk finish fail
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
@@ -202,34 +211,37 @@ fn test_case1_send_receive_spdm_psk_finish() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         // let rsp_session_id = 0x11u16;
         // let session_id = (0x11u32 << 16) + rsp_session_id as u32;
-        requester.common.session = gen_array_clone(SpdmSession::new(), 4);
-        requester.common.session[0].setup(4294901758).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        requester.common.data.session[0].setup(4294901758).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        requester.common.session[0].set_use_psk(true);
-        requester.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
+        requester.common.data.session[0].set_use_psk(true);
+        requester.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct {
             data_size: 5,
             data: [0u8; MAX_SPDM_PSK_HINT_SIZE],
         });
-        requester.common.session[0]
+        requester.common.data.session[0]
             .set_session_state(session::SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].runtime_info.digest_context_th = Some(
-            crypto::hash::hash_ctx_init(requester.common.negotiate_info.base_hash_sel).unwrap(),
+        requester.common.data.session[0]
+            .runtime_info
+            .digest_context_th = Some(
+            crypto::hash::hash_ctx_init(requester.common.data.negotiate_info.base_hash_sel)
+                .unwrap(),
         );
 
-        let _ = requester.common.session[0].generate_handshake_secret(
+        let _ = requester.common.data.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
                 data_size: 5,
@@ -243,7 +255,7 @@ fn test_case1_send_receive_spdm_psk_finish() {
             .is_ok();
         assert_eq!(status, false);
 
-        for session in requester.common.session.iter() {
+        for session in requester.common.data.session.iter() {
             assert_eq!(
                 session.get_session_id(),
                 spdmlib::common::INVALID_SESSION_ID

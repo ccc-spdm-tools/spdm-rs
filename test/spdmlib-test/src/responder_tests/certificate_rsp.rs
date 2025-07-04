@@ -35,9 +35,9 @@ fn test_case0_handle_spdm_certificate() {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -50,7 +50,7 @@ fn test_case0_handle_spdm_certificate() {
             None,
             None,
         ];
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -75,6 +75,7 @@ fn test_case0_handle_spdm_certificate() {
         let mut writer = Writer::init(&mut response_buffer);
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
         assert!(context
@@ -85,7 +86,7 @@ fn test_case0_handle_spdm_certificate() {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
             use codec::Reader;
-            let data = context.common.runtime_info.message_b.as_ref();
+            let data = context.common.data.runtime_info.message_b.as_ref();
             let u8_slice = &mut [0u8; 2048];
             for (i, data) in data.iter().enumerate() {
                 u8_slice[i] = *data;

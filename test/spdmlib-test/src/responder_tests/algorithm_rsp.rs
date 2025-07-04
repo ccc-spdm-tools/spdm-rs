@@ -37,20 +37,23 @@ fn test_case0_handle_spdm_algorithm() {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         context
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .insert(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
         context
             .common
+            .data
             .config_info
             .other_params_support
             .remove(SpdmAlgoOtherParams::MULTI_KEY_CONN);
 
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
 
@@ -105,7 +108,7 @@ fn test_case0_handle_spdm_algorithm() {
         let mut writer = Writer::init(&mut response_buffer);
         context.handle_spdm_algorithm(bytes, &mut writer);
 
-        let data = context.common.runtime_info.message_a.as_ref();
+        let data = context.common.data.runtime_info.message_a.as_ref();
         let u8_slice = &mut [0u8; 2048];
         for (i, data) in data.iter().enumerate() {
             u8_slice[i] = *data;
@@ -215,8 +218,8 @@ fn test_case0_handle_spdm_algorithm() {
                     .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1),
                 true
             );
-            assert_eq!(context.common.negotiate_info.multi_key_conn_req, false);
-            assert_eq!(context.common.negotiate_info.multi_key_conn_rsp, true);
+            assert_eq!(context.common.data.negotiate_info.multi_key_conn_req, false);
+            assert_eq!(context.common.data.negotiate_info.multi_key_conn_rsp, true);
             assert_eq!(
                 payload.measurement_hash_algo,
                 SpdmMeasurementHashAlgo::TPM_ALG_SHA_384
@@ -232,7 +235,7 @@ fn test_case0_handle_spdm_algorithm() {
                 SpdmMelSpecification::DMTF_MEL_SPEC
             );
             assert_eq!(
-                context.common.negotiate_info.mel_specification_sel,
+                context.common.data.negotiate_info.mel_specification_sel,
                 SpdmMelSpecification::DMTF_MEL_SPEC
             );
 

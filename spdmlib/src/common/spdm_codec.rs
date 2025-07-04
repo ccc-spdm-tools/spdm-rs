@@ -260,7 +260,7 @@ impl SpdmCodec for SpdmDmtfMeasurementStructure {
             return None;
         }
 
-        let measurement_hash_algo = context.negotiate_info.measurement_hash_sel;
+        let measurement_hash_algo = context.data.negotiate_info.measurement_hash_sel;
         if representation == SpdmDmtfMeasurementRepresentation::SpdmDmtfMeasurementDigest
             && (value_size != measurement_hash_algo.get_size()
                 || measurement_hash_algo == SpdmMeasurementHashAlgo::RAW_BIT_STREAM)

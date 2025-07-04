@@ -39,6 +39,7 @@ fn test_case0_send_receive_spdm_algorithm() {
         );
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
 
@@ -84,12 +85,14 @@ fn test_case1_send_receive_spdm_algorithm() {
         );
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
 
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         responder
             .common
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
@@ -108,24 +111,32 @@ fn test_case1_send_receive_spdm_algorithm() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         requester
             .common
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
         requester
             .common
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MEL_CAP);
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_req, true);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_rsp, true);
         assert_eq!(
-            requester.common.negotiate_info.mel_specification_sel,
+            requester.common.data.negotiate_info.multi_key_conn_req,
+            true
+        );
+        assert_eq!(
+            requester.common.data.negotiate_info.multi_key_conn_rsp,
+            true
+        );
+        assert_eq!(
+            requester.common.data.negotiate_info.mel_specification_sel,
             SpdmMelSpecification::DMTF_MEL_SPEC
         );
     };
@@ -154,32 +165,38 @@ fn test_case2_send_receive_spdm_algorithm() {
         );
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
 
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         responder
             .common
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
         responder
             .common
+            .data
             .config_info
             .other_params_support
             .remove(SpdmAlgoOtherParams::MULTI_KEY_CONN);
         responder
             .common
+            .data
             .config_info
             .rsp_capabilities
             .remove(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
         responder
             .common
+            .data
             .config_info
             .rsp_capabilities
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
         responder
             .common
+            .data
             .config_info
             .rsp_capabilities
             .remove(SpdmResponseCapabilityFlags::MEL_CAP);
@@ -198,34 +215,44 @@ fn test_case2_send_receive_spdm_algorithm() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         requester
             .common
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
         requester
             .common
+            .data
             .config_info
             .other_params_support
             .remove(SpdmAlgoOtherParams::MULTI_KEY_CONN);
         requester
             .common
+            .data
             .config_info
             .req_capabilities
             .remove(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY);
         requester
             .common
+            .data
             .config_info
             .req_capabilities
             .insert(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_req, false);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_rsp, false);
         assert_eq!(
-            requester.common.negotiate_info.mel_specification_sel,
+            requester.common.data.negotiate_info.multi_key_conn_req,
+            false
+        );
+        assert_eq!(
+            requester.common.data.negotiate_info.multi_key_conn_rsp,
+            false
+        );
+        assert_eq!(
+            requester.common.data.negotiate_info.mel_specification_sel,
             SpdmMelSpecification::empty()
         );
     };

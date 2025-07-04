@@ -76,7 +76,7 @@ impl ResponderContext {
         info!("send spdm version\n");
         let mut version_number_entry_count = 0;
         let mut versions = gen_array_clone(SpdmVersionStruct::default(), MAX_SPDM_VERSION_COUNT);
-        for v in self.common.config_info.spdm_version.iter().flatten() {
+        for v in self.common.data.config_info.spdm_version.iter().flatten() {
             versions[version_number_entry_count] = SpdmVersionStruct {
                 update: 0,
                 version: *v,

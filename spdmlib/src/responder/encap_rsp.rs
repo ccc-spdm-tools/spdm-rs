@@ -48,7 +48,7 @@ impl ResponderContext {
     ) -> (SpdmResult, Option<&'a [u8]>) {
         let mut reader = Reader::init(bytes);
         if let Some(request_header) = SpdmMessageHeader::read(&mut reader) {
-            if request_header.version != self.common.negotiate_info.spdm_version_sel {
+            if request_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -65,12 +65,12 @@ impl ResponderContext {
 
         let encapsulated_request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseEncapsulatedRequest,
             },
             payload: SpdmMessagePayload::SpdmEncapsulatedRequestPayload(
                 SpdmEncapsulatedRequestPayload {
-                    request_id: self.common.encap_context.request_id,
+                    request_id: self.common.data.encap_context.request_id,
                 },
             ),
         };
@@ -119,7 +119,7 @@ impl ResponderContext {
     ) -> (SpdmResult, Option<&'a [u8]>) {
         let mut reader = Reader::init(bytes);
         if let Some(request_header) = SpdmMessageHeader::read(&mut reader) {
-            if request_header.version != self.common.negotiate_info.spdm_version_sel {
+            if request_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -165,7 +165,7 @@ impl ResponderContext {
         request_response_code: u8,
         writer: &mut Writer<'_>,
     ) -> SpdmResult {
-        if self.common.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion11 {
+        if self.common.data.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion11 {
             self.write_spdm_error(
                 SpdmErrorCode::SpdmErrorUnsupportedRequest,
                 request_response_code,
@@ -176,11 +176,13 @@ impl ResponderContext {
 
         if !self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::ENCAP_CAP)
             || !self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::ENCAP_CAP)
@@ -193,7 +195,7 @@ impl ResponderContext {
             return Err(SPDM_STATUS_UNSUPPORTED_CAP);
         }
 
-        if self.common.runtime_info.get_connection_state().get_u8()
+        if self.common.data.runtime_info.get_connection_state().get_u8()
             < SpdmConnectionState::SpdmConnectionAfterCertificate.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -211,7 +213,7 @@ impl ResponderContext {
     ) -> SpdmResult {
         let mut reader = Reader::init(encap_response);
         let deliver_encap_response = if let Some(header) = SpdmMessageHeader::read(&mut reader) {
-            if header.version != self.common.negotiate_info.spdm_version_sel {
+            if header.version != self.common.data.negotiate_info.spdm_version_sel {
                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
             }
             header
@@ -220,13 +222,13 @@ impl ResponderContext {
         };
 
         let header = SpdmMessageHeader {
-            version: self.common.negotiate_info.spdm_version_sel,
+            version: self.common.data.negotiate_info.spdm_version_sel,
             request_response_code: SpdmRequestResponseCode::SpdmResponseEncapsulatedResponseAck,
         };
         let _ = header.encode(encap_response_ack);
 
         let mut ack_params = SpdmEncapsulatedResponseAckPayload {
-            request_id: self.common.encap_context.request_id,
+            request_id: self.common.data.encap_context.request_id,
             payload_type: SpdmEncapsulatedResponseAckPayloadType::Present,
             ack_request_id: encap_response_payload.request_id,
         };
@@ -250,6 +252,7 @@ impl ResponderContext {
                             let _ = ack_params.spdm_encode(&mut self.common, encap_response_ack)?;
                             let _ = self
                                 .common
+                                .data
                                 .encap_context
                                 .req_slot_id
                                 .encode(encap_response_ack)

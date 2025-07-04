@@ -39,7 +39,7 @@ impl RequesterContext {
         let mut writer = Writer::init(buf);
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestGetDigests,
             },
             payload: SpdmMessagePayload::SpdmGetDigestsRequest(SpdmGetDigestsRequestPayload {}),
@@ -56,7 +56,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -75,25 +75,25 @@ impl RequesterContext {
                                 Some(_session_id) => {}
                             }
 
-                            self.common.peer_info.peer_provisioned_slot_mask = digests.slot_mask;
-                            if self.common.negotiate_info.spdm_version_sel
+                            self.common.data.peer_info.peer_provisioned_slot_mask = digests.slot_mask;
+                            if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion13
                             {
-                                self.common.peer_info.peer_supported_slot_mask =
+                                self.common.data.peer_info.peer_supported_slot_mask =
                                     digests.supported_slot_mask;
                             }
 
-                            if self.common.negotiate_info.spdm_version_sel
+                            if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion13
-                                && self.common.negotiate_info.multi_key_conn_rsp
+                                && self.common.data.negotiate_info.multi_key_conn_rsp
                             {
                                 for slot_index in 0..SPDM_MAX_SLOT_NUMBER {
                                     if (digests.slot_mask & (1 << slot_index)) != 0 {
-                                        self.common.peer_info.peer_key_pair_id[slot_index] =
+                                        self.common.data.peer_info.peer_key_pair_id[slot_index] =
                                             Some(digests.key_pair_id[slot_index]);
-                                        self.common.peer_info.peer_cert_info[slot_index] =
+                                        self.common.data.peer_info.peer_cert_info[slot_index] =
                                             Some(digests.certificate_info[slot_index]);
-                                        self.common.peer_info.peer_key_usage_bit_mask[slot_index] =
+                                        self.common.data.peer_info.peer_key_usage_bit_mask[slot_index] =
                                             Some(digests.key_usage_mask[slot_index]);
                                     }
                                 }

@@ -19,7 +19,7 @@ fn test_key_exchange_req_struct() {
     // 1. validate req OpaqueDatalength > 1024, expectation. None
     // OpaqueDataLength = 1025
     const OPAQUE_DATA_LENGTH_CASE2: usize = 1025;
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
     let u8_slice = &mut [0u8; 42 + 64 + OPAQUE_DATA_LENGTH_CASE2];
     u8_slice[2] = SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone.get_u8();
     u8_slice[3] = 1;
@@ -34,7 +34,7 @@ fn test_key_exchange_req_struct() {
 
     // 2. validate req OpaqueDatalength 0, expectation. ok
     const OPAQUE_DATA_LENGTH_CASE3: usize = 0;
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
     let u8_slice = &mut [0u8; 42 + 64 + OPAQUE_DATA_LENGTH_CASE3];
     u8_slice[2] = SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone.get_u8();
     u8_slice[3] = 1;
@@ -58,7 +58,7 @@ fn test_key_exchange_req_struct_extend() {
     // 3. Validate request length equal to 42 + D + OpaqueDataLength
     // OpaqueDataLength = 256
     const OPAQUE_DATA_LENGTH_CASE1: usize = 256;
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
     let u8_slice = &mut [0u8; 42 + 64 + OPAQUE_DATA_LENGTH_CASE1];
     u8_slice[2] = SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll.get_u8();
     u8_slice[3] = 1;
@@ -73,7 +73,7 @@ fn test_key_exchange_req_struct_extend() {
     assert_eq!(reader.left(), 0);
 
     // 4. validate Param2(SlotId is invalid 10), expectation. none
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
     let u8_slice = &mut [0u8; 42 + 64 + OPAQUE_DATA_LENGTH_CASE1];
     u8_slice[2] = SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll.get_u8();
     u8_slice[3] = 10;
@@ -91,9 +91,9 @@ fn test_key_exchange_req_struct_extend() {
 fn test_key_exchange_rsp_struct() {
     create_spdm_context!(context);
     let context = &mut context;
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
-    context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+    context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
 
     // 1. validate req OpaqueDatalength > 1024, expectation. None
     // OpaqueDataLength = 1025
@@ -154,9 +154,9 @@ fn test_key_exchange_rsp_struct() {
 fn test_key_exchange_rsp_struct_extend() {
     create_spdm_context!(context);
     let context = &mut context;
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
-    context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+    context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
 
     // 2. validate req OpaqueDatalength 0, expectation. ok
     const OPAQUE_DATA_LENGTH_CASE1: usize = 0;

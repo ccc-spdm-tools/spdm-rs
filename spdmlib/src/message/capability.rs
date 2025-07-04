@@ -24,7 +24,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved
             cnt += self
                 .ct_exponent
@@ -37,7 +37,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             cnt += self
                 .data_transfer_size
                 .encode(bytes)
@@ -54,10 +54,11 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmGetCapabilitiesRequestPayload> {
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             let param1 = SpdmCapabilityParam1::read(r)?; // param1
             if param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP)
                 && !context
+                    .data
                     .config_info
                     .rsp_capabilities
                     .contains(SpdmResponseCapabilityFlags::CHUNK_CAP)
@@ -71,7 +72,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
 
         let mut ct_exponent = 0;
         let mut flags = SpdmRequestCapabilityFlags::default();
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             u8::read(r)?; // reserved
             ct_exponent = u8::read(r)?;
             u16::read(r)?; // reserved2
@@ -96,7 +97,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 {
                     return None;
                 }
-                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
                     && flags.contains(SpdmRequestCapabilityFlags::EVENT_CAP)
                 {
                     return None;
@@ -127,21 +128,21 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 {
                     return None;
                 }
-                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
                     && flags.contains(SpdmRequestCapabilityFlags::EP_INFO_CAP_SIG)
                 {
                     return None;
                 }
             }
 
-            if context.negotiate_info.spdm_version_sel == SpdmVersion::SpdmVersion11
+            if context.data.negotiate_info.spdm_version_sel == SpdmVersion::SpdmVersion11
                 && flags.contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
                 && !flags.contains(SpdmRequestCapabilityFlags::ENCAP_CAP)
             {
                 return None;
             }
 
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 if flags.contains(SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG)
                     && flags.contains(SpdmRequestCapabilityFlags::EP_INFO_CAP_SIG)
                 {
@@ -163,7 +164,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
 
         let mut data_transfer_size = 0;
         let mut max_spdm_msg_size = 0;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             data_transfer_size = u32::read(r)?;
             max_spdm_msg_size = u32::read(r)?;
             if data_transfer_size < 42 || max_spdm_msg_size < data_transfer_size {
@@ -212,7 +213,7 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             cnt += self
                 .data_transfer_size
                 .encode(bytes)
@@ -250,7 +251,7 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
         {
             return None;
         }
-        if context.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion11 {
             if !flags.contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG) {
                 if flags.contains(SpdmResponseCapabilityFlags::CERT_CAP)
                     != flags.contains(SpdmResponseCapabilityFlags::CHAL_CAP)
@@ -282,7 +283,7 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 {
                     return None;
                 }
-                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
                     && flags.contains(SpdmResponseCapabilityFlags::EVENT_CAP)
                 {
                     return None;
@@ -317,20 +318,20 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 {
                     return None;
                 }
-                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
                     && flags.contains(SpdmResponseCapabilityFlags::EP_INFO_CAP_SIG)
                 {
                     return None;
                 }
             }
         }
-        if context.negotiate_info.spdm_version_sel == SpdmVersion::SpdmVersion11
+        if context.data.negotiate_info.spdm_version_sel == SpdmVersion::SpdmVersion11
             && flags.contains(SpdmResponseCapabilityFlags::MUT_AUTH_CAP)
             && !flags.contains(SpdmResponseCapabilityFlags::ENCAP_CAP)
         {
             return None;
         }
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             if !flags.contains(SpdmResponseCapabilityFlags::CERT_CAP)
                 && (flags.contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP)
                     || flags.contains(SpdmResponseCapabilityFlags::SET_CERT_CAP))
@@ -350,7 +351,7 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
             }
         }
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             if flags.contains(SpdmResponseCapabilityFlags::EP_INFO_CAP_NO_SIG)
                 && flags.contains(SpdmResponseCapabilityFlags::EP_INFO_CAP_SIG)
             {
@@ -373,7 +374,7 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
             }
         }
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             let data_transfer_size = u32::read(r)?;
             let max_spdm_msg_size = u32::read(r)?;
             if data_transfer_size < 42 || max_spdm_msg_size < data_transfer_size {
@@ -508,7 +509,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -534,7 +535,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -555,7 +556,7 @@ mod tests {
         let value = SpdmGetCapabilitiesRequestPayload::default();
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -575,7 +576,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -601,7 +602,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -622,7 +623,7 @@ mod tests {
         let value = SpdmCapabilitiesResponsePayload::default();
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);

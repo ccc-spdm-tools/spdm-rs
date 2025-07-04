@@ -35,7 +35,7 @@ fn test_case0_send_receive_spdm_key_exchange() {
             rsp_provision_info,
         );
 
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -46,24 +46,24 @@ fn test_case0_send_receive_spdm_key_exchange() {
             None,
         ];
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        responder.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.other_params_support =
+        responder.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         #[cfg(feature = "mut-auth")]
         {
-            responder.common.negotiate_info.rsp_capabilities_sel |=
+            responder.common.data.negotiate_info.rsp_capabilities_sel |=
                 SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
-            responder.common.negotiate_info.req_capabilities_sel |=
+            responder.common.data.negotiate_info.req_capabilities_sel |=
                 SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
         }
 
         responder.common.reset_runtime_info();
 
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -73,9 +73,10 @@ fn test_case0_send_receive_spdm_key_exchange() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -93,25 +94,25 @@ fn test_case0_send_receive_spdm_key_exchange() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         #[cfg(feature = "mut-auth")]
         {
-            requester.common.negotiate_info.rsp_capabilities_sel |=
+            requester.common.data.negotiate_info.rsp_capabilities_sel |=
                 SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
-            requester.common.negotiate_info.req_capabilities_sel |=
+            requester.common.data.negotiate_info.req_capabilities_sel |=
                 SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
         }
 
         requester.common.reset_runtime_info();
 
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
 
         let measurement_summary_hash_type =
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone;
@@ -145,7 +146,7 @@ fn test_case1_send_receive_spdm_key_exchange() {
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
 
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -156,24 +157,24 @@ fn test_case1_send_receive_spdm_key_exchange() {
             None,
         ];
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1; // different dhe algo will cause key negotiate fail
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        responder.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1; // different dhe algo will cause key negotiate fail
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.other_params_support =
+        responder.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
         #[cfg(feature = "mut-auth")]
         {
-            responder.common.negotiate_info.rsp_capabilities_sel |=
+            responder.common.data.negotiate_info.rsp_capabilities_sel |=
                 SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
-            responder.common.negotiate_info.req_capabilities_sel |=
+            responder.common.data.negotiate_info.req_capabilities_sel |=
                 SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
         }
 
         responder.common.reset_runtime_info();
 
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -183,9 +184,10 @@ fn test_case1_send_receive_spdm_key_exchange() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -203,25 +205,25 @@ fn test_case1_send_receive_spdm_key_exchange() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         #[cfg(feature = "mut-auth")]
         {
-            requester.common.negotiate_info.rsp_capabilities_sel |=
+            requester.common.data.negotiate_info.rsp_capabilities_sel |=
                 SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
-            requester.common.negotiate_info.req_capabilities_sel |=
+            requester.common.data.negotiate_info.req_capabilities_sel |=
                 SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
         }
 
         requester.common.reset_runtime_info();
 
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
 
         let measurement_summary_hash_type =
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone;
@@ -231,7 +233,7 @@ fn test_case1_send_receive_spdm_key_exchange() {
             .is_ok();
         assert_eq!(status, false);
 
-        for session in requester.common.session.iter() {
+        for session in requester.common.data.session.iter() {
             assert_eq!(
                 session.get_session_id(),
                 spdmlib::common::INVALID_SESSION_ID

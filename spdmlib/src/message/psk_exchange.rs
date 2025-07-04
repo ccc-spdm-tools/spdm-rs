@@ -87,10 +87,12 @@ impl SpdmCodec for SpdmPskExchangeRequestPayload {
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll
             | SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb => {
                 if !context
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG)
                     && !context
+                        .data
                         .negotiate_info
                         .rsp_capabilities_sel
                         .contains(SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG)
@@ -173,6 +175,7 @@ impl SpdmCodec for SpdmPskExchangeResponsePayload {
         cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
         let psk_without_context = context
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT);
@@ -191,7 +194,7 @@ impl SpdmCodec for SpdmPskExchangeResponsePayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
-        if context.runtime_info.need_measurement_summary_hash {
+        if context.data.runtime_info.need_measurement_summary_hash {
             cnt += self.measurement_summary_hash.spdm_encode(context, bytes)?;
         }
         if !psk_without_context {
@@ -226,6 +229,7 @@ impl SpdmCodec for SpdmPskExchangeResponsePayload {
 
         psk_context.data_size = u16::read(r)?;
         let psk_without_context = context
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT);
@@ -243,7 +247,7 @@ impl SpdmCodec for SpdmPskExchangeResponsePayload {
             return None;
         }
 
-        let measurement_summary_hash = if context.runtime_info.need_measurement_summary_hash {
+        let measurement_summary_hash = if context.data.runtime_info.need_measurement_summary_hash {
             SpdmDigestStruct::spdm_read(context, r)?
         } else {
             SpdmDigestStruct::default()
@@ -428,8 +432,8 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.runtime_info.need_measurement_summary_hash = true;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.runtime_info.need_measurement_summary_hash = true;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -481,7 +485,7 @@ mod tests {
             &mut [0u8; 10 + MAX_SPDM_PSK_CONTEXT_SIZE + MAX_SPDM_OPAQUE_SIZE + SPDM_MAX_HASH_SIZE];
         let mut writer = Writer::init(u8_slice);
 
-        context.runtime_info.need_measurement_summary_hash = false;
+        context.data.runtime_info.need_measurement_summary_hash = false;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -524,11 +528,11 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.rsp_capabilities_sel =
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT;
 
-        context.runtime_info.need_measurement_summary_hash = true;
+        context.data.runtime_info.need_measurement_summary_hash = true;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);

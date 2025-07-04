@@ -37,7 +37,7 @@ fn test_case0_send_receive_spdm_digest() {
             rsp_config_info,
             rsp_provision_info,
         );
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -50,10 +50,11 @@ fn test_case0_send_receive_spdm_digest() {
             None,
             None,
         ];
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -70,7 +71,7 @@ fn test_case0_send_receive_spdm_digest() {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
         let status = requester.send_receive_spdm_digest(None).await.is_ok();
         assert!(status);
@@ -97,7 +98,7 @@ fn issue_other_request_before_vca_negotiated() {
             rsp_config_info,
             rsp_provision_info,
         );
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -110,7 +111,7 @@ fn issue_other_request_before_vca_negotiated() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -125,7 +126,7 @@ fn issue_other_request_before_vca_negotiated() {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         let result = requester.send_receive_spdm_digest(None).await;
         assert!(
             result == Err(SPDM_STATUS_ERROR_PEER),
@@ -148,7 +149,7 @@ fn issue_other_request_before_vca_negotiated() {
             rsp_config_info,
             rsp_provision_info,
         );
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -161,7 +162,7 @@ fn issue_other_request_before_vca_negotiated() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -176,7 +177,7 @@ fn issue_other_request_before_vca_negotiated() {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         let result = requester.send_receive_spdm_certificate(None, 0).await;
         assert!(
             result == Err(SPDM_STATUS_ERROR_PEER),
@@ -199,7 +200,7 @@ fn issue_other_request_before_vca_negotiated() {
             rsp_config_info,
             rsp_provision_info,
         );
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -212,7 +213,7 @@ fn issue_other_request_before_vca_negotiated() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -227,7 +228,7 @@ fn issue_other_request_before_vca_negotiated() {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         let result = requester
             .send_receive_spdm_challenge(
                 0,
@@ -256,7 +257,7 @@ fn issue_other_request_before_vca_negotiated() {
             rsp_config_info,
             rsp_provision_info,
         );
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -269,7 +270,7 @@ fn issue_other_request_before_vca_negotiated() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -284,7 +285,7 @@ fn issue_other_request_before_vca_negotiated() {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         let measurement_operation = SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber;
         let mut total_number: u8 = 0;
         let mut spdm_measurement_record_structure = SpdmMeasurementRecordStructure::default();

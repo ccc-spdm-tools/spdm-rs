@@ -20,7 +20,7 @@ impl ResponderContext {
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
         #[cfg(feature = "mandatory-mut-auth")]
-        if !self.common.mut_auth_done {
+        if !self.common.data.mut_auth_done {
             if let Some(session) = self.common.get_session_via_id(session_id) {
                 session.teardown();
             }
@@ -47,7 +47,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -155,7 +155,7 @@ impl ResponderContext {
         }
 
         // verify HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
 
         {
             let session = if let Some(session) = self.common.get_session_via_id(session_id) {
@@ -228,11 +228,13 @@ impl ResponderContext {
 
         let in_clear_text = self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -241,13 +243,14 @@ impl ResponderContext {
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseFinishRsp,
             },
             payload: SpdmMessagePayload::SpdmFinishResponse(SpdmFinishResponsePayload {
                 verify_data: SpdmDigestStruct {
                     data_size: (self as &ResponderContext)
                         .common
+                        .data
                         .negotiate_info
                         .base_hash_sel
                         .get_size(),
@@ -360,7 +363,7 @@ impl ResponderContext {
         }
         let th2 = th2.unwrap();
         debug!("!!! th2 : {:02x?}\n", th2.as_ref());
-        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
         let session = if let Some(session) = self.common.get_session_via_id(session_id) {
             session
         } else {
@@ -388,17 +391,17 @@ impl ResponderContext {
             self.common
                 .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
 
-        let peer_slot_id = self.common.runtime_info.get_peer_used_cert_chain_slot_id();
-        let peer_cert = &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+        let peer_slot_id = self.common.data.runtime_info.get_peer_used_cert_chain_slot_id();
+        let peer_cert = &self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
         let mut transcript_sign = ManagedBuffer12Sign::default();
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -415,8 +418,8 @@ impl ResponderContext {
         }
 
         crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             peer_cert,
             transcript_sign.as_ref(),
             signature,
@@ -433,18 +436,18 @@ impl ResponderContext {
             self.common
                 .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
 
-        let peer_slot_id = self.common.runtime_info.get_peer_used_cert_chain_slot_id();
-        let peer_cert = &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+        let peer_slot_id = self.common.data.runtime_info.get_peer_used_cert_chain_slot_id();
+        let peer_cert = &self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
 
         let mut transcript_hash_sign = ManagedBuffer12Sign::default();
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_hash_sign.reset_message();
             transcript_hash_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -464,8 +467,8 @@ impl ResponderContext {
         }
 
         let res = crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             peer_cert,
             transcript_hash_sign.as_ref(),
             signature,

@@ -29,7 +29,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.runtime_info.get_connection_state().get_u8()
+        if self.common.data.runtime_info.get_connection_state().get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -41,7 +41,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -107,7 +107,7 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
-        if self.common.provision_info.my_cert_chain[slot_id].is_none() {
+        if self.common.data.provision_info.my_cert_chain[slot_id].is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_STATE_LOCAL),
@@ -115,7 +115,7 @@ impl ResponderContext {
             );
         }
 
-        let my_cert_chain = self.common.provision_info.my_cert_chain[slot_id]
+        let my_cert_chain = self.common.data.provision_info.my_cert_chain[slot_id]
             .as_ref()
             .unwrap();
 
@@ -148,7 +148,7 @@ impl ResponderContext {
         info!("send spdm certificate\n");
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseCertificate,
             },
             payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {

@@ -43,7 +43,7 @@ impl RequesterContext {
         self.send_receive_spdm_version().await?;
         self.send_receive_spdm_capability().await?;
         self.send_receive_spdm_algorithm().await?;
-        *transcript_vca = Some(self.common.runtime_info.message_a.clone());
+        *transcript_vca = Some(self.common.data.runtime_info.message_a.clone());
         Ok(())
     }
 
@@ -64,17 +64,19 @@ impl RequesterContext {
             let req_slot_id = {
                 if self
                     .common
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::MUT_AUTH_CAP)
                     && self
                         .common
+                        .data
                         .negotiate_info
                         .req_capabilities_sel
                         .contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
                 {
                     self.session_based_mutual_authenticate(session_id).await?;
-                    Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
+                    Some(self.common.data.runtime_info.get_local_used_cert_chain_slot_id())
                 } else {
                     None
                 }
@@ -104,8 +106,8 @@ impl RequesterContext {
         send_buffer: &[u8],
         is_app_message: bool,
     ) -> SpdmResult {
-        if self.common.negotiate_info.rsp_data_transfer_size_sel != 0
-            && send_buffer.len() > self.common.negotiate_info.rsp_data_transfer_size_sel as usize
+        if self.common.data.negotiate_info.rsp_data_transfer_size_sel != 0
+            && send_buffer.len() > self.common.data.negotiate_info.rsp_data_transfer_size_sel as usize
         {
             return Err(SPDM_STATUS_SEND_FAIL);
         }
@@ -147,7 +149,7 @@ impl RequesterContext {
         info!("receive_message!\n");
 
         let timeout: usize = if crypto_request {
-            2 << self.common.negotiate_info.rsp_ct_exponent_sel
+            2 << self.common.data.negotiate_info.rsp_ct_exponent_sel
         } else {
             ST1
         };

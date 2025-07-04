@@ -30,7 +30,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
     ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             cnt += self
                 .alg_struct_count
                 .encode(bytes)
@@ -42,7 +42,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
 
         let mut length: u16 = 32;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let alg_fixed_count = 2u8;
             length += ((2 + alg_fixed_count) * self.alg_struct_count) as u16;
         }
@@ -53,7 +53,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             cnt += self
                 .other_params_support
                 .encode(bytes)
@@ -80,7 +80,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
 
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved3
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             cnt += self
                 .mel_specification
                 .encode(bytes)
@@ -89,7 +89,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
             cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             for algo in self.alg_struct.iter().take(self.alg_struct_count as usize) {
                 cnt += algo.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
             }
@@ -102,7 +102,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
         r: &mut Reader,
     ) -> Option<SpdmNegotiateAlgorithmsRequestPayload> {
         let mut alg_struct_count = 0;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             alg_struct_count = u8::read(r)?; // param1
             if alg_struct_count > 4 {
                 return None;
@@ -116,7 +116,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
         let measurement_specification = SpdmMeasurementSpecification::read(r)?;
 
         let other_params_support =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
                 SpdmAlgoOtherParams::read(r)?
             } else {
                 u8::read(r)?;
@@ -143,7 +143,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
         u8::read(r)?; // reserved3
 
         let mel_specification =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 SpdmMelSpecification::read(r)?
             } else {
                 u8::read(r)?;
@@ -151,7 +151,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
             };
 
         let mut alg_struct = gen_array_clone(SpdmAlgStruct::default(), 4);
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let mut dhe_present = false;
             let mut aead_present = false;
             let mut req_asym_present = false;
@@ -200,7 +200,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
         // check length
         //
         let mut calc_length: u16 = 32;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let alg_fixed_count = 2u8;
             calc_length += ((2 + alg_fixed_count) * alg_struct_count) as u16;
         }
@@ -241,7 +241,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
     ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             cnt += self
                 .alg_struct_count
                 .encode(bytes)
@@ -253,7 +253,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
 
         let mut length: u16 = 36;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let alg_fixed_count = 2u8;
             length += ((2 + alg_fixed_count) * self.alg_struct_count) as u16;
         }
@@ -264,7 +264,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             cnt += self
                 .other_params_selection
                 .encode(bytes)
@@ -289,7 +289,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved2
         }
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             cnt += self
                 .mel_specification_sel
                 .encode(bytes)
@@ -304,7 +304,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
 
         cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved3
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             for algo in self.alg_struct.iter().take(self.alg_struct_count as usize) {
                 cnt += algo.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
             }
@@ -317,7 +317,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         r: &mut Reader,
     ) -> Option<SpdmAlgorithmsResponsePayload> {
         let mut alg_struct_count = 0;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             alg_struct_count = u8::read(r)?; // param1
             if alg_struct_count > 4 {
                 return None;
@@ -334,10 +334,12 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             return None;
         }
         if (context
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG)
             || context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG))
@@ -347,22 +349,25 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         }
 
         let other_params_selection =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
                 SpdmAlgoOtherParams::read(r)?
             } else {
                 u8::read(r)?;
                 SpdmAlgoOtherParams::default()
             };
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
             && (context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
                 || context
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT)
                 || context
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT))
@@ -376,10 +381,12 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             return None;
         }
         if (context
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG)
             || context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG))
@@ -393,22 +400,27 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             return None;
         }
         if (context
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::CERT_CAP)
             || context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::CHAL_CAP)
             || context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG)
             || (context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
                 && context
+                    .data
                     .negotiate_info
                     .req_capabilities_sel
                     .contains(SpdmRequestCapabilityFlags::KEY_EX_CAP)))
@@ -422,34 +434,42 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
             return None;
         }
         if (context
+            .data
             .negotiate_info
             .rsp_capabilities_sel
             .contains(SpdmResponseCapabilityFlags::CERT_CAP)
             || context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::CHAL_CAP)
             || context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG)
             || (context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
                 && context
+                    .data
                     .negotiate_info
                     .req_capabilities_sel
                     .contains(SpdmRequestCapabilityFlags::KEY_EX_CAP))
             || ((context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT)
                 || context
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT))
                 && context
+                    .data
                     .negotiate_info
                     .req_capabilities_sel
                     .contains(SpdmRequestCapabilityFlags::PSK_CAP)))
@@ -463,7 +483,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         }
 
         let mel_specification_sel =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 SpdmMelSpecification::read(r)?
             } else {
                 u8::read(r)?;
@@ -483,7 +503,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         u16::read(r)?; // reserved3
 
         let mut alg_struct = gen_array_clone(SpdmAlgStruct::default(), 4);
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let mut dhe_present = false;
             let mut aead_present = false;
             let mut req_asym_present = false;
@@ -506,10 +526,12 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                             return None;
                         }
                         if (context
+                            .data
                             .negotiate_info
                             .rsp_capabilities_sel
                             .contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
                             && context
+                                .data
                                 .negotiate_info
                                 .req_capabilities_sel
                                 .contains(SpdmRequestCapabilityFlags::KEY_EX_CAP))
@@ -528,18 +550,22 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                             return None;
                         }
                         if ((context
+                            .data
                             .negotiate_info
                             .rsp_capabilities_sel
                             .contains(SpdmResponseCapabilityFlags::ENCRYPT_CAP)
                             && context
+                                .data
                                 .negotiate_info
                                 .req_capabilities_sel
                                 .contains(SpdmRequestCapabilityFlags::ENCRYPT_CAP))
                             || (context
+                                .data
                                 .negotiate_info
                                 .rsp_capabilities_sel
                                 .contains(SpdmResponseCapabilityFlags::MAC_CAP)
                                 && context
+                                    .data
                                     .negotiate_info
                                     .req_capabilities_sel
                                     .contains(SpdmRequestCapabilityFlags::MAC_CAP)))
@@ -558,10 +584,12 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                             return None;
                         }
                         if (context
+                            .data
                             .negotiate_info
                             .rsp_capabilities_sel
                             .contains(SpdmResponseCapabilityFlags::MUT_AUTH_CAP)
                             && context
+                                .data
                                 .negotiate_info
                                 .req_capabilities_sel
                                 .contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP))
@@ -580,22 +608,27 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                             return None;
                         }
                         if ((context
+                            .data
                             .negotiate_info
                             .rsp_capabilities_sel
                             .contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
                             && context
+                                .data
                                 .negotiate_info
                                 .req_capabilities_sel
                                 .contains(SpdmRequestCapabilityFlags::KEY_EX_CAP))
                             || ((context
+                                .data
                                 .negotiate_info
                                 .rsp_capabilities_sel
                                 .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT)
                                 || context
+                                    .data
                                     .negotiate_info
                                     .rsp_capabilities_sel
                                     .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT))
                                 && context
+                                    .data
                                     .negotiate_info
                                     .req_capabilities_sel
                                     .contains(SpdmRequestCapabilityFlags::PSK_CAP)))
@@ -613,7 +646,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         }
 
         let mut calc_length: u16 = 36;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let alg_fixed_count = 2u8;
             calc_length += ((2 + alg_fixed_count) * alg_struct_count) as u16;
         }
@@ -682,7 +715,7 @@ mod tests {
             ],
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -760,7 +793,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -795,7 +828,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         u8_slice[26] = 1;
@@ -844,12 +877,12 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
-        context.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
-        context.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
-        context.config_info.base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
-        context.config_info.base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+        context.data.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
+        context.data.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
+        context.data.config_info.base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
+        context.data.config_info.base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -932,7 +965,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
 
@@ -983,7 +1016,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);

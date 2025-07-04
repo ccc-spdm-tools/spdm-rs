@@ -35,18 +35,18 @@ fn test_case0_send_receive_spdm_end_session() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         let rsp_session_id = 0xffu16;
         let session_id = (0xffu32 << 16) + rsp_session_id as u32;
-        responder.common.session = gen_array_clone(SpdmSession::new(), 4);
-        responder.common.session[0].setup(session_id).unwrap();
-        responder.common.session[0].set_crypto_param(
+        responder.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        responder.common.data.session[0].setup(session_id).unwrap();
+        responder.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        assert!(responder.common.session[0]
+        assert!(responder.common.data.session[0]
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,
                 SpdmDheFinalKeyStruct {
@@ -55,7 +55,7 @@ fn test_case0_send_receive_spdm_end_session() {
                 }
             )
             .is_ok());
-        assert!(responder.common.session[0]
+        assert!(responder.common.data.session[0]
             .generate_handshake_secret(
                 SpdmVersion::SpdmVersion12,
                 &SpdmDigestStruct {
@@ -64,7 +64,7 @@ fn test_case0_send_receive_spdm_end_session() {
                 }
             )
             .is_ok());
-        assert!(responder.common.session[0]
+        assert!(responder.common.data.session[0]
             .generate_data_secret(
                 SpdmVersion::SpdmVersion12,
                 &SpdmDigestStruct {
@@ -73,7 +73,7 @@ fn test_case0_send_receive_spdm_end_session() {
                 }
             )
             .is_ok());
-        responder.common.session[0]
+        responder.common.data.session[0]
             .set_session_state(spdmlib::common::session::SpdmSessionState::SpdmSessionEstablished);
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
@@ -90,18 +90,18 @@ fn test_case0_send_receive_spdm_end_session() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         let rsp_session_id = 0xffu16;
         let session_id = (0xffu32 << 16) + rsp_session_id as u32;
-        requester.common.session = gen_array_clone(SpdmSession::new(), 4);
-        requester.common.session[0].setup(session_id).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        requester.common.data.session[0].setup(session_id).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        assert!(requester.common.session[0]
+        assert!(requester.common.data.session[0]
             .set_dhe_secret(
                 SpdmVersion::SpdmVersion12,
                 SpdmDheFinalKeyStruct {
@@ -110,7 +110,7 @@ fn test_case0_send_receive_spdm_end_session() {
                 }
             )
             .is_ok());
-        assert!(requester.common.session[0]
+        assert!(requester.common.data.session[0]
             .generate_handshake_secret(
                 SpdmVersion::SpdmVersion12,
                 &SpdmDigestStruct {
@@ -119,7 +119,7 @@ fn test_case0_send_receive_spdm_end_session() {
                 }
             )
             .is_ok());
-        assert!(requester.common.session[0]
+        assert!(requester.common.data.session[0]
             .generate_data_secret(
                 SpdmVersion::SpdmVersion12,
                 &SpdmDigestStruct {
@@ -128,7 +128,7 @@ fn test_case0_send_receive_spdm_end_session() {
                 }
             )
             .is_ok());
-        requester.common.session[0]
+        requester.common.data.session[0]
             .set_session_state(spdmlib::common::session::SpdmSessionState::SpdmSessionEstablished);
 
         let status = requester.end_session(session_id).await.is_ok();

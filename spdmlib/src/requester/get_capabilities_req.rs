@@ -31,15 +31,15 @@ impl RequesterContext {
         let mut writer = Writer::init(buf);
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestGetCapabilities,
             },
             payload: SpdmMessagePayload::SpdmGetCapabilitiesRequest(
                 SpdmGetCapabilitiesRequestPayload {
-                    ct_exponent: self.common.config_info.req_ct_exponent,
-                    flags: self.common.config_info.req_capabilities,
-                    data_transfer_size: self.common.config_info.data_transfer_size,
-                    max_spdm_msg_size: self.common.config_info.max_spdm_msg_size,
+                    ct_exponent: self.common.data.config_info.req_ct_exponent,
+                    flags: self.common.data.config_info.req_capabilities,
+                    data_transfer_size: self.common.data.config_info.data_transfer_size,
+                    max_spdm_msg_size: self.common.data.config_info.max_spdm_msg_size,
                 },
             ),
         };
@@ -55,7 +55,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -67,24 +67,24 @@ impl RequesterContext {
                         let used = reader.used();
                         if let Some(capabilities) = capabilities {
                             debug!("!!! capabilities : {:02x?}\n", capabilities);
-                            self.common.negotiate_info.req_ct_exponent_sel =
-                                self.common.config_info.req_ct_exponent;
-                            self.common.negotiate_info.req_capabilities_sel =
-                                self.common.config_info.req_capabilities;
-                            self.common.negotiate_info.rsp_ct_exponent_sel =
+                            self.common.data.negotiate_info.req_ct_exponent_sel =
+                                self.common.data.config_info.req_ct_exponent;
+                            self.common.data.negotiate_info.req_capabilities_sel =
+                                self.common.data.config_info.req_capabilities;
+                            self.common.data.negotiate_info.rsp_ct_exponent_sel =
                                 capabilities.ct_exponent;
-                            self.common.negotiate_info.rsp_capabilities_sel = capabilities.flags;
+                            self.common.data.negotiate_info.rsp_capabilities_sel = capabilities.flags;
 
-                            if self.common.negotiate_info.spdm_version_sel
+                            if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion12
                             {
-                                self.common.negotiate_info.req_data_transfer_size_sel =
-                                    self.common.config_info.data_transfer_size;
-                                self.common.negotiate_info.req_max_spdm_msg_size_sel =
-                                    self.common.config_info.max_spdm_msg_size;
-                                self.common.negotiate_info.rsp_data_transfer_size_sel =
+                                self.common.data.negotiate_info.req_data_transfer_size_sel =
+                                    self.common.data.config_info.data_transfer_size;
+                                self.common.data.negotiate_info.req_max_spdm_msg_size_sel =
+                                    self.common.data.config_info.max_spdm_msg_size;
+                                self.common.data.negotiate_info.rsp_data_transfer_size_sel =
                                     capabilities.data_transfer_size;
-                                self.common.negotiate_info.rsp_max_spdm_msg_size_sel =
+                                self.common.data.negotiate_info.rsp_max_spdm_msg_size_sel =
                                     capabilities.max_spdm_msg_size;
                             }
 

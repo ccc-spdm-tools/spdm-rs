@@ -33,12 +33,13 @@ impl RequesterContext {
     pub fn encode_spdm_algorithm(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
         let mut other_params_support = SpdmAlgoOtherParams::empty();
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            other_params_support.insert(self.common.config_info.other_params_support);
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+            other_params_support.insert(self.common.data.config_info.other_params_support);
         }
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             if self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY)
@@ -47,11 +48,13 @@ impl RequesterContext {
             }
             if self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
                 && self
                     .common
+                    .data
                     .config_info
                     .other_params_support
                     .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN)
@@ -61,8 +64,8 @@ impl RequesterContext {
         }
 
         let mel_specification =
-            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
-                self.common.config_info.mel_specification
+            if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+                self.common.data.config_info.mel_specification
             } else {
                 SpdmMelSpecification::empty()
             };
@@ -70,43 +73,43 @@ impl RequesterContext {
         let mut alg_struct_count = 0;
         let mut alg_struct: [SpdmAlgStruct; MAX_SUPPORTED_ALG_STRUCTURE_COUNT] =
             gen_array_clone(SpdmAlgStruct::default(), MAX_SUPPORTED_ALG_STRUCTURE_COUNT);
-        if self.common.config_info.dhe_algo.is_valid() {
+        if self.common.data.config_info.dhe_algo.is_valid() {
             alg_struct[alg_struct_count].alg_type = SpdmAlgType::SpdmAlgTypeDHE;
             alg_struct[alg_struct_count].alg_supported =
-                SpdmAlg::SpdmAlgoDhe(self.common.config_info.dhe_algo);
+                SpdmAlg::SpdmAlgoDhe(self.common.data.config_info.dhe_algo);
             alg_struct_count += 1;
         }
-        if self.common.config_info.aead_algo.is_valid() {
+        if self.common.data.config_info.aead_algo.is_valid() {
             alg_struct[alg_struct_count].alg_type = SpdmAlgType::SpdmAlgTypeAEAD;
             alg_struct[alg_struct_count].alg_supported =
-                SpdmAlg::SpdmAlgoAead(self.common.config_info.aead_algo);
+                SpdmAlg::SpdmAlgoAead(self.common.data.config_info.aead_algo);
             alg_struct_count += 1;
         }
-        if self.common.config_info.req_asym_algo.is_valid() {
+        if self.common.data.config_info.req_asym_algo.is_valid() {
             alg_struct[alg_struct_count].alg_type = SpdmAlgType::SpdmAlgTypeReqAsym;
             alg_struct[alg_struct_count].alg_supported =
-                SpdmAlg::SpdmAlgoReqAsym(self.common.config_info.req_asym_algo);
+                SpdmAlg::SpdmAlgoReqAsym(self.common.data.config_info.req_asym_algo);
             alg_struct_count += 1;
         }
-        if self.common.config_info.key_schedule_algo.is_valid() {
+        if self.common.data.config_info.key_schedule_algo.is_valid() {
             alg_struct[alg_struct_count].alg_type = SpdmAlgType::SpdmAlgTypeKeySchedule;
             alg_struct[alg_struct_count].alg_supported =
-                SpdmAlg::SpdmAlgoKeySchedule(self.common.config_info.key_schedule_algo);
+                SpdmAlg::SpdmAlgoKeySchedule(self.common.data.config_info.key_schedule_algo);
             alg_struct_count += 1;
         }
 
         let mut writer = Writer::init(buf);
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms,
             },
             payload: SpdmMessagePayload::SpdmNegotiateAlgorithmsRequest(
                 SpdmNegotiateAlgorithmsRequestPayload {
-                    measurement_specification: self.common.config_info.measurement_specification,
+                    measurement_specification: self.common.data.config_info.measurement_specification,
                     other_params_support,
-                    base_asym_algo: self.common.config_info.base_asym_algo,
-                    base_hash_algo: self.common.config_info.base_hash_algo,
+                    base_asym_algo: self.common.data.config_info.base_asym_algo,
+                    base_hash_algo: self.common.data.config_info.base_hash_algo,
                     mel_specification,
                     alg_struct_count: alg_struct_count as u8,
                     alg_struct,
@@ -125,7 +128,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -136,35 +139,38 @@ impl RequesterContext {
                         if let Some(algorithms) = algorithms {
                             debug!("!!! algorithms : {:02x?}\n", algorithms);
 
-                            self.common.negotiate_info.measurement_specification_sel =
+                            self.common.data.negotiate_info.measurement_specification_sel =
                                 algorithms.measurement_specification_sel;
 
-                            self.common.negotiate_info.other_params_support =
+                            self.common.data.negotiate_info.other_params_support =
                                 algorithms.other_params_selection;
 
-                            if self.common.negotiate_info.spdm_version_sel
+                            if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion13
                             {
                                 if self
                                     .common
+                                    .data
                                     .negotiate_info
                                     .rsp_capabilities_sel
                                     .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY)
                                 {
-                                    self.common.negotiate_info.multi_key_conn_rsp = true;
+                                    self.common.data.negotiate_info.multi_key_conn_rsp = true;
                                 } else if self
                                     .common
+                                        .data
                                     .negotiate_info
                                     .rsp_capabilities_sel
                                     .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
                                 {
-                                    self.common.negotiate_info.multi_key_conn_rsp = self
+                                    self.common.data.negotiate_info.multi_key_conn_rsp = self
                                         .common
+                                        .data
                                         .config_info
                                         .other_params_support
                                         .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN);
                                 } else {
-                                    self.common.negotiate_info.multi_key_conn_rsp = false;
+                                    self.common.data.negotiate_info.multi_key_conn_rsp = false;
                                 }
 
                                 if algorithms
@@ -173,39 +179,41 @@ impl RequesterContext {
                                 {
                                     if !self
                                         .common
+                                        .data
                                         .config_info
                                         .req_capabilities
                                         .contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY)
-                                        && !self.common.config_info.req_capabilities.contains(
+                                        && !self.common.data.config_info.req_capabilities.contains(
                                             SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL,
                                         )
                                     {
                                         return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                                     }
-                                    self.common.negotiate_info.multi_key_conn_req = true;
+                                    self.common.data.negotiate_info.multi_key_conn_req = true;
                                 } else {
                                     if self
                                         .common
+                                        .data
                                         .config_info
                                         .req_capabilities
                                         .contains(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY)
                                     {
                                         return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                                     }
-                                    self.common.negotiate_info.multi_key_conn_req = false;
+                                    self.common.data.negotiate_info.multi_key_conn_req = false;
                                 }
                             }
 
-                            self.common.negotiate_info.measurement_hash_sel =
+                            self.common.data.negotiate_info.measurement_hash_sel =
                                 algorithms.measurement_hash_algo;
                             if algorithms.base_hash_sel.bits() == 0 {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
-                            self.common.negotiate_info.base_hash_sel = algorithms.base_hash_sel;
+                            self.common.data.negotiate_info.base_hash_sel = algorithms.base_hash_sel;
                             if algorithms.base_asym_sel.bits() == 0 {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
-                            self.common.negotiate_info.base_asym_sel = algorithms.base_asym_sel;
+                            self.common.data.negotiate_info.base_asym_sel = algorithms.base_asym_sel;
                             for alg in algorithms
                                 .alg_struct
                                 .iter()
@@ -214,9 +222,9 @@ impl RequesterContext {
                                 match &alg.alg_supported {
                                     SpdmAlg::SpdmAlgoDhe(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.dhe_sel =
-                                                self.common.config_info.dhe_algo;
-                                            self.common.negotiate_info.dhe_sel.prioritize(*v);
+                                            self.common.data.negotiate_info.dhe_sel =
+                                                self.common.data.config_info.dhe_algo;
+                                            self.common.data.negotiate_info.dhe_sel.prioritize(*v);
                                         } else {
                                             error!(
                                                 "unknown Dhe algorithm structure:{:X?}\n",
@@ -227,9 +235,9 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoAead(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.aead_sel =
-                                                self.common.config_info.aead_algo;
-                                            self.common.negotiate_info.aead_sel.prioritize(*v);
+                                            self.common.data.negotiate_info.aead_sel =
+                                                self.common.data.config_info.aead_algo;
+                                            self.common.data.negotiate_info.aead_sel.prioritize(*v);
                                         } else {
                                             error!(
                                                 "unknown aead algorithm structure:{:X?}\n",
@@ -240,9 +248,9 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoReqAsym(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.req_asym_sel =
-                                                self.common.config_info.req_asym_algo;
-                                            self.common.negotiate_info.req_asym_sel.prioritize(*v);
+                                            self.common.data.negotiate_info.req_asym_sel =
+                                                self.common.data.config_info.req_asym_algo;
+                                            self.common.data.negotiate_info.req_asym_sel.prioritize(*v);
                                         } else {
                                             error!(
                                                 "unknown req asym algorithm structure:{:X?}\n",
@@ -253,9 +261,10 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoKeySchedule(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.key_schedule_sel =
-                                                self.common.config_info.key_schedule_algo;
+                                            self.common.data.negotiate_info.key_schedule_sel =
+                                                self.common.data.config_info.key_schedule_algo;
                                             self.common
+                                                .data
                                                 .negotiate_info
                                                 .key_schedule_sel
                                                 .prioritize(*v);
@@ -271,13 +280,14 @@ impl RequesterContext {
                                 }
                             }
 
-                            if self.common.negotiate_info.spdm_version_sel
+                            if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion13
                             {
-                                if self.common.config_info.mel_specification
+                                if self.common.data.config_info.mel_specification
                                     != SpdmMelSpecification::empty()
                                     && self
                                         .common
+                                        .data
                                         .negotiate_info
                                         .rsp_capabilities_sel
                                         .contains(SpdmResponseCapabilityFlags::MEL_CAP)
@@ -292,7 +302,7 @@ impl RequesterContext {
                                 {
                                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                 }
-                                self.common.negotiate_info.mel_specification_sel =
+                                self.common.data.negotiate_info.mel_specification_sel =
                                     algorithms.mel_specification_sel;
                             }
 

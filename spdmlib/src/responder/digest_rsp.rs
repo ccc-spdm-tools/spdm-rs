@@ -33,7 +33,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.runtime_info.get_connection_state().get_u8()
+        if self.common.data.runtime_info.get_connection_state().get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -45,7 +45,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -94,11 +94,11 @@ impl ResponderContext {
             Some(_session_id) => {}
         }
 
-        let digest_size = self.common.negotiate_info.base_hash_sel.get_size();
+        let digest_size = self.common.data.negotiate_info.base_hash_sel.get_size();
 
         let mut slot_mask = 0u8;
         for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
-            if self.common.provision_info.my_cert_chain[slot_id].is_some() {
+            if self.common.data.provision_info.my_cert_chain[slot_id].is_some() {
                 slot_mask |= (1 << slot_id) as u8;
             }
         }
@@ -110,18 +110,18 @@ impl ResponderContext {
         );
         let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
-            && self.common.negotiate_info.multi_key_conn_rsp
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+            && self.common.data.negotiate_info.multi_key_conn_rsp
         {
             let mut slot_count = 0usize;
             for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
-                if self.common.provision_info.my_cert_chain[slot_id].is_some() {
+                if self.common.data.provision_info.my_cert_chain[slot_id].is_some() {
                     key_pair_id[slot_count] =
-                        self.common.provision_info.local_key_pair_id[slot_id].unwrap();
+                        self.common.data.provision_info.local_key_pair_id[slot_id].unwrap();
                     certificate_info[slot_count] =
-                        self.common.provision_info.local_cert_info[slot_id].unwrap();
+                        self.common.data.provision_info.local_cert_info[slot_id].unwrap();
                     key_usage_mask[slot_count] =
-                        self.common.provision_info.local_key_usage_bit_mask[slot_id].unwrap();
+                        self.common.data.provision_info.local_key_usage_bit_mask[slot_id].unwrap();
                     slot_count += 1;
                 }
             }
@@ -130,7 +130,7 @@ impl ResponderContext {
         info!("send spdm digest\n");
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseDigests,
             },
             payload: SpdmMessagePayload::SpdmDigestsResponse(SpdmDigestsResponsePayload {
@@ -142,7 +142,7 @@ impl ResponderContext {
                     },
                     SPDM_MAX_SLOT_NUMBER,
                 ),
-                supported_slot_mask: self.common.provision_info.local_supported_slot_mask,
+                supported_slot_mask: self.common.data.provision_info.local_supported_slot_mask,
                 key_pair_id,
                 certificate_info,
                 key_usage_mask,
@@ -160,12 +160,12 @@ impl ResponderContext {
         let mut digest_offset = SPDM_DIGESTS_RESPONSE_DIGEST_FIELD_BYTE_OFFSET;
 
         for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
-            if self.common.provision_info.my_cert_chain[slot_id].is_some() {
-                let my_cert_chain = self.common.provision_info.my_cert_chain[slot_id]
+            if self.common.data.provision_info.my_cert_chain[slot_id].is_some() {
+                let my_cert_chain = self.common.data.provision_info.my_cert_chain[slot_id]
                     .as_ref()
                     .unwrap();
                 let cert_chain_hash = crypto::hash::hash_all(
-                    self.common.negotiate_info.base_hash_sel,
+                    self.common.data.negotiate_info.base_hash_sel,
                     my_cert_chain.as_ref(),
                 );
 

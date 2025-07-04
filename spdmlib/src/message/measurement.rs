@@ -91,14 +91,14 @@ impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
                 .nonce
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
                 cnt += self
                     .slot_id
                     .encode(bytes)
                     .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
             }
         }
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             cnt += self
                 .context
                 .encode(bytes)
@@ -121,7 +121,7 @@ impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
             };
         let slot_id =
             if measurement_attributes.contains(SpdmMeasurementAttributes::SIGNATURE_REQUESTED) {
-                if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
+                if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
                     u8::read(r)?
                 } else {
                     0
@@ -130,7 +130,7 @@ impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
                 0
             };
         let requester_context =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 SpdmMeasurementContextStruct::read(r)?
             } else {
                 SpdmMeasurementContextStruct::default()
@@ -177,15 +177,15 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
         } else {
             cnt += 0_u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
-            && context.runtime_info.need_measurement_signature
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
+            && context.data.runtime_info.need_measurement_signature
         {
             let content_changed_bits = u8::from(self.content_changed);
             cnt += (self.slot_id | content_changed_bits)
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
-        } else if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11
-            && context.runtime_info.need_measurement_signature
+        } else if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11
+            && context.data.runtime_info.need_measurement_signature
         {
             cnt += self
                 .slot_id
@@ -200,13 +200,13 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         cnt += self.opaque.spdm_encode(context, bytes)?;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             cnt += self
                 .requester_context
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
-        if context.runtime_info.need_measurement_signature {
+        if context.data.runtime_info.need_measurement_signature {
             cnt += self.signature.spdm_encode(context, bytes)?;
         }
         Ok(cnt)
@@ -225,12 +225,12 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
         let nonce = SpdmNonceStruct::read(r)?;
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
         let requester_context =
-            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 SpdmMeasurementContextStruct::read(r)?
             } else {
                 SpdmMeasurementContextStruct::default()
             };
-        let signature = if context.runtime_info.need_measurement_signature {
+        let signature = if context.data.runtime_info.need_measurement_signature {
             SpdmSignatureStruct::spdm_read(context, r)?
         } else {
             SpdmSignatureStruct::default()
@@ -294,7 +294,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -330,7 +330,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -369,7 +369,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -453,12 +453,12 @@ mod tests {
             measurement_operation: SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
         };
 
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        context.runtime_info.need_measurement_signature = true;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
+        context.data.runtime_info.need_measurement_signature = true;
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
 
@@ -508,7 +508,7 @@ mod tests {
             + MAX_SPDM_OPAQUE_SIZE];
         let mut writer = Writer::init(u8_slice);
 
-        context.runtime_info.need_measurement_signature = false;
+        context.data.runtime_info.need_measurement_signature = false;
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
         assert_eq!(

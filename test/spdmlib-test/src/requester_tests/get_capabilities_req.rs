@@ -36,6 +36,7 @@ fn test_case0_send_receive_spdm_capability() {
         );
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
 
@@ -54,12 +55,12 @@ fn test_case0_send_receive_spdm_capability() {
         );
 
         requester.common.reset_runtime_info();
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
 
         let status = requester.send_receive_spdm_capability().await.is_ok();
         assert!(status);

@@ -56,7 +56,7 @@ impl RequesterContext {
             };
         let header_size = spdm_message_header_reader.used();
 
-        if spdm_message_header.version != self.common.negotiate_info.spdm_version_sel {
+        if spdm_message_header.version != self.common.data.negotiate_info.spdm_version_sel {
             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
         }
 

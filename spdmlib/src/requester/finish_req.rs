@@ -41,11 +41,13 @@ impl RequesterContext {
     ) -> SpdmResult {
         let in_clear_text = self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -55,7 +57,7 @@ impl RequesterContext {
             if req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
                 return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
             }
-            if self.common.provision_info.my_cert_chain[req_slot_id as usize].is_none() {
+            if self.common.data.provision_info.my_cert_chain[req_slot_id as usize].is_none() {
                 return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
             }
             req_slot_id
@@ -141,13 +143,13 @@ impl RequesterContext {
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         if !session.get_mut_auth_requested().is_empty() {
             finish_request_attributes = SpdmFinishRequestAttributes::SIGNATURE_INCLUDED;
-            signature.data_size = self.common.negotiate_info.req_asym_sel.get_size();
+            signature.data_size = self.common.data.negotiate_info.req_asym_sel.get_size();
             is_mut_auth = true;
         }
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestFinish,
             },
             payload: SpdmMessagePayload::SpdmFinishRequest(SpdmFinishRequestPayload {
@@ -155,7 +157,7 @@ impl RequesterContext {
                 req_slot_id,
                 signature,
                 verify_data: SpdmDigestStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.data.negotiate_info.base_hash_sel.get_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
             }),
@@ -181,7 +183,7 @@ impl RequesterContext {
         }
 
         // generate HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
 
         let session = self
             .common
@@ -215,11 +217,13 @@ impl RequesterContext {
     ) -> SpdmResult {
         let in_clear_text = self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -242,7 +246,7 @@ impl RequesterContext {
                         debug!("!!! finish rsp : {:02x?}\n", finish_rsp);
 
                         let base_hash_size =
-                            self.common.negotiate_info.base_hash_sel.get_size() as usize;
+                            self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
 
                         if in_clear_text {
                             // verify HMAC with finished_key
@@ -305,7 +309,7 @@ impl RequesterContext {
                         )?;
 
                         debug!("!!! th2 : {:02x?}\n", th2.as_ref());
-                        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+                        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
                         let session = self
                             .common
                             .get_session_via_id(session_id)
@@ -320,7 +324,7 @@ impl RequesterContext {
                             crate::common::session::SpdmSessionState::SpdmSessionEstablished,
                         );
 
-                        self.common.runtime_info.set_last_session_id(None);
+                        self.common.data.runtime_info.set_last_session_id(None);
 
                         Ok(())
                     } else {
@@ -351,7 +355,7 @@ impl RequesterContext {
             .calc_req_transcript_hash(false, slot_id, true, session)?;
 
         let mut transcript_sign = ManagedBuffer12Sign::default();
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -368,8 +372,8 @@ impl RequesterContext {
         }
 
         crate::secret::asym_sign::sign(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             transcript_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)
@@ -388,7 +392,7 @@ impl RequesterContext {
         debug!("transcript_hash - {:02x?}", transcript_hash.as_ref());
 
         let mut transcript_sign = ManagedBuffer12Sign::default();
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -408,25 +412,25 @@ impl RequesterContext {
         }
 
         let signature = crate::secret::asym_sign::sign(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             transcript_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
 
-        let peer_slot_id = self.common.runtime_info.get_local_used_cert_chain_slot_id();
-        let peer_cert = &self.common.provision_info.my_cert_chain[peer_slot_id as usize]
+        let peer_slot_id = self.common.data.runtime_info.get_local_used_cert_chain_slot_id();
+        let peer_cert = &self.common.data.provision_info.my_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
 
         crate::crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             peer_cert,
             transcript_sign.as_ref(),
             &signature,

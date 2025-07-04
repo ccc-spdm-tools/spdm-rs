@@ -50,7 +50,7 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
 
-        let session_policy = match context.negotiate_info.spdm_version_sel {
+        let session_policy = match context.data.negotiate_info.spdm_version_sel {
             v if v >= SpdmVersion::SpdmVersion13 => {
                 self.session_policy
                     & (KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
@@ -62,7 +62,7 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
             _ => 0u8,
         };
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             cnt += session_policy
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
@@ -91,10 +91,12 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll
             | SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb => {
                 if !context
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::MEAS_CAP_SIG)
                     && !context
+                        .data
                         .negotiate_info
                         .rsp_capabilities_sel
                         .contains(SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG)
@@ -106,7 +108,7 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
         }
         let slot_id = u8::read(r)?; // param2
         let req_session_id = u16::read(r)?;
-        let session_policy = match context.negotiate_info.spdm_version_sel {
+        let session_policy = match context.data.negotiate_info.spdm_version_sel {
             v if v >= SpdmVersion::SpdmVersion13 => {
                 u8::read(r)?
                     & (KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
@@ -206,17 +208,19 @@ impl SpdmCodec for SpdmKeyExchangeResponsePayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         cnt += self.exchange.spdm_encode(context, bytes)?;
-        if context.runtime_info.need_measurement_summary_hash {
+        if context.data.runtime_info.need_measurement_summary_hash {
             cnt += self.measurement_summary_hash.spdm_encode(context, bytes)?;
         }
         cnt += self.opaque.spdm_encode(context, bytes)?;
         cnt += self.signature.spdm_encode(context, bytes)?;
 
         let in_clear_text = context
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -247,7 +251,7 @@ impl SpdmCodec for SpdmKeyExchangeResponsePayload {
 
         let random = SpdmRandomStruct::read(r)?;
         let exchange = SpdmDheExchangeStruct::spdm_read(context, r)?;
-        let measurement_summary_hash = if context.runtime_info.need_measurement_summary_hash {
+        let measurement_summary_hash = if context.data.runtime_info.need_measurement_summary_hash {
             SpdmDigestStruct::spdm_read(context, r)?
         } else {
             SpdmDigestStruct::default()
@@ -255,10 +259,12 @@ impl SpdmCodec for SpdmKeyExchangeResponsePayload {
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
         let signature = SpdmSignatureStruct::spdm_read(context, r)?;
         let in_clear_text = context
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && context
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -338,9 +344,9 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
-        context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -419,10 +425,10 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096;
-        context.runtime_info.need_measurement_summary_hash = true;
+        context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096;
+        context.data.runtime_info.need_measurement_summary_hash = true;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -531,10 +537,10 @@ mod tests {
 
         create_spdm_context!(context);
 
-        context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096;
-        context.runtime_info.need_measurement_summary_hash = false;
+        context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096;
+        context.data.runtime_info.need_measurement_summary_hash = false;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);

@@ -39,10 +39,16 @@ fn intergration_client_server() {
 
         #[cfg(feature = "mut-auth")]
         {
-            responder_context.common.negotiate_info.rsp_capabilities_sel |=
-                SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
-            responder_context.common.negotiate_info.req_capabilities_sel |=
-                SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
+            responder_context
+                .common
+                .data
+                .negotiate_info
+                .rsp_capabilities_sel |= SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
+            responder_context
+                .common
+                .data
+                .negotiate_info
+                .req_capabilities_sel |= SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
         }
 
         let shared_buffer = SharedBuffer::new();
@@ -78,13 +84,19 @@ fn intergration_client_server() {
 
         #[cfg(feature = "mut-auth")]
         {
-            requester_context.common.negotiate_info.rsp_capabilities_sel |=
-                SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
-            requester_context.common.negotiate_info.req_capabilities_sel |=
-                SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
-            requester_context.common.negotiate_info.req_asym_sel =
+            requester_context
+                .common
+                .data
+                .negotiate_info
+                .rsp_capabilities_sel |= SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
+            requester_context
+                .common
+                .data
+                .negotiate_info
+                .req_capabilities_sel |= SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
+            requester_context.common.data.negotiate_info.req_asym_sel =
                 SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-            requester_context.common.provision_info.my_cert_chain = [
+            requester_context.common.data.provision_info.my_cert_chain = [
                 Some(get_rsp_cert_chain_buff()),
                 None,
                 None,

@@ -89,13 +89,14 @@ impl RequesterContext {
     ) -> SpdmResult<(Box<dyn crypto::SpdmDheKeyExchange + Send>, usize)> {
         let mut writer = Writer::init(buf);
 
-        let session_policy = self.common.config_info.session_policy;
+        let session_policy = self.common.data.config_info.session_policy;
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
             && session_policy & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_MASK
                 == KEY_EXCHANGE_REQUESTER_SESSION_POLICY_EVENT_ALL_POLICY_VALUE
             && self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::EVENT_CAP)
@@ -107,7 +108,7 @@ impl RequesterContext {
         crypto::rand::get_random(&mut random)?;
 
         let (exchange, key_exchange_context) =
-            crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel)
+            crypto::dhe::generate_key_pair(self.common.data.negotiate_info.dhe_sel)
                 .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
 
         debug!("!!! exchange data : {:02x?}\n", exchange);
@@ -117,7 +118,7 @@ impl RequesterContext {
             versions_list: [SecuredMessageVersion::default(); MAX_SECURE_SPDM_VERSION_COUNT],
         };
 
-        for local_version in self.common.config_info.secure_spdm_version.iter().flatten() {
+        for local_version in self.common.data.config_info.secure_spdm_version.iter().flatten() {
             secured_message_version_list.versions_list
                 [secured_message_version_list.version_count as usize] = *local_version;
             secured_message_version_list.version_count += 1;
@@ -132,7 +133,7 @@ impl RequesterContext {
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestKeyExchange,
             },
             payload: SpdmMessagePayload::SpdmKeyExchangeRequest(SpdmKeyExchangeRequestPayload {
@@ -160,18 +161,20 @@ impl RequesterContext {
         key_exchange_context: Box<dyn crypto::SpdmDheKeyExchange>,
         target_session_id: &mut Option<u32>,
     ) -> SpdmResult {
-        self.common.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
+        self.common.data.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
             == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb)
             || (measurement_summary_hash_type
                 == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll);
 
         let in_clear_text = self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
             && self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -180,7 +183,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -204,10 +207,10 @@ impl RequesterContext {
                             debug!("!!! final_key : {:02x?}\n", final_key.as_ref());
 
                             // create session structure
-                            let base_hash_algo = self.common.negotiate_info.base_hash_sel;
-                            let dhe_algo = self.common.negotiate_info.dhe_sel;
-                            let aead_algo = self.common.negotiate_info.aead_sel;
-                            let key_schedule_algo = self.common.negotiate_info.key_schedule_sel;
+                            let base_hash_algo = self.common.data.negotiate_info.base_hash_sel;
+                            let dhe_algo = self.common.data.negotiate_info.dhe_sel;
+                            let aead_algo = self.common.data.negotiate_info.aead_sel;
+                            let key_schedule_algo = self.common.data.negotiate_info.key_schedule_sel;
                             let sequence_number_count = {
                                 let mut transport_encap = self.common.transport_encap.lock();
                                 let transport_encap: &mut (dyn SpdmTransportEncap + Send + Sync) =
@@ -234,8 +237,8 @@ impl RequesterContext {
                             let session_id = ((key_exchange_rsp.rsp_session_id as u32) << 16)
                                 + req_session_id as u32;
                             *target_session_id = Some(session_id);
-                            let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-                            let message_a = self.common.runtime_info.message_a.clone();
+                            let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
+                            let message_a = self.common.data.runtime_info.message_a.clone();
                             let cert_chain_hash =
                                 self.common.get_certchain_hash_peer(false, slot_id as usize);
                             if cert_chain_hash.is_none() {
@@ -246,11 +249,13 @@ impl RequesterContext {
                             if !key_exchange_rsp.mut_auth_req.is_empty() {
                                 if !self
                                     .common
+                                    .data
                                     .negotiate_info
                                     .req_capabilities_sel
                                     .contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
                                     || !self
                                         .common
+                                        .data
                                         .negotiate_info
                                         .rsp_capabilities_sel
                                         .contains(SpdmResponseCapabilityFlags::MUT_AUTH_CAP)
@@ -263,7 +268,7 @@ impl RequesterContext {
                                 {
                                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                 }
-                                self.common.runtime_info.set_local_used_cert_chain_slot_id(
+                                self.common.data.runtime_info.set_local_used_cert_chain_slot_id(
                                     key_exchange_rsp.req_slot_id & 0xf,
                                 );
                             }
@@ -292,9 +297,9 @@ impl RequesterContext {
 
                             // create transcript
                             let base_asym_size =
-                                self.common.negotiate_info.base_asym_sel.get_size() as usize;
+                                self.common.data.negotiate_info.base_asym_sel.get_size() as usize;
                             let base_hash_size =
-                                self.common.negotiate_info.base_hash_sel.get_size() as usize;
+                                self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
                             let temp_receive_used = if in_clear_text {
                                 receive_used - base_asym_size
                             } else {
@@ -416,6 +421,7 @@ impl RequesterContext {
 
                             if in_clear_text {
                                 self.common
+                                    .data
                                     .runtime_info
                                     .set_last_session_id(Some(session_id));
                             }
@@ -458,22 +464,22 @@ impl RequesterContext {
 
         debug!("message_hash - {:02x?}", transcript_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+        if self.common.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
             error!("peer_cert_chain is not populated!\n");
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
 
         let mut message_sign = ManagedBuffer12Sign::default();
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_sign.reset_message();
             message_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -493,8 +499,8 @@ impl RequesterContext {
         }
 
         crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             cert_chain_data,
             message_sign.as_ref(),
             signature,
@@ -515,16 +521,16 @@ impl RequesterContext {
         // we just print message hash for debug purpose
         debug!("message_hash - {:02x?}", message_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+        if self.common.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
             error!("peer_cert_chain is not populated!\n");
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
@@ -537,7 +543,7 @@ impl RequesterContext {
             None,
         )?;
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message.reset_message();
             message
                 .append_message(&self.common.get_signing_prefix_context())
@@ -554,8 +560,8 @@ impl RequesterContext {
         }
 
         crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             cert_chain_data,
             message.as_ref(),
             signature,

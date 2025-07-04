@@ -32,17 +32,19 @@ impl RequesterContext {
         session_id: u32,
         mut_auth_requested: SpdmKeyExchangeMutAuthAttributes,
     ) -> SpdmResult {
-        if self.common.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion11 {
+        if self.common.data.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion11 {
             return Err(SPDM_STATUS_UNSUPPORTED_CAP);
         }
 
         if !self
             .common
+            .data
             .negotiate_info
             .req_capabilities_sel
             .contains(SpdmRequestCapabilityFlags::ENCAP_CAP)
             || !self
                 .common
+                .data
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::ENCAP_CAP)
@@ -59,7 +61,7 @@ impl RequesterContext {
                 let mut writer = Writer::init(&mut encapsulated_request);
                 let get_digest_request = SpdmMessage {
                     header: SpdmMessageHeader {
-                        version: self.common.negotiate_info.spdm_version_sel,
+                        version: self.common.data.negotiate_info.spdm_version_sel,
                         request_response_code: SpdmRequestResponseCode::SpdmRequestGetDigests,
                     },
                     payload: SpdmMessagePayload::SpdmGetDigestsRequest(
@@ -86,7 +88,7 @@ impl RequesterContext {
         let mut writer = Writer::init(&mut send_buffer);
         let get_encap_request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestGetEncapsulatedRequest,
             },
             payload: SpdmMessagePayload::SpdmGetEncapsulatedRequestPayload(
@@ -109,7 +111,7 @@ impl RequesterContext {
 
         let header = SpdmMessageHeader::read(&mut reader).ok_or(SPDM_STATUS_INVALID_MSG_SIZE)?;
 
-        if self.common.negotiate_info.spdm_version_sel != header.version
+        if self.common.data.negotiate_info.spdm_version_sel != header.version
             || header.request_response_code
                 != SpdmRequestResponseCode::SpdmResponseEncapsulatedRequest
         {
@@ -137,7 +139,7 @@ impl RequesterContext {
 
         let header = SpdmMessageHeader::read(&mut reader).ok_or(SPDM_STATUS_INVALID_MSG_SIZE)?;
 
-        if self.common.negotiate_info.spdm_version_sel != header.version
+        if self.common.data.negotiate_info.spdm_version_sel != header.version
             || header.request_response_code
                 != SpdmRequestResponseCode::SpdmResponseEncapsulatedResponseAck
         {
@@ -163,6 +165,7 @@ impl RequesterContext {
                         return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                     }
                     self.common
+                        .data
                         .runtime_info
                         .set_local_used_cert_chain_slot_id(req_slot_id);
                     return Ok(false);
@@ -196,7 +199,7 @@ impl RequesterContext {
 
         let message = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code:
                     SpdmRequestResponseCode::SpdmRequestDeliverEncapsulatedResponse,
             },

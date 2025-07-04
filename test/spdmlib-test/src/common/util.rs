@@ -174,7 +174,7 @@ pub fn new_context(
         config_info,
         provision_info,
     );
-    context.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
+    context.data.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
     context
 }
 

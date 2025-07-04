@@ -28,26 +28,27 @@ impl ResponderContext {
         &mut self,
         encap_request: &mut Writer,
     ) -> SpdmResult {
-        if self.common.peer_info.peer_cert_chain_temp.is_none() {
-            self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        if self.common.data.peer_info.peer_cert_chain_temp.is_none() {
+            self.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
         }
 
         let encapsulated_request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestGetCertificate,
             },
             payload: SpdmMessagePayload::SpdmGetCertificateRequest(
                 SpdmGetCertificateRequestPayload {
                     offset: self
                         .common
+                        .data
                         .peer_info
                         .peer_cert_chain_temp
                         .as_ref()
                         .unwrap()
                         .data_size,
                     length: MAX_SPDM_CERT_PORTION_LEN as u16,
-                    slot_id: self.common.encap_context.req_slot_id,
+                    slot_id: self.common.data.encap_context.req_slot_id,
                 },
             ),
         };
@@ -62,7 +63,7 @@ impl ResponderContext {
         let mut get_cert_completed = false;
         match SpdmMessageHeader::read(&mut reader) {
             Some(encap_header) => {
-                if encap_header.version != self.common.negotiate_info.spdm_version_sel {
+                if encap_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match encap_header.request_response_code {
@@ -76,6 +77,7 @@ impl ResponderContext {
 
                             let peer_cert_chain_temp = self
                                 .common
+                                .data
                                 .peer_info
                                 .peer_cert_chain_temp
                                 .as_mut()
@@ -96,17 +98,17 @@ impl ResponderContext {
                                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                             }
 
-                            if certificate.slot_id != self.common.encap_context.req_slot_id {
+                            if certificate.slot_id != self.common.data.encap_context.req_slot_id {
                                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                             }
 
                             if offset == 0 {
-                                self.common.encap_context.encap_cert_size =
+                                self.common.data.encap_context.encap_cert_size =
                                     certificate.portion_length + certificate.remainder_length;
                             }
 
-                            if self.common.encap_context.encap_cert_size != 0
-                                && self.common.encap_context.encap_cert_size
+                            if self.common.data.encap_context.encap_cert_size != 0
+                                && self.common.data.encap_context.encap_cert_size
                                     != offset
                                         + certificate.portion_length
                                         + certificate.remainder_length
@@ -141,8 +143,8 @@ impl ResponderContext {
             }
             None => return Err(SPDM_STATUS_INVALID_MSG_FIELD),
         }
-        if self.common.encap_context.encap_cert_size == 0 {
-            self.common.peer_info.peer_cert_chain_temp = None;
+        if self.common.data.encap_context.encap_cert_size == 0 {
+            self.common.data.peer_info.peer_cert_chain_temp = None;
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
@@ -151,19 +153,20 @@ impl ResponderContext {
         }
 
         let result = self.verify_spdm_certificate_chain().map(|_| {
-            self.common.peer_info.peer_cert_chain[self.common.encap_context.req_slot_id as usize] =
-                self.common.peer_info.peer_cert_chain_temp.clone();
+            self.common.data.peer_info.peer_cert_chain[self.common.data.encap_context.req_slot_id as usize] =
+                self.common.data.peer_info.peer_cert_chain_temp.clone();
             self.common
+                .data
                 .runtime_info
-                .set_peer_used_cert_chain_slot_id(self.common.encap_context.req_slot_id);
+                .set_peer_used_cert_chain_slot_id(self.common.data.encap_context.req_slot_id);
             false
         });
 
-        self.common.peer_info.peer_cert_chain_temp = None;
+        self.common.data.peer_info.peer_cert_chain_temp = None;
 
         #[cfg(feature = "mandatory-mut-auth")]
         if result.is_ok() {
-            self.common.mut_auth_done = true;
+            self.common.data.mut_auth_done = true;
         }
 
         result
@@ -173,18 +176,19 @@ impl ResponderContext {
         //
         // 1. Verify the integrity of cert chain
         //
-        if self.common.peer_info.peer_cert_chain_temp.is_none() {
+        if self.common.data.peer_info.peer_cert_chain_temp.is_none() {
             error!("peer_cert_chain is not populated!\n");
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
         let peer_cert_chain = self
             .common
+            .data
             .peer_info
             .peer_cert_chain_temp
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
-        if peer_cert_chain.data_size <= (4 + self.common.negotiate_info.base_hash_sel.get_size()) {
+        if peer_cert_chain.data_size <= (4 + self.common.data.negotiate_info.base_hash_sel.get_size()) {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
@@ -195,11 +199,11 @@ impl ResponderContext {
         }
 
         let data_size =
-            peer_cert_chain.data_size - 4 - self.common.negotiate_info.base_hash_sel.get_size();
+            peer_cert_chain.data_size - 4 - self.common.data.negotiate_info.base_hash_sel.get_size();
         let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
         data[0..(data_size as usize)].copy_from_slice(
             &peer_cert_chain.data[(4usize
-                + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+                + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
                 ..(peer_cert_chain.data_size as usize)],
         );
         let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
@@ -228,7 +232,7 @@ impl ResponderContext {
         let root_cert = &runtime_peer_cert_chain_data.data[root_cert_begin..root_cert_end];
         if is_root_certificate(root_cert).is_ok() {
             let root_hash = if let Some(rh) =
-                crypto::hash::hash_all(self.common.negotiate_info.base_hash_sel, root_cert)
+                crypto::hash::hash_all(self.common.data.negotiate_info.base_hash_sel, root_cert)
             {
                 rh
             } else {
@@ -236,7 +240,7 @@ impl ResponderContext {
             };
             if root_hash.data[..(root_hash.data_size as usize)]
                 != peer_cert_chain.data[4usize
-                    ..(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)]
+                    ..(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)]
             {
                 error!("root_hash - fail!\n");
                 return Err(SPDM_STATUS_INVALID_CERT);
@@ -251,6 +255,7 @@ impl ResponderContext {
         let mut found_match = false;
         for peer_root_cert_data in self
             .common
+            .data
             .provision_info
             .peer_root_cert_data
             .iter()

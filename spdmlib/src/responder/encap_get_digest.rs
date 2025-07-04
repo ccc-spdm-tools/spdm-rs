@@ -14,7 +14,7 @@ impl ResponderContext {
     pub fn encode_encap_request_get_digest(&mut self, encap_request: &mut Writer) -> SpdmResult {
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestGetDigests,
             },
             payload: SpdmMessagePayload::SpdmGetDigestsRequest(SpdmGetDigestsRequestPayload {}),
@@ -29,7 +29,7 @@ impl ResponderContext {
         let mut reader = Reader::init(encap_response);
         match SpdmMessageHeader::read(&mut reader) {
             Some(header) => {
-                if header.version != self.common.negotiate_info.spdm_version_sel {
+                if header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match header.request_response_code {

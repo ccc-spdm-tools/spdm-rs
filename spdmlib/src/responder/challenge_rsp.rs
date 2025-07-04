@@ -35,7 +35,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.runtime_info.get_connection_state().get_u8()
+        if self.common.data.runtime_info.get_connection_state().get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -47,7 +47,7 @@ impl ResponderContext {
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
         if let Some(message_header) = message_header {
-            if message_header.version != self.common.negotiate_info.spdm_version_sel {
+            if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorVersionMismatch, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -75,13 +75,13 @@ impl ResponderContext {
                 || (challenge.measurement_summary_hash_type
                     == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll)
             {
-                self.common.runtime_info.need_measurement_summary_hash = true;
+                self.common.data.runtime_info.need_measurement_summary_hash = true;
                 let measurement_summary_hash_res =
                     secret::measurement::generate_measurement_summary_hash(
-                        self.common.negotiate_info.spdm_version_sel,
-                        self.common.negotiate_info.base_hash_sel,
-                        self.common.negotiate_info.measurement_specification_sel,
-                        self.common.negotiate_info.measurement_hash_sel,
+                        self.common.data.negotiate_info.spdm_version_sel,
+                        self.common.data.negotiate_info.base_hash_sel,
+                        self.common.data.negotiate_info.measurement_specification_sel,
+                        self.common.data.negotiate_info.measurement_hash_sel,
                         challenge.measurement_summary_hash_type,
                     );
                 if measurement_summary_hash_res.is_none() {
@@ -100,7 +100,7 @@ impl ResponderContext {
                     );
                 }
             } else {
-                self.common.runtime_info.need_measurement_summary_hash = false;
+                self.common.data.runtime_info.need_measurement_summary_hash = false;
                 measurement_summary_hash = SpdmDigestStruct::default();
             }
         } else {
@@ -121,7 +121,7 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
-        if self.common.provision_info.my_cert_chain[slot_id].is_none() {
+        if self.common.data.provision_info.my_cert_chain[slot_id].is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_STATE_LOCAL),
@@ -141,11 +141,11 @@ impl ResponderContext {
             );
         }
 
-        let my_cert_chain = self.common.provision_info.my_cert_chain[slot_id]
+        let my_cert_chain = self.common.data.provision_info.my_cert_chain[slot_id]
             .as_ref()
             .unwrap();
         let cert_chain_hash = crypto::hash::hash_all(
-            self.common.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_hash_sel,
             my_cert_chain.as_ref(),
         );
         let cert_chain_hash = if let Some(hash) = cert_chain_hash {
@@ -166,7 +166,7 @@ impl ResponderContext {
         }
 
         let requester_context =
-            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 challenge.context.data
             } else {
                 [0u8; SPDM_CHALLENGE_CONTEXT_SIZE]
@@ -176,7 +176,7 @@ impl ResponderContext {
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseChallengeAuth,
             },
             payload: SpdmMessagePayload::SpdmChallengeAuthResponse(
@@ -195,7 +195,7 @@ impl ResponderContext {
                         data: requester_context,
                     },
                     signature: SpdmSignatureStruct {
-                        data_size: self.common.negotiate_info.base_asym_sel.get_size(),
+                        data_size: self.common.data.negotiate_info.base_asym_sel.get_size(),
                         data: [0xbb; SPDM_MAX_ASYM_KEY_SIZE],
                     },
                 },
@@ -212,7 +212,7 @@ impl ResponderContext {
         let used = writer.used();
 
         // generate signature
-        let base_asym_size = self.common.negotiate_info.base_asym_sel.get_size() as usize;
+        let base_asym_size = self.common.data.negotiate_info.base_asym_sel.get_size() as usize;
         let temp_used = used - base_asym_size;
 
         if self
@@ -249,6 +249,7 @@ impl ResponderContext {
     pub fn generate_challenge_auth_signature(&self) -> SpdmResult<SpdmSignatureStruct> {
         let message_m1m2_hash = crypto::hash::hash_ctx_finalize(
             self.common
+                .data
                 .runtime_info
                 .digest_context_m1m2
                 .as_ref()
@@ -260,7 +261,7 @@ impl ResponderContext {
         debug!("message_m1m2_hash - {:02x?}", message_m1m2_hash.as_ref());
 
         let mut message_sign = ManagedBuffer12Sign::default();
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_sign.reset_message();
             message_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -280,8 +281,8 @@ impl ResponderContext {
         }
 
         crate::secret::asym_sign::sign(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             message_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)
@@ -291,24 +292,24 @@ impl ResponderContext {
     pub fn generate_challenge_auth_signature(&self) -> SpdmResult<SpdmSignatureStruct> {
         let mut message_m1m2 = ManagedBufferM1M2::default();
         message_m1m2
-            .append_message(self.common.runtime_info.message_a.as_ref())
+            .append_message(self.common.data.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         message_m1m2
-            .append_message(self.common.runtime_info.message_b.as_ref())
+            .append_message(self.common.data.runtime_info.message_b.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         message_m1m2
-            .append_message(self.common.runtime_info.message_c.as_ref())
+            .append_message(self.common.data.runtime_info.message_c.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         // we dont need create message hash for verify
         // we just print message hash for debug purpose
         let message_m1m2_hash = crypto::hash::hash_all(
-            self.common.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_hash_sel,
             message_m1m2.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         debug!("message_m1m2_hash - {:02x?}", message_m1m2_hash.as_ref());
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_m1m2.reset_message();
             message_m1m2
                 .append_message(&self.common.get_signing_prefix_context())
@@ -325,8 +326,8 @@ impl ResponderContext {
         }
 
         crate::secret::asym_sign::sign(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             message_m1m2.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)

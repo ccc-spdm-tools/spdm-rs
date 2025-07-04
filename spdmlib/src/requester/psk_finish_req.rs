@@ -86,12 +86,12 @@ impl RequesterContext {
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestPskFinish,
             },
             payload: SpdmMessagePayload::SpdmPskFinishRequest(SpdmPskFinishRequestPayload {
                 verify_data: SpdmDigestStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.data.negotiate_info.base_hash_sel.get_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
             }),
@@ -99,7 +99,7 @@ impl RequesterContext {
         let send_used = request.spdm_encode(&mut self.common, &mut writer)?;
 
         // generate HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
         let temp_used = send_used - base_hash_size;
 
         self.common
@@ -135,7 +135,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -145,7 +145,7 @@ impl RequesterContext {
                         let receive_used = reader.used();
                         if let Some(psk_finish_rsp) = psk_finish_rsp {
                             debug!("!!! psk_finish rsp : {:02x?}\n", psk_finish_rsp);
-                            let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+                            let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
 
                             self.common.append_message_f(
                                 true,

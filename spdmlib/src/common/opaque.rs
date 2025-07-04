@@ -359,8 +359,9 @@ impl Codec for SMVersionSelOpaque {
 impl SpdmCodec for SMVersionSelOpaque {
     fn spdm_encode(&self, context: &mut SpdmContext, bytes: &mut Writer) -> SpdmResult<usize> {
         let mut cnt = 0;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             if context
+                .data
                 .negotiate_info
                 .other_params_support
                 .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
@@ -382,8 +383,9 @@ impl SpdmCodec for SMVersionSelOpaque {
     }
 
     fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<Self> {
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             if context
+                .data
                 .negotiate_info
                 .other_params_support
                 .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
@@ -463,8 +465,9 @@ impl Codec for SMSupportedVerListOpaque {
 impl SpdmCodec for SMSupportedVerListOpaque {
     fn spdm_encode(&self, context: &mut SpdmContext, bytes: &mut Writer) -> SpdmResult<usize> {
         let mut cnt = 0;
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             if context
+                .data
                 .negotiate_info
                 .other_params_support
                 .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
@@ -486,8 +489,9 @@ impl SpdmCodec for SMSupportedVerListOpaque {
     }
 
     fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<Self> {
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             if context
+                .data
                 .negotiate_info
                 .other_params_support
                 .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)

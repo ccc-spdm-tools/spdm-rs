@@ -37,18 +37,19 @@ fn test_case0_handle_spdm_psk_finish() {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        context.common.session = gen_array_clone(SpdmSession::new(), 4);
-        context.common.session[0].setup(4294901758).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        context.common.data.session[0].setup(4294901758).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -98,18 +99,19 @@ fn test_case1_handle_spdm_psk_finish() {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        context.common.session = gen_array_clone(SpdmSession::new(), 4);
-        context.common.session[0].setup(4294901758).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+        context.common.data.session[0].setup(4294901758).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -136,7 +138,7 @@ fn test_case1_handle_spdm_psk_finish() {
         let mut writer = Writer::init(&mut response_buffer);
         let (status, send_buffer) = context.handle_spdm_psk_finish(4294901758, bytes, &mut writer);
 
-        for session in context.common.session.iter() {
+        for session in context.common.data.session.iter() {
             assert_eq!(
                 session.get_session_id(),
                 spdmlib::common::INVALID_SESSION_ID

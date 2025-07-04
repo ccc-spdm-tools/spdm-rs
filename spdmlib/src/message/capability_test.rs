@@ -49,7 +49,7 @@ fn test_capability_request_struct() {
     // 0. Version 1.3 Successful Setting.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
     let flags = SpdmRequestCapabilityFlags::CERT_CAP
         | SpdmRequestCapabilityFlags::ENCRYPT_CAP
@@ -78,7 +78,7 @@ fn test_capability_request_struct() {
     // 1. Validate SUPPORTED_ALGOS_EXT_CAP bit is set and CHUNK_CAP not supported. Expectation failed.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
     u8_slice[2] = 1; // Set SUPPORTED_ALGOS_EXT_CAP bit in param1.
     let flags = SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::CHAL_CAP;
@@ -93,7 +93,7 @@ fn test_capability_request_struct() {
     // 2. Validate sample illegal capability flags settings. Expectation failed.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
     let flags = SpdmRequestCapabilityFlags::EP_INFO_CAP_SIG
         | SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG;
@@ -119,7 +119,7 @@ fn test_capability_response_struct() {
     // 0. Version 1.3 Successful Setting.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
     let flags = SpdmResponseCapabilityFlags::CERT_CAP
         | SpdmResponseCapabilityFlags::CHAL_CAP
@@ -155,7 +155,7 @@ fn test_capability_response_struct() {
     // 1. Validate sample illegal capability flags settings. Expectation failed.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
     let flags = SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
         | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL

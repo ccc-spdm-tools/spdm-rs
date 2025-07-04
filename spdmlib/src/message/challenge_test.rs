@@ -17,7 +17,7 @@ fn test_challenge_struct() {
     let context = &mut context;
 
     // Validate request payload size is 36 - 2 = 34 for spdm 1.2
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
     let u8_slice = &mut [0u8; 36];
     let writer = &mut Writer::init(u8_slice);
     let request = SpdmChallengeRequestPayload {
@@ -31,7 +31,7 @@ fn test_challenge_struct() {
     assert_eq!(writer.used(), 34);
 
     // Validate request payload size is 44 - 2 = 42 for spdm 1.3
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
     let u8_slice = &mut [0u8; 44];
     let writer = &mut Writer::init(u8_slice);
     let request = SpdmChallengeRequestPayload {
@@ -44,9 +44,9 @@ fn test_challenge_struct() {
     assert!(request.spdm_encode(context, writer).is_ok());
     assert_eq!(writer.used(), 42);
 
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
-    context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
-    context.runtime_info.need_measurement_summary_hash = true;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+    context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    context.data.runtime_info.need_measurement_summary_hash = true;
 
     // Validate OpaqueDataLength is invalid. Expectation, pass
     const INVALID_OPAQUE_DATA_LENGTH: u16 = 1025u16;
@@ -71,9 +71,9 @@ fn test_challenge_struct_opaque_data_length_negative() {
 
     // Validate support max OpaqueDataLength is 1024. Expectation, pass
     // Validate response payload size is 38 + 2H + OpaqueDataLength + SigLen
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
-    context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
-    context.runtime_info.need_measurement_summary_hash = true;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+    context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    context.data.runtime_info.need_measurement_summary_hash = true;
 
     let u8_slice = &mut [0u8; 38
         + 2 * SHA256_DIGEST_SIZE

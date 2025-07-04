@@ -90,7 +90,7 @@ impl RequesterContext {
             versions_list: [SecuredMessageVersion::default(); MAX_SECURE_SPDM_VERSION_COUNT],
         };
 
-        for local_version in self.common.config_info.secure_spdm_version.iter().flatten() {
+        for local_version in self.common.data.config_info.secure_spdm_version.iter().flatten() {
             secured_message_version_list.versions_list
                 [secured_message_version_list.version_count as usize] = *local_version;
             secured_message_version_list.version_count += 1;
@@ -105,7 +105,7 @@ impl RequesterContext {
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestPskExchange,
             },
             payload: SpdmMessagePayload::SpdmPskExchangeRequest(SpdmPskExchangeRequestPayload {
@@ -113,7 +113,7 @@ impl RequesterContext {
                 req_session_id: half_session_id,
                 psk_hint: psk_hint.clone(),
                 psk_context: SpdmPskContextStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.data.negotiate_info.base_hash_sel.get_size(),
                     data: psk_context,
                 },
                 opaque,
@@ -131,7 +131,7 @@ impl RequesterContext {
         receive_buffer: &[u8],
         target_session_id: &mut Option<u32>,
     ) -> SpdmResult<u32> {
-        self.common.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
+        self.common.data.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
             == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb)
             || (measurement_summary_hash_type
                 == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll);
@@ -139,7 +139,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -153,10 +153,10 @@ impl RequesterContext {
                             debug!("!!! psk_exchange rsp : {:02x?}\n", psk_exchange_rsp);
 
                             // create session structure
-                            let base_hash_algo = self.common.negotiate_info.base_hash_sel;
-                            let dhe_algo = self.common.negotiate_info.dhe_sel;
-                            let aead_algo = self.common.negotiate_info.aead_sel;
-                            let key_schedule_algo = self.common.negotiate_info.key_schedule_sel;
+                            let base_hash_algo = self.common.data.negotiate_info.base_hash_sel;
+                            let dhe_algo = self.common.data.negotiate_info.dhe_sel;
+                            let aead_algo = self.common.data.negotiate_info.aead_sel;
+                            let key_schedule_algo = self.common.data.negotiate_info.key_schedule_sel;
                             let sequence_number_count = {
                                 let mut transport_encap = self.common.transport_encap.lock();
                                 let transport_encap: &mut (dyn SpdmTransportEncap + Send + Sync) =
@@ -178,8 +178,8 @@ impl RequesterContext {
                             let session_id = ((psk_exchange_rsp.rsp_session_id as u32) << 16)
                                 + half_session_id as u32;
                             *target_session_id = Some(session_id);
-                            let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-                            let message_a = self.common.runtime_info.message_a.clone();
+                            let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
+                            let message_a = self.common.data.runtime_info.message_a.clone();
 
                             let session = self
                                 .common
@@ -205,7 +205,7 @@ impl RequesterContext {
 
                             // create transcript
                             let base_hash_size =
-                                self.common.negotiate_info.base_hash_sel.get_size() as usize;
+                                self.common.data.negotiate_info.base_hash_sel.get_size() as usize;
                             let temp_receive_used = receive_used - base_hash_size;
 
                             self.common.append_message_k(session_id, send_buffer)?;
@@ -298,6 +298,7 @@ impl RequesterContext {
                                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             let psk_without_context = self
                                 .common
+                                .data
                                 .negotiate_info
                                 .rsp_capabilities_sel
                                 .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT);

@@ -215,8 +215,9 @@ fn test_handle_deliver_encapsulated_reponse_cert() {
             config_info,
             provision_info,
         );
-        if context.common.peer_info.peer_cert_chain_temp.is_none() {
-            context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        if context.common.data.peer_info.peer_cert_chain_temp.is_none() {
+            context.common.data.peer_info.peer_cert_chain_temp =
+                Some(SpdmCertChainBuffer::default());
         }
 
         let request = &mut [0u8; config::MAX_SPDM_MSG_SIZE];
@@ -302,26 +303,29 @@ fn setup_test_context_and_session(
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::ENCAP_CAP;
-    context.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::ENCAP_CAP;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.base_asym_sel =
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::ENCAP_CAP;
+    context.common.data.negotiate_info.rsp_capabilities_sel =
+        SpdmResponseCapabilityFlags::ENCAP_CAP;
 
     context
         .common
+        .data
         .runtime_info
         .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCertificate);
 
-    context.common.session = gen_array_clone(SpdmSession::new(), 4);
-    context.common.session[0].setup(SESSION_ID).unwrap();
-    context.common.session[0].set_crypto_param(
+    context.common.data.session = gen_array_clone(SpdmSession::new(), 4);
+    context.common.data.session[0].setup(SESSION_ID).unwrap();
+    context.common.data.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         SpdmDheAlgo::SECP_384_R1,
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
-    context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+    context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
 
     context
 }
@@ -330,12 +334,12 @@ fn write_spdm_get_digest_response(
     context: &mut ResponderContext,
     writer: &mut Writer,
 ) -> SpdmResult {
-    let digest_size = context.common.negotiate_info.base_hash_sel.get_size();
+    let digest_size = context.common.data.negotiate_info.base_hash_sel.get_size();
     let slot_mask = 1;
 
     let response = SpdmMessage {
         header: SpdmMessageHeader {
-            version: context.common.negotiate_info.spdm_version_sel,
+            version: context.common.data.negotiate_info.spdm_version_sel,
             request_response_code: SpdmRequestResponseCode::SpdmResponseDigests,
         },
         payload: SpdmMessagePayload::SpdmDigestsResponse(SpdmDigestsResponsePayload {
@@ -369,7 +373,7 @@ fn write_spdm_get_certificate_response(
 ) -> SpdmResult {
     let response = SpdmMessage {
         header: SpdmMessageHeader {
-            version: context.common.negotiate_info.spdm_version_sel,
+            version: context.common.data.negotiate_info.spdm_version_sel,
             request_response_code: SpdmRequestResponseCode::SpdmResponseCertificate,
         },
         payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {

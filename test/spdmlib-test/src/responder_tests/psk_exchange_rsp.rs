@@ -37,8 +37,8 @@ fn test_case0_handle_spdm_psk_exchange() {
             provision_info,
         );
 
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -123,8 +123,8 @@ fn test_case1_handle_spdm_psk_exchange() {
             provision_info,
         );
 
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
 
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
@@ -187,7 +187,7 @@ fn test_case1_handle_spdm_psk_exchange() {
         let mut writer = Writer::init(&mut response_buffer);
         let (status, send_buffer) = context.handle_spdm_psk_exchange(bytes, &mut writer);
 
-        for session in context.common.session.iter() {
+        for session in context.common.data.session.iter() {
             assert_eq!(
                 session.get_session_id(),
                 spdmlib::common::INVALID_SESSION_ID

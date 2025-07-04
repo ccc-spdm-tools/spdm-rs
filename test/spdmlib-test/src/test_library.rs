@@ -50,7 +50,7 @@ fn test_case0_spdm_digest_struct() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
     let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);
     assert_eq!(SPDM_MAX_HASH_SIZE, reader.left());
@@ -73,7 +73,7 @@ fn test_case0_spdm_signature_struct() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
     let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
-    context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+    context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
 
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);
@@ -118,9 +118,9 @@ fn test_case0_spdm_measurement_record_structure() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
     let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
-    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
-    context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
-    context.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
+    context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+    context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
+    context.data.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);
@@ -179,7 +179,7 @@ fn test_case0_spdm_dhe_exchange_struct() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
     let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
-    context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+    context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
 
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);
@@ -215,7 +215,7 @@ fn test_case0_spdm_dmtf_measurement_structure() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
     let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
-    context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
+    context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
 
     for i in 0..5 {
         value.r#type = r#type[i];
@@ -264,7 +264,7 @@ fn test_case0_spdm_measurement_block_structure() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
     let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
-    context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
+    context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
 
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);

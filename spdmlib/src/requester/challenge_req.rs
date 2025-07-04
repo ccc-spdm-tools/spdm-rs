@@ -71,7 +71,7 @@ impl RequesterContext {
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestChallenge,
             },
             payload: SpdmMessagePayload::SpdmChallengeRequest(SpdmChallengeRequestPayload {
@@ -93,7 +93,7 @@ impl RequesterContext {
         send_buffer: &[u8],
         receive_buffer: &[u8],
     ) -> SpdmResult {
-        self.common.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
+        self.common.data.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
             == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb)
             || (measurement_summary_hash_type
                 == SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll);
@@ -101,7 +101,7 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
@@ -115,7 +115,7 @@ impl RequesterContext {
                             debug!("!!! challenge_auth : {:02x?}\n", challenge_auth);
 
                             // verify context
-                            if self.common.negotiate_info.spdm_version_sel
+                            if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion13
                                 && challenge_auth.requester_context.data != requester_context.data
                             {
@@ -125,7 +125,7 @@ impl RequesterContext {
 
                             // verify signature
                             let base_asym_size =
-                                self.common.negotiate_info.base_asym_sel.get_size() as usize;
+                                self.common.data.negotiate_info.base_asym_sel.get_size() as usize;
                             let temp_used = used - base_asym_size;
 
                             self.common.append_message_c(send_buffer)?;
@@ -173,6 +173,7 @@ impl RequesterContext {
     ) -> SpdmResult {
         let message_m1m2_hash = crypto::hash::hash_ctx_finalize(
             self.common
+                .data
                 .runtime_info
                 .digest_context_m1m2
                 .as_ref()
@@ -182,23 +183,23 @@ impl RequesterContext {
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         debug!("message_m1m2_hash - {:02x?}", message_m1m2_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+        if self.common.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
             error!("peer_cert_chain is not populated!\n");
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
 
         let mut message_sign = ManagedBuffer12Sign::default();
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_sign.reset_message();
             message_sign
                 .append_message(&self.common.get_signing_prefix_context())
@@ -218,8 +219,8 @@ impl RequesterContext {
         }
 
         crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             cert_chain_data,
             message_sign.as_ref(),
             signature,
@@ -234,39 +235,39 @@ impl RequesterContext {
     ) -> SpdmResult {
         let mut message_m1m2 = ManagedBufferM1M2::default();
         message_m1m2
-            .append_message(self.common.runtime_info.message_a.as_ref())
+            .append_message(self.common.data.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         message_m1m2
-            .append_message(self.common.runtime_info.message_b.as_ref())
+            .append_message(self.common.data.runtime_info.message_b.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         message_m1m2
-            .append_message(self.common.runtime_info.message_c.as_ref())
+            .append_message(self.common.data.runtime_info.message_c.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
 
         // we dont need create message hash for verify
         // we just print message hash for debug purpose
         let message_m1m2_hash = crypto::hash::hash_all(
-            self.common.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_hash_sel,
             message_m1m2.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         debug!("message_m1m2_hash - {:02x?}", message_m1m2_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+        if self.common.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
             error!("peer_cert_chain is not populated!\n");
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_m1m2.reset_message();
             message_m1m2
                 .append_message(&self.common.get_signing_prefix_context())
@@ -283,8 +284,8 @@ impl RequesterContext {
         }
 
         crypto::asym_verify::verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.data.negotiate_info.base_hash_sel,
+            self.common.data.negotiate_info.base_asym_sel,
             cert_chain_data,
             message_m1m2.as_ref(),
             signature,

@@ -121,7 +121,7 @@ impl SpdmCodec for SpdmEncapsulatedResponseAckPayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             cnt += self
                 .ack_request_id
                 .encode(bytes)
@@ -142,7 +142,7 @@ impl SpdmCodec for SpdmEncapsulatedResponseAckPayload {
         let payload_type = SpdmEncapsulatedResponseAckPayloadType::read(r)?; // param2
         let mut ack_request_id = 0;
 
-        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+        if context.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             ack_request_id = u8::read(r)?;
             let _ = u24::read(r)?; // reserved
         }

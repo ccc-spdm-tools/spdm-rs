@@ -48,7 +48,7 @@ fn test_case0_handle_spdm_version() {
         let mut writer = Writer::init(&mut response_buffer);
         context.handle_spdm_version(bytes, &mut writer);
 
-        let data = context.common.runtime_info.message_a.as_ref();
+        let data = context.common.data.runtime_info.message_a.as_ref();
         let u8_slice = &mut [0u8; 1024];
         for (i, data) in data.iter().enumerate() {
             u8_slice[i] = *data;

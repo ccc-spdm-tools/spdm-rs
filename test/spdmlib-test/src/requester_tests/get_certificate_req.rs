@@ -40,10 +40,10 @@ fn test_case0_send_receive_spdm_certificate() {
         );
 
         responder.common.reset_runtime_info();
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -56,6 +56,7 @@ fn test_case0_send_receive_spdm_certificate() {
 
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -73,8 +74,8 @@ fn test_case0_send_receive_spdm_certificate() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
 
         let status = requester
@@ -219,9 +220,10 @@ fn test_handle_spdm_certificate_partial_response() {
                 req_config_info,
                 req_provision_info,
             );
-            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-            requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-            requester.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+            requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+            requester.common.data.peer_info.peer_cert_chain_temp =
+                Some(SpdmCertChainBuffer::default());
             let session_id = None;
             let send_buffer = [0u8; MAX_SPDM_MSG_SIZE];
             let result = requester.handle_spdm_certificate_partial_response(

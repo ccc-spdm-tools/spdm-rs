@@ -27,7 +27,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.runtime_info.get_connection_state()
+        if self.common.data.runtime_info.get_connection_state()
             != SpdmConnectionState::SpdmConnectionAfterVersion
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -50,7 +50,7 @@ impl ResponderContext {
                     Some(writer.used_slice()),
                 );
             }
-            self.common.negotiate_info.spdm_version_sel = version;
+            self.common.data.negotiate_info.spdm_version_sel = version;
         } else {
             error!("!!! get_capabilities : fail !!!\n");
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
@@ -83,22 +83,22 @@ impl ResponderContext {
                 );
             }
 
-            self.common.negotiate_info.req_ct_exponent_sel = get_capabilities.ct_exponent;
-            self.common.negotiate_info.req_capabilities_sel = get_capabilities.flags;
-            self.common.negotiate_info.rsp_ct_exponent_sel =
-                self.common.config_info.rsp_ct_exponent;
-            self.common.negotiate_info.rsp_capabilities_sel =
-                self.common.config_info.rsp_capabilities;
+            self.common.data.negotiate_info.req_ct_exponent_sel = get_capabilities.ct_exponent;
+            self.common.data.negotiate_info.req_capabilities_sel = get_capabilities.flags;
+            self.common.data.negotiate_info.rsp_ct_exponent_sel =
+                self.common.data.config_info.rsp_ct_exponent;
+            self.common.data.negotiate_info.rsp_capabilities_sel =
+                self.common.data.config_info.rsp_capabilities;
 
-            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-                self.common.negotiate_info.req_data_transfer_size_sel =
+            if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+                self.common.data.negotiate_info.req_data_transfer_size_sel =
                     get_capabilities.data_transfer_size;
-                self.common.negotiate_info.req_max_spdm_msg_size_sel =
+                self.common.data.negotiate_info.req_max_spdm_msg_size_sel =
                     get_capabilities.max_spdm_msg_size;
-                self.common.negotiate_info.rsp_data_transfer_size_sel =
-                    self.common.config_info.data_transfer_size;
-                self.common.negotiate_info.rsp_max_spdm_msg_size_sel =
-                    self.common.config_info.max_spdm_msg_size;
+                self.common.data.negotiate_info.rsp_data_transfer_size_sel =
+                    self.common.data.config_info.data_transfer_size;
+                self.common.data.negotiate_info.rsp_max_spdm_msg_size_sel =
+                    self.common.data.config_info.max_spdm_msg_size;
             }
         } else {
             error!("!!! get_capabilities : fail !!!\n");
@@ -125,15 +125,15 @@ impl ResponderContext {
 
         let response = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponseCapabilities,
             },
             payload: SpdmMessagePayload::SpdmCapabilitiesResponse(
                 SpdmCapabilitiesResponsePayload {
-                    ct_exponent: self.common.config_info.rsp_ct_exponent,
-                    flags: self.common.config_info.rsp_capabilities,
-                    data_transfer_size: self.common.config_info.data_transfer_size,
-                    max_spdm_msg_size: self.common.config_info.max_spdm_msg_size,
+                    ct_exponent: self.common.data.config_info.rsp_ct_exponent,
+                    flags: self.common.data.config_info.rsp_capabilities,
+                    data_transfer_size: self.common.data.config_info.data_transfer_size,
+                    max_spdm_msg_size: self.common.data.config_info.max_spdm_msg_size,
                 },
             ),
         };

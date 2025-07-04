@@ -48,8 +48,8 @@ impl ResponderContext {
         let mut err_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut err_buffer);
 
-        let send_buffer = if self.common.negotiate_info.req_data_transfer_size_sel != 0
-            && (send_buffer.len() > self.common.negotiate_info.req_data_transfer_size_sel as usize)
+        let send_buffer = if self.common.data.negotiate_info.req_data_transfer_size_sel != 0
+            && (send_buffer.len() > self.common.data.negotiate_info.req_data_transfer_size_sel as usize)
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorResponseTooLarge, 0, &mut writer);
             writer.used_slice()
@@ -86,41 +86,47 @@ impl ResponderContext {
         let opcode = send_buffer[1];
         if opcode == SpdmRequestResponseCode::SpdmResponseVersion.get_u8() {
             self.common
+                .data
                 .runtime_info
                 .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseCapabilities.get_u8() {
             self.common
+                .data
                 .runtime_info
                 .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseAlgorithms.get_u8() {
             self.common
+                .data
                 .runtime_info
                 .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseDigests.get_u8() {
-            if self.common.runtime_info.get_connection_state().get_u8()
+            if self.common.data.runtime_info.get_connection_state().get_u8()
                 < SpdmConnectionState::SpdmConnectionAfterDigest.get_u8()
             {
                 self.common
+                    .data
                     .runtime_info
                     .set_connection_state(SpdmConnectionState::SpdmConnectionAfterDigest);
             }
         } else if opcode == SpdmRequestResponseCode::SpdmResponseCertificate.get_u8() {
-            if self.common.runtime_info.get_connection_state().get_u8()
+            if self.common.data.runtime_info.get_connection_state().get_u8()
                 < SpdmConnectionState::SpdmConnectionAfterCertificate.get_u8()
             {
                 self.common
+                    .data
                     .runtime_info
                     .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCertificate);
             }
         } else if opcode == SpdmRequestResponseCode::SpdmResponseChallengeAuth.get_u8() {
             self.common
+                .data
                 .runtime_info
                 .set_connection_state(SpdmConnectionState::SpdmConnectionAuthenticated);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseFinishRsp.get_u8()
             && session_id.is_none()
         {
             let session_id =
-                if let Some(session_id) = self.common.runtime_info.get_last_session_id() {
+                if let Some(session_id) = self.common.data.runtime_info.get_last_session_id() {
                     session_id
                 } else {
                     return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
@@ -140,11 +146,13 @@ impl ResponderContext {
 
             if self
                 .common
+                .data
                 .negotiate_info
                 .req_capabilities_sel
                 .contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
                 && self
                     .common
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::HBEAT_CAP)
@@ -152,7 +160,7 @@ impl ResponderContext {
                 start_watchdog(session_id, heartbeat_period as u16 * 2);
             }
 
-            self.common.runtime_info.set_last_session_id(None);
+            self.common.data.runtime_info.set_last_session_id(None);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseEndSessionAck.get_u8() {
             let session = self
                 .common
@@ -180,11 +188,13 @@ impl ResponderContext {
 
             if self
                 .common
+                .data
                 .negotiate_info
                 .req_capabilities_sel
                 .contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
                 && self
                     .common
+                    .data
                     .negotiate_info
                     .rsp_capabilities_sel
                     .contains(SpdmResponseCapabilityFlags::HBEAT_CAP)
@@ -244,11 +254,13 @@ impl ResponderContext {
                             // reset watchdog in any session messages.
                             if self
                                 .common
+                                .data
                                 .negotiate_info
                                 .req_capabilities_sel
                                 .contains(SpdmRequestCapabilityFlags::HBEAT_CAP)
                                 && self
                                     .common
+                                    .data
                                     .negotiate_info
                                     .rsp_capabilities_sel
                                     .contains(SpdmResponseCapabilityFlags::HBEAT_CAP)
@@ -326,7 +338,7 @@ impl ResponderContext {
         info!("receive_message!\n");
 
         let timeout: usize = if crypto_request {
-            2 << self.common.negotiate_info.req_ct_exponent_sel
+            2 << self.common.data.negotiate_info.req_ct_exponent_sel
         } else {
             ST1
         };
@@ -376,11 +388,13 @@ impl ResponderContext {
             SpdmSessionState::SpdmSessionHandshaking => {
                 let in_clear_text = self
                     .common
+                    .data
                     .negotiate_info
                     .req_capabilities_sel
                     .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
                     && self
                         .common
+                        .data
                         .negotiate_info
                         .rsp_capabilities_sel
                         .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
@@ -556,16 +570,18 @@ impl ResponderContext {
                 SpdmRequestResponseCode::SpdmRequestFinish => {
                     let in_clear_text = self
                         .common
+                        .data
                         .negotiate_info
                         .req_capabilities_sel
                         .contains(SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP)
                         && self
                             .common
+                            .data
                             .negotiate_info
                             .rsp_capabilities_sel
                             .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
                     if in_clear_text {
-                        if let Some(session_id) = self.common.runtime_info.get_last_session_id() {
+                        if let Some(session_id) = self.common.data.runtime_info.get_last_session_id() {
                             if let Some(session) =
                                 self.common.get_immutable_session_via_id(session_id)
                             {

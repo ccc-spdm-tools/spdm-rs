@@ -655,7 +655,7 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -687,7 +687,7 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -740,7 +740,7 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -826,12 +826,12 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
-        context.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
-        context.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
-        context.config_info.base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
-        context.config_info.base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+        context.data.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
+        context.data.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
+        context.data.config_info.base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
+        context.data.config_info.base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -929,7 +929,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -988,11 +988,11 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
-        context.runtime_info.need_measurement_summary_hash = true;
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.runtime_info.need_measurement_summary_hash = true;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1056,7 +1056,7 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -1137,13 +1137,13 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
 
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        context.runtime_info.need_measurement_signature = true;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
+        context.data.runtime_info.need_measurement_signature = true;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1200,8 +1200,8 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1250,8 +1250,8 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1288,10 +1288,10 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.negotiate_info.req_capabilities_sel =
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        context.negotiate_info.rsp_capabilities_sel =
+        context.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -1386,8 +1386,8 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
-        context.runtime_info.need_measurement_summary_hash = true;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.runtime_info.need_measurement_summary_hash = true;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1437,7 +1437,7 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1463,7 +1463,7 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         if let SpdmMessagePayload::SpdmKeyUpdateRequest(payload) = &spdm_message.payload {
             assert_eq!(
@@ -1484,7 +1484,7 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1544,7 +1544,7 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,
@@ -1696,7 +1696,7 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
             spdm_message.header.request_response_code,

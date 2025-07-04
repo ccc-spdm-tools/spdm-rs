@@ -40,33 +40,36 @@ fn test_case0_send_receive_spdm_measurement() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.req_ct_exponent_sel = 0;
-        responder.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        responder.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        responder.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        responder.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        responder.common.negotiate_info.rsp_capabilities_sel =
+        responder.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        responder.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
         responder
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.measurement_hash_sel =
+        responder.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         #[cfg(not(feature = "hashed-transcript-data"))]
         let message_m = &[0];
         #[cfg(not(feature = "hashed-transcript-data"))]
         responder
             .common
+            .data
             .runtime_info
             .message_m
             .append_message(message_m);
         responder.common.reset_runtime_info();
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -79,9 +82,10 @@ fn test_case0_send_receive_spdm_measurement() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -99,23 +103,25 @@ fn test_case0_send_receive_spdm_measurement() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         requester.common.reset_runtime_info();
 
         let measurement_operation = SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber;
@@ -412,23 +418,24 @@ fn test_handle_spdm_measurement_record_response() {
                 req_config_info,
                 req_provision_info,
             );
-            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
-            requester.common.negotiate_info.req_ct_exponent_sel = 0;
-            requester.common.negotiate_info.req_capabilities_sel =
+            requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+            requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+            requester.common.data.negotiate_info.req_capabilities_sel =
                 SpdmRequestCapabilityFlags::CERT_CAP;
-            requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-            requester.common.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+            requester.common.data.negotiate_info.rsp_capabilities_sel =
                 SpdmResponseCapabilityFlags::CERT_CAP;
             requester
                 .common
+                .data
                 .negotiate_info
                 .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-            requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-            requester.common.negotiate_info.base_asym_sel =
+            requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+            requester.common.data.negotiate_info.base_asym_sel =
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-            requester.common.negotiate_info.measurement_hash_sel =
+            requester.common.data.negotiate_info.measurement_hash_sel =
                 SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-            requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+            requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
             requester.common.reset_runtime_info();
 
             let session_id = None;
@@ -482,33 +489,36 @@ fn test_case1_send_receive_spdm_measurement() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.req_ct_exponent_sel = 0;
-        responder.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        responder.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        responder.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        responder.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        responder.common.negotiate_info.rsp_capabilities_sel =
+        responder.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        responder.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
         responder
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.measurement_hash_sel =
+        responder.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         #[cfg(not(feature = "hashed-transcript-data"))]
         let message_m = &[0];
         #[cfg(not(feature = "hashed-transcript-data"))]
         responder
             .common
+            .data
             .runtime_info
             .message_m
             .append_message(message_m);
         responder.common.reset_runtime_info();
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -521,9 +531,10 @@ fn test_case1_send_receive_spdm_measurement() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
         responder
@@ -545,23 +556,25 @@ fn test_case1_send_receive_spdm_measurement() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         requester.common.reset_runtime_info();
         requester
             .common
@@ -640,19 +653,24 @@ fn test_case1_send_receive_spdm_measurement() {
             .append_message(message_l1l2_hash.as_ref())
             .unwrap();
 
-        let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0 as usize]
+        let cert_chain_data = &requester.common.data.peer_info.peer_cert_chain[0 as usize]
             .as_ref()
             .unwrap()
             .data[(4usize
-            + requester.common.negotiate_info.base_hash_sel.get_size() as usize)
-            ..(requester.common.peer_info.peer_cert_chain[0 as usize]
+            + requester
+                .common
+                .data
+                .negotiate_info
+                .base_hash_sel
+                .get_size() as usize)
+            ..(requester.common.data.peer_info.peer_cert_chain[0 as usize]
                 .as_ref()
                 .unwrap()
                 .data_size as usize)];
 
         let result = crypto::asym_verify::verify(
-            requester.common.negotiate_info.base_hash_sel,
-            requester.common.negotiate_info.base_asym_sel,
+            requester.common.data.negotiate_info.base_hash_sel,
+            requester.common.data.negotiate_info.base_asym_sel,
             cert_chain_data,
             message_l1l2.as_ref(),
             &spdm_signature_struct,
@@ -685,33 +703,36 @@ fn test_case3_send_receive_spdm_measurement() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.req_ct_exponent_sel = 0;
-        responder.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        responder.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        responder.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        responder.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        responder.common.negotiate_info.rsp_capabilities_sel =
+        responder.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        responder.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
         responder
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        responder.common.negotiate_info.measurement_hash_sel =
+        responder.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         #[cfg(not(feature = "hashed-transcript-data"))]
         let message_m = &[0];
         #[cfg(not(feature = "hashed-transcript-data"))]
         responder
             .common
+            .data
             .runtime_info
             .message_m
             .append_message(message_m);
         responder.common.reset_runtime_info();
-        responder.common.provision_info.my_cert_chain = [
+        responder.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -724,9 +745,10 @@ fn test_case3_send_receive_spdm_measurement() {
             None,
             None,
         ];
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
         responder
@@ -748,23 +770,25 @@ fn test_case3_send_receive_spdm_measurement() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         requester.common.reset_runtime_info();
         requester
             .common
@@ -857,19 +881,24 @@ fn test_case3_send_receive_spdm_measurement() {
                     .append_message(message_l1l2_hash.as_ref())
                     .unwrap();
 
-                let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0 as usize]
+                let cert_chain_data = &requester.common.data.peer_info.peer_cert_chain[0 as usize]
                     .as_ref()
                     .unwrap()
                     .data[(4usize
-                    + requester.common.negotiate_info.base_hash_sel.get_size() as usize)
-                    ..(requester.common.peer_info.peer_cert_chain[0 as usize]
+                    + requester
+                        .common
+                        .data
+                        .negotiate_info
+                        .base_hash_sel
+                        .get_size() as usize)
+                    ..(requester.common.data.peer_info.peer_cert_chain[0 as usize]
                         .as_ref()
                         .unwrap()
                         .data_size as usize)];
 
                 let result = crypto::asym_verify::verify(
-                    requester.common.negotiate_info.base_hash_sel,
-                    requester.common.negotiate_info.base_asym_sel,
+                    requester.common.data.negotiate_info.base_hash_sel,
+                    requester.common.data.negotiate_info.base_asym_sel,
                     cert_chain_data,
                     message_l1l2.as_ref(),
                     &spdm_signature_struct,

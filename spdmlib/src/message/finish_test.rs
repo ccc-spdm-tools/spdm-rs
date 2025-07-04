@@ -14,8 +14,8 @@ extern crate alloc;
 fn test_finish_struct() {
     create_spdm_context!(context);
     let context = &mut context;
-    context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
-    context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+    context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
 
     // 1. Validate FINISH request length is 4 + SigLen + H. SigLen if Param1 Bit 0 is set.
     let u8_slice = &mut [0u8; 4 + 32];
@@ -33,9 +33,9 @@ fn test_finish_struct() {
 
     // 3. Validate FINISH_RSP response length is 4 + H. when HANDSHAKE_IN_THE_CLEAR_CAPs are not 0.
     let u8_slice = &mut [0u8; 4];
-    context.negotiate_info.req_capabilities_sel |=
+    context.data.negotiate_info.req_capabilities_sel |=
         SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-    context.negotiate_info.rsp_capabilities_sel |=
+    context.data.negotiate_info.rsp_capabilities_sel |=
         SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
     let reader = &mut Reader::init(&u8_slice[2..]);
     let ret = SpdmFinishResponsePayload::spdm_read(context, reader);
@@ -43,9 +43,9 @@ fn test_finish_struct() {
 
     // 4. Validate FINISH_RSP response length is 4 + H. when HANDSHAKE_IN_THE_CLEAR_CAPs are not 0.
     let u8_slice = &mut [0u8; 4 + 32];
-    context.negotiate_info.req_capabilities_sel |=
+    context.data.negotiate_info.req_capabilities_sel |=
         SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-    context.negotiate_info.rsp_capabilities_sel |=
+    context.data.negotiate_info.rsp_capabilities_sel |=
         SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
     let reader = &mut Reader::init(&u8_slice[2..]);
     let ret = SpdmFinishResponsePayload::spdm_read(context, reader);

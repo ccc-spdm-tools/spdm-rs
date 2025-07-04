@@ -36,11 +36,12 @@ fn test_case0_send_receive_spdm_psk_exchange() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -58,11 +59,11 @@ fn test_case0_send_receive_spdm_psk_exchange() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
         let measurement_summary_hash_type =
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone;
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         let mut psk_key = SpdmPskHintStruct {
             data_size: b"TestPskHint\0".len() as u16,
@@ -100,11 +101,12 @@ fn test_case1_send_receive_spdm_psk_exchange() {
             rsp_provision_info,
         );
 
-        responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256; // different base hash algo will cause key negotiate fail
-        responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        responder.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256; // different base hash algo will cause key negotiate fail
+        responder.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        responder.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
         responder
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -122,11 +124,11 @@ fn test_case1_send_receive_spdm_psk_exchange() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
         let measurement_summary_hash_type =
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone;
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
 
         let mut psk_key = SpdmPskHintStruct {
             data_size: b"TestPskHint\0".len() as u16,
@@ -140,7 +142,7 @@ fn test_case1_send_receive_spdm_psk_exchange() {
             .is_ok();
         assert_eq!(status, false);
 
-        for session in requester.common.session.iter() {
+        for session in requester.common.data.session.iter() {
             assert_eq!(
                 session.get_session_id(),
                 spdmlib::common::INVALID_SESSION_ID

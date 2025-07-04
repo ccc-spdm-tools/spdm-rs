@@ -30,7 +30,7 @@ impl RequesterContext {
             .await?;
 
         // update key
-        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
         let session = if let Some(s) = self.common.get_session_via_id(session_id) {
             s
         } else {
@@ -62,7 +62,7 @@ impl RequesterContext {
         let mut writer = Writer::init(buf);
         let request = SpdmMessage {
             header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
+                version: self.common.data.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmRequestKeyUpdate,
             },
             payload: SpdmMessagePayload::SpdmKeyUpdateRequest(SpdmKeyUpdateRequestPayload {
@@ -83,14 +83,14 @@ impl RequesterContext {
         let mut reader = Reader::init(receive_buffer);
         match SpdmMessageHeader::read(&mut reader) {
             Some(message_header) => {
-                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                if message_header.version != self.common.data.negotiate_info.spdm_version_sel {
                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                 }
                 match message_header.request_response_code {
                     SpdmRequestResponseCode::SpdmResponseKeyUpdateAck => {
                         let key_update_rsp =
                             SpdmKeyUpdateResponsePayload::spdm_read(&mut self.common, &mut reader);
-                        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+                        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
                         let session = if let Some(s) = self.common.get_session_via_id(session_id) {
                             s
                         } else {
@@ -117,7 +117,7 @@ impl RequesterContext {
                         }
                     }
                     SpdmRequestResponseCode::SpdmResponseError => {
-                        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+                        let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
                         let session = if let Some(s) = self.common.get_session_via_id(session_id) {
                             s
                         } else {
