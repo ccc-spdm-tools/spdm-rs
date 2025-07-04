@@ -343,7 +343,7 @@ async fn test_spdm(
             );
 
             // Get original keys.
-            let ori_keys = &context.common.session[0].export_keys();
+            let ori_keys = &context.common.data.session[0].export_keys();
 
             // Update all keys and send wrong UpdateAllKeys request.
             let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
@@ -373,7 +373,7 @@ async fn test_spdm(
                 .ok();
 
             // Update all keys to new keys.
-            let new_keys = &context.common.session[0].export_keys();
+            let new_keys = &context.common.data.session[0].export_keys();
             assert!(new_keys.0.encryption_key.data != ori_keys.0.encryption_key.data);
             assert!(new_keys.1.encryption_key.data != ori_keys.1.encryption_key.data);
 
@@ -395,7 +395,7 @@ async fn test_spdm(
             );
             // Return key update fail due to wrong request message
             assert!(status.is_err());
-            let rollbacked_keys = &context.common.session[0].export_keys();
+            let rollbacked_keys = &context.common.data.session[0].export_keys();
             // Rollback all keys to original keys.
             assert!(rollbacked_keys.0.encryption_key.data == ori_keys.0.encryption_key.data);
             assert!(rollbacked_keys.1.encryption_key.data == ori_keys.1.encryption_key.data);
@@ -409,7 +409,7 @@ async fn test_spdm(
             );
 
             // Get original keys.
-            let ori_keys = &context.common.session[0].export_keys();
+            let ori_keys = &context.common.data.session[0].export_keys();
 
             // 1. Send UpdateAllKeys request and update all keys.
             let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
@@ -439,7 +439,7 @@ async fn test_spdm(
                 .ok();
 
             // Update all keys to new keys.
-            let new_keys = &context.common.session[0].export_keys();
+            let new_keys = &context.common.data.session[0].export_keys();
             assert!(new_keys.0.encryption_key.data != ori_keys.0.encryption_key.data);
 
             let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
@@ -460,7 +460,7 @@ async fn test_spdm(
             );
             // Key update successfully.
             assert!(status.is_ok());
-            let new_keys = &context.common.session[0].export_keys();
+            let new_keys = &context.common.data.session[0].export_keys();
             assert!(new_keys.0.encryption_key.data != ori_keys.0.encryption_key.data);
             assert!(new_keys.1.encryption_key.data != ori_keys.1.encryption_key.data);
 

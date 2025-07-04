@@ -190,9 +190,9 @@ fn test_case0_dispatch_secured_message() {
         context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         context.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-        context.session = gen_array_clone(SpdmSession::new(), 4);
-        context.session[0].setup(session_id).unwrap();
-        context.session[0].set_crypto_param(
+        context.data.session = gen_array_clone(SpdmSession::new(), 4);
+        context.data.session[0].setup(session_id).unwrap();
+        context.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,

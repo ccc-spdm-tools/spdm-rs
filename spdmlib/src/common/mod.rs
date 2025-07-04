@@ -177,25 +177,25 @@ impl SpdmContext {
     }
 
     pub fn get_hash_size(&self) -> u16 {
-        self.negotiate_info.base_hash_sel.get_size()
+        self.data.negotiate_info.base_hash_sel.get_size()
     }
     pub fn get_asym_key_size(&self) -> u16 {
-        self.negotiate_info.base_asym_sel.get_size()
+        self.data.negotiate_info.base_asym_sel.get_size()
     }
     pub fn get_dhe_key_size(&self) -> u16 {
-        self.negotiate_info.dhe_sel.get_size()
+        self.data.negotiate_info.dhe_sel.get_size()
     }
 
     pub fn reset_runtime_info(&mut self) {
-        self.runtime_info = SpdmRuntimeInfo::default();
+        self.data.runtime_info = SpdmRuntimeInfo::default();
     }
 
     pub fn reset_negotiate_info(&mut self) {
-        self.negotiate_info = SpdmNegotiateInfo::default();
+        self.data.negotiate_info = SpdmNegotiateInfo::default();
     }
 
     pub fn reset_peer_info(&mut self) {
-        self.peer_info = SpdmPeerInfo::default();
+        self.data.peer_info = SpdmPeerInfo::default();
     }
 
     pub fn reset_context(&mut self) {
@@ -205,27 +205,27 @@ impl SpdmContext {
 
         #[cfg(feature = "mut-auth")]
         {
-            self.encap_context = SpdmEncapContext::default();
+            self.data.encap_context = SpdmEncapContext::default();
         }
 
         #[cfg(feature = "mandatory-mut-auth")]
         {
-            self.mut_auth_done = false;
+            self.data.mut_auth_done = false;
         }
 
-        for s in &mut self.session {
+        for s in &mut self.data.session {
             s.set_default();
         }
     }
 
     pub fn get_immutable_session_via_id(&self, session_id: u32) -> Option<&SpdmSession> {
-        self.session
+        self.data.session
             .iter()
             .find(|&session| session.get_session_id() == session_id)
     }
 
     pub fn get_session_via_id(&mut self, session_id: u32) -> Option<&mut SpdmSession> {
-        self.session
+        self.data.session
             .iter_mut()
             .find(|session| session.get_session_id() == session_id)
     }
@@ -242,8 +242,8 @@ impl SpdmContext {
             .enumerate()
             .take(config::MAX_SPDM_SESSION_COUNT)
         {
-            it.0 = self.session[i].get_session_id();
-            it.1 = self.session[i].get_session_state();
+            it.0 = self.data.session[i].get_session_id();
+            it.1 = self.data.session[i].get_session_state();
         }
         status
     }
@@ -251,7 +251,7 @@ impl SpdmContext {
     pub fn get_next_half_session_id(&self, is_requester: bool) -> SpdmResult<u16> {
         let shift = if is_requester { 0 } else { 16 };
 
-        for (index, s) in self.session.iter().enumerate().take(MAX_SPDM_SESSION_COUNT) {
+        for (index, s) in self.data.session.iter().enumerate().take(MAX_SPDM_SESSION_COUNT) {
             if ((s.get_session_id() & (0xFFFF << shift)) >> shift) as u16 == INVALID_HALF_SESSION_ID
             {
                 return Ok(INITIAL_SESSION_ID - index as u16);
@@ -263,10 +263,10 @@ impl SpdmContext {
 
     pub fn construct_my_cert_chain(&mut self) -> SpdmResult {
         for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
-            if self.provision_info.my_cert_chain[slot_id].is_none()
-                && self.provision_info.my_cert_chain_data[slot_id].is_some()
+            if self.data.provision_info.my_cert_chain[slot_id].is_none()
+                && self.data.provision_info.my_cert_chain_data[slot_id].is_some()
             {
-                let cert_chain = self.provision_info.my_cert_chain_data[slot_id]
+                let cert_chain = self.data.provision_info.my_cert_chain_data[slot_id]
                     .as_ref()
                     .unwrap();
                 let (root_cert_begin, root_cert_end) =
@@ -276,7 +276,7 @@ impl SpdmContext {
                     )?;
                 let root_cert = &cert_chain.data[root_cert_begin..root_cert_end];
                 if let Some(root_hash) =
-                    crypto::hash::hash_all(self.negotiate_info.base_hash_sel, root_cert)
+                    crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, root_cert)
                 {
                     let data_size = 4 + root_hash.data_size + cert_chain.data_size;
                     let mut data =
@@ -287,7 +287,7 @@ impl SpdmContext {
                         .copy_from_slice(&root_hash.data[..(root_hash.data_size as usize)]);
                     data[(4 + root_hash.data_size as usize)..(data_size as usize)]
                         .copy_from_slice(&cert_chain.data[..(cert_chain.data_size as usize)]);
-                    self.provision_info.my_cert_chain[slot_id] =
+                    self.data.provision_info.my_cert_chain[slot_id] =
                         Some(SpdmCertChainBuffer { data_size, data });
                     debug!("my_cert_chain - {:02x?}\n", &data[..(data_size as usize)]);
                 } else {
@@ -300,7 +300,7 @@ impl SpdmContext {
     }
 
     pub fn get_signing_prefix_context(&self) -> [u8; 64] {
-        let spdm_version = u8::from(self.negotiate_info.spdm_version_sel);
+        let spdm_version = u8::from(self.data.negotiate_info.spdm_version_sel);
         let mut signing_prefix = SPDM_VERSION_1_X_SIGNING_PREFIX_CONTEXT;
         for i in 0..SPDM_VERSION_SIGNING_PREFIX_NUMBER {
             signing_prefix[SPDM_VERSION_SIGNING_PREFIX_LENGTH * i
@@ -312,20 +312,20 @@ impl SpdmContext {
     }
 
     pub fn append_message_a(&mut self, new_message: &[u8]) -> SpdmResult {
-        self.runtime_info
+        self.data.runtime_info
             .message_a
             .append_message(new_message)
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         Ok(())
     }
     pub fn reset_message_a(&mut self) {
-        self.runtime_info.message_a.reset_message();
+        self.data.runtime_info.message_a.reset_message();
     }
 
     pub fn append_message_b(&mut self, new_message: &[u8]) -> SpdmResult {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            self.runtime_info
+            self.data.runtime_info
                 .message_b
                 .append_message(new_message)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -333,21 +333,21 @@ impl SpdmContext {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            if self.runtime_info.digest_context_m1m2.is_none() {
-                self.runtime_info.digest_context_m1m2 =
-                    crypto::hash::hash_ctx_init(self.negotiate_info.base_hash_sel);
-                if self.runtime_info.digest_context_m1m2.is_none() {
+            if self.data.runtime_info.digest_context_m1m2.is_none() {
+                self.data.runtime_info.digest_context_m1m2 =
+                    crypto::hash::hash_ctx_init(self.data.negotiate_info.base_hash_sel);
+                if self.data.runtime_info.digest_context_m1m2.is_none() {
                     return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
                 }
 
                 crypto::hash::hash_ctx_update(
-                    self.runtime_info.digest_context_m1m2.as_mut().unwrap(),
-                    self.runtime_info.message_a.as_ref(),
+                    self.data.runtime_info.digest_context_m1m2.as_mut().unwrap(),
+                    self.data.runtime_info.message_a.as_ref(),
                 )?;
             }
 
             crypto::hash::hash_ctx_update(
-                self.runtime_info.digest_context_m1m2.as_mut().unwrap(),
+                self.data.runtime_info.digest_context_m1m2.as_mut().unwrap(),
                 new_message,
             )?;
         }
@@ -357,19 +357,19 @@ impl SpdmContext {
     pub fn reset_message_b(&mut self) {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            self.runtime_info.message_b.reset_message();
+            self.data.runtime_info.message_b.reset_message();
         }
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            self.runtime_info.digest_context_m1m2 = None;
+            self.data.runtime_info.digest_context_m1m2 = None;
         }
     }
 
     pub fn append_message_c(&mut self, new_message: &[u8]) -> SpdmResult {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            self.runtime_info
+            self.data.runtime_info
                 .message_c
                 .append_message(new_message)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -377,21 +377,21 @@ impl SpdmContext {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            if self.runtime_info.digest_context_m1m2.is_none() {
-                self.runtime_info.digest_context_m1m2 =
-                    crypto::hash::hash_ctx_init(self.negotiate_info.base_hash_sel);
-                if self.runtime_info.digest_context_m1m2.is_none() {
+            if self.data.runtime_info.digest_context_m1m2.is_none() {
+                self.data.runtime_info.digest_context_m1m2 =
+                    crypto::hash::hash_ctx_init(self.data.negotiate_info.base_hash_sel);
+                if self.data.runtime_info.digest_context_m1m2.is_none() {
                     return Err(SPDM_STATUS_CRYPTO_ERROR);
                 }
 
                 crypto::hash::hash_ctx_update(
-                    self.runtime_info.digest_context_m1m2.as_mut().unwrap(),
-                    self.runtime_info.message_a.as_ref(),
+                    self.data.runtime_info.digest_context_m1m2.as_mut().unwrap(),
+                    self.data.runtime_info.message_a.as_ref(),
                 )?;
             }
 
             crypto::hash::hash_ctx_update(
-                self.runtime_info.digest_context_m1m2.as_mut().unwrap(),
+                self.data.runtime_info.digest_context_m1m2.as_mut().unwrap(),
                 new_message,
             )?;
         }
@@ -401,12 +401,12 @@ impl SpdmContext {
     pub fn reset_message_c(&mut self) {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            self.runtime_info.message_c.reset_message();
+            self.data.runtime_info.message_c.reset_message();
         }
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            self.runtime_info.digest_context_m1m2 = None;
+            self.data.runtime_info.digest_context_m1m2 = None;
         }
     }
 
@@ -414,7 +414,7 @@ impl SpdmContext {
         #[cfg(not(feature = "hashed-transcript-data"))]
         match session_id {
             None => self
-                .runtime_info
+                .data.runtime_info
                 .message_m
                 .append_message(new_message)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?,
@@ -436,9 +436,9 @@ impl SpdmContext {
         {
             match session_id {
                 Some(session_id) => {
-                    let base_hash_sel = self.negotiate_info.base_hash_sel;
-                    let spdm_version_sel = self.negotiate_info.spdm_version_sel;
-                    let message_a = self.runtime_info.message_a.clone();
+                    let base_hash_sel = self.data.negotiate_info.base_hash_sel;
+                    let spdm_version_sel = self.data.negotiate_info.spdm_version_sel;
+                    let message_a = self.data.runtime_info.message_a.clone();
 
                     let session = if let Some(s) = self.get_session_via_id(session_id) {
                         s
@@ -466,23 +466,23 @@ impl SpdmContext {
                     )?;
                 }
                 None => {
-                    if self.runtime_info.digest_context_l1l2.is_none() {
-                        self.runtime_info.digest_context_l1l2 =
-                            crypto::hash::hash_ctx_init(self.negotiate_info.base_hash_sel);
-                        if self.runtime_info.digest_context_l1l2.is_none() {
+                    if self.data.runtime_info.digest_context_l1l2.is_none() {
+                        self.data.runtime_info.digest_context_l1l2 =
+                            crypto::hash::hash_ctx_init(self.data.negotiate_info.base_hash_sel);
+                        if self.data.runtime_info.digest_context_l1l2.is_none() {
                             return Err(SPDM_STATUS_CRYPTO_ERROR);
                         }
 
-                        if self.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+                        if self.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
                             crypto::hash::hash_ctx_update(
-                                self.runtime_info.digest_context_l1l2.as_mut().unwrap(),
-                                self.runtime_info.message_a.as_ref(),
+                                self.data.runtime_info.digest_context_l1l2.as_mut().unwrap(),
+                                self.data.runtime_info.message_a.as_ref(),
                             )?;
                         }
                     }
 
                     crypto::hash::hash_ctx_update(
-                        self.runtime_info.digest_context_l1l2.as_mut().unwrap(),
+                        self.data.runtime_info.digest_context_l1l2.as_mut().unwrap(),
                         new_message,
                     )?;
                 }
@@ -494,7 +494,7 @@ impl SpdmContext {
     pub fn reset_message_m(&mut self, session_id: Option<u32>) {
         #[cfg(not(feature = "hashed-transcript-data"))]
         match session_id {
-            None => self.runtime_info.message_m.reset_message(),
+            None => self.data.runtime_info.message_m.reset_message(),
             Some(session_id) => {
                 let session = if let Some(s) = self.get_session_via_id(session_id) {
                     s
@@ -517,7 +517,7 @@ impl SpdmContext {
                     session.runtime_info.digest_context_l1l2 = None;
                 }
                 None => {
-                    self.runtime_info.digest_context_l1l2 = None;
+                    self.data.runtime_info.digest_context_l1l2 = None;
                 }
             }
         }
@@ -621,11 +621,11 @@ impl SpdmContext {
                 && !session.get_mut_auth_requested().is_empty()
             {
                 if is_requester {
-                    let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
-                    if let Some(cert_chain) = &self.provision_info.my_cert_chain[slot_id as usize] {
+                    let slot_id = self.data.runtime_info.get_local_used_cert_chain_slot_id();
+                    if let Some(cert_chain) = &self.data.provision_info.my_cert_chain[slot_id as usize] {
                         Some(
                             crypto::hash::hash_all(
-                                self.negotiate_info.base_hash_sel,
+                                self.data.negotiate_info.base_hash_sel,
                                 &cert_chain.data[..cert_chain.data_size as usize],
                             )
                             .ok_or(SPDM_STATUS_CRYPTO_ERROR)?,
@@ -634,11 +634,11 @@ impl SpdmContext {
                         return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
                     }
                 } else {
-                    let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
-                    if let Some(cert_chain) = &self.peer_info.peer_cert_chain[slot_id as usize] {
+                    let slot_id = self.data.runtime_info.get_peer_used_cert_chain_slot_id();
+                    if let Some(cert_chain) = &self.data.peer_info.peer_cert_chain[slot_id as usize] {
                         Some(
                             crypto::hash::hash_all(
-                                self.negotiate_info.base_hash_sel,
+                                self.data.negotiate_info.base_hash_sel,
                                 cert_chain.as_ref(),
                             )
                             .ok_or(SPDM_STATUS_CRYPTO_ERROR)?,
@@ -701,25 +701,25 @@ impl SpdmContext {
     ) -> SpdmResult<ManagedBufferTH> {
         let mut message = ManagedBufferTH::default();
         message
-            .append_message(self.runtime_info.message_a.as_ref())
+            .append_message(self.data.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-        debug!("message_a - {:02x?}", self.runtime_info.message_a.as_ref());
+        debug!("message_a - {:02x?}", self.data.runtime_info.message_a.as_ref());
 
         if !use_psk {
-            if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+            if self.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
                 error!("peer_cert_chain is not populated!\n");
                 return Err(SPDM_STATUS_INVALID_PARAMETER);
             }
 
-            let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
+            let cert_chain_data = &self.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data[..(self.peer_info.peer_cert_chain[slot_id as usize]
+                .data[..(self.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
             let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
             message
                 .append_message(cert_chain_hash.as_ref())
@@ -732,21 +732,21 @@ impl SpdmContext {
         debug!("message_k - {:02x?}", message_k.as_ref());
 
         if !use_psk && is_mut_auth {
-            let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
-            if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
+            let slot_id = self.data.runtime_info.get_local_used_cert_chain_slot_id();
+            if self.data.provision_info.my_cert_chain[slot_id as usize].is_none() {
                 error!("mut cert_chain is not populated!\n");
                 return Err(SPDM_STATUS_INVALID_PARAMETER);
             }
 
-            let cert_chain_data = &self.provision_info.my_cert_chain[slot_id as usize]
+            let cert_chain_data = &self.data.provision_info.my_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data[..(self.provision_info.my_cert_chain[slot_id as usize]
+                .data[..(self.data.provision_info.my_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
             let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
             message
                 .append_message(cert_chain_hash.as_ref())
@@ -775,21 +775,21 @@ impl SpdmContext {
     ) -> SpdmResult<ManagedBufferTH> {
         let mut message = ManagedBufferTH::default();
         message
-            .append_message(self.runtime_info.message_a.as_ref())
+            .append_message(self.data.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-        debug!("message_a - {:02x?}", self.runtime_info.message_a.as_ref());
+        debug!("message_a - {:02x?}", self.data.runtime_info.message_a.as_ref());
         if !use_psk {
-            if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
+            if self.data.provision_info.my_cert_chain[slot_id as usize].is_none() {
                 error!("my_cert_chain is not populated!\n");
                 return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
             }
 
-            let my_cert_chain_data = self.provision_info.my_cert_chain[slot_id as usize]
+            let my_cert_chain_data = self.data.provision_info.my_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
             let cert_chain_data = my_cert_chain_data.as_ref();
             let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
 
             message
@@ -803,18 +803,18 @@ impl SpdmContext {
         debug!("message_k - {:02x?}", message_k.as_ref());
 
         if !use_psk && is_mut_auth {
-            let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
-            if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+            let slot_id = self.data.runtime_info.get_peer_used_cert_chain_slot_id();
+            if self.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
                 error!("peer_cert_chain is not populated!\n");
                 return Err(SPDM_STATUS_INVALID_PARAMETER);
             }
 
-            let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
+            let cert_chain_data = &self.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .as_ref();
             let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
             message
                 .append_message(cert_chain_hash.as_ref())
@@ -846,7 +846,7 @@ impl SpdmContext {
             self.calc_req_transcript_data(use_psk, slot_id, is_mut_auth, message_k, message_f)?;
 
         let transcript_hash =
-            crypto::hash::hash_all(self.negotiate_info.base_hash_sel, message.as_ref())
+            crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, message.as_ref())
                 .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         Ok(transcript_hash)
     }
@@ -865,7 +865,7 @@ impl SpdmContext {
             self.calc_rsp_transcript_data(use_psk, slot_id, is_mut_auth, message_k, message_f)?;
 
         let transcript_hash =
-            crypto::hash::hash_all(self.negotiate_info.base_hash_sel, message.as_ref())
+            crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, message.as_ref())
                 .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         Ok(transcript_hash)
     }
@@ -916,15 +916,15 @@ impl SpdmContext {
         slot_id: usize,
     ) -> Option<SpdmDigestStruct> {
         if !use_psk {
-            if self.provision_info.my_cert_chain[slot_id].is_none() {
+            if self.data.provision_info.my_cert_chain[slot_id].is_none() {
                 error!("my_cert_chain is not populated!\n");
                 return None;
             }
 
-            let my_cert_chain_data = self.provision_info.my_cert_chain[slot_id].as_ref()?;
+            let my_cert_chain_data = self.data.provision_info.my_cert_chain[slot_id].as_ref()?;
             let cert_chain_data = my_cert_chain_data.as_ref();
             let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(None::<SpdmDigestStruct>);
             if let Ok(hash) = cert_chain_hash {
                 Some(SpdmDigestStruct::from(hash.as_ref()))
@@ -942,15 +942,15 @@ impl SpdmContext {
         slot_id: usize,
     ) -> Option<SpdmDigestStruct> {
         if !use_psk {
-            if self.peer_info.peer_cert_chain[slot_id].is_none() {
+            if self.data.peer_info.peer_cert_chain[slot_id].is_none() {
                 error!("peer_cert_chain is not populated!\n");
                 return None;
             }
 
-            let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id].as_ref()?.data
-                [..(self.peer_info.peer_cert_chain[slot_id].as_ref()?.data_size as usize)];
+            let cert_chain_data = &self.data.peer_info.peer_cert_chain[slot_id].as_ref()?.data
+                [..(self.data.peer_info.peer_cert_chain[slot_id].as_ref()?.data_size as usize)];
             let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(None::<SpdmDigestStruct>);
 
             if let Ok(hash) = cert_chain_hash {
@@ -980,7 +980,7 @@ impl SpdmContext {
             | SpdmRequestResponseCode::SpdmRequestKeyUpdate
             | SpdmRequestResponseCode::SpdmRequestHeartbeat
             | SpdmRequestResponseCode::SpdmRequestEndSession => {
-                if self.runtime_info.connection_state.get_u8()
+                if self.data.runtime_info.connection_state.get_u8()
                     < SpdmConnectionState::SpdmConnectionAuthenticated.get_u8()
                 {
                     self.reset_message_b();
