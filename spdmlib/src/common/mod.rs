@@ -2077,7 +2077,7 @@ impl Codec for SpdmRuntimeInfo {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
     pub my_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
@@ -2086,6 +2086,69 @@ pub struct SpdmProvisionInfo {
     pub local_key_pair_id: [Option<u8>; SPDM_MAX_SLOT_NUMBER],
     pub local_cert_info: [Option<SpdmCertificateModelType>; SPDM_MAX_SLOT_NUMBER],
     pub local_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
+}
+
+impl Codec for SpdmProvisionInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        for v in &self.my_cert_chain_data {
+            size += v.encode(writer)?;
+        }
+        for v in &self.my_cert_chain {
+            size += v.encode(writer)?;
+        }
+        for v in &self.peer_root_cert_data {
+            size += v.encode(writer)?;
+        }
+        size += self.local_supported_slot_mask.encode(writer)?;
+        for v in &self.local_key_pair_id {
+            size += v.encode(writer)?;
+        }
+        for v in &self.local_cert_info {
+            size += v.encode(writer)?;
+        }
+        for v in &self.local_key_usage_bit_mask {
+            size += v.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let mut my_cert_chain_data = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut my_cert_chain_data {
+            *v = Option::<SpdmCertChainData>::read(reader)?;
+        }
+        let mut my_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut my_cert_chain {
+            *v = Option::<SpdmCertChainBuffer>::read(reader)?;
+        }
+        let mut peer_root_cert_data = [None; MAX_ROOT_CERT_SUPPORT];
+        for v in &mut peer_root_cert_data {
+            *v = Option::<SpdmCertChainData>::read(reader)?;
+        }
+        let local_supported_slot_mask = u8::read(reader)?;
+        let mut local_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut local_key_pair_id {
+            *v = Option::<u8>::read(reader)?;
+        }
+        let mut local_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut local_cert_info {
+            *v = Option::<SpdmCertificateModelType>::read(reader)?;
+        }
+        let mut local_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
+        for v in &mut local_key_usage_bit_mask {
+            *v = Option::<SpdmKeyUsageMask>::read(reader)?;
+        }
+        Some(Self {
+            my_cert_chain_data,
+            my_cert_chain,
+            peer_root_cert_data,
+            local_supported_slot_mask,
+            local_key_pair_id,
+            local_cert_info,
+            local_key_usage_bit_mask,
+        })
+    }
 }
 
 impl Default for SpdmProvisionInfo {
