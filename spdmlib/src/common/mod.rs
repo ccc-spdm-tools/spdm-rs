@@ -13,6 +13,7 @@ use spin::Mutex;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::{convert::TryFrom, ops::DerefMut};
 
 pub use opaque::*;
@@ -128,6 +129,7 @@ pub trait SpdmTransportEncap {
     fn get_max_random_count(&mut self) -> u16;
 }
 
+#[derive(Debug, Default)]
 pub struct SpdmContextData {
     pub config_info: SpdmConfigInfo,
     pub negotiate_info: SpdmNegotiateInfo,
@@ -1129,6 +1131,29 @@ impl SpdmContext {
             .await?;
 
         Ok(used.0)
+    }
+
+    pub fn export(&self) -> Option<Vec<u8>> {
+        let mut buf = [0u8; 131072]; // 128 KiB
+        let mut writer = Writer::init(&mut buf);
+        if let Ok(size) = self.data.encode(&mut writer) {
+            Some(buf[..size].to_vec())
+        } else {
+            None
+        }
+    }
+
+    pub fn import(
+        encoded: Vec<u8>,
+        device_io: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>>,
+        transport_encap: Arc<Mutex<dyn SpdmTransportEncap + Send + Sync>>,
+    ) -> Option<Self> {
+        let mut reader = Reader::init(&encoded);
+        SpdmContextData::read(&mut reader).map(|data| SpdmContext {
+            device_io,
+            transport_encap,
+            data,
+        })
     }
 }
 
@@ -2254,6 +2279,55 @@ impl Codec for SpdmEncapContext {
             req_slot_id: u8::read(reader)?,
             request_id: u8::read(reader)?,
             encap_cert_size: u16::read(reader)?,
+        })
+    }
+}
+
+impl Codec for SpdmContextData {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.config_info.encode(writer)?;
+        size += self.negotiate_info.encode(writer)?;
+        size += self.runtime_info.encode(writer)?;
+        size += self.provision_info.encode(writer)?;
+        size += self.peer_info.encode(writer)?;
+        #[cfg(feature = "mut-auth")]
+        {
+            size += self.encap_context.encode(writer)?;
+        }
+        #[cfg(feature = "mandatory-mut-auth")]
+        {
+            size += (self.mut_auth_done as u8).encode(writer)?;
+        }
+        for session in &self.session {
+            size += session.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let config_info = SpdmConfigInfo::read(reader)?;
+        let negotiate_info = SpdmNegotiateInfo::read(reader)?;
+        let runtime_info = SpdmRuntimeInfo::read(reader)?;
+        let provision_info = SpdmProvisionInfo::read(reader)?;
+        let peer_info = SpdmPeerInfo::read(reader)?;
+        #[cfg(feature = "mut-auth")]
+        let encap_context = SpdmEncapContext::read(reader)?;
+        #[cfg(feature = "mandatory-mut-auth")]
+        let mut_auth_done = u8::read(reader)? != 0;
+        let session = [(); config::MAX_SPDM_SESSION_COUNT];
+        let session = session.map(|_| SpdmSession::read(reader).unwrap_or_default());
+        Some(Self {
+            config_info,
+            negotiate_info,
+            runtime_info,
+            provision_info,
+            peer_info,
+            #[cfg(feature = "mut-auth")]
+            encap_context,
+            #[cfg(feature = "mandatory-mut-auth")]
+            mut_auth_done,
+            session,
         })
     }
 }
