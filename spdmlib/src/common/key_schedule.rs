@@ -4,7 +4,7 @@
 
 use crate::crypto;
 use crate::protocol::*;
-use codec::{Codec, Writer, Reader};
+use codec::{Codec, Reader, Writer};
 extern crate alloc;
 use crate::secret;
 use alloc::boxed::Box;

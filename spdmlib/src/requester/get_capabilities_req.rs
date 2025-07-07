@@ -73,7 +73,8 @@ impl RequesterContext {
                                 self.common.data.config_info.req_capabilities;
                             self.common.data.negotiate_info.rsp_ct_exponent_sel =
                                 capabilities.ct_exponent;
-                            self.common.data.negotiate_info.rsp_capabilities_sel = capabilities.flags;
+                            self.common.data.negotiate_info.rsp_capabilities_sel =
+                                capabilities.flags;
 
                             if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion12

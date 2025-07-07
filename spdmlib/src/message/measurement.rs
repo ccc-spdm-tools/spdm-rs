@@ -457,7 +457,8 @@ mod tests {
         context.data.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
         context.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
         context.data.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_512;
-        context.data.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
+        context.data.negotiate_info.measurement_specification_sel =
+            SpdmMeasurementSpecification::DMTF;
         context.data.runtime_info.need_measurement_signature = true;
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);

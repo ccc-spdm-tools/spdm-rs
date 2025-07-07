@@ -118,7 +118,14 @@ impl RequesterContext {
             versions_list: [SecuredMessageVersion::default(); MAX_SECURE_SPDM_VERSION_COUNT],
         };
 
-        for local_version in self.common.data.config_info.secure_spdm_version.iter().flatten() {
+        for local_version in self
+            .common
+            .data
+            .config_info
+            .secure_spdm_version
+            .iter()
+            .flatten()
+        {
             secured_message_version_list.versions_list
                 [secured_message_version_list.version_count as usize] = *local_version;
             secured_message_version_list.version_count += 1;
@@ -210,7 +217,8 @@ impl RequesterContext {
                             let base_hash_algo = self.common.data.negotiate_info.base_hash_sel;
                             let dhe_algo = self.common.data.negotiate_info.dhe_sel;
                             let aead_algo = self.common.data.negotiate_info.aead_sel;
-                            let key_schedule_algo = self.common.data.negotiate_info.key_schedule_sel;
+                            let key_schedule_algo =
+                                self.common.data.negotiate_info.key_schedule_sel;
                             let sequence_number_count = {
                                 let mut transport_encap = self.common.transport_encap.lock();
                                 let transport_encap: &mut (dyn SpdmTransportEncap + Send + Sync) =
@@ -268,9 +276,12 @@ impl RequesterContext {
                                 {
                                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                 }
-                                self.common.data.runtime_info.set_local_used_cert_chain_slot_id(
-                                    key_exchange_rsp.req_slot_id & 0xf,
-                                );
+                                self.common
+                                    .data
+                                    .runtime_info
+                                    .set_local_used_cert_chain_slot_id(
+                                        key_exchange_rsp.req_slot_id & 0xf,
+                                    );
                             }
 
                             let session = self
@@ -472,7 +483,8 @@ impl RequesterContext {
         let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
@@ -529,7 +541,8 @@ impl RequesterContext {
         let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?

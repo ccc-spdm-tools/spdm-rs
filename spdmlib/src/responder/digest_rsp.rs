@@ -33,7 +33,12 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.data.runtime_info.get_connection_state().get_u8()
+        if self
+            .common
+            .data
+            .runtime_info
+            .get_connection_state()
+            .get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);

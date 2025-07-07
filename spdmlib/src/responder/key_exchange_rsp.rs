@@ -51,7 +51,12 @@ impl ResponderContext {
         writer: &'a mut Writer,
         target_session_id: &mut Option<u32>,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.data.runtime_info.get_connection_state().get_u8()
+        if self
+            .common
+            .data
+            .runtime_info
+            .get_connection_state()
+            .get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -107,7 +112,10 @@ impl ResponderContext {
                     secret::measurement::generate_measurement_summary_hash(
                         self.common.data.negotiate_info.spdm_version_sel,
                         self.common.data.negotiate_info.base_hash_sel,
-                        self.common.data.negotiate_info.measurement_specification_sel,
+                        self.common
+                            .data
+                            .negotiate_info
+                            .measurement_specification_sel,
                         self.common.data.negotiate_info.measurement_hash_sel,
                         key_exchange_req.measurement_summary_hash_type,
                     );
@@ -131,7 +139,8 @@ impl ResponderContext {
                 measurement_summary_hash = SpdmDigestStruct::default();
             }
 
-            self.common.data.negotiate_info.termination_policy_set = key_exchange_req.session_policy
+            self.common.data.negotiate_info.termination_policy_set = key_exchange_req
+                .session_policy
                 & KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_MASK
                 == KEY_EXCHANGE_REQUESTER_SESSION_POLICY_TERMINATION_POLICY_VALUE;
 
@@ -166,8 +175,13 @@ impl ResponderContext {
                 }
                 let mut selected_version: Option<SecuredMessageVersion> = None;
                 for index in 0..secured_message_version_list.version_count as usize {
-                    for local_version in
-                        self.common.data.config_info.secure_spdm_version.iter().flatten()
+                    for local_version in self
+                        .common
+                        .data
+                        .config_info
+                        .secure_spdm_version
+                        .iter()
+                        .flatten()
                     {
                         if secured_message_version_list.versions_list[index] == *local_version {
                             selected_version = Some(*local_version);
@@ -234,13 +248,14 @@ impl ResponderContext {
             .runtime_info
             .set_local_used_cert_chain_slot_id(key_exchange_req.slot_id);
 
-        let (exchange, key_exchange_context) =
-            if let Some(kp) = crypto::dhe::generate_key_pair(self.common.data.negotiate_info.dhe_sel) {
-                kp
-            } else {
-                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
-                return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
-            };
+        let (exchange, key_exchange_context) = if let Some(kp) =
+            crypto::dhe::generate_key_pair(self.common.data.negotiate_info.dhe_sel)
+        {
+            kp
+        } else {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+        };
 
         debug!("!!! exchange data : {:02x?}\n", exchange);
 

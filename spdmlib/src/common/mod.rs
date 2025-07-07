@@ -221,13 +221,15 @@ impl SpdmContext {
     }
 
     pub fn get_immutable_session_via_id(&self, session_id: u32) -> Option<&SpdmSession> {
-        self.data.session
+        self.data
+            .session
             .iter()
             .find(|&session| session.get_session_id() == session_id)
     }
 
     pub fn get_session_via_id(&mut self, session_id: u32) -> Option<&mut SpdmSession> {
-        self.data.session
+        self.data
+            .session
             .iter_mut()
             .find(|session| session.get_session_id() == session_id)
     }
@@ -253,7 +255,13 @@ impl SpdmContext {
     pub fn get_next_half_session_id(&self, is_requester: bool) -> SpdmResult<u16> {
         let shift = if is_requester { 0 } else { 16 };
 
-        for (index, s) in self.data.session.iter().enumerate().take(MAX_SPDM_SESSION_COUNT) {
+        for (index, s) in self
+            .data
+            .session
+            .iter()
+            .enumerate()
+            .take(MAX_SPDM_SESSION_COUNT)
+        {
             if ((s.get_session_id() & (0xFFFF << shift)) >> shift) as u16 == INVALID_HALF_SESSION_ID
             {
                 return Ok(INITIAL_SESSION_ID - index as u16);
@@ -314,7 +322,8 @@ impl SpdmContext {
     }
 
     pub fn append_message_a(&mut self, new_message: &[u8]) -> SpdmResult {
-        self.data.runtime_info
+        self.data
+            .runtime_info
             .message_a
             .append_message(new_message)
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -327,7 +336,8 @@ impl SpdmContext {
     pub fn append_message_b(&mut self, new_message: &[u8]) -> SpdmResult {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            self.data.runtime_info
+            self.data
+                .runtime_info
                 .message_b
                 .append_message(new_message)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -371,7 +381,8 @@ impl SpdmContext {
     pub fn append_message_c(&mut self, new_message: &[u8]) -> SpdmResult {
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
-            self.data.runtime_info
+            self.data
+                .runtime_info
                 .message_c
                 .append_message(new_message)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -416,7 +427,8 @@ impl SpdmContext {
         #[cfg(not(feature = "hashed-transcript-data"))]
         match session_id {
             None => self
-                .data.runtime_info
+                .data
+                .runtime_info
                 .message_m
                 .append_message(new_message)
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?,
@@ -624,7 +636,9 @@ impl SpdmContext {
             {
                 if is_requester {
                     let slot_id = self.data.runtime_info.get_local_used_cert_chain_slot_id();
-                    if let Some(cert_chain) = &self.data.provision_info.my_cert_chain[slot_id as usize] {
+                    if let Some(cert_chain) =
+                        &self.data.provision_info.my_cert_chain[slot_id as usize]
+                    {
                         Some(
                             crypto::hash::hash_all(
                                 self.data.negotiate_info.base_hash_sel,
@@ -637,7 +651,8 @@ impl SpdmContext {
                     }
                 } else {
                     let slot_id = self.data.runtime_info.get_peer_used_cert_chain_slot_id();
-                    if let Some(cert_chain) = &self.data.peer_info.peer_cert_chain[slot_id as usize] {
+                    if let Some(cert_chain) = &self.data.peer_info.peer_cert_chain[slot_id as usize]
+                    {
                         Some(
                             crypto::hash::hash_all(
                                 self.data.negotiate_info.base_hash_sel,
@@ -705,7 +720,10 @@ impl SpdmContext {
         message
             .append_message(self.data.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-        debug!("message_a - {:02x?}", self.data.runtime_info.message_a.as_ref());
+        debug!(
+            "message_a - {:02x?}",
+            self.data.runtime_info.message_a.as_ref()
+        );
 
         if !use_psk {
             if self.data.peer_info.peer_cert_chain[slot_id as usize].is_none() {
@@ -779,7 +797,10 @@ impl SpdmContext {
         message
             .append_message(self.data.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-        debug!("message_a - {:02x?}", self.data.runtime_info.message_a.as_ref());
+        debug!(
+            "message_a - {:02x?}",
+            self.data.runtime_info.message_a.as_ref()
+        );
         if !use_psk {
             if self.data.provision_info.my_cert_chain[slot_id as usize].is_none() {
                 error!("my_cert_chain is not populated!\n");
@@ -950,7 +971,9 @@ impl SpdmContext {
             }
 
             let cert_chain_data = &self.data.peer_info.peer_cert_chain[slot_id].as_ref()?.data
-                [..(self.data.peer_info.peer_cert_chain[slot_id].as_ref()?.data_size as usize)];
+                [..(self.data.peer_info.peer_cert_chain[slot_id]
+                    .as_ref()?
+                    .data_size as usize)];
             let cert_chain_hash =
                 crypto::hash::hash_all(self.data.negotiate_info.base_hash_sel, cert_chain_data)
                     .ok_or(None::<SpdmDigestStruct>);
@@ -1215,7 +1238,11 @@ impl Codec for SpdmConfigInfo {
         size += self.heartbeat_period.encode(writer)?;
 
         // Count and encode populated secure_spdm_version entries
-        let secure_spdm_version_count = self.secure_spdm_version.iter().filter(|v| v.is_some()).count() as u8;
+        let secure_spdm_version_count = self
+            .secure_spdm_version
+            .iter()
+            .filter(|v| v.is_some())
+            .count() as u8;
         size += secure_spdm_version_count.encode(writer)?;
         for v in &self.secure_spdm_version {
             if let Some(version) = v {
@@ -1437,7 +1464,9 @@ impl Codec for ManagedBufferA {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1486,7 +1515,9 @@ impl Codec for ManagedBufferB {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1731,7 +1762,9 @@ impl Codec for ManagedBufferC {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1752,7 +1785,9 @@ impl Codec for ManagedBufferM {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1773,7 +1808,9 @@ impl Codec for ManagedBufferK {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1794,7 +1831,9 @@ impl Codec for ManagedBufferF {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1815,7 +1854,9 @@ impl Codec for ManagedBufferM1M2 {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1836,7 +1877,9 @@ impl Codec for ManagedBufferL1L2 {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1857,7 +1900,9 @@ impl Codec for ManagedBufferTH {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 
@@ -1878,7 +1923,9 @@ impl Codec for ManagedBuffer12Sign {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += (self.0 as u64).encode(writer)?;
-        size += writer.extend_from_slice(&self.1[..self.0]).ok_or(codec::EncodeErr)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
         Ok(size)
     }
 

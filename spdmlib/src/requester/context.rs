@@ -76,7 +76,12 @@ impl RequesterContext {
                         .contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
                 {
                     self.session_based_mutual_authenticate(session_id).await?;
-                    Some(self.common.data.runtime_info.get_local_used_cert_chain_slot_id())
+                    Some(
+                        self.common
+                            .data
+                            .runtime_info
+                            .get_local_used_cert_chain_slot_id(),
+                    )
                 } else {
                     None
                 }
@@ -107,7 +112,8 @@ impl RequesterContext {
         is_app_message: bool,
     ) -> SpdmResult {
         if self.common.data.negotiate_info.rsp_data_transfer_size_sel != 0
-            && send_buffer.len() > self.common.data.negotiate_info.rsp_data_transfer_size_sel as usize
+            && send_buffer.len()
+                > self.common.data.negotiate_info.rsp_data_transfer_size_sel as usize
         {
             return Err(SPDM_STATUS_SEND_FAIL);
         }

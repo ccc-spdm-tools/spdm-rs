@@ -418,11 +418,16 @@ impl RequesterContext {
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
 
-        let peer_slot_id = self.common.data.runtime_info.get_local_used_cert_chain_slot_id();
+        let peer_slot_id = self
+            .common
+            .data
+            .runtime_info
+            .get_local_used_cert_chain_slot_id();
         let peer_cert = &self.common.data.provision_info.my_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?

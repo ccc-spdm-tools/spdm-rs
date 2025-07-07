@@ -75,7 +75,8 @@ impl RequesterContext {
                                 Some(_session_id) => {}
                             }
 
-                            self.common.data.peer_info.peer_provisioned_slot_mask = digests.slot_mask;
+                            self.common.data.peer_info.peer_provisioned_slot_mask =
+                                digests.slot_mask;
                             if self.common.data.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion13
                             {
@@ -93,8 +94,8 @@ impl RequesterContext {
                                             Some(digests.key_pair_id[slot_index]);
                                         self.common.data.peer_info.peer_cert_info[slot_index] =
                                             Some(digests.certificate_info[slot_index]);
-                                        self.common.data.peer_info.peer_key_usage_bit_mask[slot_index] =
-                                            Some(digests.key_usage_mask[slot_index]);
+                                        self.common.data.peer_info.peer_key_usage_bit_mask
+                                            [slot_index] = Some(digests.key_usage_mask[slot_index]);
                                     }
                                 }
                             }

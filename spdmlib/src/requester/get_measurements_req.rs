@@ -195,9 +195,11 @@ impl RequesterContext {
 
                         debug!("!!! measurements : {:02x?}\n", measurements);
 
-                        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12
+                        if self.common.data.negotiate_info.spdm_version_sel
+                            >= SpdmVersion::SpdmVersion12
                         {
-                            self.common.data.runtime_info.content_changed = measurements.content_changed;
+                            self.common.data.runtime_info.content_changed =
+                                measurements.content_changed;
                             *content_changed = Some(measurements.content_changed);
                         } else {
                             *content_changed = None;
@@ -237,7 +239,8 @@ impl RequesterContext {
                         }
 
                         //verify context
-                        if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+                        if self.common.data.negotiate_info.spdm_version_sel
+                            >= SpdmVersion::SpdmVersion13
                             && measurements.requester_context.data != requester_context.data
                         {
                             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
@@ -374,7 +377,8 @@ impl RequesterContext {
         let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
@@ -462,7 +466,8 @@ impl RequesterContext {
         let cert_chain_data = &self.common.data.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?

@@ -49,7 +49,8 @@ impl ResponderContext {
         let mut writer = Writer::init(&mut err_buffer);
 
         let send_buffer = if self.common.data.negotiate_info.req_data_transfer_size_sel != 0
-            && (send_buffer.len() > self.common.data.negotiate_info.req_data_transfer_size_sel as usize)
+            && (send_buffer.len()
+                > self.common.data.negotiate_info.req_data_transfer_size_sel as usize)
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorResponseTooLarge, 0, &mut writer);
             writer.used_slice()
@@ -100,7 +101,12 @@ impl ResponderContext {
                 .runtime_info
                 .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
         } else if opcode == SpdmRequestResponseCode::SpdmResponseDigests.get_u8() {
-            if self.common.data.runtime_info.get_connection_state().get_u8()
+            if self
+                .common
+                .data
+                .runtime_info
+                .get_connection_state()
+                .get_u8()
                 < SpdmConnectionState::SpdmConnectionAfterDigest.get_u8()
             {
                 self.common
@@ -109,7 +115,12 @@ impl ResponderContext {
                     .set_connection_state(SpdmConnectionState::SpdmConnectionAfterDigest);
             }
         } else if opcode == SpdmRequestResponseCode::SpdmResponseCertificate.get_u8() {
-            if self.common.data.runtime_info.get_connection_state().get_u8()
+            if self
+                .common
+                .data
+                .runtime_info
+                .get_connection_state()
+                .get_u8()
                 < SpdmConnectionState::SpdmConnectionAfterCertificate.get_u8()
             {
                 self.common
@@ -581,7 +592,9 @@ impl ResponderContext {
                             .rsp_capabilities_sel
                             .contains(SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP);
                     if in_clear_text {
-                        if let Some(session_id) = self.common.data.runtime_info.get_last_session_id() {
+                        if let Some(session_id) =
+                            self.common.data.runtime_info.get_last_session_id()
+                        {
                             if let Some(session) =
                                 self.common.get_immutable_session_via_id(session_id)
                             {

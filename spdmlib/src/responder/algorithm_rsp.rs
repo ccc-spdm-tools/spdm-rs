@@ -66,8 +66,10 @@ impl ResponderContext {
         if let Some(negotiate_algorithms) = negotiate_algorithms {
             debug!("!!! negotiate_algorithms : {:02x?}\n", negotiate_algorithms);
             other_params_support = negotiate_algorithms.other_params_support;
-            self.common.data.negotiate_info.measurement_specification_sel =
-                negotiate_algorithms.measurement_specification;
+            self.common
+                .data
+                .negotiate_info
+                .measurement_specification_sel = negotiate_algorithms.measurement_specification;
 
             if self.common.data.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
                 if self
@@ -148,7 +150,8 @@ impl ResponderContext {
                 self.common.data.negotiate_info.mel_specification_sel =
                     negotiate_algorithms.mel_specification;
             } else {
-                self.common.data.negotiate_info.mel_specification_sel = SpdmMelSpecification::empty();
+                self.common.data.negotiate_info.mel_specification_sel =
+                    SpdmMelSpecification::empty();
             }
             for alg in negotiate_algorithms
                 .alg_struct
@@ -356,11 +359,15 @@ impl ResponderContext {
                 alg_struct: [
                     SpdmAlgStruct {
                         alg_type: SpdmAlgType::SpdmAlgTypeDHE,
-                        alg_supported: SpdmAlg::SpdmAlgoDhe(self.common.data.negotiate_info.dhe_sel),
+                        alg_supported: SpdmAlg::SpdmAlgoDhe(
+                            self.common.data.negotiate_info.dhe_sel,
+                        ),
                     },
                     SpdmAlgStruct {
                         alg_type: SpdmAlgType::SpdmAlgTypeAEAD,
-                        alg_supported: SpdmAlg::SpdmAlgoAead(self.common.data.negotiate_info.aead_sel),
+                        alg_supported: SpdmAlg::SpdmAlgoAead(
+                            self.common.data.negotiate_info.aead_sel,
+                        ),
                     },
                     SpdmAlgStruct {
                         alg_type: SpdmAlgType::SpdmAlgTypeReqAsym,

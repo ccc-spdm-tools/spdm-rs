@@ -195,7 +195,12 @@ impl ResponderContext {
             return Err(SPDM_STATUS_UNSUPPORTED_CAP);
         }
 
-        if self.common.data.runtime_info.get_connection_state().get_u8()
+        if self
+            .common
+            .data
+            .runtime_info
+            .get_connection_state()
+            .get_u8()
             < SpdmConnectionState::SpdmConnectionAfterCertificate.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);

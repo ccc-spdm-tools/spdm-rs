@@ -391,11 +391,16 @@ impl ResponderContext {
             self.common
                 .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
 
-        let peer_slot_id = self.common.data.runtime_info.get_peer_used_cert_chain_slot_id();
+        let peer_slot_id = self
+            .common
+            .data
+            .runtime_info
+            .get_peer_used_cert_chain_slot_id();
         let peer_cert = &self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
@@ -436,11 +441,16 @@ impl ResponderContext {
             self.common
                 .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
 
-        let peer_slot_id = self.common.data.runtime_info.get_peer_used_cert_chain_slot_id();
+        let peer_slot_id = self
+            .common
+            .data
+            .runtime_info
+            .get_peer_used_cert_chain_slot_id();
         let peer_cert = &self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize
+            + self.common.data.negotiate_info.base_hash_sel.get_size() as usize)
             ..(self.common.data.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?

@@ -11,7 +11,7 @@ use crate::message::SpdmKeyExchangeMutAuthAttributes;
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use codec::{enum_builder, Codec, Writer, Reader};
+use codec::{enum_builder, Codec, Reader, Writer};
 
 use super::*;
 

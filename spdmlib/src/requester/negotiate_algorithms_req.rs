@@ -106,7 +106,11 @@ impl RequesterContext {
             },
             payload: SpdmMessagePayload::SpdmNegotiateAlgorithmsRequest(
                 SpdmNegotiateAlgorithmsRequestPayload {
-                    measurement_specification: self.common.data.config_info.measurement_specification,
+                    measurement_specification: self
+                        .common
+                        .data
+                        .config_info
+                        .measurement_specification,
                     other_params_support,
                     base_asym_algo: self.common.data.config_info.base_asym_algo,
                     base_hash_algo: self.common.data.config_info.base_hash_algo,
@@ -139,7 +143,10 @@ impl RequesterContext {
                         if let Some(algorithms) = algorithms {
                             debug!("!!! algorithms : {:02x?}\n", algorithms);
 
-                            self.common.data.negotiate_info.measurement_specification_sel =
+                            self.common
+                                .data
+                                .negotiate_info
+                                .measurement_specification_sel =
                                 algorithms.measurement_specification_sel;
 
                             self.common.data.negotiate_info.other_params_support =
@@ -158,7 +165,7 @@ impl RequesterContext {
                                     self.common.data.negotiate_info.multi_key_conn_rsp = true;
                                 } else if self
                                     .common
-                                        .data
+                                    .data
                                     .negotiate_info
                                     .rsp_capabilities_sel
                                     .contains(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_CONN_SEL)
@@ -209,11 +216,13 @@ impl RequesterContext {
                             if algorithms.base_hash_sel.bits() == 0 {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
-                            self.common.data.negotiate_info.base_hash_sel = algorithms.base_hash_sel;
+                            self.common.data.negotiate_info.base_hash_sel =
+                                algorithms.base_hash_sel;
                             if algorithms.base_asym_sel.bits() == 0 {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
-                            self.common.data.negotiate_info.base_asym_sel = algorithms.base_asym_sel;
+                            self.common.data.negotiate_info.base_asym_sel =
+                                algorithms.base_asym_sel;
                             for alg in algorithms
                                 .alg_struct
                                 .iter()
@@ -250,7 +259,11 @@ impl RequesterContext {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
                                             self.common.data.negotiate_info.req_asym_sel =
                                                 self.common.data.config_info.req_asym_algo;
-                                            self.common.data.negotiate_info.req_asym_sel.prioritize(*v);
+                                            self.common
+                                                .data
+                                                .negotiate_info
+                                                .req_asym_sel
+                                                .prioritize(*v);
                                         } else {
                                             error!(
                                                 "unknown req asym algorithm structure:{:X?}\n",

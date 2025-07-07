@@ -49,7 +49,12 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer<'_>,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.data.runtime_info.get_connection_state().get_u8()
+        if self
+            .common
+            .data
+            .runtime_info
+            .get_connection_state()
+            .get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -133,9 +138,13 @@ impl ResponderContext {
 
         let measurement_hash_sel = self.common.data.negotiate_info.measurement_hash_sel;
         let spdm_version_sel = self.common.data.negotiate_info.spdm_version_sel;
-        let measurement_specification_sel =
-            self.common.data.negotiate_info.measurement_specification_sel;
-        let runtime_content_change_support = self.common.data.config_info.runtime_content_change_support;
+        let measurement_specification_sel = self
+            .common
+            .data
+            .negotiate_info
+            .measurement_specification_sel;
+        let runtime_content_change_support =
+            self.common.data.config_info.runtime_content_change_support;
         let content_changed = self.common.data.runtime_info.content_changed;
         let base_asym_sel = self.common.data.negotiate_info.base_asym_sel;
 

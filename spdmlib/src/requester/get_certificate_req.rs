@@ -238,7 +238,9 @@ impl RequesterContext {
             .peer_cert_chain_temp
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
-        if peer_cert_chain.data_size <= (4 + self.common.data.negotiate_info.base_hash_sel.get_size()) {
+        if peer_cert_chain.data_size
+            <= (4 + self.common.data.negotiate_info.base_hash_sel.get_size())
+        {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
@@ -248,8 +250,9 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let data_size =
-            peer_cert_chain.data_size - 4 - self.common.data.negotiate_info.base_hash_sel.get_size();
+        let data_size = peer_cert_chain.data_size
+            - 4
+            - self.common.data.negotiate_info.base_hash_sel.get_size();
         let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
         data[0..(data_size as usize)].copy_from_slice(
             &peer_cert_chain.data[(4usize

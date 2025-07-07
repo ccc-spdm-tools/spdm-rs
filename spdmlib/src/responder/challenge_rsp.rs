@@ -35,7 +35,12 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self.common.data.runtime_info.get_connection_state().get_u8()
+        if self
+            .common
+            .data
+            .runtime_info
+            .get_connection_state()
+            .get_u8()
             < SpdmConnectionState::SpdmConnectionNegotiated.get_u8()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
@@ -80,7 +85,10 @@ impl ResponderContext {
                     secret::measurement::generate_measurement_summary_hash(
                         self.common.data.negotiate_info.spdm_version_sel,
                         self.common.data.negotiate_info.base_hash_sel,
-                        self.common.data.negotiate_info.measurement_specification_sel,
+                        self.common
+                            .data
+                            .negotiate_info
+                            .measurement_specification_sel,
                         self.common.data.negotiate_info.measurement_hash_sel,
                         challenge.measurement_summary_hash_type,
                     );
