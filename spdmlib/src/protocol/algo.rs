@@ -1,3 +1,25 @@
+impl Codec for SpdmCertChainData {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0usize;
+        size += self.data_size.encode(writer)?;
+        for d in self.data.iter().take(self.data_size as usize) {
+            size += d.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<SpdmCertChainData> {
+        let data_size = u16::read(reader)?;
+        if data_size > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u16 {
+            return None;
+        }
+        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        for d in data.iter_mut().take(data_size as usize) {
+            *d = u8::read(reader)?;
+        }
+        Some(SpdmCertChainData { data_size, data })
+    }
+}
 // Copyright (c) 2020 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
