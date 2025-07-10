@@ -2163,53 +2163,95 @@ pub struct SpdmProvisionInfo {
 impl Codec for SpdmProvisionInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
+        // my_cert_chain_data
+        let count = self.my_cert_chain_data.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.my_cert_chain_data {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
+        // my_cert_chain
+        let count = self.my_cert_chain.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.my_cert_chain {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
+        // peer_root_cert_data
+        let count = self.peer_root_cert_data.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.peer_root_cert_data {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
         size += self.local_supported_slot_mask.encode(writer)?;
+        // local_key_pair_id
+        let count = self.local_key_pair_id.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.local_key_pair_id {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
+        // local_cert_info
+        let count = self.local_cert_info.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.local_cert_info {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
+        // local_key_usage_bit_mask
+        let count = self.local_key_usage_bit_mask.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.local_key_usage_bit_mask {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
         Ok(size)
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
+        // my_cert_chain_data
         let mut my_cert_chain_data = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut my_cert_chain_data {
-            *v = Option::<SpdmCertChainData>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            my_cert_chain_data[i] = Some(SpdmCertChainData::read(reader)?);
         }
+        // my_cert_chain
         let mut my_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut my_cert_chain {
-            *v = Option::<SpdmCertChainBuffer>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            my_cert_chain[i] = Some(SpdmCertChainBuffer::read(reader)?);
         }
+        // peer_root_cert_data
         let mut peer_root_cert_data = [None; MAX_ROOT_CERT_SUPPORT];
-        for v in &mut peer_root_cert_data {
-            *v = Option::<SpdmCertChainData>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(MAX_ROOT_CERT_SUPPORT) {
+            peer_root_cert_data[i] = Some(SpdmCertChainData::read(reader)?);
         }
         let local_supported_slot_mask = u8::read(reader)?;
+        // local_key_pair_id
         let mut local_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut local_key_pair_id {
-            *v = Option::<u8>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            local_key_pair_id[i] = Some(u8::read(reader)?);
         }
+        // local_cert_info
         let mut local_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut local_cert_info {
-            *v = Option::<SpdmCertificateModelType>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            local_cert_info[i] = Some(SpdmCertificateModelType::read(reader)?);
         }
+        // local_key_usage_bit_mask
         let mut local_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut local_key_usage_bit_mask {
-            *v = Option::<SpdmKeyUsageMask>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            local_key_usage_bit_mask[i] = Some(SpdmKeyUsageMask::read(reader)?);
         }
         Some(Self {
             my_cert_chain_data,
@@ -2251,46 +2293,72 @@ pub struct SpdmPeerInfo {
 impl Codec for SpdmPeerInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
+        // peer_cert_chain
+        let count = self.peer_cert_chain.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.peer_cert_chain {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
         size += self.peer_cert_chain_temp.encode(writer)?;
         size += self.peer_supported_slot_mask.encode(writer)?;
         size += self.peer_provisioned_slot_mask.encode(writer)?;
+        // peer_key_pair_id
+        let count = self.peer_key_pair_id.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.peer_key_pair_id {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
+        // peer_cert_info
+        let count = self.peer_cert_info.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.peer_cert_info {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
+        // peer_key_usage_bit_mask
+        let count = self.peer_key_usage_bit_mask.iter().filter(|v| v.is_some()).count() as u8;
+        size += count.encode(writer)?;
         for v in &self.peer_key_usage_bit_mask {
-            size += v.encode(writer)?;
+            if let Some(val) = v {
+                size += val.encode(writer)?;
+            }
         }
         Ok(size)
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
+        // peer_cert_chain
         let mut peer_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut peer_cert_chain {
-            *v = Option::<SpdmCertChainBuffer>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            peer_cert_chain[i] = Some(SpdmCertChainBuffer::read(reader)?);
         }
         let peer_cert_chain_temp = Option::<SpdmCertChainBuffer>::read(reader)?;
         let peer_supported_slot_mask = u8::read(reader)?;
         let peer_provisioned_slot_mask = u8::read(reader)?;
-
+        // peer_key_pair_id
         let mut peer_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut peer_key_pair_id {
-            *v = Option::<u8>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            peer_key_pair_id[i] = Some(u8::read(reader)?);
         }
+        // peer_cert_info
         let mut peer_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut peer_cert_info {
-            *v = Option::<SpdmCertificateModelType>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            peer_cert_info[i] = Some(SpdmCertificateModelType::read(reader)?);
         }
+        // peer_key_usage_bit_mask
         let mut peer_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
-        for v in &mut peer_key_usage_bit_mask {
-            *v = Option::<SpdmKeyUsageMask>::read(reader)?;
+        let count = u8::read(reader)? as usize;
+        for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
+            peer_key_usage_bit_mask[i] = Some(SpdmKeyUsageMask::read(reader)?);
         }
-
         Some(Self {
             peer_cert_chain,
             peer_cert_chain_temp,
