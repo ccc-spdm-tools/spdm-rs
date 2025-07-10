@@ -2064,7 +2064,16 @@ impl Codec for SpdmRuntimeInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.connection_state.encode(writer)?;
-        size += self.last_session_id.encode(writer)?;
+        // Option<u32> with presence flag
+        match &self.last_session_id {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         size += self.local_used_cert_chain_slot_id.encode(writer)?;
         size += self.peer_used_cert_chain_slot_id.encode(writer)?;
         size += (self.need_measurement_summary_hash as u8).encode(writer)?;
@@ -2080,7 +2089,13 @@ impl Codec for SpdmRuntimeInfo {
     fn read(reader: &mut Reader) -> Option<Self> {
         Some(Self {
             connection_state: SpdmConnectionState::read(reader)?,
-            last_session_id: Option::<u32>::read(reader)?,
+            last_session_id: {
+                if u8::read(reader)? != 0 {
+                    Some(u32::read(reader)?)
+                } else {
+                    None
+                }
+            },
             local_used_cert_chain_slot_id: u8::read(reader)?,
             peer_used_cert_chain_slot_id: u8::read(reader)?,
             need_measurement_summary_hash: u8::read(reader)? != 0,
@@ -2099,8 +2114,15 @@ impl Codec for SpdmRuntimeInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.connection_state.encode(writer)?;
-        // FIXME: add bool if last_session_id is present
-        size += self.last_session_id.encode(writer)?;
+        match &self.last_session_id {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         size += self.local_used_cert_chain_slot_id.encode(writer)?;
         size += self.peer_used_cert_chain_slot_id.encode(writer)?;
         size += (self.need_measurement_summary_hash as u8).encode(writer)?;
@@ -2122,7 +2144,13 @@ impl Codec for SpdmRuntimeInfo {
     fn read(reader: &mut Reader) -> Option<Self> {
         Some(Self {
             connection_state: SpdmConnectionState::read(reader)?,
-            last_session_id: Option::<u32>::read(reader)?,
+            last_session_id: {
+                if u8::read(reader)? != 0 {
+                    Some(u32::read(reader)?)
+                } else {
+                    None
+                }
+            },
             local_used_cert_chain_slot_id: u8::read(reader)?,
             peer_used_cert_chain_slot_id: u8::read(reader)?,
             need_measurement_summary_hash: u8::read(reader)? != 0,
@@ -2301,7 +2329,16 @@ impl Codec for SpdmPeerInfo {
                 size += val.encode(writer)?;
             }
         }
-        size += self.peer_cert_chain_temp.encode(writer)?;
+        // peer_cert_chain_temp
+        match &self.peer_cert_chain_temp {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         size += self.peer_supported_slot_mask.encode(writer)?;
         size += self.peer_provisioned_slot_mask.encode(writer)?;
         // peer_key_pair_id
@@ -2338,7 +2375,12 @@ impl Codec for SpdmPeerInfo {
         for i in 0..count.min(SPDM_MAX_SLOT_NUMBER) {
             peer_cert_chain[i] = Some(SpdmCertChainBuffer::read(reader)?);
         }
-        let peer_cert_chain_temp = Option::<SpdmCertChainBuffer>::read(reader)?;
+        // peer_cert_chain_temp
+        let peer_cert_chain_temp = if u8::read(reader)? != 0 {
+            Some(SpdmCertChainBuffer::read(reader)?)
+        } else {
+            None
+        };
         let peer_supported_slot_mask = u8::read(reader)?;
         let peer_provisioned_slot_mask = u8::read(reader)?;
         // peer_key_pair_id
