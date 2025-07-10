@@ -228,10 +228,37 @@ pub struct SpdmSessionRuntimeInfo {
 impl Codec for SpdmSessionRuntimeInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
-        size += self.psk_hint.encode(writer)?;
+        // psk_hint
+        match &self.psk_hint {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         size += self.message_a.encode(writer)?;
-        size += self.rsp_cert_hash.encode(writer)?;
-        size += self.req_cert_hash.encode(writer)?;
+        // rsp_cert_hash
+        match &self.rsp_cert_hash {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        // req_cert_hash
+        match &self.req_cert_hash {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         size += self.message_k.encode(writer)?;
         size += self.message_f.encode(writer)?;
         size += self.message_m.encode(writer)?;
@@ -239,14 +266,36 @@ impl Codec for SpdmSessionRuntimeInfo {
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
+        // psk_hint
+        let psk_hint = if u8::read(reader)? != 0 {
+            Some(SpdmPskHintStruct::read(reader)?)
+        } else {
+            None
+        };
+        let message_a = ManagedBufferA::read(reader)?;
+        // rsp_cert_hash
+        let rsp_cert_hash = if u8::read(reader)? != 0 {
+            Some(SpdmDigestStruct::read(reader)?)
+        } else {
+            None
+        };
+        // req_cert_hash
+        let req_cert_hash = if u8::read(reader)? != 0 {
+            Some(SpdmDigestStruct::read(reader)?)
+        } else {
+            None
+        };
+        let message_k = ManagedBufferK::read(reader)?;
+        let message_f = ManagedBufferF::read(reader)?;
+        let message_m = ManagedBufferM::read(reader)?;
         Some(Self {
-            psk_hint: Option::<SpdmPskHintStruct>::read(reader)?,
-            message_a: ManagedBufferA::read(reader)?,
-            rsp_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
-            req_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
-            message_k: ManagedBufferK::read(reader)?,
-            message_f: ManagedBufferF::read(reader)?,
-            message_m: ManagedBufferM::read(reader)?,
+            psk_hint,
+            message_a,
+            rsp_cert_hash,
+            req_cert_hash,
+            message_k,
+            message_f,
+            message_m,
         })
     }
 }
@@ -255,25 +304,102 @@ impl Codec for SpdmSessionRuntimeInfo {
 impl Codec for SpdmSessionRuntimeInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
-        size += self.psk_hint.encode(writer)?;
+        // psk_hint
+        match &self.psk_hint {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         size += self.message_a.encode(writer)?;
         size += (self.message_f_initialized as u8).encode(writer)?;
-        size += self.rsp_cert_hash.encode(writer)?;
-        size += self.req_cert_hash.encode(writer)?;
-        size += self.digest_context_th.encode(writer)?;
-        size += self.digest_context_l1l2.encode(writer)?;
+        // rsp_cert_hash
+        match &self.rsp_cert_hash {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        // req_cert_hash
+        match &self.req_cert_hash {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        // digest_context_th
+        match &self.digest_context_th {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        // digest_context_l1l2
+        match &self.digest_context_l1l2 {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         Ok(size)
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
+        // psk_hint
+        let psk_hint = if u8::read(reader)? != 0 {
+            Some(SpdmPskHintStruct::read(reader)?)
+        } else {
+            None
+        };
+        let message_a = ManagedBufferA::read(reader)?;
+        let message_f_initialized = u8::read(reader)? != 0;
+        // rsp_cert_hash
+        let rsp_cert_hash = if u8::read(reader)? != 0 {
+            Some(SpdmDigestStruct::read(reader)?)
+        } else {
+            None
+        };
+        // req_cert_hash
+        let req_cert_hash = if u8::read(reader)? != 0 {
+            Some(SpdmDigestStruct::read(reader)?)
+        } else {
+            None
+        };
+        // digest_context_th
+        let digest_context_th = if u8::read(reader)? != 0 {
+            Some(SpdmHashCtx::read(reader)?)
+        } else {
+            None
+        };
+        // digest_context_l1l2
+        let digest_context_l1l2 = if u8::read(reader)? != 0 {
+            Some(SpdmHashCtx::read(reader)?)
+        } else {
+            None
+        };
         Some(Self {
-            psk_hint: Option::<SpdmPskHintStruct>::read(reader)?,
-            message_a: ManagedBufferA::read(reader)?,
-            message_f_initialized: u8::read(reader)? != 0,
-            rsp_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
-            req_cert_hash: Option::<SpdmDigestStruct>::read(reader)?,
-            digest_context_th: Option::<SpdmHashCtx>::read(reader)?,
-            digest_context_l1l2: Option::<SpdmHashCtx>::read(reader)?,
+            psk_hint,
+            message_a,
+            message_f_initialized,
+            rsp_cert_hash,
+            req_cert_hash,
+            digest_context_th,
+            digest_context_l1l2,
         })
     }
 }
