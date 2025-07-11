@@ -9,6 +9,7 @@ use codec::{u24, Codec, Reader, Writer};
 use spdmlib::common::opaque::*;
 use spdmlib::common::SpdmCodec;
 use spdmlib::common::SpdmContext;
+use spdmlib::common::SpdmContextData;
 use spdmlib::config::{MAX_SPDM_MEASUREMENT_RECORD_SIZE, MAX_SPDM_MEASUREMENT_VALUE_LEN};
 use spdmlib::protocol::*;
 use spin::Mutex;
@@ -300,13 +301,138 @@ fn test_case0_spdm_measurement_block_structure() {
 }
 
 #[test]
+fn test_case0_test_spdm_cert_chain_data_deser() {
+    // Prepare a SpdmCertChainData with known data
+    let mut value = SpdmCertChainData {
+        data_size: 32,
+        data: [0xAB; 4096],
+    };
+
+    // Use a unique pattern for the first few bytes
+    for i in 0..value.data_size as usize {
+        value.data[i] = i as u8;
+    }
+
+    // Zero the padding after data_size
+    for i in value.data_size as usize..4096 {
+        value.data[i] = 0;
+    }
+
+    // Allocate a buffer large enough for serialization
+    let mut buf = [0u8; 2 + 4096];
+    let mut writer = Writer::init(&mut buf);
+
+    // Serialize
+    assert!(value.encode(&mut writer).is_ok());
+
+    // Deserialize
+    let mut reader = Reader::init(&buf);
+    let deser = SpdmCertChainData::read(&mut reader).expect("Deserialization failed");
+
+    // Check data_size
+    assert_eq!(deser.data_size, value.data_size);
+    // Check first few bytes
+    for i in 0..value.data_size as usize {
+        assert_eq!(deser.data[i], value.data[i], "Mismatch at byte {}", i);
+    }
+    // Check that the rest of the buffer is zeroed (default)
+    for i in value.data_size as usize..4096 {
+        assert_eq!(deser.data[i], 0, "Padding mismatch at byte {}", i);
+    }
+    // Reader should be at end
+    assert_eq!(reader.left(), 0);
+    // End of test_case0_test_spdm_cert_chain_data_deser
+    // (no extra closing brace)
+}
+
+#[test]
 fn test_case0_spdm_context_export_import() {
-    let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
-    let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
-    let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
+    let first_pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let first_my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
+
+    let second_pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let second_my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
+
+    let context = new_context(first_my_spdm_device_io, first_pcidoe_transport_encap);
 
     let exported_context = context.export();
-    let imported_context = SpdmContext::import(exported_context.unwrap(), my_spdm_device_io, pcidoe_transport_encap);
+    let imported_context = SpdmContext::import(
+        exported_context.unwrap(),
+        second_my_spdm_device_io,
+        second_pcidoe_transport_encap,
+    );
 
     assert_eq!(imported_context.unwrap().data, context.data);
+}
+
+#[test]
+fn test_case1_spdm_context_export_import() {
+    let first_pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let first_my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
+
+    let second_pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let second_my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
+
+    let mut context = new_context(first_my_spdm_device_io, first_pcidoe_transport_encap);
+
+    // Populate context with some random data
+    // Use a simple deterministic pattern for test data to avoid external dependencies and type issues
+    // Set some fields in config_info
+    context.data.config_info.req_capabilities =
+        SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::CHAL_CAP;
+    context.data.config_info.rsp_capabilities = SpdmResponseCapabilityFlags::ENCRYPT_CAP;
+    context.data.config_info.req_ct_exponent = 7;
+    context.data.config_info.rsp_ct_exponent = 3;
+    context.data.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
+    context.data.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::TPM_ALG_SHA_256;
+    context.data.config_info.base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.data.config_info.base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
+    context.data.config_info.dhe_algo = SpdmDheAlgo::SECP_256_R1;
+    context.data.config_info.aead_algo = SpdmAeadAlgo::AES_256_GCM;
+    context.data.config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.data.config_info.key_schedule_algo = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+    context.data.config_info.session_policy = 0xAA;
+    context.data.config_info.data_transfer_size = 0x1234;
+    context.data.config_info.max_spdm_msg_size = 0x5678;
+    context.data.config_info.heartbeat_period = 0x42;
+
+    // Set some fields in provision_info
+    for slot in 0..context.data.provision_info.my_cert_chain_data.len() {
+        context.data.provision_info.my_cert_chain_data[slot] = Some(SpdmCertChainData {
+            data_size: 16,
+            data: [slot as u8; 4096],
+        });
+    }
+    context.data.provision_info.local_supported_slot_mask = 0x1F;
+
+    // Set some fields in peer_info
+    for slot in 0..context.data.peer_info.peer_cert_chain.len() {
+        let mut buf = [slot as u8; 4164];
+        for i in 16..4164 {
+            buf[i] = 0;
+        }
+        context.data.peer_info.peer_cert_chain[slot] = Some(SpdmCertChainBuffer {
+            data_size: 16,
+            data: buf,
+        });
+    }
+    context.data.peer_info.peer_supported_slot_mask = 0x1F;
+
+    // Set some session data
+    for (i, session) in context.data.session.iter_mut().enumerate() {
+        session.set_session_id(0x1000 + i as u32);
+        // Use the enum from the session module
+        session
+            .set_session_state(spdmlib::common::session::SpdmSessionState::SpdmSessionHandshaking);
+    }
+
+    let exported_context = context.export();
+    let imported_context = SpdmContext::import(
+        exported_context.unwrap(),
+        second_my_spdm_device_io,
+        second_pcidoe_transport_encap,
+    );
+
+    assert_eq!(context.data, context.data); // verify Eq
+    assert_eq!(context.data, imported_context.unwrap().data); // verify Eq
 }
