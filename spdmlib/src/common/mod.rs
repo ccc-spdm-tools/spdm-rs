@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -1209,13 +1209,10 @@ impl Codec for SpdmConfigInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
 
-        // Count and encode populated spdm_version entries
         let spdm_version_count = self.spdm_version.iter().filter(|v| v.is_some()).count() as u8;
         size += spdm_version_count.encode(writer)?;
-        for v in &self.spdm_version {
-            if let Some(version) = v {
-                size += version.encode(writer)?;
-            }
+        for version in self.spdm_version.iter().flatten() {
+            size += version.encode(writer)?;
         }
 
         size += self.req_capabilities.encode(writer)?;
@@ -1237,17 +1234,14 @@ impl Codec for SpdmConfigInfo {
         size += self.max_spdm_msg_size.encode(writer)?;
         size += self.heartbeat_period.encode(writer)?;
 
-        // Count and encode populated secure_spdm_version entries
         let secure_spdm_version_count = self
             .secure_spdm_version
             .iter()
             .filter(|v| v.is_some())
             .count() as u8;
         size += secure_spdm_version_count.encode(writer)?;
-        for v in &self.secure_spdm_version {
-            if let Some(version) = v {
-                size += version.encode(writer)?;
-            }
+        for version in self.secure_spdm_version.iter().flatten() {
+            size += version.encode(writer)?;
         }
 
         size += self.mel_specification.encode(writer)?;
@@ -1255,11 +1249,13 @@ impl Codec for SpdmConfigInfo {
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        // Read spdm_version count and entries
         let spdm_version_count = u8::read(reader)? as usize;
         let mut spdm_version = [None; MAX_SPDM_VERSION_COUNT];
-        for i in 0..spdm_version_count.min(MAX_SPDM_VERSION_COUNT) {
-            spdm_version[i] = Some(SpdmVersion::read(reader)?);
+        for slot in spdm_version
+            .iter_mut()
+            .take(spdm_version_count.min(MAX_SPDM_VERSION_COUNT))
+        {
+            *slot = Some(SpdmVersion::read(reader)?);
         }
 
         let req_capabilities = SpdmRequestCapabilityFlags::read(reader)?;
@@ -1281,11 +1277,13 @@ impl Codec for SpdmConfigInfo {
         let max_spdm_msg_size = u32::read(reader)?;
         let heartbeat_period = u8::read(reader)?;
 
-        // Read secure_spdm_version count and entries
         let secure_spdm_version_count = u8::read(reader)? as usize;
         let mut secure_spdm_version = [None; MAX_SECURE_SPDM_VERSION_COUNT];
-        for i in 0..secure_spdm_version_count.min(MAX_SECURE_SPDM_VERSION_COUNT) {
-            secure_spdm_version[i] = Some(SecuredMessageVersion::read(reader)?);
+        for slot in secure_spdm_version
+            .iter_mut()
+            .take(secure_spdm_version_count.min(MAX_SECURE_SPDM_VERSION_COUNT))
+        {
+            *slot = Some(SecuredMessageVersion::read(reader)?);
         }
 
         let mel_specification = SpdmMelSpecification::read(reader)?;
@@ -1476,8 +1474,8 @@ impl Codec for ManagedBufferA {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_A_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferA(data_size, data))
     }
@@ -1527,8 +1525,8 @@ impl Codec for ManagedBufferB {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_B_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferB(data_size, data))
     }
@@ -1774,8 +1772,8 @@ impl Codec for ManagedBufferC {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_C_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferC(data_size, data))
     }
@@ -1797,8 +1795,8 @@ impl Codec for ManagedBufferM {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_M_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferM(data_size, data))
     }
@@ -1820,8 +1818,8 @@ impl Codec for ManagedBufferK {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_K_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferK(data_size, data))
     }
@@ -1843,8 +1841,8 @@ impl Codec for ManagedBufferF {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_F_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferF(data_size, data))
     }
@@ -1866,8 +1864,8 @@ impl Codec for ManagedBufferM1M2 {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_M1M2_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferM1M2(data_size, data))
     }
@@ -1889,8 +1887,8 @@ impl Codec for ManagedBufferL1L2 {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_L1L2_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferL1L2(data_size, data))
     }
@@ -1912,8 +1910,8 @@ impl Codec for ManagedBufferTH {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_TH_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBufferTH(data_size, data))
     }
@@ -1935,8 +1933,8 @@ impl Codec for ManagedBuffer12Sign {
             return None;
         }
         let mut data = [0u8; MAX_MANAGED_BUFFER_12SIGN_SIZE];
-        for i in 0..data_size {
-            data[i] = u8::read(reader)?;
+        for slot in data.iter_mut().take(data_size) {
+            *slot = u8::read(reader)?;
         }
         Some(ManagedBuffer12Sign(data_size, data))
     }
@@ -2064,7 +2062,6 @@ impl Codec for SpdmRuntimeInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.connection_state.encode(writer)?;
-        // Option<u32> with presence flag
         match &self.last_session_id {
             Some(val) => {
                 size += 1u8.encode(writer)?;
@@ -2128,7 +2125,6 @@ impl Codec for SpdmRuntimeInfo {
         size += (self.need_measurement_summary_hash as u8).encode(writer)?;
         size += (self.need_measurement_signature as u8).encode(writer)?;
         size += self.message_a.encode(writer)?;
-        // Option<SpdmHashCtx>
         size += match &self.digest_context_m1m2 {
             Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
             None => 0u8.encode(writer)?,
@@ -2191,7 +2187,6 @@ pub struct SpdmProvisionInfo {
 impl Codec for SpdmProvisionInfo {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
-        // my_cert_chain_data bitmap (u32)
         let mut bitmap = 0u32;
         for (i, v) in self.my_cert_chain_data.iter().enumerate() {
             if v.is_some() {
@@ -2199,12 +2194,9 @@ impl Codec for SpdmProvisionInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.my_cert_chain_data {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.my_cert_chain_data.iter().flatten() {
+            size += val.encode(writer)?;
         }
-        // my_cert_chain bitmap (u32)
         let mut bitmap = 0u32;
         for (i, v) in self.my_cert_chain.iter().enumerate() {
             if v.is_some() {
@@ -2212,12 +2204,9 @@ impl Codec for SpdmProvisionInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.my_cert_chain {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.my_cert_chain.iter().flatten() {
+            size += val.encode(writer)?;
         }
-        // peer_root_cert_data bitmap (u32)
         let mut bitmap = 0u32;
         for (i, v) in self.peer_root_cert_data.iter().enumerate() {
             if v.is_some() {
@@ -2225,13 +2214,10 @@ impl Codec for SpdmProvisionInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.peer_root_cert_data {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.peer_root_cert_data.iter().flatten() {
+            size += val.encode(writer)?;
         }
         size += self.local_supported_slot_mask.encode(writer)?;
-        // local_key_pair_id bitmap (u32)
         let mut bitmap = 0u32;
         for (i, v) in self.local_key_pair_id.iter().enumerate() {
             if v.is_some() {
@@ -2239,12 +2225,9 @@ impl Codec for SpdmProvisionInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.local_key_pair_id {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.local_key_pair_id.iter().flatten() {
+            size += val.encode(writer)?;
         }
-        // local_cert_info bitmap (u32)
         let mut bitmap = 0u32;
         for (i, v) in self.local_cert_info.iter().enumerate() {
             if v.is_some() {
@@ -2252,12 +2235,9 @@ impl Codec for SpdmProvisionInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.local_cert_info {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.local_cert_info.iter().flatten() {
+            size += val.encode(writer)?;
         }
-        // local_key_usage_bit_mask bitmap (u32)
         let mut bitmap = 0u32;
         for (i, v) in self.local_key_usage_bit_mask.iter().enumerate() {
             if v.is_some() {
@@ -2265,74 +2245,90 @@ impl Codec for SpdmProvisionInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.local_key_usage_bit_mask {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.local_key_usage_bit_mask.iter().flatten() {
+            size += val.encode(writer)?;
         }
         Ok(size)
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        // my_cert_chain_data (u32)
         let mut my_cert_chain_data = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in my_cert_chain_data
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                my_cert_chain_data[i] = Some(SpdmCertChainData::read(reader)?);
+                *slot = Some(SpdmCertChainData::read(reader)?);
             } else {
-                my_cert_chain_data[i] = None;
+                *slot = None;
             }
         }
-        // my_cert_chain (u32)
         let mut my_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in my_cert_chain
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                my_cert_chain[i] = Some(SpdmCertChainBuffer::read(reader)?);
+                *slot = Some(SpdmCertChainBuffer::read(reader)?);
             } else {
-                my_cert_chain[i] = None;
+                *slot = None;
             }
         }
-        // peer_root_cert_data (u32)
         let mut peer_root_cert_data = [None; MAX_ROOT_CERT_SUPPORT];
         let bitmap = u32::read(reader)?;
-        for i in 0..MAX_ROOT_CERT_SUPPORT {
+        for (i, slot) in peer_root_cert_data
+            .iter_mut()
+            .enumerate()
+            .take(MAX_ROOT_CERT_SUPPORT)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                peer_root_cert_data[i] = Some(SpdmCertChainData::read(reader)?);
+                *slot = Some(SpdmCertChainData::read(reader)?);
             } else {
-                peer_root_cert_data[i] = None;
+                *slot = None;
             }
         }
         let local_supported_slot_mask = u8::read(reader)?;
-        // local_key_pair_id (u32)
         let mut local_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in local_key_pair_id
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                local_key_pair_id[i] = Some(u8::read(reader)?);
+                *slot = Some(u8::read(reader)?);
             } else {
-                local_key_pair_id[i] = None;
+                *slot = None;
             }
         }
-        // local_cert_info (u32)
         let mut local_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in local_cert_info
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                local_cert_info[i] = Some(SpdmCertificateModelType::read(reader)?);
+                *slot = Some(SpdmCertificateModelType::read(reader)?);
             } else {
-                local_cert_info[i] = None;
+                *slot = None;
             }
         }
-        // local_key_usage_bit_mask (u32)
         let mut local_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in local_key_usage_bit_mask
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                local_key_usage_bit_mask[i] = Some(SpdmKeyUsageMask::read(reader)?);
+                *slot = Some(SpdmKeyUsageMask::read(reader)?);
             } else {
-                local_key_usage_bit_mask[i] = None;
+                *slot = None;
             }
         }
         Some(Self {
@@ -2383,12 +2379,9 @@ impl Codec for SpdmPeerInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.peer_cert_chain {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.peer_cert_chain.iter().flatten() {
+            size += val.encode(writer)?;
         }
-        // peer_cert_chain_temp
         match &self.peer_cert_chain_temp {
             Some(val) => {
                 size += 1u8.encode(writer)?;
@@ -2408,10 +2401,8 @@ impl Codec for SpdmPeerInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.peer_key_pair_id {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.peer_key_pair_id.iter().flatten() {
+            size += val.encode(writer)?;
         }
         // peer_cert_info (bitmap, u32)
         let mut bitmap = 0u32;
@@ -2421,10 +2412,8 @@ impl Codec for SpdmPeerInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.peer_cert_info {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.peer_cert_info.iter().flatten() {
+            size += val.encode(writer)?;
         }
         // peer_key_usage_bit_mask (bitmap, u32)
         let mut bitmap = 0u32;
@@ -2434,26 +2423,26 @@ impl Codec for SpdmPeerInfo {
             }
         }
         size += bitmap.encode(writer)?;
-        for v in &self.peer_key_usage_bit_mask {
-            if let Some(val) = v {
-                size += val.encode(writer)?;
-            }
+        for val in self.peer_key_usage_bit_mask.iter().flatten() {
+            size += val.encode(writer)?;
         }
         Ok(size)
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        // peer_cert_chain (bitmap, u32)
         let mut peer_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in peer_cert_chain
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                peer_cert_chain[i] = Some(SpdmCertChainBuffer::read(reader)?);
+                *slot = Some(SpdmCertChainBuffer::read(reader)?);
             } else {
-                peer_cert_chain[i] = None;
+                *slot = None;
             }
         }
-        // peer_cert_chain_temp
         let peer_cert_chain_temp = if u8::read(reader)? != 0 {
             Some(SpdmCertChainBuffer::read(reader)?)
         } else {
@@ -2461,34 +2450,43 @@ impl Codec for SpdmPeerInfo {
         };
         let peer_supported_slot_mask = u8::read(reader)?;
         let peer_provisioned_slot_mask = u8::read(reader)?;
-        // peer_key_pair_id (bitmap, u32)
         let mut peer_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in peer_key_pair_id
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                peer_key_pair_id[i] = Some(u8::read(reader)?);
+                *slot = Some(u8::read(reader)?);
             } else {
-                peer_key_pair_id[i] = None;
+                *slot = None;
             }
         }
-        // peer_cert_info (bitmap, u32)
         let mut peer_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in peer_cert_info
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                peer_cert_info[i] = Some(SpdmCertificateModelType::read(reader)?);
+                *slot = Some(SpdmCertificateModelType::read(reader)?);
             } else {
-                peer_cert_info[i] = None;
+                *slot = None;
             }
         }
-        // peer_key_usage_bit_mask (bitmap, u32)
         let mut peer_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
-        for i in 0..SPDM_MAX_SLOT_NUMBER {
+        for (i, slot) in peer_key_usage_bit_mask
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
             if (bitmap & (1u32 << i)) != 0 {
-                peer_key_usage_bit_mask[i] = Some(SpdmKeyUsageMask::read(reader)?);
+                *slot = Some(SpdmKeyUsageMask::read(reader)?);
             } else {
-                peer_key_usage_bit_mask[i] = None;
+                *slot = None;
             }
         }
         Some(Self {
