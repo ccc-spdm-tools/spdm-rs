@@ -35,7 +35,7 @@ async fn fuzz_handle_spdm_digest(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -48,10 +48,11 @@ async fn fuzz_handle_spdm_digest(data: Arc<Vec<u8>>) {
             None,
             None,
         ];
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -80,7 +81,7 @@ async fn fuzz_handle_spdm_digest(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u16,
                 data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -93,12 +94,12 @@ async fn fuzz_handle_spdm_digest(data: Arc<Vec<u8>>) {
             None,
             None,
         ];
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
-        context.common.session[0].set_crypto_param(
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -106,6 +107,7 @@ async fn fuzz_handle_spdm_digest(data: Arc<Vec<u8>>) {
         );
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 

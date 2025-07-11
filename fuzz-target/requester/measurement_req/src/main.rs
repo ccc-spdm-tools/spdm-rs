@@ -45,23 +45,25 @@ async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
 
         requester.common.reset_runtime_info();
 
@@ -107,21 +109,23 @@ async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.reset_runtime_info();
 
@@ -168,21 +172,23 @@ async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.reset_runtime_info();
 
@@ -229,21 +235,23 @@ async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
 
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.reset_runtime_info();
 
@@ -291,49 +299,54 @@ async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP;
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
         requester
             .common
+            .data
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.measurement_hash_sel =
+        requester.common.data.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionEstablished);
 
         #[cfg(feature = "hashed-transcript-data")]
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            requester.common.session[0]
+            requester.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            requester.common.session[0].runtime_info.digest_context_th =
+            requester.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
 
         requester.common.reset_runtime_info();
         let mut total_number = 0;

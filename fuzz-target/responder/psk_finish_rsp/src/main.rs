@@ -38,24 +38,26 @@ async fn fuzz_handle_spdm_psk_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_use_psk(true);
-        context.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
+        context.common.data.session[0].set_use_psk(true);
+        context.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
@@ -83,30 +85,33 @@ async fn fuzz_handle_spdm_psk_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_use_psk(true);
-        context.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
+        context.common.data.session[0].set_use_psk(true);
+        context.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
 
         context
             .common
+            .data
             .runtime_info
             .message_a
             .append_message(&[1u8; config::MAX_SPDM_MSG_SIZE]);
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
@@ -133,24 +138,26 @@ async fn fuzz_handle_spdm_psk_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_512;
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        context.common.session[0].set_use_psk(true);
-        context.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
+        context.common.data.session[0].set_use_psk(true);
+        context.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];

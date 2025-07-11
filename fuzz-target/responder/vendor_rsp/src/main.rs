@@ -34,7 +34,7 @@ async fn fuzz_handle_spdm_vendor_defined_request(data: Arc<Vec<u8>>) {
         provision_info,
     );
 
-    context.common.provision_info.my_cert_chain = [
+    context.common.data.provision_info.my_cert_chain = [
         Some(SpdmCertChainBuffer {
             data_size: 512u16,
             data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -47,10 +47,11 @@ async fn fuzz_handle_spdm_vendor_defined_request(data: Arc<Vec<u8>>) {
         None,
         None,
     ];
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
     context
         .common
+        .data
         .runtime_info
         .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 

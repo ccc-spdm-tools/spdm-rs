@@ -33,12 +33,12 @@ async fn fuzz_send_receive_spdm_heartbeat(fuzzdata: Arc<Vec<u8>>) {
         req_config_info,
         req_provision_info,
     );
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    requester.common.session[0] = SpdmSession::new();
-    requester.common.session[0].setup(4294836221).unwrap();
-    requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
-    requester.common.session[0].set_crypto_param(
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.session[0] = SpdmSession::new();
+    requester.common.data.session[0].setup(4294836221).unwrap();
+    requester.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
+    requester.common.data.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         SpdmDheAlgo::SECP_384_R1,
         SpdmAeadAlgo::AES_256_GCM,

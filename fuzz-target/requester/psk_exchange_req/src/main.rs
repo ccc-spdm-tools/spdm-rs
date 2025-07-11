@@ -37,13 +37,13 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT;
 
         let _ = requester
@@ -76,13 +76,13 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT;
 
         let _ = requester
@@ -112,13 +112,13 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT;
 
         let _ = requester
@@ -149,11 +149,11 @@ async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT;
 
         let _ = requester

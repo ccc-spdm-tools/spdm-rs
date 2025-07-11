@@ -35,21 +35,22 @@ async fn fuzz_handle_encap_response_certificate(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
-            context.common.negotiate_info.req_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            context.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
-        context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        context.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
 
         let _ = context.handle_encap_response_certificate(&data);
     }
@@ -74,21 +75,22 @@ async fn fuzz_handle_encap_response_certificate(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
-            context.common.negotiate_info.req_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            context.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
-        context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        context.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
 
         // to pass the verification of provisioned root cert with fake cert_operation
         let mut fake_root = SpdmCertChainData::default();
@@ -105,7 +107,7 @@ async fn fuzz_handle_encap_response_certificate(data: Arc<Vec<u8>>) {
             gen_array_clone(None, spdmlib::config::MAX_ROOT_CERT_SUPPORT);
         peer_root_cert_data_list[0] = Some(fake_root);
 
-        context.common.provision_info.peer_root_cert_data = peer_root_cert_data_list;
+        context.common.data.provision_info.peer_root_cert_data = peer_root_cert_data_list;
 
         let _ = context.handle_encap_response_certificate(&data);
     }

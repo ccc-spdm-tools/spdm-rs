@@ -32,28 +32,31 @@ async fn fuzz_send_receive_spdm_psk_finish(fuzzdata: Arc<Vec<u8>>) {
         req_config_info,
         req_provision_info,
     );
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    requester.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-    requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-    requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-    requester.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.base_asym_sel =
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+    requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+    requester.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
 
-    requester.common.session[0] = SpdmSession::new();
-    requester.common.session[0].setup(4294836221).unwrap();
-    requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-    requester.common.session[0].set_crypto_param(
+    requester.common.data.session[0] = SpdmSession::new();
+    requester.common.data.session[0].setup(4294836221).unwrap();
+    requester.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+    requester.common.data.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         SpdmDheAlgo::SECP_384_R1,
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
-    requester.common.session[0].set_use_psk(true);
-    requester.common.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
+    requester.common.data.session[0].set_use_psk(true);
+    requester.common.data.session[0].runtime_info.psk_hint = Some(SpdmPskHintStruct::default());
 
     #[cfg(feature = "hashed-transcript-data")]
     {
-        requester.common.session[0].runtime_info.digest_context_th =
+        requester.common.data.session[0]
+            .runtime_info
+            .digest_context_th =
             spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
     }
 

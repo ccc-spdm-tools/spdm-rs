@@ -33,8 +33,8 @@ async fn fuzz_send_spdm_vendor_defined_request(fuzzdata: Arc<Vec<u8>>) {
         req_provision_info,
     );
 
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
     let standard_id: RegistryOrStandardsBodyID = RegistryOrStandardsBodyID::DMTF;
     let vendor_idstruct: VendorIDStruct = VendorIDStruct {

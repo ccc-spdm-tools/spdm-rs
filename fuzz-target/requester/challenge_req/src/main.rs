@@ -34,14 +34,17 @@ async fn fuzz_send_receive_spdm_challenge(fuzzdata: Arc<Vec<u8>>) {
 
     requester
         .common
+        .data
         .negotiate_info
         .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    requester.common.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
-    requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    requester.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-    requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.negotiate_info.measurement_hash_sel =
+        SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.base_asym_sel =
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
 
     let _ = requester
         .send_receive_spdm_challenge(

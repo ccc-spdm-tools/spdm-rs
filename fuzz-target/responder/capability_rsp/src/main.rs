@@ -27,9 +27,10 @@ async fn fuzz_handle_spdm_capability(data: Arc<Vec<u8>>) {
         config_info,
         provision_info,
     );
-    context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
     context
         .common
+        .data
         .runtime_info
         .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
 

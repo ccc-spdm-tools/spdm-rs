@@ -35,9 +35,9 @@ async fn fuzz_send_receive_spdm_certificate(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
 
         let _ = requester
@@ -66,11 +66,11 @@ async fn fuzz_send_receive_spdm_certificate(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        requester.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
 
         // to pass the verification of provisioned root cert with fake cert_operation
         let mut fake_root = SpdmCertChainData::default();
@@ -87,7 +87,7 @@ async fn fuzz_send_receive_spdm_certificate(fuzzdata: Arc<Vec<u8>>) {
             gen_array_clone(None, spdmlib::config::MAX_ROOT_CERT_SUPPORT);
         peer_root_cert_data_list[0] = Some(fake_root);
 
-        requester.common.provision_info.peer_root_cert_data = peer_root_cert_data_list;
+        requester.common.data.provision_info.peer_root_cert_data = peer_root_cert_data_list;
         let _ = requester
             .send_receive_spdm_certificate(None, 0)
             .await
@@ -115,15 +115,16 @@ async fn fuzz_send_receive_spdm_certificate(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,

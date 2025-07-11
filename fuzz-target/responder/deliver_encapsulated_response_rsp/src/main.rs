@@ -36,21 +36,22 @@ async fn fuzz_handle_deliver_encapsulated_reponse(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
-            context.common.negotiate_info.req_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            context.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
-        context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        context.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
 
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = codec::Writer::init(&mut response_buffer);
@@ -77,21 +78,22 @@ async fn fuzz_handle_deliver_encapsulated_reponse(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
-            context.common.negotiate_info.req_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            context.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
-        context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        context.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
 
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = codec::Writer::init(&mut response_buffer);
@@ -118,19 +120,20 @@ async fn fuzz_handle_deliver_encapsulated_reponse(data: Arc<Vec<u8>>) {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
-            context.common.negotiate_info.req_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            context.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
 
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
-        context.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        context.common.data.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
 
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = codec::Writer::init(&mut response_buffer);

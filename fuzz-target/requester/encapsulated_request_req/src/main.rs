@@ -36,27 +36,28 @@ async fn fuzz_session_based_mutual_authenticate(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
-        requester.common.negotiate_info.req_capabilities_sel =
-            requester.common.negotiate_info.req_capabilities_sel
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            requester.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        requester.common.session[0]
+        requester.common.data.session[0]
             .set_mut_auth_requested(SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ);
 
         let _ = requester
@@ -85,27 +86,28 @@ async fn fuzz_session_based_mutual_authenticate(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
-        requester.common.negotiate_info.req_capabilities_sel =
-            requester.common.negotiate_info.req_capabilities_sel
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            requester.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        requester.common.session[0].set_mut_auth_requested(
+        requester.common.data.session[0].set_mut_auth_requested(
             SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_ENCAP_REQUEST,
         );
 
@@ -135,27 +137,28 @@ async fn fuzz_session_based_mutual_authenticate(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
-        requester.common.negotiate_info.req_capabilities_sel =
-            requester.common.negotiate_info.req_capabilities_sel
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            requester.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
-        requester.common.session[0].set_mut_auth_requested(
+        requester.common.data.session[0].set_mut_auth_requested(
             SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_GET_DIGESTS,
         );
 
@@ -185,21 +188,22 @@ async fn fuzz_session_based_mutual_authenticate(fuzzdata: Arc<Vec<u8>>) {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
-        requester.common.negotiate_info.req_capabilities_sel =
-            requester.common.negotiate_info.req_capabilities_sel
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            requester.common.data.negotiate_info.req_capabilities_sel
                 | SpdmRequestCapabilityFlags::ENCAP_CAP
                 | SpdmRequestCapabilityFlags::CERT_CAP;
-        requester.common.negotiate_info.rsp_capabilities_sel =
-            requester.common.negotiate_info.rsp_capabilities_sel
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            requester.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::ENCAP_CAP;
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,

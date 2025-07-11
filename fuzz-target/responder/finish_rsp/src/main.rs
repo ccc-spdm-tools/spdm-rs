@@ -39,15 +39,18 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP
-            | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP
+                | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP
+                | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -58,9 +61,9 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             None,
         ];
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -71,16 +74,19 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            context.common.session[0]
+            context.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
         context
             .common
+            .data
             .runtime_info
             .set_last_session_id(Some(4294836221));
 
@@ -107,15 +113,16 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::KEY_UPD_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel =
+        context.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::KEY_UPD_CAP;
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -126,9 +133,9 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             None,
         ];
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -139,16 +146,19 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            context.common.session[0]
+            context.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
         context
             .common
+            .data
             .runtime_info
             .set_last_session_id(Some(4294836221));
 
@@ -175,15 +185,18 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
-        context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP
-            | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP
+                | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP
+                | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -194,9 +207,9 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             None,
         ];
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -207,15 +220,18 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            context.common.session[0]
+            context.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
         context
             .common
+            .data
             .runtime_info
             .set_last_session_id(Some(4294836221));
 
@@ -242,15 +258,18 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP
-            | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP
+                | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP
+                | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
 
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -261,9 +280,9 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             None,
         ];
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -274,21 +293,25 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            context.common.session[0]
+            context.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
         context
             .common
+            .data
             .runtime_info
             .message_a
             .append_message(&[1u8; config::MAX_SPDM_MSG_SIZE - 103]);
         context
             .common
+            .data
             .runtime_info
             .set_last_session_id(Some(4294836221));
 
@@ -315,16 +338,18 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.req_capabilities_sel =
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.req_asym_sel =
+            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::KEY_UPD_CAP;
-        context.common.negotiate_info.rsp_capabilities_sel =
+        context.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::KEY_UPD_CAP;
-        context.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        context.common.provision_info.my_cert_chain = [
+        context.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        context.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -335,9 +360,9 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
             None,
         ];
 
-        context.common.session[0] = SpdmSession::new();
-        context.common.session[0].setup(4294836221).unwrap();
-        context.common.session[0].set_crypto_param(
+        context.common.data.session[0] = SpdmSession::new();
+        context.common.data.session[0].setup(4294836221).unwrap();
+        context.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -348,19 +373,22 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            context.common.session[0]
+            context.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            context.common.session[0].runtime_info.digest_context_th =
+            context.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        context.common.session[0].set_mut_auth_requested(
+        context.common.data.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        context.common.data.session[0].set_mut_auth_requested(
             SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_GET_DIGESTS,
         );
         context
             .common
+            .data
             .runtime_info
             .set_last_session_id(Some(4294836221));
 

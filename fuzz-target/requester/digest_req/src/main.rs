@@ -30,8 +30,8 @@ async fn fuzz_send_receive_spdm_digest(fuzzdata: Arc<Vec<u8>>) {
         req_provision_info,
     );
 
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
 
     let _ = requester.send_receive_spdm_digest(None).await.is_err();
 }

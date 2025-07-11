@@ -39,15 +39,15 @@ async fn fuzz_send_receive_spdm_key_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
         requester.common.reset_runtime_info();
 
         let _ = requester
@@ -81,15 +81,15 @@ async fn fuzz_send_receive_spdm_key_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
         requester.common.reset_runtime_info();
 
         let _ = requester
@@ -120,13 +120,13 @@ async fn fuzz_send_receive_spdm_key_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
         requester.common.reset_runtime_info();
 
         let _ = requester
@@ -158,19 +158,21 @@ async fn fuzz_send_receive_spdm_key_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP
-            | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        requester.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP
+                | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP
+                | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
         requester.common.reset_runtime_info();
 
         let _ = requester
@@ -201,18 +203,18 @@ async fn fuzz_send_receive_spdm_key_exchange(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.other_params_support =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.other_params_support =
             SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        requester.common.negotiate_info.req_capabilities_sel |=
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.negotiate_info.req_capabilities_sel |=
             SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
-        requester.common.negotiate_info.rsp_capabilities_sel |=
+        requester.common.data.negotiate_info.rsp_capabilities_sel |=
             SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
         requester.common.reset_runtime_info();
 

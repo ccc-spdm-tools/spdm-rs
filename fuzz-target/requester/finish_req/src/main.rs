@@ -43,27 +43,30 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP
-            | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
+            SpdmRequestCapabilityFlags::CERT_CAP
+                | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP
+                | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        requester.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        requester.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
 
         requester.common.reset_runtime_info();
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -74,14 +77,17 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            requester.common.session[0]
+            requester.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            requester.common.session[0].runtime_info.digest_context_th =
+            requester.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
 
         let _ = requester.send_receive_spdm_finish(None, 4294836221).await;
     }
@@ -106,27 +112,28 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::KEY_UPD_CAP;
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::KEY_UPD_CAP;
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        requester.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        requester.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
 
         requester.common.reset_runtime_info();
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -137,14 +144,17 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            requester.common.session[0]
+            requester.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            requester.common.session[0].runtime_info.digest_context_th =
+            requester.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
 
         let _ = requester.send_receive_spdm_finish(None, 4294836221).await;
     }
@@ -169,23 +179,25 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.req_ct_exponent_sel = 0;
-        requester.common.negotiate_info.req_capabilities_sel =
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.req_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.req_capabilities_sel =
             SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::KEY_UPD_CAP;
-        requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
-        requester.common.negotiate_info.rsp_capabilities_sel =
+        requester.common.data.negotiate_info.rsp_ct_exponent_sel = 0;
+        requester.common.data.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::KEY_UPD_CAP;
 
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        requester.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        requester.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
-        requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
-        requester.common.provision_info.my_cert_chain = [
+        requester.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        requester.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        requester.common.data.negotiate_info.req_asym_sel =
+            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        requester.common.data.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
+        requester.common.data.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
             None,
@@ -198,9 +210,9 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
 
         requester.common.reset_runtime_info();
 
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -211,15 +223,18 @@ async fn fuzz_send_receive_spdm_finish(fuzzdata: Arc<Vec<u8>>) {
         {
             let mut dhe_secret = SpdmDheFinalKeyStruct::default();
             dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-            requester.common.session[0]
+            requester.common.data.session[0]
                 .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
                 .unwrap();
-            requester.common.session[0].runtime_info.digest_context_th =
+            requester.common.data.session[0]
+                .runtime_info
+                .digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         }
 
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        requester.common.session[0].set_mut_auth_requested(
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        requester.common.data.session[0].set_mut_auth_requested(
             SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_GET_DIGESTS,
         );
 

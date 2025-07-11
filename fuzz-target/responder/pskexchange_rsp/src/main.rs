@@ -37,21 +37,25 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        context.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        context.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT;
 
         context.common.reset_runtime_info();
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -80,21 +84,25 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        context.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        context.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT;
 
         context.common.reset_runtime_info();
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
@@ -123,27 +131,31 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
-        context.common.negotiate_info.rsp_capabilities_sel =
-            context.common.negotiate_info.rsp_capabilities_sel
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        context.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        context.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        context.common.data.negotiate_info.rsp_capabilities_sel =
+            context.common.data.negotiate_info.rsp_capabilities_sel
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT;
 
         context.common.reset_runtime_info();
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 
         for i in 0..MAX_SPDM_SESSION_COUNT {
-            context.common.session[i] = SpdmSession::new();
-            context.common.session[i].setup(4294836221).unwrap();
+            context.common.data.session[i] = SpdmSession::new();
+            context.common.data.session[i].setup(4294836221).unwrap();
         }
 
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
@@ -170,15 +182,18 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
             config_info,
             provision_info,
         );
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
-        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
-        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
-        context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
-        context.common.negotiate_info.rsp_capabilities_sel |=
+        context.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.data.negotiate_info.other_params_support =
+            SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
+        context.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.data.negotiate_info.base_asym_sel =
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.data.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+        context.common.data.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+        context.common.data.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
+        context.common.data.negotiate_info.key_schedule_sel =
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        context.common.data.negotiate_info.rsp_capabilities_sel |=
             SpdmResponseCapabilityFlags::MEAS_CAP_SIG
                 | SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG
                 | SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT;
@@ -186,6 +201,7 @@ async fn fuzz_handle_spdm_psk_exchange(data: Arc<Vec<u8>>) {
         context.common.reset_runtime_info();
         context
             .common
+            .data
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
 

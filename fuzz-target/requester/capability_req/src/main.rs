@@ -28,7 +28,7 @@ async fn fuzz_send_receive_spdm_capability(fuzzdata: Arc<Vec<u8>>) {
         req_config_info,
         req_provision_info,
     );
-    requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
     let _ = requester.send_receive_spdm_capability().await;
 }

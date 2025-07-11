@@ -36,12 +36,13 @@ async fn fuzz_send_receive_spdm_key_update(data: Arc<Vec<u8>>) {
             req_config_info,
             req_provision_info,
         );
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-        requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.session[0] = SpdmSession::new();
-        requester.common.session[0].setup(4294836221).unwrap();
-        requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
-        requester.common.session[0].set_crypto_param(
+        requester.common.data.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        requester.common.data.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.common.data.session[0] = SpdmSession::new();
+        requester.common.data.session[0].setup(4294836221).unwrap();
+        requester.common.data.session[0]
+            .set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        requester.common.data.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
             SpdmAeadAlgo::AES_256_GCM,
@@ -50,12 +51,12 @@ async fn fuzz_send_receive_spdm_key_update(data: Arc<Vec<u8>>) {
 
         let mut dhe_secret = SpdmDheFinalKeyStruct::default();
         dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
-        requester.common.session[0]
+        requester.common.data.session[0]
             .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
             .unwrap();
         let digest = [0xFF; SPDM_MAX_HASH_SIZE];
         let digest_struct = SpdmDigestStruct::from(digest.as_ref());
-        let _ = requester.common.session[0]
+        let _ = requester.common.data.session[0]
             .generate_data_secret(SpdmVersion::SpdmVersion12, &digest_struct);
 
         let _ = requester
