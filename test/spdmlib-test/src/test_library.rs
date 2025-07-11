@@ -8,6 +8,7 @@ use crate::common::util::new_context;
 use codec::{u24, Codec, Reader, Writer};
 use spdmlib::common::opaque::*;
 use spdmlib::common::SpdmCodec;
+use spdmlib::common::SpdmContext;
 use spdmlib::config::{MAX_SPDM_MEASUREMENT_RECORD_SIZE, MAX_SPDM_MEASUREMENT_VALUE_LEN};
 use spdmlib::protocol::*;
 use spin::Mutex;
@@ -296,4 +297,16 @@ fn test_case0_spdm_measurement_block_structure() {
         assert_eq!(spdm_block_structure.measurement.value[i], 100);
     }
     assert_eq!(0, reader.left());
+}
+
+#[test]
+fn test_case0_spdm_context_export_import() {
+    let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let my_spdm_device_io = Arc::new(Mutex::new(MySpdmDeviceIo));
+    let mut context = new_context(my_spdm_device_io, pcidoe_transport_encap);
+
+    let exported_context = context.export();
+    let imported_context = SpdmContext::import(exported_context.unwrap(), my_spdm_device_io, pcidoe_transport_encap);
+
+    assert_eq!(imported_context.unwrap().data, context.data);
 }
