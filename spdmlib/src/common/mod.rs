@@ -1127,7 +1127,7 @@ impl SpdmContext {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct SpdmConfigInfo {
     pub spdm_version: [Option<SpdmVersion>; MAX_SPDM_VERSION_COUNT],
     pub req_capabilities: SpdmRequestCapabilityFlags,
@@ -1257,7 +1257,7 @@ impl Codec for SpdmConfigInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct SpdmNegotiateInfo {
     pub spdm_version_sel: SpdmVersion,
     pub req_capabilities_sel: SpdmRequestCapabilityFlags,
@@ -1373,7 +1373,7 @@ pub const MAX_MANAGED_BUFFER_12SIGN_SIZE: usize = SPDM_VERSION_1_X_SIGNING_PREFI
     + SPDM_VERSION_1_X_SIGN_CONTEXT_SIZE
     + SPDM_MAX_HASH_SIZE;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferA(usize, [u8; MAX_MANAGED_BUFFER_A_SIZE]);
 
 impl ManagedBufferA {
@@ -1424,7 +1424,7 @@ impl Codec for ManagedBufferA {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferB(usize, [u8; MAX_MANAGED_BUFFER_B_SIZE]);
 
 impl ManagedBufferB {
@@ -1475,7 +1475,7 @@ impl Codec for ManagedBufferB {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferC(usize, [u8; MAX_MANAGED_BUFFER_C_SIZE]);
 
 impl ManagedBufferC {
@@ -1503,7 +1503,7 @@ impl Default for ManagedBufferC {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferM(usize, [u8; MAX_MANAGED_BUFFER_M_SIZE]);
 
 impl ManagedBufferM {
@@ -1531,7 +1531,7 @@ impl Default for ManagedBufferM {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferK(usize, [u8; MAX_MANAGED_BUFFER_K_SIZE]);
 
 impl ManagedBufferK {
@@ -1559,7 +1559,7 @@ impl Default for ManagedBufferK {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferF(usize, [u8; MAX_MANAGED_BUFFER_F_SIZE]);
 
 impl ManagedBufferF {
@@ -1587,7 +1587,7 @@ impl Default for ManagedBufferF {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferM1M2(usize, [u8; MAX_MANAGED_BUFFER_M1M2_SIZE]);
 
 impl ManagedBufferM1M2 {
@@ -1615,7 +1615,7 @@ impl Default for ManagedBufferM1M2 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferL1L2(usize, [u8; MAX_MANAGED_BUFFER_L1L2_SIZE]);
 
 impl ManagedBufferL1L2 {
@@ -1643,7 +1643,7 @@ impl Default for ManagedBufferL1L2 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBufferTH(usize, [u8; MAX_MANAGED_BUFFER_TH_SIZE]);
 
 impl ManagedBufferTH {
@@ -1671,7 +1671,7 @@ impl Default for ManagedBufferTH {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ManagedBuffer12Sign(usize, [u8; MAX_MANAGED_BUFFER_12SIGN_SIZE]);
 
 impl ManagedBuffer12Sign {
@@ -1933,8 +1933,8 @@ impl From<SpdmMeasurementContentChanged> for u8 {
     }
 }
 
-#[derive(Debug, Clone, Default)]
 #[cfg(not(feature = "hashed-transcript-data"))]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct SpdmRuntimeInfo {
     connection_state: SpdmConnectionState,
     last_session_id: Option<u32>,
@@ -1950,8 +1950,8 @@ pub struct SpdmRuntimeInfo {
                                                         // used by requester, consume when measurement response report content changed.
 }
 
-#[derive(Clone, Default)]
 #[cfg(feature = "hashed-transcript-data")]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct SpdmRuntimeInfo {
     connection_state: SpdmConnectionState,
     last_session_id: Option<u32>,
@@ -2118,7 +2118,7 @@ impl Codec for SpdmRuntimeInfo {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
     pub my_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
@@ -2302,7 +2302,7 @@ impl Default for SpdmProvisionInfo {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SpdmPeerInfo {
     pub peer_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
     pub peer_cert_chain_temp: Option<SpdmCertChainBuffer>,
@@ -2443,7 +2443,7 @@ impl Codec for SpdmPeerInfo {
 }
 
 #[cfg(feature = "mut-auth")]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SpdmEncapContext {
     pub req_slot_id: u8,
     pub request_id: u8,

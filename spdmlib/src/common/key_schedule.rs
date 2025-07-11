@@ -25,7 +25,7 @@ const SPDM_VERSION_VALUE: &[u8; 8] = b"spdm .  ";
 const SPDM_VERSION_VALUE_MAJOR_INDEX: usize = 4;
 const SPDM_VERSION_VALUE_MINOR_INDEX: usize = 6;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SpdmKeySchedule;
 
 impl Default for SpdmKeySchedule {
