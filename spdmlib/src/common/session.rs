@@ -35,7 +35,7 @@ impl Default for SpdmSessionState {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct SpdmSessionCryptoParam {
     pub base_hash_algo: SpdmBaseHashAlgo,
     pub dhe_algo: SpdmDheAlgo,
@@ -63,7 +63,7 @@ impl Codec for SpdmSessionCryptoParam {
     }
 }
 
-#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
 pub struct SpdmSessionDheSecretRoot {
     pub dhe_secret: SpdmDheFinalKeyStruct,
     pub handshake_secret: SpdmHandshakeSecretStruct,
@@ -88,7 +88,7 @@ impl Codec for SpdmSessionDheSecretRoot {
     }
 }
 
-#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
 pub struct SpdmSessionSecretParam {
     pub encryption_key: SpdmAeadKeyStruct,
     pub salt: SpdmAeadIvStruct,
@@ -113,7 +113,7 @@ impl Codec for SpdmSessionSecretParam {
     }
 }
 
-#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
 pub struct SpdmSessionHandshakeSecret {
     pub request_handshake_secret: SpdmDirectionHandshakeSecretStruct,
     pub response_handshake_secret: SpdmDirectionHandshakeSecretStruct,
@@ -147,7 +147,7 @@ impl Codec for SpdmSessionHandshakeSecret {
     }
 }
 
-#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
 pub struct SpdmSessionAppliationSecret {
     pub request_data_secret: SpdmDirectionDataSecretStruct,
     pub response_data_secret: SpdmDirectionDataSecretStruct,
@@ -178,7 +178,7 @@ impl Codec for SpdmSessionAppliationSecret {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct SpdmSessionTransportParam {
     pub sequence_number_count: u8,
     pub max_random_count: u16,
@@ -200,7 +200,7 @@ impl Codec for SpdmSessionTransportParam {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[cfg(not(feature = "hashed-transcript-data"))]
 pub struct SpdmSessionRuntimeInfo {
     pub psk_hint: Option<SpdmPskHintStruct>,
@@ -212,7 +212,7 @@ pub struct SpdmSessionRuntimeInfo {
     pub message_m: ManagedBufferM,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[cfg(feature = "hashed-transcript-data")]
 pub struct SpdmSessionRuntimeInfo {
     pub psk_hint: Option<SpdmPskHintStruct>,
@@ -404,7 +404,7 @@ impl Codec for SpdmSessionRuntimeInfo {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SpdmSession {
     session_id: u32,
     use_psk: bool,

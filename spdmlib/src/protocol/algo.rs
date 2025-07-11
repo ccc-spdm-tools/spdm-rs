@@ -1003,7 +1003,7 @@ impl From<BytesMut> for SpdmSignatureStruct {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SpdmCertChainData {
     pub data_size: u16,
     pub data: [u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -1023,7 +1023,7 @@ impl AsRef<[u8]> for SpdmCertChainData {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SpdmCertChainBuffer {
     pub data_size: u16,
     pub data: [u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
@@ -1313,7 +1313,7 @@ impl AsRef<[u8]> for SpdmPskContextStruct {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SpdmPskHintStruct {
     pub data_size: u16,
     pub data: [u8; config::MAX_SPDM_PSK_HINT_SIZE],
@@ -1357,7 +1357,7 @@ impl Codec for SpdmPskHintStruct {
 
 macro_rules! create_sensitive_datatype {
     (Name: $name:ident, Size: $size:expr) => {
-        #[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
+        #[derive(Debug, Clone, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
         pub struct $name {
             pub data_size: u16,
             pub data: Box<[u8; $size]>,
