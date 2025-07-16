@@ -261,6 +261,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cavp_acvts_test"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "ring",
+ "serde",
+ "serde_json",
+ "spdmlib",
+ "untrusted",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
