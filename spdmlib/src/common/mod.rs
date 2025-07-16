@@ -1792,6 +1792,135 @@ pub struct SpdmPeerInfo {
     pub peer_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
 }
 
+impl Codec for SpdmPeerInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        let mut bitmap = 0u32;
+        for (i, v) in self.peer_cert_chain.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.peer_cert_chain.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        match &self.peer_cert_chain_temp {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        size += self.peer_supported_slot_mask.encode(writer)?;
+        size += self.peer_provisioned_slot_mask.encode(writer)?;
+        let mut bitmap = 0u32;
+        for (i, v) in self.peer_key_pair_id.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.peer_key_pair_id.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let mut bitmap = 0u32;
+        for (i, v) in self.peer_cert_info.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.peer_cert_info.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let mut bitmap = 0u32;
+        for (i, v) in self.peer_key_usage_bit_mask.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.peer_key_usage_bit_mask.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let mut peer_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in peer_cert_chain
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmCertChainBuffer::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let peer_cert_chain_temp = if u8::read(reader)? != 0 {
+            Some(SpdmCertChainBuffer::read(reader)?)
+        } else {
+            None
+        };
+        let peer_supported_slot_mask = u8::read(reader)?;
+        let peer_provisioned_slot_mask = u8::read(reader)?;
+        let mut peer_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in peer_key_pair_id
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(u8::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let mut peer_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in peer_cert_info
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmCertificateModelType::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let mut peer_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in peer_key_usage_bit_mask
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmKeyUsageMask::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        Some(Self {
+            peer_cert_chain,
+            peer_cert_chain_temp,
+            peer_supported_slot_mask,
+            peer_provisioned_slot_mask,
+            peer_key_pair_id,
+            peer_cert_info,
+            peer_key_usage_bit_mask,
+        })
+    }
+}
+
 #[cfg(feature = "mut-auth")]
 #[derive(Default)]
 pub struct SpdmEncapContext {
