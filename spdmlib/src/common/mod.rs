@@ -25,8 +25,7 @@ use crate::error::{
     SPDM_STATUS_SESSION_NUMBER_EXCEED,
 };
 
-use codec::enum_builder;
-use codec::{Codec, Reader, Writer};
+use codec::{enum_builder, Codec, Reader, Writer};
 use session::*;
 
 enum_builder! {
