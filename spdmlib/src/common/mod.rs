@@ -2157,9 +2157,28 @@ impl Codec for SpdmPeerInfo {
 }
 
 #[cfg(feature = "mut-auth")]
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SpdmEncapContext {
     pub req_slot_id: u8,
     pub request_id: u8,
     pub encap_cert_size: u16,
+}
+
+#[cfg(feature = "mut-auth")]
+impl Codec for SpdmEncapContext {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.req_slot_id.encode(writer)?;
+        size += self.request_id.encode(writer)?;
+        size += self.encap_cert_size.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            req_slot_id: u8::read(reader)?,
+            request_id: u8::read(reader)?,
+            encap_cert_size: u16::read(reader)?,
+        })
+    }
 }
