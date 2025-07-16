@@ -1597,7 +1597,7 @@ impl SpdmRuntimeInfo {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
     pub my_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
@@ -1606,6 +1606,165 @@ pub struct SpdmProvisionInfo {
     pub local_key_pair_id: [Option<u8>; SPDM_MAX_SLOT_NUMBER],
     pub local_cert_info: [Option<SpdmCertificateModelType>; SPDM_MAX_SLOT_NUMBER],
     pub local_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
+}
+
+impl Codec for SpdmProvisionInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        let mut bitmap = 0u32;
+        for (i, v) in self.my_cert_chain_data.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.my_cert_chain_data.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let mut bitmap = 0u32;
+        for (i, v) in self.my_cert_chain.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.my_cert_chain.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let mut bitmap = 0u32;
+        for (i, v) in self.peer_root_cert_data.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.peer_root_cert_data.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        size += self.local_supported_slot_mask.encode(writer)?;
+        let mut bitmap = 0u32;
+        for (i, v) in self.local_key_pair_id.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.local_key_pair_id.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let mut bitmap = 0u32;
+        for (i, v) in self.local_cert_info.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.local_cert_info.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let mut bitmap = 0u32;
+        for (i, v) in self.local_key_usage_bit_mask.iter().enumerate() {
+            if v.is_some() {
+                bitmap |= 1u32 << i;
+            }
+        }
+        size += bitmap.encode(writer)?;
+        for val in self.local_key_usage_bit_mask.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let mut my_cert_chain_data = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in my_cert_chain_data
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmCertChainData::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let mut my_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in my_cert_chain
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmCertChainBuffer::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let mut peer_root_cert_data = [None; MAX_ROOT_CERT_SUPPORT];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in peer_root_cert_data
+            .iter_mut()
+            .enumerate()
+            .take(MAX_ROOT_CERT_SUPPORT)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmCertChainData::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let local_supported_slot_mask = u8::read(reader)?;
+        let mut local_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in local_key_pair_id
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(u8::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let mut local_cert_info = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in local_cert_info
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmCertificateModelType::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        let mut local_key_usage_bit_mask = [None; SPDM_MAX_SLOT_NUMBER];
+        let bitmap = u32::read(reader)?;
+        for (i, slot) in local_key_usage_bit_mask
+            .iter_mut()
+            .enumerate()
+            .take(SPDM_MAX_SLOT_NUMBER)
+        {
+            if (bitmap & (1u32 << i)) != 0 {
+                *slot = Some(SpdmKeyUsageMask::read(reader)?);
+            } else {
+                *slot = None;
+            }
+        }
+        Some(Self {
+            my_cert_chain_data,
+            my_cert_chain,
+            peer_root_cert_data,
+            local_supported_slot_mask,
+            local_key_pair_id,
+            local_cert_info,
+            local_key_usage_bit_mask,
+        })
+    }
 }
 
 impl Default for SpdmProvisionInfo {
