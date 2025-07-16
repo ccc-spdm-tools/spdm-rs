@@ -1714,6 +1714,124 @@ impl SpdmRuntimeInfo {
     }
 }
 
+#[cfg(not(feature = "hashed-transcript-data"))]
+impl Codec for SpdmRuntimeInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.connection_state.encode(writer)?;
+        // Option<u32> with presence flag
+        match &self.last_session_id {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        size += self.local_used_cert_chain_slot_id.encode(writer)?;
+        size += self.peer_used_cert_chain_slot_id.encode(writer)?;
+        size += (self.need_measurement_summary_hash as u8).encode(writer)?;
+        size += (self.need_measurement_signature as u8).encode(writer)?;
+        size += self.message_a.encode(writer)?;
+        size += self.message_b.encode(writer)?;
+        size += self.message_c.encode(writer)?;
+        size += self.message_m.encode(writer)?;
+        size += self.content_changed.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            connection_state: SpdmConnectionState::read(reader)?,
+            last_session_id: {
+                if u8::read(reader)? != 0 {
+                    Some(u32::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            local_used_cert_chain_slot_id: u8::read(reader)?,
+            peer_used_cert_chain_slot_id: u8::read(reader)?,
+            need_measurement_summary_hash: u8::read(reader)? != 0,
+            need_measurement_signature: u8::read(reader)? != 0,
+            message_a: ManagedBufferA::read(reader)?,
+            message_b: ManagedBufferB::read(reader)?,
+            message_c: ManagedBufferC::read(reader)?,
+            message_m: ManagedBufferM::read(reader)?,
+            content_changed: SpdmMeasurementContentChanged::read(reader)?,
+        })
+    }
+}
+
+#[cfg(feature = "hashed-transcript-data")]
+impl Codec for SpdmRuntimeInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.connection_state.encode(writer)?;
+        match &self.last_session_id {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
+        size += self.local_used_cert_chain_slot_id.encode(writer)?;
+        size += self.peer_used_cert_chain_slot_id.encode(writer)?;
+        size += (self.need_measurement_summary_hash as u8).encode(writer)?;
+        size += (self.need_measurement_signature as u8).encode(writer)?;
+        size += self.message_a.encode(writer)?;
+        // Option<SpdmHashCtx>
+        size += match &self.digest_context_m1m2 {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        size += match &self.digest_context_l1l2 {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        size += self.content_changed.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            connection_state: SpdmConnectionState::read(reader)?,
+            last_session_id: {
+                if u8::read(reader)? != 0 {
+                    Some(u32::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            local_used_cert_chain_slot_id: u8::read(reader)?,
+            peer_used_cert_chain_slot_id: u8::read(reader)?,
+            need_measurement_summary_hash: u8::read(reader)? != 0,
+            need_measurement_signature: u8::read(reader)? != 0,
+            message_a: ManagedBufferA::read(reader)?,
+            digest_context_m1m2: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(SpdmHashCtx::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            digest_context_l1l2: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(SpdmHashCtx::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            content_changed: SpdmMeasurementContentChanged::read(reader)?,
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
