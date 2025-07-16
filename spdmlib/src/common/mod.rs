@@ -13,6 +13,7 @@ use spin::Mutex;
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::{convert::TryFrom, ops::DerefMut};
 
 pub use opaque::*;
@@ -1124,6 +1125,91 @@ impl SpdmContext {
             .await?;
 
         Ok(used.0)
+    }
+
+    /// Export all serializable data components of the SpdmContext
+    pub fn export(&self) -> SpdmResult<Vec<u8>> {
+        // Use a large heap-allocated buffer for encoding
+        let mut buffer = Box::new([0u8; 0x20000]); // 128 KiB buffer on heap
+        let mut writer = Writer::init(&mut buffer[..]);
+
+        // Serialize core data structures
+        self.config_info
+            .encode(&mut writer)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        self.negotiate_info
+            .encode(&mut writer)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        self.runtime_info
+            .encode(&mut writer)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        self.provision_info
+            .encode(&mut writer)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        self.peer_info
+            .encode(&mut writer)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+
+        #[cfg(feature = "mut-auth")]
+        {
+            self.encap_context
+                .encode(&mut writer)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
+
+        #[cfg(feature = "mandatory-mut-auth")]
+        {
+            (self.mut_auth_done as u8)
+                .encode(&mut writer)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
+
+        // Serialize sessions
+        for session in &self.session {
+            session
+                .encode(&mut writer)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
+
+        // Convert the used portion of the buffer to a Vec
+        let used_size = writer.used();
+        Ok(buffer[..used_size].to_vec())
+    }
+
+    /// Import serializable data components into the SpdmContext
+    /// Note: device_io and transport_encap are not serialized and must be set separately
+    pub fn import(&mut self, data: &[u8]) -> SpdmResult<()> {
+        let mut reader = Reader::init(data);
+
+        // Deserialize core data structures
+        self.config_info =
+            SpdmConfigInfo::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        self.negotiate_info =
+            SpdmNegotiateInfo::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        self.runtime_info =
+            SpdmRuntimeInfo::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        self.provision_info =
+            SpdmProvisionInfo::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        self.peer_info = SpdmPeerInfo::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+
+        #[cfg(feature = "mut-auth")]
+        {
+            self.encap_context =
+                SpdmEncapContext::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        }
+
+        #[cfg(feature = "mandatory-mut-auth")]
+        {
+            let mut_auth_done = u8::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            self.mut_auth_done = mut_auth_done != 0;
+        }
+
+        // Deserialize sessions
+        for session in &mut self.session {
+            *session = SpdmSession::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        }
+
+        Ok(())
     }
 }
 
