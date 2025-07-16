@@ -1152,6 +1152,111 @@ pub struct SpdmConfigInfo {
     pub mel_specification: SpdmMelSpecification, // spdm 1.3
 }
 
+impl Codec for SpdmConfigInfo {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+
+        let spdm_version_count = self.spdm_version.iter().flatten().count() as u8;
+        size += spdm_version_count.encode(writer)?;
+        for version in self.spdm_version.iter().flatten() {
+            size += version.encode(writer)?;
+        }
+
+        size += self.req_capabilities.encode(writer)?;
+        size += self.rsp_capabilities.encode(writer)?;
+        size += self.req_ct_exponent.encode(writer)?;
+        size += self.rsp_ct_exponent.encode(writer)?;
+        size += self.measurement_specification.encode(writer)?;
+        size += self.measurement_hash_algo.encode(writer)?;
+        size += self.base_hash_algo.encode(writer)?;
+        size += self.base_asym_algo.encode(writer)?;
+        size += self.dhe_algo.encode(writer)?;
+        size += self.aead_algo.encode(writer)?;
+        size += self.req_asym_algo.encode(writer)?;
+        size += self.key_schedule_algo.encode(writer)?;
+        size += self.other_params_support.encode(writer)?;
+        size += self.session_policy.encode(writer)?;
+        size += (self.runtime_content_change_support as u8).encode(writer)?;
+        size += self.data_transfer_size.encode(writer)?;
+        size += self.max_spdm_msg_size.encode(writer)?;
+        size += self.heartbeat_period.encode(writer)?;
+
+        let secure_spdm_version_count = self.secure_spdm_version.iter().flatten().count() as u8;
+        size += secure_spdm_version_count.encode(writer)?;
+        for version in self.secure_spdm_version.iter().flatten() {
+            size += version.encode(writer)?;
+        }
+
+        size += self.mel_specification.encode(writer)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let spdm_version_count = u8::read(reader)? as usize;
+        let mut spdm_version = [None; MAX_SPDM_VERSION_COUNT];
+        for slot in spdm_version
+            .iter_mut()
+            .take(spdm_version_count.min(MAX_SPDM_VERSION_COUNT))
+        {
+            *slot = Some(SpdmVersion::read(reader)?);
+        }
+
+        let req_capabilities = SpdmRequestCapabilityFlags::read(reader)?;
+        let rsp_capabilities = SpdmResponseCapabilityFlags::read(reader)?;
+        let req_ct_exponent = u8::read(reader)?;
+        let rsp_ct_exponent = u8::read(reader)?;
+        let measurement_specification = SpdmMeasurementSpecification::read(reader)?;
+        let measurement_hash_algo = SpdmMeasurementHashAlgo::read(reader)?;
+        let base_hash_algo = SpdmBaseHashAlgo::read(reader)?;
+        let base_asym_algo = SpdmBaseAsymAlgo::read(reader)?;
+        let dhe_algo = SpdmDheAlgo::read(reader)?;
+        let aead_algo = SpdmAeadAlgo::read(reader)?;
+        let req_asym_algo = SpdmReqAsymAlgo::read(reader)?;
+        let key_schedule_algo = SpdmKeyScheduleAlgo::read(reader)?;
+        let other_params_support = SpdmAlgoOtherParams::read(reader)?;
+        let session_policy = u8::read(reader)?;
+        let runtime_content_change_support = u8::read(reader)? != 0;
+        let data_transfer_size = u32::read(reader)?;
+        let max_spdm_msg_size = u32::read(reader)?;
+        let heartbeat_period = u8::read(reader)?;
+
+        let secure_spdm_version_count = u8::read(reader)? as usize;
+        let mut secure_spdm_version = [None; MAX_SECURE_SPDM_VERSION_COUNT];
+        for slot in secure_spdm_version
+            .iter_mut()
+            .take(secure_spdm_version_count.min(MAX_SECURE_SPDM_VERSION_COUNT))
+        {
+            *slot = Some(SecuredMessageVersion::read(reader)?);
+        }
+
+        let mel_specification = SpdmMelSpecification::read(reader)?;
+
+        Some(Self {
+            spdm_version,
+            req_capabilities,
+            rsp_capabilities,
+            req_ct_exponent,
+            rsp_ct_exponent,
+            measurement_specification,
+            measurement_hash_algo,
+            base_hash_algo,
+            base_asym_algo,
+            dhe_algo,
+            aead_algo,
+            req_asym_algo,
+            key_schedule_algo,
+            other_params_support,
+            session_policy,
+            runtime_content_change_support,
+            data_transfer_size,
+            max_spdm_msg_size,
+            heartbeat_period,
+            secure_spdm_version,
+            mel_specification,
+        })
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct SpdmNegotiateInfo {
     pub spdm_version_sel: SpdmVersion,
