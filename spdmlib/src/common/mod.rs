@@ -46,7 +46,7 @@ enum_builder! {
         SpdmConnectionAfterCertificate => 0x5,
         // After CHALLENGE/CHALLENGE_AUTH,
         // and ENCAP CHALLENGE/CHALLENGE_AUTH if MUT_AUTH is enabled.
-        SpdmConnectionAuthenticated => 0x5
+        SpdmConnectionAuthenticated => 0x6
     }
 }
 #[allow(clippy::derivable_impls)]
