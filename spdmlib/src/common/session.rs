@@ -148,7 +148,7 @@ impl Codec for SpdmSessionHandshakeSecret {
 }
 
 #[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
-pub struct SpdmSessionAppliationSecret {
+pub struct SpdmSessionApplicationSecret {
     pub request_data_secret: SpdmDirectionDataSecretStruct,
     pub response_data_secret: SpdmDirectionDataSecretStruct,
     pub request_direction: SpdmSessionSecretParam,
@@ -156,7 +156,7 @@ pub struct SpdmSessionAppliationSecret {
     pub export_master_secret: SpdmExportMasterSecretStruct,
 }
 
-impl Codec for SpdmSessionAppliationSecret {
+impl Codec for SpdmSessionApplicationSecret {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
         size += self.request_data_secret.encode(writer)?;
@@ -397,8 +397,8 @@ pub struct SpdmSession {
     crypto_param: SpdmSessionCryptoParam,
     dhe_secret_root: SpdmSessionDheSecretRoot,
     handshake_secret: SpdmSessionHandshakeSecret,
-    application_secret: SpdmSessionAppliationSecret,
-    application_secret_backup: SpdmSessionAppliationSecret,
+    application_secret: SpdmSessionApplicationSecret,
+    application_secret_backup: SpdmSessionApplicationSecret,
     responder_backup_valid: bool,
     requester_backup_valid: bool,
     transport_param: SpdmSessionTransportParam,
@@ -447,8 +447,8 @@ impl Codec for SpdmSession {
             crypto_param: SpdmSessionCryptoParam::read(reader)?,
             dhe_secret_root: SpdmSessionDheSecretRoot::read(reader)?,
             handshake_secret: SpdmSessionHandshakeSecret::read(reader)?,
-            application_secret: SpdmSessionAppliationSecret::read(reader)?,
-            application_secret_backup: SpdmSessionAppliationSecret::read(reader)?,
+            application_secret: SpdmSessionApplicationSecret::read(reader)?,
+            application_secret_backup: SpdmSessionApplicationSecret::read(reader)?,
             responder_backup_valid: u8::read(reader)? != 0,
             requester_backup_valid: u8::read(reader)? != 0,
             transport_param: SpdmSessionTransportParam::read(reader)?,
@@ -470,8 +470,8 @@ impl SpdmSession {
             crypto_param: SpdmSessionCryptoParam::default(),
             dhe_secret_root: SpdmSessionDheSecretRoot::default(),
             handshake_secret: SpdmSessionHandshakeSecret::default(),
-            application_secret: SpdmSessionAppliationSecret::default(),
-            application_secret_backup: SpdmSessionAppliationSecret::default(),
+            application_secret: SpdmSessionApplicationSecret::default(),
+            application_secret_backup: SpdmSessionApplicationSecret::default(),
             responder_backup_valid: false,
             requester_backup_valid: false,
             transport_param: SpdmSessionTransportParam::default(),
@@ -500,11 +500,11 @@ impl SpdmSession {
         self.application_secret.response_direction.sequence_number
     }
 
-    pub fn get_application_secret(&self) -> SpdmSessionAppliationSecret {
+    pub fn get_application_secret(&self) -> SpdmSessionApplicationSecret {
         self.application_secret.clone()
     }
 
-    pub fn set_application_secret(&mut self, application_secret: SpdmSessionAppliationSecret) {
+    pub fn set_application_secret(&mut self, application_secret: SpdmSessionApplicationSecret) {
         self.application_secret = application_secret;
     }
 
@@ -515,8 +515,8 @@ impl SpdmSession {
         self.crypto_param = SpdmSessionCryptoParam::default();
         self.dhe_secret_root = SpdmSessionDheSecretRoot::default();
         self.handshake_secret = SpdmSessionHandshakeSecret::default();
-        self.application_secret = SpdmSessionAppliationSecret::default();
-        self.application_secret_backup = SpdmSessionAppliationSecret::default();
+        self.application_secret = SpdmSessionApplicationSecret::default();
+        self.application_secret_backup = SpdmSessionApplicationSecret::default();
         self.transport_param = SpdmSessionTransportParam::default();
         self.runtime_info = SpdmSessionRuntimeInfo::default();
         self.key_schedule = SpdmKeySchedule;
