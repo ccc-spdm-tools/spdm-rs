@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -10,6 +10,7 @@ use core::convert::TryFrom;
 use crate::crypto::SpdmCertOperation;
 use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_INVALID_STATE_LOCAL};
 use ring::io::der;
+use rustls_pki_types::{CertificateDer, SignatureVerificationAlgorithm, UnixTime};
 
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: get_cert_from_cert_chain,
@@ -46,16 +47,14 @@ fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> SpdmResult<(usiz
 }
 
 fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
-    static EKU_SPDM_RESPONDER_AUTH: &[u8] = &[40 + 3, 6, 1, 5, 5, 7, 3, 1];
-
-    static ALL_SIGALGS: &[&webpki::SignatureAlgorithm] = &[
-        &webpki::RSA_PKCS1_2048_8192_SHA256,
-        &webpki::RSA_PKCS1_2048_8192_SHA384,
-        &webpki::RSA_PKCS1_2048_8192_SHA512,
-        &webpki::ECDSA_P256_SHA256,
-        &webpki::ECDSA_P256_SHA384,
-        &webpki::ECDSA_P384_SHA256,
-        &webpki::ECDSA_P384_SHA384,
+    static ALL_SIGALGS: &[&dyn SignatureVerificationAlgorithm] = &[
+        webpki::ring::RSA_PKCS1_2048_8192_SHA256,
+        webpki::ring::RSA_PKCS1_2048_8192_SHA384,
+        webpki::ring::RSA_PKCS1_2048_8192_SHA512,
+        webpki::ring::ECDSA_P256_SHA256,
+        webpki::ring::ECDSA_P256_SHA384,
+        webpki::ring::ECDSA_P384_SHA256,
+        webpki::ring::ECDSA_P384_SHA384,
     ];
 
     let mut certs = Vec::new();
@@ -150,9 +149,18 @@ fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
         n => (certs[0], &certs[1..(n - 1)], certs[n - 1]),
     };
 
-    let anchors = if let Ok(ta) = webpki::TrustAnchor::try_from_cert_der(ca) {
+    let ca_der = CertificateDer::from(ca);
+    let anchors = if let Ok(ta) = webpki::anchor_from_trusted_cert(&ca_der) {
+        info!(
+            "Trust anchor created successfully from CA cert (length: {})\n",
+            ca.len()
+        );
         vec![ta]
     } else {
+        error!(
+            "Failed to create trust anchor from CA cert (length: {})\n",
+            ca.len()
+        );
         return Err(SPDM_STATUS_INVALID_CERT);
     };
 
@@ -173,24 +181,102 @@ fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
     };
-    let time = webpki::Time::from_seconds_since_unix_epoch(timestamp);
+    let time = UnixTime::since_unix_epoch(core::time::Duration::from_secs(timestamp));
 
-    let cert = if let Ok(eec) = webpki::EndEntityCert::try_from(ee) {
+    let ee_der = CertificateDer::from(ee);
+    let cert = if let Ok(eec) = webpki::EndEntityCert::try_from(&ee_der) {
+        info!(
+            "End entity certificate parsed successfully (length: {})\n",
+            ee.len()
+        );
         eec
     } else {
+        error!(
+            "Failed to parse end entity certificate (length: {})\n",
+            ee.len()
+        );
         return Err(SPDM_STATUS_INVALID_CERT);
     };
 
-    // we cannot call verify_is_valid_tls_server_cert because it will check verify_cert::EKU_SERVER_AUTH.
-    if cert
-        .verify_cert_chain_with_eku(EKU_SPDM_RESPONDER_AUTH, ALL_SIGALGS, &anchors, inters, time)
-        .is_ok()
-    {
-        info!("Cert verification Pass\n");
-        Ok(())
-    } else {
-        error!("Cert verification Fail\n");
-        Err(SPDM_STATUS_INVALID_CERT)
+    // Convert intermediate certificates to CertificateDer
+    let inter_ders: Vec<CertificateDer> = inters
+        .iter()
+        .map(|&cert| CertificateDer::from(cert))
+        .collect();
+
+    // Create KeyUsage for SPDM responder authentication
+    // EKU_SPDM_RESPONDER_AUTH corresponds to server authentication in this context
+    static EKU_SPDM_RESPONDER_AUTH: &[u8] = &[40 + 3, 6, 1, 5, 5, 7, 3, 1]; // FIXME: Incorrect OID!
+    let eku = webpki::KeyUsage::required_if_present(EKU_SPDM_RESPONDER_AUTH);
+
+    match cert.verify_for_usage(
+        ALL_SIGALGS,
+        &anchors,
+        &inter_ders,
+        time,
+        eku,
+        None, // No revocation checking
+        None, // No additional validation callback
+    ) {
+        Ok(_verified_path) => {
+            info!("X.509 certificate verification passed!\n");
+            Ok(())
+        }
+        Err(e) => {
+            error!("X.509 certificate verification failed: {:?}\n", e);
+            error!("Certificate chain details:\n");
+            error!("  Total certificates in chain: {}\n", certs_len);
+            error!("  CA certificate length: {}\n", ca.len());
+            error!("  End entity certificate length: {}\n", ee.len());
+            error!("  Number of intermediate certificates: {}\n", inters.len());
+            error!("  Timestamp used: {}\n", timestamp);
+
+            // Print detailed information about intermediate certificates in failure case
+            for (i, inter) in inters.iter().enumerate() {
+                error!(
+                    "  Intermediate cert #{}: length = {} bytes\n",
+                    i + 1,
+                    inter.len()
+                );
+
+                // Print first few bytes for debugging
+                let preview_len = core::cmp::min(16, inter.len());
+                error!(
+                    "    First {} bytes: {:02x?}\n",
+                    preview_len,
+                    &inter[..preview_len]
+                );
+
+                // Try to parse intermediate certificate for more details
+                let inter_der = CertificateDer::from(*inter);
+                match webpki::EndEntityCert::try_from(&inter_der) {
+                    Ok(_) => {
+                        error!("    Successfully parsed as valid certificate\n");
+                    }
+                    Err(parse_err) => {
+                        error!("    Failed to parse as certificate: {:?}\n", parse_err);
+                    }
+                }
+            }
+
+            // Print CA cert details
+            let ca_preview_len = core::cmp::min(16, ca.len());
+            error!(
+                "  CA cert first {} bytes: {:02x?}\n",
+                ca_preview_len,
+                &ca[..ca_preview_len]
+            );
+
+            // Print EE cert details
+            let ee_preview_len = core::cmp::min(16, ee.len());
+            error!(
+                "  EE cert first {} bytes: {:02x?}\n",
+                ee_preview_len,
+                &ee[..ee_preview_len]
+            );
+
+            Err(SPDM_STATUS_INVALID_CERT)
+        }
     }
 }
 #[cfg(test)]

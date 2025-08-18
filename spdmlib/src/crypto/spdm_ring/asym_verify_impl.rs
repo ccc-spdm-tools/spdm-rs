@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021, 2025 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -6,6 +6,7 @@ use crate::crypto::{x509v3, SpdmAsymVerify};
 use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_VERIF_FAIL};
 use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
 use core::convert::TryFrom;
+use rustls_pki_types::CertificateDer;
 
 pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
     verify_cb: asym_verify,
@@ -24,46 +25,46 @@ fn asym_verify(
 
     let algorithm = match (base_hash_algo, base_asym_algo) {
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256) => {
-            &webpki::ECDSA_P256_SHA256
+            webpki::ring::ECDSA_P256_SHA256
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
-            &webpki::ECDSA_P384_SHA256
+            webpki::ring::ECDSA_P384_SHA256
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256) => {
-            &webpki::ECDSA_P256_SHA384
+            webpki::ring::ECDSA_P256_SHA384
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
-            &webpki::ECDSA_P384_SHA384
+            webpki::ring::ECDSA_P384_SHA384
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
-            &webpki::RSA_PKCS1_2048_8192_SHA256
+            webpki::ring::RSA_PKCS1_2048_8192_SHA256
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
-            &webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY
+            webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
-            &webpki::RSA_PKCS1_2048_8192_SHA384
+            webpki::ring::RSA_PKCS1_2048_8192_SHA384
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
-            &webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY
+            webpki::ring::RSA_PSS_2048_8192_SHA384_LEGACY_KEY
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
-            &webpki::RSA_PKCS1_2048_8192_SHA512
+            webpki::ring::RSA_PKCS1_2048_8192_SHA512
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
         | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
-            &webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY
+            webpki::ring::RSA_PSS_2048_8192_SHA512_LEGACY_KEY
         }
         _ => {
             panic!();
@@ -76,7 +77,8 @@ fn asym_verify(
         (super::cert_operation_impl::DEFAULT.get_cert_from_cert_chain_cb)(public_cert_der, -1)?;
     let leaf_cert_der = &public_cert_der[leaf_begin..leaf_end];
 
-    let res = webpki::EndEntityCert::try_from(leaf_cert_der);
+    let certificate_der = CertificateDer::from(leaf_cert_der);
+    let res = webpki::EndEntityCert::try_from(&certificate_der);
     match res {
         Ok(cert) => {
             //
