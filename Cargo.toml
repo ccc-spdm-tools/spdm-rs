@@ -65,7 +65,6 @@ members = [
 ]
 exclude = [
     "external/ring",
-    "external/webpki",
     "fuzz-target/",
 ]
 
@@ -80,5 +79,4 @@ opt-level = 3
 
 [patch.crates-io]
   ring = { path = "external/ring" }
-  rustls-webpki = { path = "external/webpki" }
   mbedtls-platform-support = { path = "spdmlib_crypto_mbedtls/mbedtls-platform-support" }
