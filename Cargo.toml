@@ -80,5 +80,5 @@ opt-level = 3
 
 [patch.crates-io]
   ring = { path = "external/ring" }
-  webpki = { path = "external/webpki" }
+  rustls-webpki = { path = "external/webpki" }
   mbedtls-platform-support = { path = "spdmlib_crypto_mbedtls/mbedtls-platform-support" }
