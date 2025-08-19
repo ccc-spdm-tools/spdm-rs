@@ -7,7 +7,7 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::{create_info, get_rsp_cert_chain_buff};
 use spdmlib::common::SpdmConnectionState;
-use spdmlib::config::{MAX_SPDM_CERT_CHAIN_DATA_SIZE, MAX_SPDM_MSG_SIZE};
+use spdmlib::config::{MAX_SPDM_CERT_CHAIN_DATA_SIZE, MAX_SPDM_MSG_SIZE, SPDM_DATA_TRANSFER_SIZE};
 use spdmlib::error::{SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD};
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;
@@ -43,6 +43,19 @@ fn test_case0_send_receive_spdm_certificate() {
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         responder.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                (SPDM_DATA_TRANSFER_SIZE) as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                (SPDM_DATA_TRANSFER_SIZE) as u32;
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
+
         responder.common.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
@@ -76,6 +89,18 @@ fn test_case0_send_receive_spdm_certificate() {
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                (SPDM_DATA_TRANSFER_SIZE) as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                (SPDM_DATA_TRANSFER_SIZE) as u32;
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
 
         let status = requester
             .send_receive_spdm_certificate(None, 0)

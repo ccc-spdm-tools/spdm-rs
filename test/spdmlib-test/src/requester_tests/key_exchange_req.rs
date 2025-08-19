@@ -7,6 +7,7 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::{create_info, get_rsp_cert_chain_buff};
 use spdmlib::common::{session, SpdmConnectionState};
+use spdmlib::config;
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;
 use spdmlib::{responder, secret};
@@ -45,6 +46,18 @@ fn test_case0_send_receive_spdm_key_exchange() {
             None,
             None,
         ];
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+        }
 
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
@@ -92,6 +105,18 @@ fn test_case0_send_receive_spdm_key_exchange() {
             req_config_info,
             req_provision_info,
         );
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+        }
 
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;

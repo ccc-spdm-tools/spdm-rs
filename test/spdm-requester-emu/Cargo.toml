@@ -27,6 +27,7 @@ dhat = { version = "0.3.2", optional = true }
 [features]
 default = ["spdm-emu/default", "async-executor"]
 mut-auth = ["spdm-emu/mut-auth"]
+chunk-cap = ["spdm-emu/chunk-cap"]
 spdm-ring = ["spdm-emu/spdm-ring"]
 spdm-mbedtls = ["spdm-emu/spdm-mbedtls"]
 hashed-transcript-data = ["spdm-emu/hashed-transcript-data"]

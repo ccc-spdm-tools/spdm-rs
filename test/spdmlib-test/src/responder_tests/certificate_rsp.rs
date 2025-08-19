@@ -187,6 +187,7 @@ pub fn construct_certificate_positive() -> (Vec<TestSpdmMessage>, Vec<TestSpdmMe
 }
 
 #[test]
+#[cfg(not(feature = "chunk-cap"))]
 fn test_case1_handle_spdm_certificate() {
     let mut input = Vec::new();
     let mut expected = Vec::new();
