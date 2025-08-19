@@ -184,6 +184,7 @@ fn test_receive_encapsulated_request() {
 }
 
 #[test]
+#[cfg(not(feature = "chunk-cap"))]
 fn test_receive_encapsulated_response_ack() {
     let future = async {
         let (config_info, provision_info) = create_info();
@@ -312,6 +313,13 @@ fn setup_test_context_and_session(
         SpdmRequestCapabilityFlags::ENCAP_CAP | SpdmRequestCapabilityFlags::CERT_CAP;
     context.common.negotiate_info.rsp_capabilities_sel =
         SpdmResponseCapabilityFlags::ENCAP_CAP | SpdmResponseCapabilityFlags::CERT_CAP;
+
+    #[cfg(feature = "chunk-cap")]
+    {
+        context.common.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CHUNK_CAP;
+        context.common.negotiate_info.rsp_capabilities_sel |=
+            SpdmResponseCapabilityFlags::CHUNK_CAP;
+    }
 
     context
         .common

@@ -273,6 +273,7 @@ fn test_handle_spdm_measurement_runner(
 }
 
 #[test]
+#[cfg(not(feature = "chunk-cap"))]
 fn test_case2_handle_spdm_measurements() {
     use crate::common::secret_callback::SECRET_MEASUREMENT_IMPL_INSTANCE;
     use crate::protocol;

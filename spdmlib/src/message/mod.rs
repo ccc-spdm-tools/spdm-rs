@@ -29,6 +29,11 @@ pub mod key_update;
 pub mod psk_exchange;
 pub mod psk_finish;
 pub mod respond_if_ready;
+// SPDM 1.2
+#[cfg(feature = "chunk-cap")]
+pub mod chunk_get;
+#[cfg(feature = "chunk-cap")]
+pub mod chunk_send;
 
 pub use algorithm::*;
 pub use capability::*;
@@ -48,6 +53,10 @@ pub use psk_exchange::*;
 pub use psk_finish::*;
 pub use version::*;
 // Add new SPDM command here.
+#[cfg(feature = "chunk-cap")]
+pub use chunk_get::*;
+#[cfg(feature = "chunk-cap")]
+pub use chunk_send::*;
 pub use respond_if_ready::*;
 pub use vendor::*;
 
@@ -75,6 +84,9 @@ enum_builder! {
         SpdmResponseEncapsulatedRequest => 0x6A,
         SpdmResponseEncapsulatedResponseAck => 0x6B,
         SpdmResponseEndSessionAck => 0x6C,
+        // 1.2 response
+        SpdmResponseChunkSendAck => 0x05,
+        SpdmResponseChunkResponse => 0x06,
 
         // 1.0 rerquest
         SpdmRequestGetDigests => 0x81,
@@ -95,7 +107,10 @@ enum_builder! {
         SpdmRequestKeyUpdate => 0xE9,
         SpdmRequestGetEncapsulatedRequest => 0xEA,
         SpdmRequestDeliverEncapsulatedResponse => 0xEB,
-        SpdmRequestEndSession => 0xEC
+        SpdmRequestEndSession => 0xEC,
+        // 1.2 request
+        SpdmRequestChunkSend => 0x85,
+        SpdmRequestChunkGet => 0x86
     }
 }
 impl Default for SpdmRequestResponseCode {
@@ -239,6 +254,15 @@ pub enum SpdmMessagePayload {
     SpdmErrorResponse(SpdmErrorResponsePayload),
     SpdmVendorDefinedRequest(SpdmVendorDefinedRequestPayload),
     SpdmVendorDefinedResponse(SpdmVendorDefinedResponsePayload),
+
+    #[cfg(feature = "chunk-cap")]
+    SpdmChunkSendRequest(SpdmChunkSendRequestPayload),
+    #[cfg(feature = "chunk-cap")]
+    SpdmChunkSendAckResponse(SpdmChunkSendAckResponsePayload),
+    #[cfg(feature = "chunk-cap")]
+    SpdmChunkGetRequest(SpdmChunkGetRequestPayload),
+    #[cfg(feature = "chunk-cap")]
+    SpdmChunkResponse(SpdmChunkResponsePayload),
 }
 
 impl SpdmMessage {
@@ -555,6 +579,22 @@ impl SpdmCodec for SpdmMessage {
                 cnt += payload.spdm_encode(context, bytes)?;
             }
             SpdmMessagePayload::SpdmVendorDefinedResponse(payload) => {
+                cnt += payload.spdm_encode(context, bytes)?;
+            }
+            #[cfg(feature = "chunk-cap")]
+            SpdmMessagePayload::SpdmChunkSendRequest(payload) => {
+                cnt += payload.spdm_encode(context, bytes)?;
+            }
+            #[cfg(feature = "chunk-cap")]
+            SpdmMessagePayload::SpdmChunkSendAckResponse(payload) => {
+                cnt += payload.spdm_encode(context, bytes)?;
+            }
+            #[cfg(feature = "chunk-cap")]
+            SpdmMessagePayload::SpdmChunkGetRequest(payload) => {
+                cnt += payload.spdm_encode(context, bytes)?;
+            }
+            #[cfg(feature = "chunk-cap")]
+            SpdmMessagePayload::SpdmChunkResponse(payload) => {
                 cnt += payload.spdm_encode(context, bytes)?;
             }
         }

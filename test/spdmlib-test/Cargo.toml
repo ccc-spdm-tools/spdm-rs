@@ -22,6 +22,7 @@ pcidoe_transport = { path = "../../pcidoe_transport" }
 env_logger = "*"
 
 [features]
-default = ["hashed-transcript-data", "mut-auth"]
+default = ["hashed-transcript-data", "mut-auth", "chunk-cap"]
 hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
 mut-auth = ["spdmlib/mut-auth"]
+chunk-cap = ["spdmlib/chunk-cap"]

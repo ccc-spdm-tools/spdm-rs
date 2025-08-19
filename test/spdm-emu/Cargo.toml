@@ -29,6 +29,7 @@ spdmlib_crypto_mbedtls = { path = "../../spdmlib_crypto_mbedtls", default-featur
 [features]
 default = ["spdm-ring", "spdmlib/hashed-transcript-data", "async-executor"]
 mut-auth = ["spdmlib/mut-auth"]
+chunk-cap = ["spdmlib/chunk-cap"]
 mandatory-mut-auth = ["mut-auth", "spdmlib/mandatory-mut-auth"]
 spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std"]
 spdm-mbedtls = ["spdmlib_crypto_mbedtls"]

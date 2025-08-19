@@ -146,6 +146,13 @@ pub struct SpdmContext {
     #[cfg(feature = "mandatory-mut-auth")]
     pub mut_auth_done: bool,
 
+    #[cfg(feature = "chunk-cap")]
+    pub chunk_context: SpdmChunkContext,
+    #[cfg(feature = "chunk-cap")]
+    pub chunk_req_handle: u8,
+    #[cfg(feature = "chunk-cap")]
+    pub chunk_rsp_handle: u8,
+
     pub session: [SpdmSession; config::MAX_SPDM_SESSION_COUNT],
 }
 
@@ -169,6 +176,12 @@ impl SpdmContext {
             #[cfg(feature = "mandatory-mut-auth")]
             mut_auth_done: false,
             session: gen_array(config::MAX_SPDM_SESSION_COUNT),
+            #[cfg(feature = "chunk-cap")]
+            chunk_context: SpdmChunkContext::default(),
+            #[cfg(feature = "chunk-cap")]
+            chunk_req_handle: 0,
+            #[cfg(feature = "chunk-cap")]
+            chunk_rsp_handle: 0,
         }
     }
 
@@ -2552,5 +2565,42 @@ impl Codec for SpdmEncapContext {
             request_id: u8::read(reader)?,
             encap_cert_size: u16::read(reader)?,
         })
+    }
+}
+
+#[cfg(feature = "chunk-cap")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum SpdmChunkStatus {
+    Idle,
+    ChunkSendAndAck,
+    ChunkGetAndResponse,
+}
+
+#[cfg(feature = "chunk-cap")]
+impl Default for SpdmChunkStatus {
+    fn default() -> Self {
+        Self::Idle
+    }
+}
+
+#[cfg(feature = "chunk-cap")]
+pub struct SpdmChunkContext {
+    pub chunk_status: SpdmChunkStatus,
+    pub chunk_seq_num: u16,
+    pub chunk_message_size: usize,
+    pub chunk_message_data: [u8; config::MAX_SPDM_MSG_SIZE],
+    pub transferred_size: usize,
+}
+
+#[cfg(feature = "chunk-cap")]
+impl Default for SpdmChunkContext {
+    fn default() -> Self {
+        SpdmChunkContext {
+            chunk_status: SpdmChunkStatus::Idle,
+            chunk_seq_num: 0,
+            chunk_message_size: 0,
+            chunk_message_data: [0u8; config::MAX_SPDM_MSG_SIZE],
+            transferred_size: 0,
+        }
     }
 }
