@@ -205,8 +205,9 @@ fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
         .collect();
 
     // Create KeyUsage for SPDM responder authentication
-    // EKU_SPDM_RESPONDER_AUTH corresponds to server authentication in this context
-    static EKU_SPDM_RESPONDER_AUTH: &[u8] = &[40 + 3, 6, 1, 5, 5, 7, 3, 1]; // FIXME: Incorrect OID!
+    // OID 1.3.6.1.4.1.412.274.3 for id-DMTF-eku-responder-auth
+    static EKU_SPDM_RESPONDER_AUTH: &[u8] =
+        &[0x2B, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1C, 0x82, 0x12, 0x03];
     let eku = webpki::KeyUsage::required_if_present(EKU_SPDM_RESPONDER_AUTH);
 
     match cert.verify_for_usage(
