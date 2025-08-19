@@ -115,6 +115,12 @@ async fn test_spdm(
         req_capabilities
     };
 
+    let req_capabilities = if cfg!(feature = "chunk-cap") {
+        req_capabilities | SpdmRequestCapabilityFlags::CHUNK_CAP
+    } else {
+        req_capabilities
+    };
+
     let config_info = common::SpdmConfigInfo {
         spdm_version: [
             Some(SpdmVersion::SpdmVersion10),
@@ -140,7 +146,7 @@ async fn test_spdm(
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
-        data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
+        data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
@@ -610,6 +616,12 @@ async fn test_idekm_tdisp(
         req_capabilities
     };
 
+    let req_capabilities = if cfg!(feature = "chunk-cap") {
+        req_capabilities | SpdmRequestCapabilityFlags::CHUNK_CAP
+    } else {
+        req_capabilities
+    };
+
     let config_info = common::SpdmConfigInfo {
         spdm_version: [
             Some(SpdmVersion::SpdmVersion10),
@@ -635,7 +647,7 @@ async fn test_idekm_tdisp(
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
-        data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
+        data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
