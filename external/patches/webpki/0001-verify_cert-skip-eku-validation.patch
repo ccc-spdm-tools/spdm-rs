@@ -1,0 +1,39 @@
+diff --git a/src/verify_cert.rs b/src/verify_cert.rs
+index 1e124a2..0e7d097 100644
+--- a/src/verify_cert.rs
++++ b/src/verify_cert.rs
+@@ -349,7 +349,7 @@ fn check_issuer_independent_properties(
+     time: UnixTime,
+     role: Role,
+     sub_ca_count: usize,
+-    eku: ExtendedKeyUsage,
++    _eku: ExtendedKeyUsage,
+ ) -> Result<(), Error> {
+     // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
+     // TODO: Check signature algorithm like mozilla::pkix.
+@@ -367,7 +367,8 @@ fn check_issuer_independent_properties(
+     untrusted::read_all_optional(cert.basic_constraints, Error::BadDer, |value| {
+         check_basic_constraints(value, role, sub_ca_count)
+     })?;
+-    untrusted::read_all_optional(cert.eku, Error::BadDer, |value| eku.check(value))?;
++    // FIXME: implement SPDM-compliant verifier for issuer independent properties
++    //untrusted::read_all_optional(cert.eku, Error::BadDer, |value| eku.check(value))?;
+ 
+     Ok(())
+ }
+@@ -556,6 +557,7 @@ enum ExtendedKeyUsage {
+ 
+ impl ExtendedKeyUsage {
+     // https://tools.ietf.org/html/rfc5280#section-4.2.1.12
++    #[allow(dead_code)]
+     fn check(&self, input: Option<&mut untrusted::Reader<'_>>) -> Result<(), Error> {
+         let input = match (input, self) {
+             (Some(input), _) => input,
+@@ -598,6 +600,7 @@ impl ExtendedKeyUsage {
+         Ok(())
+     }
+ 
++    #[allow(dead_code)]
+     fn key_purpose_id_equals(&self, value: untrusted::Input<'_>) -> bool {
+         public_values_eq(
+             match self {
