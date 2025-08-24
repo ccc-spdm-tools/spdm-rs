@@ -108,6 +108,9 @@ RUN_RESPONDER_FEATURES=${RUN_RESPONDER_FEATURES:-spdm-ring,hashed-transcript-dat
 RUN_REQUESTER_MUTAUTH_FEATURES="${RUN_REQUESTER_FEATURES},mut-auth"
 RUN_RESPONDER_MUTAUTH_FEATURES="${RUN_RESPONDER_FEATURES},mut-auth"
 RUN_RESPONDER_MANDATORY_MUTAUTH_FEATURES="${RUN_RESPONDER_FEATURES},mandatory-mut-auth"
+RUN_REQUESTER_CHUNK_CAP_FEATURES="${RUN_REQUESTER_FEATURES},chunk-cap"
+RUN_RESPONDER_CHUNK_CAP_FEATURES="${RUN_RESPONDER_FEATURES},chunk-cap"
+
 
 run_with_spdm_emu() {
     echo "Running with spdm-emu..."
@@ -166,6 +169,15 @@ run_basic_test() {
     echo_command cargo test -- --test-threads=1
     echo_command cargo test --no-default-features -- --test-threads=1
     popd
+
+    echo "Running tests with chunk capability..."
+    echo_command export SPDM_CONFIG="etc/chunk_test_config.json"
+    echo_command cargo test --no-default-features --features "spdmlib/std,spdmlib/spdm-ring,spdm-emu/is_sync,spdmlib/is_sync,maybe-async/is_sync,idekm/is_sync,tdisp/is_sync,mctp_transport/is_sync,pcidoe_transport/is_sync,spdm-requester-emu/is_sync,spdm-responder-emu/is_sync,chunk-cap" -- --test-threads=1
+    pushd test/spdmlib-test
+    echo_command cargo test -- --test-threads=1
+    echo_command cargo test --no-default-features --features "chunk-cap" -- --test-threads=1
+    popd
+    echo_command export SPDM_CONFIG="etc/config.json"
 }
 
 run_rust_spdm_emu() {
@@ -191,6 +203,17 @@ run_rust_spdm_emu_mandatory_mut_auth() {
     echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_MANDATORY_MUTAUTH_FEATURES" &
     sleep 5
     echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_MUTAUTH_FEATURES"
+    cleanup
+}
+
+run_rust_spdm_emu_chunk_cap() {
+    echo "Running requester and responder chunk capability..."
+    echo_command export SPDM_CONFIG="etc/chunk_test_config.json"
+    echo $RUN_REQUESTER_CHUNK_CAP_FEATURES
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_CHUNK_CAP_FEATURES" &
+    sleep 5
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_CHUNK_CAP_FEATURES"
+    echo_command export SPDM_CONFIG="etc/config.json"
     cleanup
 }
 
