@@ -219,3 +219,7 @@ impl Codec for SpdmChunkReceiverAttributes {
         SpdmChunkReceiverAttributes::from_bits(bits & SpdmChunkReceiverAttributes::VALID_MASK.bits)
     }
 }
+
+#[cfg(test)]
+#[path = "chunk_send_test.rs"]
+mod chunk_send_test;
