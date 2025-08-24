@@ -131,3 +131,7 @@ impl SpdmCodec for SpdmChunkResponsePayload {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "chunk_get_test.rs"]
+mod chunk_get_test;
