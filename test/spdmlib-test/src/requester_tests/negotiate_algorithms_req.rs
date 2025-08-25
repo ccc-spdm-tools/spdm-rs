@@ -7,6 +7,7 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use spdmlib::common::SpdmConnectionState;
+use spdmlib::config;
 use spdmlib::protocol::{
     SpdmAlgoOtherParams, SpdmMelSpecification, SpdmRequestCapabilityFlags,
     SpdmResponseCapabilityFlags, SpdmVersion,
@@ -94,6 +95,18 @@ fn test_case1_send_receive_spdm_algorithm() {
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
 
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
+
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
         let device_io_requester = Arc::new(Mutex::new(FakeSpdmDeviceIo::new(
@@ -119,6 +132,18 @@ fn test_case1_send_receive_spdm_algorithm() {
             .negotiate_info
             .rsp_capabilities_sel
             .insert(SpdmResponseCapabilityFlags::MEL_CAP);
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
@@ -184,6 +209,18 @@ fn test_case2_send_receive_spdm_algorithm() {
             .rsp_capabilities
             .remove(SpdmResponseCapabilityFlags::MEL_CAP);
 
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
+
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
         let device_io_requester = Arc::new(Mutex::new(FakeSpdmDeviceIo::new(
@@ -219,6 +256,18 @@ fn test_case2_send_receive_spdm_algorithm() {
             .config_info
             .req_capabilities
             .insert(SpdmRequestCapabilityFlags::MULTI_KEY_CAP_CONN_SEL);
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);

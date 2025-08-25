@@ -79,7 +79,8 @@ fn test_case0_handle_spdm_capability() {
             | SpdmResponseCapabilityFlags::EVENT_CAP
             | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
             | SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP
-            | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP;
+            | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP
+            | SpdmResponseCapabilityFlags::CHUNK_CAP;
         let data = context.common.runtime_info.message_a.as_ref();
         let u8_slice = &mut [0u8; 2048];
         for (i, data) in data.iter().enumerate() {

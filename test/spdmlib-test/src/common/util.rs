@@ -56,7 +56,8 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             | SpdmResponseCapabilityFlags::EVENT_CAP
             | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
             | SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP
-            | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP,
+            | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP
+            | SpdmResponseCapabilityFlags::CHUNK_CAP,
         req_capabilities: SpdmRequestCapabilityFlags::CERT_CAP
             | SpdmRequestCapabilityFlags::ENCRYPT_CAP
             | SpdmRequestCapabilityFlags::MAC_CAP
@@ -67,7 +68,8 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
             | SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG
             | SpdmRequestCapabilityFlags::EVENT_CAP
-            | SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY,
+            | SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY
+            | SpdmRequestCapabilityFlags::CHUNK_CAP,
         rsp_ct_exponent: 0,
         req_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
@@ -81,8 +83,8 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
             | SpdmAlgoOtherParams::MULTI_KEY_CONN,
-        data_transfer_size: 0x1200,
-        max_spdm_msg_size: 0x1200,
+        data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
+        max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
             Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
@@ -201,7 +203,8 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         | SpdmRequestCapabilityFlags::KEY_UPD_CAP
         | SpdmRequestCapabilityFlags::EP_INFO_CAP_NO_SIG
         | SpdmRequestCapabilityFlags::EVENT_CAP
-        | SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY;
+        | SpdmRequestCapabilityFlags::MULTI_KEY_CAP_ONLY
+        | SpdmRequestCapabilityFlags::CHUNK_CAP;
     let req_capabilities = if cfg!(feature = "mut-auth") {
         req_capabilities | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
     } else {
@@ -233,7 +236,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
             | SpdmAlgoOtherParams::MULTI_KEY_CONN,
-        data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
+        data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
             Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
@@ -363,7 +366,8 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         | SpdmResponseCapabilityFlags::EVENT_CAP
         | SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY
         | SpdmResponseCapabilityFlags::GET_KEY_PAIR_INFO_CAP
-        | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP;
+        | SpdmResponseCapabilityFlags::SET_KEY_PAIR_INFO_CAP
+        | SpdmResponseCapabilityFlags::CHUNK_CAP;
     let rsp_capabilities = if cfg!(feature = "mut-auth") {
         rsp_capabilities | SpdmResponseCapabilityFlags::MUT_AUTH_CAP
     } else {
@@ -396,7 +400,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
             | SpdmAlgoOtherParams::MULTI_KEY_CONN,
-        data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
+        data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         heartbeat_period: config::HEARTBEAT_PERIOD,
         secure_spdm_version: [

@@ -27,13 +27,26 @@ impl SpdmConfig {
         // All rust fixed-size arrays require non-negative compile-time constant sizes.
         // This will be checked by the compiler thus no need to check again here.
 
-        // We dont support chunking now.
-        assert!(self.max_spdm_msg_size >= 42);
+        // Send and buffer size requirements if chunk capability is enabled.
+        #[cfg(feature = "chunk-cap")]
+        assert!(
+            self.transport_config.sender_buffer_size - TRANSPORT_OVERHEAD_SIZE
+                >= SPDM_MIN_DATA_TRANSFER_SIZE
+        );
+        #[cfg(feature = "chunk-cap")]
+        assert!(
+            self.transport_config.receiver_buffer_size - TRANSPORT_OVERHEAD_SIZE
+                >= SPDM_MIN_DATA_TRANSFER_SIZE
+        );
+        assert!(self.max_spdm_msg_size >= SPDM_MIN_DATA_TRANSFER_SIZE);
 
         // Reserve some space for transport overhead.
         // 24 is miniaml requirement: session_id (4) + len (2) + app_len (2) + mac (16)
-        assert!(self.transport_config.receiver_buffer_size > self.max_spdm_msg_size + 24);
-        assert!(self.transport_config.sender_buffer_size > self.max_spdm_msg_size + 24);
+        #[cfg(not(feature = "chunk-cap"))]
+        {
+            assert!(self.transport_config.sender_buffer_size > self.max_spdm_msg_size + 24);
+            assert!(self.transport_config.receiver_buffer_size > self.max_spdm_msg_size + 24);
+        }
 
         assert!(self.cert_config.max_cert_chain_data_size <= 0xFFFF);
         // no need to check max_cert_chain_data_size against max_spdm_msg_size
@@ -116,13 +129,24 @@ pub const MAX_OPAQUE_LIST_ELEMENTS_COUNT: usize = {max_opaque_list_elements_cnt}
 pub const MAX_SPDM_SESSION_COUNT: usize = {session_cnt};
 
 /// This is sender buffer for SPDM transport layer (e.g. MCTP or PCI_DOE)
-/// It is MAX_SPDM_MSG_SIZE + transport overhead (plain text or cipher text, head and tail)
-/// It is also used as app buffer (bigger than MAX_SPDM_MSG_SIZE)
+/// This buffer should be 4-byte aligned when PCI DOE transport is used
+/// When chunk capability is disabled,
+///   It is MAX_SPDM_MSG_SIZE + transport overhead (plain text or cipher text, head and tail)
+///   It is also used as app buffer (bigger than MAX_SPDM_MSG_SIZE)
+/// When chunk capability is enabled,
+///   It shall be larger than 42 + transport overhead size
+///   It is also used as app buffer, shall be bigger than max app message size + transport overhead size
 pub const SENDER_BUFFER_SIZE: usize = {snd_buf_sz};
 
 /// This is receiver buffer for transport layer (e.g. MCTP or PCI_DOE)
-/// It is MAX_SPDM_MSG_SIZE + transport overhead (plain text or cipher text, head and tail)
-/// It is also used as app buffer (bigger than MAX_SPDM_MSG_SIZE)
+/// This buffer should be 4-byte aligned when PCI DOE transport is used
+/// When chunk capability is disabled,
+///   It is MAX_SPDM_MSG_SIZE + transport overhead (plain text or cipher text, head and tail)
+///   It is also used as app buffer (bigger than MAX_SPDM_MSG_SIZE)
+/// When chunk capability is enabled,
+///   It shall be larger than spdm_capabilities.data_transfer_size + transport overhead size
+///   The spdm_capabilities.data_transfer_size is calculated based upon it
+///   It is also used as app buffer, shall be bigger than max app message size + transport overhead size
 pub const RECEIVER_BUFFER_SIZE: usize = {rcv_buf_sz};
 
 /// Required sender/receiver buffer for transport layer
@@ -145,8 +169,23 @@ pub const MCTP_TRANSPORT_ADDITIONAL_SIZE: usize = 60;
 ///
 pub const PCI_DOE_TRANSPORT_ADDITIONAL_SIZE: usize = 35;
 
+/// This is the transport overhead size.
+/// It must be larger than the buffer for transport layer.
+pub const TRANSPORT_OVERHEAD_SIZE: usize = {trans_overhead_sz};
+
+/// This is max size of receiving a single and complete spdm message defined in SPDM 1.2.
+/// This size should be 4-byte aligned if PCI DOE transport is used.
+pub const SPDM_DATA_TRANSFER_SIZE: usize = {rcv_buf_sz} - TRANSPORT_OVERHEAD_SIZE;
+
+/// This is max size of sending a single and complete spdm message.
+/// This size should be 4-byte aligned if PCI DOE transport is used.
+pub const SPDM_SENDER_DATA_TRANSFER_SIZE: usize = {snd_buf_sz} - TRANSPORT_OVERHEAD_SIZE;
+
 /// This is max individual SPDM message size defined in SPDM 1.2.
 pub const MAX_SPDM_MSG_SIZE: usize = {max_spdm_mgs_sz};
+
+/// This is min size of data transfer defined in SPDM 1.2.
+pub const SPDM_MIN_DATA_TRANSFER_SIZE: usize = {min_data_trans_sz};
 
 /// This is used by responder to specify the heartbeat period
 /// 0 represents either Heartbeat is not supported or
@@ -163,6 +202,9 @@ const SPDM_CONFIG_ENV: &str = "SPDM_CONFIG";
 const SPDM_CONFIG_JSON_DEFAULT_PATH: &str = "etc/config.json";
 const SPDM_CONFIG_RS_OUT_DIR: &str = "src";
 const SPDM_CONFIG_RS_OUT_FILE_NAME: &str = "config.rs";
+
+const TRANSPORT_OVERHEAD_SIZE: usize = 64;
+const SPDM_MIN_DATA_TRANSFER_SIZE: usize = 42;
 
 fn main() {
     // Read and parse the SPDM configuration file.
@@ -191,6 +233,8 @@ fn main() {
         snd_buf_sz = spdm_config.transport_config.sender_buffer_size,
         rcv_buf_sz = spdm_config.transport_config.receiver_buffer_size,
         max_spdm_mgs_sz = spdm_config.max_spdm_msg_size,
+        min_data_trans_sz = SPDM_MIN_DATA_TRANSFER_SIZE,
+        trans_overhead_sz = TRANSPORT_OVERHEAD_SIZE,
         heartbeat_period = spdm_config.heartbeat_period_value,
         max_root_cert_supported = spdm_config.max_root_cert_support,
     )

@@ -59,6 +59,14 @@ fn test_case0_send_receive_spdm_challenge() {
     responder.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
     responder.common.runtime_info.need_measurement_summary_hash = true;
 
+    #[cfg(feature = "chunk-cap")]
+    {
+        responder.common.negotiate_info.rsp_data_transfer_size_sel =
+            config::SPDM_DATA_TRANSFER_SIZE as u32;
+        responder.common.negotiate_info.req_data_transfer_size_sel =
+            config::SPDM_DATA_TRANSFER_SIZE as u32;
+    }
+
     responder
         .common
         .runtime_info
@@ -93,6 +101,14 @@ fn test_case0_send_receive_spdm_challenge() {
 
     requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
     requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+
+    #[cfg(feature = "chunk-cap")]
+    {
+        requester.common.negotiate_info.rsp_data_transfer_size_sel =
+            config::SPDM_DATA_TRANSFER_SIZE as u32;
+        requester.common.negotiate_info.req_data_transfer_size_sel =
+            config::SPDM_DATA_TRANSFER_SIZE as u32;
+    }
 
     let task = async move {
         let status = requester

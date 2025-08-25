@@ -47,6 +47,19 @@ fn test_case0_send_receive_spdm_measurement() {
         responder.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
+
         responder
             .common
             .negotiate_info
@@ -105,6 +118,19 @@ fn test_case0_send_receive_spdm_measurement() {
         requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
         requester.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
         requester
             .common
             .negotiate_info
@@ -489,6 +515,19 @@ fn test_case1_send_receive_spdm_measurement() {
         responder.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
+
         responder
             .common
             .negotiate_info
@@ -551,6 +590,19 @@ fn test_case1_send_receive_spdm_measurement() {
         requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
         requester.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
         requester
             .common
             .negotiate_info
@@ -692,6 +744,18 @@ fn test_case3_send_receive_spdm_measurement() {
         responder.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
 
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
         responder
             .common
             .negotiate_info
@@ -754,6 +818,18 @@ fn test_case3_send_receive_spdm_measurement() {
         requester.common.negotiate_info.rsp_ct_exponent_sel = 0;
         requester.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP;
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+        }
         requester
             .common
             .negotiate_info

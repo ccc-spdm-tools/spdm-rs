@@ -276,6 +276,12 @@ async fn handle_message(
         rsp_capabilities
     };
 
+    let rsp_capabilities: SpdmResponseCapabilityFlags = if cfg!(feature = "chunk-cap") {
+        rsp_capabilities | SpdmResponseCapabilityFlags::CHUNK_CAP
+    } else {
+        rsp_capabilities
+    };
+
     let config_info = common::SpdmConfigInfo {
         spdm_version: [
             Some(SpdmVersion::SpdmVersion10),
@@ -302,7 +308,7 @@ async fn handle_message(
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
-        data_transfer_size: config::MAX_SPDM_MSG_SIZE as u32,
+        data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         heartbeat_period: config::HEARTBEAT_PERIOD,
         secure_spdm_version: [

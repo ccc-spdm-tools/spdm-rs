@@ -196,6 +196,7 @@ fn test_case0_handle_spdm_challenge() {
 }
 
 #[test]
+#[cfg(not(feature = "chunk-cap"))]
 fn test_case1_handle_spdm_challenge() {
     use crate::protocol;
 

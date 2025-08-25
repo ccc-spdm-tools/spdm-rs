@@ -8,6 +8,8 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use spdmlib::common::session::{self, SpdmSession};
+use spdmlib::common::SpdmConnectionState;
+use spdmlib::config;
 use spdmlib::config::MAX_SPDM_PSK_HINT_SIZE;
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;
@@ -45,6 +47,22 @@ fn test_case0_send_receive_spdm_psk_finish() {
         responder.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder
+                .common
+                .runtime_info
+                .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
+        }
 
         // let rsp_session_id = 0x11u16;
         // let session_id = (0x11u32 << 16) + rsp_session_id as u32;
@@ -93,6 +111,18 @@ fn test_case0_send_receive_spdm_psk_finish() {
         requester.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
 
         // let rsp_session_id = 0x11u16;
         // let session_id = (0x11u32 << 16) + rsp_session_id as u32;
