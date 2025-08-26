@@ -33,8 +33,18 @@ patch-ring() {
     popd
 }
 
+patch-webpki() {
+    # apply the patch set for webpki
+    pushd external/webpki
+    git reset --hard v/0.103.4
+    git clean -xdf
+    git apply ../patches/webpki/0001-verify_cert-skip-eku-validation.patch
+    popd
+}
+
 format-patch() {
     patch-ring
+    patch-webpki
 }
 
 process_args "$@"
