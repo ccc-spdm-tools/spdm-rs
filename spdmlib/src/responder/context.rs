@@ -882,15 +882,25 @@ impl ResponderContext {
                 let max_chunk_size = (config::SPDM_DATA_TRANSFER_SIZE
                     - SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_FIRST_CHUNK_SEND)
                     as u32;
+
+                // Early check whether large message size is too large to be received in chunks.
+                let data_transfer_size = config::SPDM_DATA_TRANSFER_SIZE;
+                let max_large_request_size = (data_transfer_size
+                    - SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_CHUNK_SEND)
+                    * (u16::MAX as usize - 1)
+                    + data_transfer_size
+                    - SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_FIRST_CHUNK_SEND;
+
                 if chunk_send_request.chunk_seq_num != 0
                     || !(config::SPDM_MIN_DATA_TRANSFER_SIZE..=config::MAX_SPDM_MSG_SIZE)
                         .contains(&large_message_size)
+                    || large_message_size > max_large_request_size
                     || chunk_send_request
                         .chunk_sender_attributes
                         .contains(SpdmChunkSenderAttributes::LAST_CHUNK)
                     || chunk_send_request.chunk_size > max_chunk_size
                 {
-                    error!("!!! invalid chunk send request, first chunk send is expected !!!\n");
+                    error!("!!! invalid chunk send request, first chunk send is expected or request contains illegal data !!!\n");
                     self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
                     return (
                         Err(SPDM_STATUS_INVALID_STATE_PEER),
