@@ -481,6 +481,19 @@ impl RequesterContext {
                                         error!("!!! receive_large_response: large message size too small !!!\n");
                                         return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                     }
+
+                                    // Early check whether large message size is too large to be received in chunks.
+                                    let data_transfer_size = config::SPDM_DATA_TRANSFER_SIZE;
+                                    let max_large_response_size = (data_transfer_size
+                                        - SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_CHUNK_RESPONSE)
+                                        * (u16::MAX as usize - 1)
+                                        + data_transfer_size
+                                        - SPDM_VERSION_1_2_OFFSET_OF_RESPONSE_OF_LARGE_REQUEST_IN_CHUNK_SEND_ACK;
+                                    if large_message_size as usize > max_large_response_size {
+                                        error!("!!! receive_large_response: request too large to receive in chunks !!!\n");
+                                        return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                    }
+
                                     self.common.chunk_context.chunk_message_size =
                                         large_message_size as usize;
                                 } else {
