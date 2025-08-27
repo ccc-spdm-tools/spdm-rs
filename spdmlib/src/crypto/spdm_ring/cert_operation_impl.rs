@@ -424,4 +424,51 @@ mod tests {
         cert_chain[1380] = 0xFF;
         assert!(verify_cert_chain(&cert_chain).is_err());
     }
+
+    #[test]
+    fn test_certificate_eku_v3_end_with_eku_example_1() {
+        let cert_der = &include_bytes!("../../../../test_key/test_spdm_eku/example/cert1.der")[..];
+        assert!(verify_cert_chain(cert_der).is_ok());
+    }
+
+    #[test]
+    fn test_certificate_eku_v3_end_with_eku_spdm_oid_3() {
+        let cert_der = &include_bytes!(
+            "../../../../test_key/test_spdm_eku/gen/v3_end_with_eku_spdm_oid_3/cert.der"
+        )[..];
+        assert!(verify_cert_chain(cert_der).is_ok());
+    }
+
+    #[test]
+    #[ignore = "TBD"]
+    fn test_certificate_eku_v3_end_with_eku_spdm_oid_4() {
+        let cert_der = &include_bytes!(
+            "../../../../test_key/test_spdm_eku/gen/v3_end_with_eku_spdm_oid_4/cert.der"
+        )[..];
+        assert!(verify_cert_chain(cert_der).is_err());
+    }
+
+    #[test]
+    fn test_certificate_eku_v3_end_with_eku_spdm_oid_3_and_4() {
+        let cert_der = &include_bytes!(
+            "../../../../test_key/test_spdm_eku/gen/v3_end_with_eku_spdm_oid_3_and_4/cert.der"
+        )[..];
+        assert!(verify_cert_chain(cert_der).is_ok());
+    }
+
+    #[test]
+    fn test_certificate_eku_v3_end_without_eku() {
+        let cert_der = &include_bytes!(
+            "../../../../test_key/test_spdm_eku/gen/v3_end_without_eku/cert.der"
+        )[..];
+        assert!(verify_cert_chain(cert_der).is_ok());
+    }
+
+    #[test]
+    fn test_certificate_eku_v3_end_with_eku_spdm_without_spdm_oid() {
+        let cert_der = &include_bytes!(
+            "../../../../test_key/test_spdm_eku/gen/v3_end_with_eku_spdm_without_spdm_oid/cert.der"
+        )[..];
+        assert!(verify_cert_chain(cert_der).is_ok());
+    }
 }
