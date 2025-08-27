@@ -1,0 +1,40 @@
+[v3_end_with_eku_spdm_oid_3]
+basicConstraints = critical,CA:false
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectKeyIdentifier = hash
+extendedKeyUsage = OID:1.3.6.1.4.1.412.274.3
+
+[v3_end_with_eku_spdm_oid_4]
+basicConstraints = critical,CA:false
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectKeyIdentifier = hash
+extendedKeyUsage = OID:1.3.6.1.4.1.412.274.4
+
+[v3_end_with_eku_spdm_oid_3_and_4]
+basicConstraints = critical,CA:false
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectKeyIdentifier = hash
+extendedKeyUsage = OID:1.3.6.1.4.1.412.274.3, OID:1.3.6.1.4.1.412.274.4
+
+[v3_end_without_eku]
+basicConstraints = critical,CA:false
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectKeyIdentifier = hash
+
+[v3_end_with_eku_spdm_without_spdm_oid]
+basicConstraints = critical,CA:false
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectKeyIdentifier = hash
+extendedKeyUsage = serverAuth
+
+[v3_inter]
+basicConstraints = CA:true
+keyUsage = cRLSign, keyCertSign, digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement
+subjectKeyIdentifier = hash
+extendedKeyUsage = critical, serverAuth, clientAuth
+
+[v3_ca]
+basicConstraints = CA:true
+keyUsage = cRLSign, keyCertSign, digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement
+subjectKeyIdentifier = hash
+extendedKeyUsage = critical, serverAuth, clientAuth
