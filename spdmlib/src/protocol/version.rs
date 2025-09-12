@@ -11,6 +11,7 @@ pub enum SpdmVersion {
     SpdmVersion11,
     SpdmVersion12,
     SpdmVersion13,
+    SpdmVersion14,
 }
 
 impl Default for SpdmVersion {
@@ -30,6 +31,8 @@ impl TryFrom<u8> for SpdmVersion {
             Ok(SpdmVersion::SpdmVersion12)
         } else if untrusted_spdm_version == 0x13 {
             Ok(SpdmVersion::SpdmVersion13)
+        } else if untrusted_spdm_version == 0x14 {
+            Ok(SpdmVersion::SpdmVersion14)
         } else {
             Err(())
         }
@@ -43,6 +46,7 @@ impl From<SpdmVersion> for u8 {
             SpdmVersion::SpdmVersion11 => 0x11,
             SpdmVersion::SpdmVersion12 => 0x12,
             SpdmVersion::SpdmVersion13 => 0x13,
+            SpdmVersion::SpdmVersion14 => 0x14,
         }
     }
 }
@@ -64,7 +68,7 @@ impl Codec for SpdmVersion {
     }
 }
 
-pub const MAX_SPDM_VERSION_COUNT: usize = 4;
+pub const MAX_SPDM_VERSION_COUNT: usize = 5;
 
 // SPDM V1.x signing prefix context. It must be patched before generating singature.
 //"dmtf-spdm-v1.x.*dmtf-spdm-v1.x.*dmtf-spdm-v1.x.*dmtf-spdm-v1.x.*"
