@@ -73,7 +73,10 @@ fn test_case0_handle_spdm_version() {
             SpdmRequestResponseCode::SpdmResponseVersion
         );
         if let SpdmMessagePayload::SpdmVersionResponse(payload) = &spdm_message.payload {
-            assert_eq!(payload.version_number_entry_count, 0x04);
+            assert_eq!(
+                payload.version_number_entry_count,
+                MAX_SPDM_VERSION_COUNT as u8
+            );
             assert_eq!(payload.versions[0].update, 0);
             assert_eq!(payload.versions[0].version, SpdmVersion::SpdmVersion10);
             assert_eq!(payload.versions[1].update, 0);
@@ -82,6 +85,8 @@ fn test_case0_handle_spdm_version() {
             assert_eq!(payload.versions[2].version, SpdmVersion::SpdmVersion12);
             assert_eq!(payload.versions[3].update, 0);
             assert_eq!(payload.versions[3].version, SpdmVersion::SpdmVersion13);
+            assert_eq!(payload.versions[4].update, 0);
+            assert_eq!(payload.versions[4].version, SpdmVersion::SpdmVersion14);
         }
     };
     executor::block_on(future);

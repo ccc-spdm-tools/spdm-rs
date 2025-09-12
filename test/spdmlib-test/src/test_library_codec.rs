@@ -15,6 +15,7 @@ fn test_spdm_config_info_codec() {
             Some(SpdmVersion::SpdmVersion11),
             None,
             None,
+            None,
         ],
         req_capabilities: SpdmRequestCapabilityFlags::CERT_CAP
             | SpdmRequestCapabilityFlags::CHAL_CAP,
@@ -908,12 +909,13 @@ fn test_option_fields_codec() {
             Some(SpdmVersion::SpdmVersion11),
             None,
             None,
+            None,
         ],
         ..Default::default()
     };
 
     let config_with_all_none_versions = SpdmConfigInfo {
-        spdm_version: [None; 4],
+        spdm_version: [None; MAX_SPDM_VERSION_COUNT],
         ..Default::default()
     };
 

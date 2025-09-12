@@ -38,6 +38,7 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SpdmVersion::SpdmVersion11),
             Some(SpdmVersion::SpdmVersion12),
             Some(SpdmVersion::SpdmVersion13),
+            Some(SpdmVersion::SpdmVersion14),
         ],
         rsp_capabilities: SpdmResponseCapabilityFlags::CERT_CAP
             | SpdmResponseCapabilityFlags::CHAL_CAP
@@ -216,6 +217,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SpdmVersion::SpdmVersion11),
             Some(SpdmVersion::SpdmVersion12),
             Some(SpdmVersion::SpdmVersion13),
+            Some(SpdmVersion::SpdmVersion14),
         ],
         req_capabilities: req_capabilities,
         req_ct_exponent: 0,
@@ -379,6 +381,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SpdmVersion::SpdmVersion11),
             Some(SpdmVersion::SpdmVersion12),
             Some(SpdmVersion::SpdmVersion13),
+            Some(SpdmVersion::SpdmVersion14),
         ],
         rsp_capabilities: rsp_capabilities,
         rsp_ct_exponent: 0,
