@@ -1287,6 +1287,10 @@ mod tests {
                     data_size: SPDM_MAX_HASH_SIZE as u16,
                     data: Box::new([0x5au8; SPDM_MAX_HASH_SIZE]),
                 },
+                opaque: SpdmOpaqueStruct {
+                    data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                    data: [100u8; MAX_SPDM_OPAQUE_SIZE],
+                },
             }),
         };
         create_spdm_context!(context);
@@ -1324,6 +1328,10 @@ mod tests {
                 verify_data: SpdmDigestStruct {
                     data_size: SPDM_MAX_HASH_SIZE as u16,
                     data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
+                },
+                opaque: SpdmOpaqueStruct {
+                    data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                    data: [100u8; MAX_SPDM_OPAQUE_SIZE],
                 },
             }),
         };

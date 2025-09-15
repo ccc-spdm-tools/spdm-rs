@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::session::SpdmSession;
-use crate::common::{ManagedBuffer12Sign, SpdmCodec};
+use crate::common::{ManagedBuffer12Sign, SpdmCodec, SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
 use crate::crypto;
 use crate::error::*;
 use crate::message::*;
@@ -80,9 +80,16 @@ impl ResponderContext {
         }
         let finish_req = finish_req.unwrap();
 
+        let opaque_total_size =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                2 + finish_req.opaque.data_size as usize
+            } else {
+                0usize
+            };
+
         if self
             .common
-            .append_message_f(false, session_id, &bytes[..4])
+            .append_message_f(false, session_id, &bytes[..4 + opaque_total_size])
             .is_err()
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
@@ -253,6 +260,10 @@ impl ResponderContext {
                         .get_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
+                opaque: SpdmOpaqueStruct {
+                    data_size: 0,
+                    data: [0u8; MAX_SPDM_OPAQUE_SIZE],
+                },
             }),
         };
 
@@ -328,7 +339,7 @@ impl ResponderContext {
             writer.mut_used_slice()[(used - base_hash_size)..used].copy_from_slice(hmac.as_ref());
         } else if self
             .common
-            .append_message_f(false, session_id, &writer.used_slice()[..4])
+            .append_message_f(false, session_id, &writer.used_slice()[..used])
             .is_err()
         {
             error!("message_f add the message error");
