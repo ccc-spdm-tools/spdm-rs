@@ -145,6 +145,11 @@ impl RequesterContext {
             is_mut_auth = true;
         }
 
+        let opaque = SpdmOpaqueStruct {
+            data_size: 0,
+            data: [0u8; MAX_SPDM_OPAQUE_SIZE],
+        };
+
         let request = SpdmMessage {
             header: SpdmMessageHeader {
                 version: self.common.negotiate_info.spdm_version_sel,
@@ -158,14 +163,22 @@ impl RequesterContext {
                     data_size: self.common.negotiate_info.base_hash_sel.get_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
+                opaque,
             }),
         };
+        let opaque_total_size =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                2 + opaque.data_size as usize
+            } else {
+                0usize
+            };
 
         let mut writer = Writer::init(buf);
         let send_used = request.spdm_encode(&mut self.common, &mut writer)?;
 
         // Record the header of finish request
-        self.common.append_message_f(true, session_id, &buf[..4])?;
+        self.common
+            .append_message_f(true, session_id, &buf[..4 + opaque_total_size])?;
 
         let session = self
             .common
@@ -174,7 +187,8 @@ impl RequesterContext {
         if !session.get_mut_auth_requested().is_empty() {
             signature = self.generate_finish_req_signature(session.get_slot_id(), session)?;
             // patch the signature
-            buf[4..4 + signature.data_size as usize].copy_from_slice(signature.as_ref());
+            buf[4 + opaque_total_size..4 + opaque_total_size + signature.data_size as usize]
+                .copy_from_slice(signature.as_ref());
 
             self.common
                 .append_message_f(true, session_id, signature.as_ref())?;
