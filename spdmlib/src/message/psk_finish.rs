@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use super::SpdmVersion;
+use crate::common::opaque::SpdmOpaqueStruct;
 use crate::common::spdm_codec::SpdmCodec;
 use crate::error::SPDM_STATUS_BUFFER_FULL;
 use crate::protocol::SpdmDigestStruct;
@@ -11,6 +13,7 @@ use codec::{Codec, Reader, Writer};
 #[derive(Debug, Clone, Default)]
 pub struct SpdmPskFinishRequestPayload {
     pub verify_data: SpdmDigestStruct,
+    pub opaque: SpdmOpaqueStruct, // Spdm 1.4
 }
 
 impl SpdmCodec for SpdmPskFinishRequestPayload {
@@ -22,6 +25,9 @@ impl SpdmCodec for SpdmPskFinishRequestPayload {
         let mut cnt = 0usize;
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            cnt += self.opaque.spdm_encode(context, bytes)?;
+        }
         cnt += self.verify_data.spdm_encode(context, bytes)?;
         Ok(cnt)
     }
@@ -32,34 +38,51 @@ impl SpdmCodec for SpdmPskFinishRequestPayload {
     ) -> Option<SpdmPskFinishRequestPayload> {
         u8::read(r)?; // param1
         u8::read(r)?; // param2
+        let mut opaque = SpdmOpaqueStruct::default();
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
+        }
         let verify_data = SpdmDigestStruct::spdm_read(context, r)?;
 
-        Some(SpdmPskFinishRequestPayload { verify_data })
+        Some(SpdmPskFinishRequestPayload {
+            verify_data,
+            opaque,
+        })
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct SpdmPskFinishResponsePayload {}
+pub struct SpdmPskFinishResponsePayload {
+    pub opaque: SpdmOpaqueStruct, // Spdm 1.4
+}
 
 impl SpdmCodec for SpdmPskFinishResponsePayload {
     fn spdm_encode(
         &self,
-        _context: &mut common::SpdmContext,
+        context: &mut common::SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
-        0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
-        0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
-        Ok(2)
+        let mut cnt = 0usize;
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            cnt += self.opaque.spdm_encode(context, bytes)?;
+        }
+        Ok(cnt)
     }
 
     fn spdm_read(
-        _context: &mut common::SpdmContext,
+        context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmPskFinishResponsePayload> {
         u8::read(r)?; // param1
         u8::read(r)?; // param2
+        let mut opaque = SpdmOpaqueStruct::default();
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
+        }
 
-        Some(SpdmPskFinishResponsePayload {})
+        Some(SpdmPskFinishResponsePayload { opaque })
     }
 }
 
@@ -70,7 +93,7 @@ mod testlib;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::{SpdmConfigInfo, SpdmContext, SpdmProvisionInfo};
+    use crate::common::{SpdmConfigInfo, SpdmContext, SpdmProvisionInfo, MAX_SPDM_OPAQUE_SIZE};
     use crate::protocol::*;
     use testlib::{create_spdm_context, DeviceIO, TransportEncap};
     extern crate alloc;
@@ -84,6 +107,10 @@ mod tests {
             verify_data: SpdmDigestStruct {
                 data_size: SPDM_MAX_HASH_SIZE as u16,
                 data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
+            },
+            opaque: SpdmOpaqueStruct {
+                data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                data: [100u8; MAX_SPDM_OPAQUE_SIZE],
             },
         };
 
@@ -110,7 +137,12 @@ mod tests {
     fn test_case0_spdm_psk_finish_response_payload() {
         let u8_slice = &mut [0u8; 2];
         let mut writer = Writer::init(u8_slice);
-        let value = SpdmPskFinishResponsePayload {};
+        let value = SpdmPskFinishResponsePayload {
+            opaque: SpdmOpaqueStruct {
+                data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                data: [100u8; MAX_SPDM_OPAQUE_SIZE],
+            },
+        };
 
         create_spdm_context!(context);
 
