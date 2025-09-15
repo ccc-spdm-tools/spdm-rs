@@ -8,6 +8,7 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use codec::{Codec, Writer};
+use spdmlib::common::opaque::{SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
 use spdmlib::common::session::{SpdmSession, SpdmSessionState};
 use spdmlib::common::SpdmCodec;
 use spdmlib::message::*;
@@ -64,6 +65,10 @@ fn test_case0_handle_spdm_psk_finish() {
             verify_data: SpdmDigestStruct {
                 data_size: 48,
                 data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
+            },
+            opaque: SpdmOpaqueStruct {
+                data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                data: [100u8; MAX_SPDM_OPAQUE_SIZE],
             },
         };
         let _ = value.spdm_encode(&mut context.common, &mut writer);
@@ -125,6 +130,10 @@ fn test_case1_handle_spdm_psk_finish() {
             verify_data: SpdmDigestStruct {
                 data_size: 48,
                 data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
+            },
+            opaque: SpdmOpaqueStruct {
+                data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                data: [100u8; MAX_SPDM_OPAQUE_SIZE],
             },
         };
         let _ = value.spdm_encode(&mut context.common, &mut writer);

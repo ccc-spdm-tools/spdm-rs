@@ -84,6 +84,11 @@ impl RequesterContext {
     pub fn encode_spdm_psk_finish(&mut self, session_id: u32, buf: &mut [u8]) -> SpdmResult<usize> {
         let mut writer = Writer::init(buf);
 
+        let opaque = SpdmOpaqueStruct {
+            data_size: 0,
+            data: [0u8; MAX_SPDM_OPAQUE_SIZE],
+        };
+
         let request = SpdmMessage {
             header: SpdmMessageHeader {
                 version: self.common.negotiate_info.spdm_version_sel,
@@ -94,6 +99,7 @@ impl RequesterContext {
                     data_size: self.common.negotiate_info.base_hash_sel.get_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
+                opaque,
             }),
         };
         let send_used = request.spdm_encode(&mut self.common, &mut writer)?;

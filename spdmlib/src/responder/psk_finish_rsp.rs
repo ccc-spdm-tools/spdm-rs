@@ -4,6 +4,7 @@
 
 use crate::common::SpdmCodec;
 use crate::common::INVALID_SLOT;
+use crate::common::{SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
 use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_CRYPTO_ERROR;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
@@ -175,7 +176,12 @@ impl ResponderContext {
                 version: self.common.negotiate_info.spdm_version_sel,
                 request_response_code: SpdmRequestResponseCode::SpdmResponsePskFinishRsp,
             },
-            payload: SpdmMessagePayload::SpdmPskFinishResponse(SpdmPskFinishResponsePayload {}),
+            payload: SpdmMessagePayload::SpdmPskFinishResponse(SpdmPskFinishResponsePayload {
+                opaque: SpdmOpaqueStruct {
+                    data_size: 0,
+                    data: [0u8; MAX_SPDM_OPAQUE_SIZE],
+                },
+            }),
         };
 
         let res = response.spdm_encode(&mut self.common, writer);

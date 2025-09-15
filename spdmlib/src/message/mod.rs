@@ -1482,6 +1482,10 @@ mod tests {
                     data_size: SPDM_MAX_HASH_SIZE as u16,
                     data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
                 },
+                opaque: SpdmOpaqueStruct {
+                    data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                    data: [100u8; MAX_SPDM_OPAQUE_SIZE],
+                },
             }),
         };
         create_spdm_context!(context);
@@ -1672,7 +1676,12 @@ mod tests {
                 version: SpdmVersion::SpdmVersion10,
                 request_response_code: SpdmRequestResponseCode::SpdmResponsePskFinishRsp,
             },
-            payload: SpdmMessagePayload::SpdmPskFinishResponse(SpdmPskFinishResponsePayload {}),
+            payload: SpdmMessagePayload::SpdmPskFinishResponse(SpdmPskFinishResponsePayload {
+                opaque: SpdmOpaqueStruct {
+                    data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                    data: [100u8; MAX_SPDM_OPAQUE_SIZE],
+                },
+            }),
         };
         create_spdm_context!(context);
         new_spdm_message(value, context);
