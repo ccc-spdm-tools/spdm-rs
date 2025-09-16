@@ -12,9 +12,10 @@ use spdmlib::{
 };
 use tdisp::{
     pci_tdisp::{
-        InterfaceId, InterfaceInfo, LockInterfaceFlag, MMIORangeAttribute, TdiState,
-        TdispErrorCode, TdispMmioRange, TdispVersion, MAX_DEVICE_REPORT_BUFFER,
-        START_INTERFACE_NONCE_LEN, TDISP_PROTOCOL_ID,
+        InterfaceId, InterfaceInfo, LockInterfaceFlag, MMIORangeAttribute, TdiReportStructure,
+        TdiState, TdispErrorCode, TdispMmioRange, TdispVersion, MAX_DEVICE_REPORT_BUFFER,
+        MAX_DEVICE_SPECIFIC_INFO_LEN, MAX_MMIO_RANGE_COUNT, START_INTERFACE_NONCE_LEN,
+        TDISP_PROTOCOL_ID,
     },
     pci_tdisp_responder::{
         pci_tdisp_rsp_bind_p2p_stream_request::{self, PciTdispDeviceBindP2pStream},
@@ -32,101 +33,6 @@ use tdisp::{
         MAX_TDISP_VERSION_COUNT,
     },
 };
-
-pub const MMIO_RANGE_COUNT: usize = 4;
-pub const DEVICE_SPECIFIC_INFO: &[u8; 9] = b"tdisp emu";
-pub const DEVICE_SPECIFIC_INFO_LEN: usize = DEVICE_SPECIFIC_INFO.len();
-
-#[derive(Debug, Copy, Clone)]
-pub struct TdiReportStructure {
-    pub interface_info: InterfaceInfo,
-    pub msi_x_message_control: u16,
-    pub lnr_control: u16,
-    pub tph_control: u32,
-    pub mmio_range_count: u32,
-    pub mmio_range: [TdispMmioRange; MMIO_RANGE_COUNT],
-    pub device_specific_info_len: u32,
-    pub device_specific_info: [u8; DEVICE_SPECIFIC_INFO_LEN],
-}
-
-impl Default for TdiReportStructure {
-    fn default() -> Self {
-        Self {
-            interface_info: InterfaceInfo::default(),
-            msi_x_message_control: 0u16,
-            lnr_control: 0u16,
-            tph_control: 0u32,
-            mmio_range_count: 0u32,
-            mmio_range: [TdispMmioRange::default(); MMIO_RANGE_COUNT],
-            device_specific_info_len: 0u32,
-            device_specific_info: [0u8; DEVICE_SPECIFIC_INFO_LEN],
-        }
-    }
-}
-
-impl Codec for TdiReportStructure {
-    fn encode(&self, bytes: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
-        let mut cnt = 0;
-
-        cnt += self.interface_info.encode(bytes)?;
-        cnt += 0u16.encode(bytes)?;
-        cnt += self.msi_x_message_control.encode(bytes)?;
-        cnt += self.lnr_control.encode(bytes)?;
-        cnt += self.tph_control.encode(bytes)?;
-        cnt += self.mmio_range_count.encode(bytes)?;
-        for mr in self.mmio_range.iter().take(self.mmio_range_count as usize) {
-            cnt += mr.encode(bytes)?;
-        }
-        cnt += self.device_specific_info_len.encode(bytes)?;
-        for dsi in self
-            .device_specific_info
-            .iter()
-            .take(self.device_specific_info_len as usize)
-        {
-            cnt += dsi.encode(bytes)?;
-        }
-
-        Ok(cnt)
-    }
-
-    fn read(r: &mut codec::Reader) -> Option<Self> {
-        let interface_info = InterfaceInfo::read(r)?;
-        u16::read(r)?;
-        let msi_x_message_control = u16::read(r)?;
-        let lnr_control = u16::read(r)?;
-        let tph_control = u32::read(r)?;
-        let mmio_range_count = u32::read(r)?;
-        if mmio_range_count as usize > MMIO_RANGE_COUNT {
-            return None;
-        }
-        let mut mmio_range = [TdispMmioRange::default(); MMIO_RANGE_COUNT];
-        for mr in mmio_range.iter_mut().take(mmio_range_count as usize) {
-            *mr = TdispMmioRange::read(r)?;
-        }
-        let device_specific_info_len = u32::read(r)?;
-        if device_specific_info_len as usize > DEVICE_SPECIFIC_INFO_LEN {
-            return None;
-        }
-        let mut device_specific_info = [0u8; DEVICE_SPECIFIC_INFO_LEN];
-        for dsi in device_specific_info
-            .iter_mut()
-            .take(device_specific_info_len as usize)
-        {
-            *dsi = u8::read(r)?;
-        }
-
-        Some(Self {
-            interface_info,
-            msi_x_message_control,
-            lnr_control,
-            tph_control,
-            mmio_range_count,
-            mmio_range,
-            device_specific_info_len,
-            device_specific_info,
-        })
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct DeviceContext {
@@ -211,7 +117,11 @@ fn pci_tdisp_device_interface_report(
     {
         *tdisp_error_code = Some(TdispErrorCode::INVALID_INTERFACE_STATE);
     } else {
+        const DEVICE_SPECIFIC_INFO: &[u8; 9] = b"tdisp emu";
+
         *interface_id = device_context.interface_id;
+        let mut device_specific_info = [0; MAX_DEVICE_SPECIFIC_INFO_LEN];
+        device_specific_info[0..DEVICE_SPECIFIC_INFO.len()].copy_from_slice(DEVICE_SPECIFIC_INFO);
         let report = TdiReportStructure {
             interface_info: InterfaceInfo::DEVICE_FIRMWARE_UPDATES_NOT_PERMITTED,
             msi_x_message_control: 0u16,
@@ -223,9 +133,9 @@ fn pci_tdisp_device_interface_report(
                 number_of_pages: 32,
                 range_attributes: MMIORangeAttribute::empty(),
                 range_id: 1,
-            }; MMIO_RANGE_COUNT],
-            device_specific_info_len: 6,
-            device_specific_info: [6u8; DEVICE_SPECIFIC_INFO_LEN],
+            }; MAX_MMIO_RANGE_COUNT],
+            device_specific_info_len: DEVICE_SPECIFIC_INFO.len() as u32,
+            device_specific_info,
         };
         let mut writer = Writer::init(tdi_report);
         if let Ok(size) = report.encode(&mut writer) {

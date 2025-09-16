@@ -1148,3 +1148,97 @@ pub const fn vendor_id() -> VendorIDStruct {
 
     vendor_idstruct
 }
+
+pub const MAX_MMIO_RANGE_COUNT: usize = 0xF;
+pub const MAX_DEVICE_SPECIFIC_INFO_LEN: usize = 0xFF;
+
+#[derive(Debug, Copy, Clone)]
+pub struct TdiReportStructure {
+    pub interface_info: InterfaceInfo,
+    pub msi_x_message_control: u16,
+    pub lnr_control: u16,
+    pub tph_control: u32,
+    pub mmio_range_count: u32,
+    pub mmio_range: [TdispMmioRange; MAX_MMIO_RANGE_COUNT],
+    pub device_specific_info_len: u32,
+    pub device_specific_info: [u8; MAX_DEVICE_SPECIFIC_INFO_LEN],
+}
+
+impl Default for TdiReportStructure {
+    fn default() -> Self {
+        Self {
+            interface_info: InterfaceInfo::default(),
+            msi_x_message_control: 0u16,
+            lnr_control: 0u16,
+            tph_control: 0u32,
+            mmio_range_count: 0u32,
+            mmio_range: [TdispMmioRange::default(); MAX_MMIO_RANGE_COUNT],
+            device_specific_info_len: 0u32,
+            device_specific_info: [0u8; MAX_DEVICE_SPECIFIC_INFO_LEN],
+        }
+    }
+}
+
+impl Codec for TdiReportStructure {
+    fn encode(&self, bytes: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
+        let mut cnt = 0;
+
+        cnt += self.interface_info.encode(bytes)?;
+        cnt += 0u16.encode(bytes)?;
+        cnt += self.msi_x_message_control.encode(bytes)?;
+        cnt += self.lnr_control.encode(bytes)?;
+        cnt += self.tph_control.encode(bytes)?;
+        cnt += self.mmio_range_count.encode(bytes)?;
+        for mr in self.mmio_range.iter().take(self.mmio_range_count as usize) {
+            cnt += mr.encode(bytes)?;
+        }
+        cnt += self.device_specific_info_len.encode(bytes)?;
+        for dsi in self
+            .device_specific_info
+            .iter()
+            .take(self.device_specific_info_len as usize)
+        {
+            cnt += dsi.encode(bytes)?;
+        }
+
+        Ok(cnt)
+    }
+
+    fn read(r: &mut codec::Reader) -> Option<Self> {
+        let interface_info = InterfaceInfo::read(r)?;
+        u16::read(r)?;
+        let msi_x_message_control = u16::read(r)?;
+        let lnr_control = u16::read(r)?;
+        let tph_control = u32::read(r)?;
+        let mmio_range_count = u32::read(r)?;
+        if mmio_range_count as usize > MAX_MMIO_RANGE_COUNT {
+            return None;
+        }
+        let mut mmio_range = [TdispMmioRange::default(); MAX_MMIO_RANGE_COUNT];
+        for mr in mmio_range.iter_mut().take(mmio_range_count as usize) {
+            *mr = TdispMmioRange::read(r)?;
+        }
+        let device_specific_info_len = u32::read(r)?;
+        if device_specific_info_len as usize > MAX_DEVICE_SPECIFIC_INFO_LEN {
+            return None;
+        }
+        let mut device_specific_info = [0u8; MAX_DEVICE_SPECIFIC_INFO_LEN];
+        for dsi in device_specific_info
+            .iter_mut()
+            .take(device_specific_info_len as usize)
+        {
+            *dsi = u8::read(r)?;
+        }
+
+        Some(Self {
+            interface_info,
+            msi_x_message_control,
+            lnr_control,
+            tph_control,
+            mmio_range_count,
+            mmio_range,
+            device_specific_info_len,
+            device_specific_info,
+        })
+    }
+}
