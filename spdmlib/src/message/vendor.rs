@@ -30,7 +30,10 @@ enum_builder! {
         HDBASET => 0x05,
         MIPI => 0x06,
         CXL => 0x07,
-        JEDEC => 0x08
+        JEDEC => 0x08,
+        VESA => 0x09,
+        IANACBOR => 0x0A,
+        DMTFDSP => 0x0B
     }
 }
 
@@ -46,6 +49,9 @@ impl RegistryOrStandardsBodyID {
             RegistryOrStandardsBodyID::MIPI => 2,
             RegistryOrStandardsBodyID::CXL => 2,
             RegistryOrStandardsBodyID::JEDEC => 2,
+            RegistryOrStandardsBodyID::VESA => 0,
+            RegistryOrStandardsBodyID::IANACBOR => MAX_SPDM_VENDOR_DEFINED_VENDOR_ID_LEN as u16,
+            RegistryOrStandardsBodyID::DMTFDSP => 2,
             RegistryOrStandardsBodyID::Unknown(_) => 0,
         }
     }
