@@ -753,7 +753,7 @@ mod tests {
                     base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                     base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                     mel_specification: SpdmMelSpecification::empty(),
-                    alg_struct_count: 4,
+                    alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
                     alg_struct: [
                         SpdmAlgStruct {
                             alg_type: SpdmAlgType::SpdmAlgTypeDHE,
@@ -774,6 +774,16 @@ mod tests {
                             alg_supported: SpdmAlg::SpdmAlgoKeySchedule(
                                 SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
                             ),
+                        },
+                        SpdmAlgStruct {
+                            alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                            alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(
+                                SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
+                            ),
+                        },
+                        SpdmAlgStruct {
+                            alg_type: SpdmAlgType::SpdmAlgTypeKEM,
+                            alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
                         },
                     ],
                 },
@@ -797,7 +807,10 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
             );
             assert_eq!(payload.base_hash_algo, SpdmBaseHashAlgo::TPM_ALG_SHA_256);
-            assert_eq!(payload.alg_struct_count, 4);
+            assert_eq!(
+                payload.alg_struct_count,
+                MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8
+            );
             assert_eq!(payload.alg_struct[0].alg_type, SpdmAlgType::SpdmAlgTypeDHE);
             assert_eq!(
                 payload.alg_struct[0].alg_supported,
@@ -840,7 +853,7 @@ mod tests {
                 base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                 base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                 mel_specification_sel: SpdmMelSpecification::empty(),
-                alg_struct_count: 4,
+                alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
                 alg_struct: [
                     SpdmAlgStruct {
                         alg_type: SpdmAlgType::SpdmAlgTypeDHE,
@@ -861,6 +874,16 @@ mod tests {
                         alg_supported: SpdmAlg::SpdmAlgoKeySchedule(
                             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
                         ),
+                    },
+                    SpdmAlgStruct {
+                        alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                        alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(
+                            SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
+                        ),
+                    },
+                    SpdmAlgStruct {
+                        alg_type: SpdmAlgType::SpdmAlgTypeKEM,
+                        alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
                     },
                 ],
             }),
@@ -889,7 +912,10 @@ mod tests {
             );
             assert_eq!(payload.base_asym_sel, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048);
             assert_eq!(payload.base_hash_sel, SpdmBaseHashAlgo::TPM_ALG_SHA_256);
-            assert_eq!(payload.alg_struct_count, 4);
+            assert_eq!(
+                payload.alg_struct_count,
+                MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8
+            );
             assert_eq!(payload.alg_struct[0].alg_type, SpdmAlgType::SpdmAlgTypeDHE);
             assert_eq!(
                 payload.alg_struct[0].alg_supported,

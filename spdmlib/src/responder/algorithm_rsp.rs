@@ -213,6 +213,8 @@ impl ResponderContext {
                             );
                         }
                     }
+                    SpdmAlg::SpdmAlgoKem(_v) => {}
+                    SpdmAlg::SpdmAlgoPqcReqAsym(_v) => {}
                     SpdmAlg::SpdmAlgoUnknown(_v) => {}
                 }
             }
@@ -355,6 +357,8 @@ impl ResponderContext {
                             self.common.negotiate_info.key_schedule_sel,
                         ),
                     },
+                    SpdmAlgStruct::default(),
+                    SpdmAlgStruct::default(),
                 ],
             }),
         };

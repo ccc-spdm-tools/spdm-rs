@@ -267,6 +267,8 @@ impl RequesterContext {
                                             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                         }
                                     }
+                                    SpdmAlg::SpdmAlgoKem(_v) => {}
+                                    SpdmAlg::SpdmAlgoPqcReqAsym(_v) => {}
                                     SpdmAlg::SpdmAlgoUnknown(_v) => {}
                                 }
                             }

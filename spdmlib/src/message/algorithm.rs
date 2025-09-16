@@ -9,7 +9,7 @@ use crate::{common, error::SpdmStatus};
 
 use codec::{Codec, Reader, Writer};
 
-pub const MAX_SUPPORTED_ALG_STRUCTURE_COUNT: usize = 4;
+pub const MAX_SUPPORTED_ALG_STRUCTURE_COUNT: usize = 6;
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmNegotiateAlgorithmsRequestPayload {
@@ -104,7 +104,7 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
         let mut alg_struct_count = 0;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             alg_struct_count = u8::read(r)?; // param1
-            if alg_struct_count > 4 {
+            if alg_struct_count > MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8 {
                 return None;
             }
         } else {
@@ -150,7 +150,8 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
                 SpdmMelSpecification::default()
             };
 
-        let mut alg_struct = gen_array_clone(SpdmAlgStruct::default(), 4);
+        let mut alg_struct =
+            gen_array_clone(SpdmAlgStruct::default(), MAX_SUPPORTED_ALG_STRUCTURE_COUNT);
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let mut dhe_present = false;
             let mut aead_present = false;
@@ -187,6 +188,12 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
                             return None;
                         }
                         key_schedule_present = true;
+                    }
+                    SpdmAlg::SpdmAlgoKem(_) => {
+                        // Kem TBD
+                    }
+                    SpdmAlg::SpdmAlgoPqcReqAsym(_) => {
+                        // PqcReqAsym TBD
                     }
                     SpdmAlg::SpdmAlgoUnknown(_) => {
                         return None;
@@ -230,7 +237,7 @@ pub struct SpdmAlgorithmsResponsePayload {
     pub base_hash_sel: SpdmBaseHashAlgo,
     pub mel_specification_sel: SpdmMelSpecification,
     pub alg_struct_count: u8,
-    pub alg_struct: [SpdmAlgStruct; 4],
+    pub alg_struct: [SpdmAlgStruct; MAX_SUPPORTED_ALG_STRUCTURE_COUNT],
 }
 
 impl SpdmCodec for SpdmAlgorithmsResponsePayload {
@@ -319,7 +326,7 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
         let mut alg_struct_count = 0;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             alg_struct_count = u8::read(r)?; // param1
-            if alg_struct_count > 4 {
+            if alg_struct_count > MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8 {
                 return None;
             }
         } else {
@@ -482,7 +489,8 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
 
         u16::read(r)?; // reserved3
 
-        let mut alg_struct = gen_array_clone(SpdmAlgStruct::default(), 4);
+        let mut alg_struct =
+            gen_array_clone(SpdmAlgStruct::default(), MAX_SUPPORTED_ALG_STRUCTURE_COUNT);
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             let mut dhe_present = false;
             let mut aead_present = false;
@@ -604,6 +612,12 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                             return None;
                         }
                     }
+                    SpdmAlg::SpdmAlgoKem(_v) => {
+                        // Kem TBD
+                    }
+                    SpdmAlg::SpdmAlgoPqcReqAsym(_v) => {
+                        // PqcReqAsym TBD
+                    }
                     SpdmAlg::SpdmAlgoUnknown(_v) => {
                         return None;
                     }
@@ -648,7 +662,7 @@ mod tests {
 
     #[test]
     fn test_case0_spdm_negotiate_algorithms_request_payload() {
-        let u8_slice = &mut [0u8; 48];
+        let u8_slice = &mut [0u8; 56];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmNegotiateAlgorithmsRequestPayload {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
@@ -657,7 +671,7 @@ mod tests {
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
-            alg_struct_count: 4,
+            alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
             alg_struct: [
                 SpdmAlgStruct {
                     alg_type: SpdmAlgType::SpdmAlgTypeDHE,
@@ -679,6 +693,14 @@ mod tests {
                         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
                     ),
                 },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                    alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo::ALG_MLDSA_87),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeKEM,
+                    alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
+                },
             ],
         };
         create_spdm_context!(context);
@@ -686,7 +708,7 @@ mod tests {
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
-        assert_eq!(48, reader.left());
+        assert_eq!(56, reader.left());
         let spdm_sturct_data =
             SpdmNegotiateAlgorithmsRequestPayload::spdm_read(&mut context, &mut reader).unwrap();
         assert_eq!(
@@ -709,7 +731,10 @@ mod tests {
             spdm_sturct_data.mel_specification,
             SpdmMelSpecification::DMTF_MEL_SPEC
         );
-        assert_eq!(spdm_sturct_data.alg_struct_count, 4);
+        assert_eq!(
+            spdm_sturct_data.alg_struct_count,
+            MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8
+        );
         assert_eq!(
             spdm_sturct_data.alg_struct[0].alg_type,
             SpdmAlgType::SpdmAlgTypeDHE
@@ -756,7 +781,10 @@ mod tests {
             base_hash_algo: SpdmBaseHashAlgo::empty(),
             mel_specification: SpdmMelSpecification::empty(),
             alg_struct_count: 0,
-            alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
+            alg_struct: gen_array_clone(
+                SpdmAlgStruct::default(),
+                MAX_SUPPORTED_ALG_STRUCTURE_COUNT,
+            ),
         };
 
         create_spdm_context!(context);
@@ -791,7 +819,10 @@ mod tests {
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             mel_specification: SpdmMelSpecification::empty(),
             alg_struct_count: 0,
-            alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
+            alg_struct: gen_array_clone(
+                SpdmAlgStruct::default(),
+                MAX_SUPPORTED_ALG_STRUCTURE_COUNT,
+            ),
         };
 
         create_spdm_context!(context);
@@ -808,7 +839,7 @@ mod tests {
     }
     #[test]
     fn test_case0_spdm_algorithms_response_payload() {
-        let u8_slice = &mut [0u8; 50];
+        let u8_slice = &mut [0u8; 58];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmAlgorithmsResponsePayload {
             measurement_specification_sel: SpdmMeasurementSpecification::DMTF,
@@ -818,7 +849,7 @@ mod tests {
             base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
             base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             mel_specification_sel: SpdmMelSpecification::DMTF_MEL_SPEC,
-            alg_struct_count: 4,
+            alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
             alg_struct: [
                 SpdmAlgStruct {
                     alg_type: SpdmAlgType::SpdmAlgTypeDHE,
@@ -840,6 +871,14 @@ mod tests {
                         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
                     ),
                 },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                    alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo::ALG_MLDSA_87),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeKEM,
+                    alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
+                },
             ],
         };
 
@@ -853,7 +892,7 @@ mod tests {
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
-        assert_eq!(50, reader.left());
+        assert_eq!(58, reader.left());
         let spdm_sturct_data =
             SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader).unwrap();
         assert_eq!(
@@ -880,7 +919,10 @@ mod tests {
             spdm_sturct_data.mel_specification_sel,
             SpdmMelSpecification::DMTF_MEL_SPEC
         );
-        assert_eq!(spdm_sturct_data.alg_struct_count, 4);
+        assert_eq!(
+            spdm_sturct_data.alg_struct_count,
+            MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8
+        );
         assert_eq!(
             spdm_sturct_data.alg_struct[0].alg_type,
             SpdmAlgType::SpdmAlgTypeDHE
@@ -928,7 +970,10 @@ mod tests {
             base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             mel_specification_sel: SpdmMelSpecification::DMTF_MEL_SPEC,
             alg_struct_count: 0,
-            alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
+            alg_struct: gen_array_clone(
+                SpdmAlgStruct::default(),
+                MAX_SUPPORTED_ALG_STRUCTURE_COUNT,
+            ),
         };
 
         create_spdm_context!(context);
@@ -979,7 +1024,10 @@ mod tests {
             base_hash_sel: SpdmBaseHashAlgo::empty(),
             mel_specification_sel: SpdmMelSpecification::empty(),
             alg_struct_count: 0,
-            alg_struct: gen_array_clone(SpdmAlgStruct::default(), 4),
+            alg_struct: gen_array_clone(
+                SpdmAlgStruct::default(),
+                MAX_SUPPORTED_ALG_STRUCTURE_COUNT,
+            ),
         };
 
         create_spdm_context!(context);
