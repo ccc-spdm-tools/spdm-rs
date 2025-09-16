@@ -222,6 +222,7 @@ fn pci_tdisp_device_interface_report(
                 first_page_with_offset_added: 0x12340000 + device_context.mmio_reporting_offset,
                 number_of_pages: 32,
                 range_attributes: MMIORangeAttribute::empty(),
+                range_id: 1,
             }; MMIO_RANGE_COUNT],
             device_specific_info_len: 6,
             device_specific_info: [6u8; DEVICE_SPECIFIC_INFO_LEN],
