@@ -76,6 +76,18 @@ pub const SPDM_MAX_AEAD_KEY_SIZE: usize = 32;
 pub const SPDM_MAX_AEAD_IV_SIZE: usize = 12;
 pub const SPDM_MAX_HKDF_OKM_SIZE: usize = SPDM_MAX_HASH_SIZE;
 
+pub const MLDSA_44_SIG_SIZE: usize = 2420;
+pub const MLDSA_65_SIG_SIZE: usize = 3309;
+pub const MLDSA_87_SIG_SIZE: usize = 4627;
+
+pub const MLKEM_512_ENCAP_KEY_SIZE: usize = 800;
+pub const MLKEM_768_ENCAP_KEY_SIZE: usize = 1184;
+pub const MLKEM_1024_ENCAP_KEY_SIZE: usize = 1568;
+
+pub const MLKEM_512_CIPHER_TEXT_SIZE: usize = 768;
+pub const MLKEM_768_CIPHER_TEXT_SIZE: usize = 1088;
+pub const MLKEM_1024_CIPHER_TEXT_SIZE: usize = 1568;
+
 bitflags! {
     #[derive(Default)]
     pub struct SpdmMeasurementSpecification: u8 {
@@ -300,6 +312,73 @@ impl Codec for SpdmBaseAsymAlgo {
 
 bitflags! {
     #[derive(Default)]
+    pub struct SpdmPqcAsymAlgo: u32 {
+        const ALG_MLDSA_44         = 0b0000_0001;
+        const ALG_MLDSA_65         = 0b0000_0010;
+        const ALG_MLDSA_87         = 0b0000_0100;
+        const VALID_MASK = Self::ALG_MLDSA_44.bits
+            | Self::ALG_MLDSA_65.bits
+            | Self::ALG_MLDSA_87.bits;
+    }
+}
+
+impl SpdmPqcAsymAlgo {
+    pub fn prioritize(&mut self, peer: SpdmPqcAsymAlgo) {
+        let prio_table = [
+            SpdmPqcAsymAlgo::ALG_MLDSA_87,
+            SpdmPqcAsymAlgo::ALG_MLDSA_65,
+            SpdmPqcAsymAlgo::ALG_MLDSA_44,
+        ];
+
+        *self &= peer;
+        for v in prio_table.iter() {
+            if self.bits() & v.bits() != 0 {
+                *self = *v;
+                return;
+            }
+        }
+        *self = SpdmPqcAsymAlgo::empty();
+    }
+    pub fn get_sig_size(&self) -> u16 {
+        match *self {
+            SpdmPqcAsymAlgo::ALG_MLDSA_44 => MLDSA_44_SIG_SIZE as u16,
+            SpdmPqcAsymAlgo::ALG_MLDSA_65 => MLDSA_65_SIG_SIZE as u16,
+            SpdmPqcAsymAlgo::ALG_MLDSA_87 => MLDSA_87_SIG_SIZE as u16,
+            _ => {
+                panic!("invalid PqcAsymAlgo");
+            }
+        }
+    }
+
+    /// return true if no more than one is selected
+    /// return false if two or more is selected
+    pub fn is_no_more_than_one_selected(&self) -> bool {
+        self.bits() == 0 || self.bits() & (self.bits() - 1) == 0
+    }
+
+    pub fn is_valid(&self) -> bool {
+        (self.bits & Self::VALID_MASK.bits) != 0
+    }
+
+    pub fn is_valid_one_select(&self) -> bool {
+        self.is_no_more_than_one_selected() && self.is_valid()
+    }
+}
+
+impl Codec for SpdmPqcAsymAlgo {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmPqcAsymAlgo> {
+        let bits = u32::read(r)?;
+
+        SpdmPqcAsymAlgo::from_bits(bits & SpdmPqcAsymAlgo::VALID_MASK.bits)
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
     pub struct SpdmBaseHashAlgo: u32 {
         const TPM_ALG_SHA_256 = 0b0000_0001;
         const TPM_ALG_SHA_384 = 0b0000_0010;
@@ -492,6 +571,83 @@ impl Codec for SpdmDheAlgo {
 
 bitflags! {
     #[derive(Default)]
+    pub struct SpdmKemAlgo: u16 {
+        const ALG_MLKEM_512 = 0b0000_0001;
+        const ALG_MLKEM_768 = 0b0000_0010;
+        const ALG_MLKEM_1024 = 0b0000_0100;
+        const VALID_MASK = Self::ALG_MLKEM_512.bits
+            | Self::ALG_MLKEM_768.bits
+            | Self::ALG_MLKEM_1024.bits;
+    }
+}
+
+impl SpdmKemAlgo {
+    pub fn prioritize(&mut self, peer: SpdmKemAlgo) {
+        let prio_table = [
+            SpdmKemAlgo::ALG_MLKEM_1024,
+            SpdmKemAlgo::ALG_MLKEM_768,
+            SpdmKemAlgo::ALG_MLKEM_512,
+        ];
+
+        *self &= peer;
+        for v in prio_table.iter() {
+            if self.bits() & v.bits() != 0 {
+                *self = *v;
+                return;
+            }
+        }
+        *self = SpdmKemAlgo::empty();
+    }
+    pub fn get_encap_key_size(&self) -> u16 {
+        match *self {
+            SpdmKemAlgo::ALG_MLKEM_512 => MLKEM_512_ENCAP_KEY_SIZE as u16,
+            SpdmKemAlgo::ALG_MLKEM_768 => MLKEM_768_ENCAP_KEY_SIZE as u16,
+            SpdmKemAlgo::ALG_MLKEM_1024 => MLKEM_1024_ENCAP_KEY_SIZE as u16,
+            _ => {
+                panic!("invalid KemAlgo");
+            }
+        }
+    }
+    pub fn get_cipher_text_size(&self) -> u16 {
+        match *self {
+            SpdmKemAlgo::ALG_MLKEM_512 => MLKEM_512_CIPHER_TEXT_SIZE as u16,
+            SpdmKemAlgo::ALG_MLKEM_768 => MLKEM_768_CIPHER_TEXT_SIZE as u16,
+            SpdmKemAlgo::ALG_MLKEM_1024 => MLKEM_1024_CIPHER_TEXT_SIZE as u16,
+            _ => {
+                panic!("invalid KemAlgo");
+            }
+        }
+    }
+
+    /// return true if no more than one is selected
+    /// return false if two or more is selected
+    pub fn is_no_more_than_one_selected(&self) -> bool {
+        self.bits() == 0 || self.bits() & (self.bits() - 1) == 0
+    }
+
+    pub fn is_valid(&self) -> bool {
+        (self.bits & Self::VALID_MASK.bits) != 0
+    }
+
+    pub fn is_valid_one_select(&self) -> bool {
+        self.is_no_more_than_one_selected() && self.is_valid()
+    }
+}
+
+impl Codec for SpdmKemAlgo {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmKemAlgo> {
+        let bits = u16::read(r)?;
+
+        SpdmKemAlgo::from_bits(bits & SpdmKemAlgo::VALID_MASK.bits)
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
     pub struct SpdmAeadAlgo: u16 {
         const AES_128_GCM       = 0b0000_0001;
         const AES_256_GCM       = 0b0000_0010;
@@ -666,6 +822,73 @@ impl Codec for SpdmReqAsymAlgo {
 
 bitflags! {
     #[derive(Default)]
+    pub struct SpdmPqcReqAsymAlgo: u16 {
+        const ALG_MLDSA_44         = 0b0000_0001;
+        const ALG_MLDSA_65         = 0b0000_0010;
+        const ALG_MLDSA_87         = 0b0000_0100;
+        const VALID_MASK = Self::ALG_MLDSA_44.bits
+            | Self::ALG_MLDSA_65.bits
+            | Self::ALG_MLDSA_87.bits;
+    }
+}
+
+impl SpdmPqcReqAsymAlgo {
+    pub fn prioritize(&mut self, peer: SpdmPqcReqAsymAlgo) {
+        let prio_table = [
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_44,
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_65,
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
+        ];
+
+        *self &= peer;
+        for v in prio_table.iter() {
+            if self.bits() & v.bits() != 0 {
+                *self = *v;
+                return;
+            }
+        }
+        *self = SpdmPqcReqAsymAlgo::empty();
+    }
+    pub fn get_sig_size(&self) -> u16 {
+        match *self {
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_44 => MLDSA_44_SIG_SIZE as u16,
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_65 => MLDSA_65_SIG_SIZE as u16,
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_87 => MLDSA_87_SIG_SIZE as u16,
+            _ => {
+                panic!("invalid PqcReqAsymAlgo");
+            }
+        }
+    }
+
+    /// return true if no more than one is selected
+    /// return false if two or more is selected
+    pub fn is_no_more_than_one_selected(&self) -> bool {
+        self.bits() == 0 || self.bits() & (self.bits() - 1) == 0
+    }
+
+    pub fn is_valid(&self) -> bool {
+        (self.bits & Self::VALID_MASK.bits) != 0
+    }
+
+    pub fn is_valid_one_select(&self) -> bool {
+        self.is_no_more_than_one_selected() && self.is_valid()
+    }
+}
+
+impl Codec for SpdmPqcReqAsymAlgo {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmPqcReqAsymAlgo> {
+        let bits = u16::read(r)?;
+
+        SpdmPqcReqAsymAlgo::from_bits(bits & SpdmPqcReqAsymAlgo::VALID_MASK.bits)
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
     pub struct SpdmKeyScheduleAlgo: u16 {
         const SPDM_KEY_SCHEDULE = 0b0000_0001;
         const VALID_MASK = Self::SPDM_KEY_SCHEDULE.bits;
@@ -732,7 +955,9 @@ enum_builder! {
         SpdmAlgTypeDHE => 0x2,
         SpdmAlgTypeAEAD => 0x3,
         SpdmAlgTypeReqAsym => 0x4,
-        SpdmAlgTypeKeySchedule => 0x5
+        SpdmAlgTypeKeySchedule => 0x5,
+        SpdmAlgTypePqcReqAsym => 0x6,
+        SpdmAlgTypeKEM => 0x7
     }
 }
 impl Default for SpdmAlgType {
@@ -747,6 +972,8 @@ pub enum SpdmAlg {
     SpdmAlgoAead(SpdmAeadAlgo),
     SpdmAlgoReqAsym(SpdmReqAsymAlgo),
     SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo),
+    SpdmAlgoKem(SpdmKemAlgo),
+    SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo),
     // TBD: Need consider how to handle this SpdmAlgoUnknown
     SpdmAlgoUnknown(SpdmUnknownAlgo),
 }
@@ -784,6 +1011,12 @@ impl Codec for SpdmAlgStruct {
             SpdmAlg::SpdmAlgoKeySchedule(alg_supported) => {
                 cnt += alg_supported.encode(bytes)?;
             }
+            SpdmAlg::SpdmAlgoKem(alg_supported) => {
+                cnt += alg_supported.encode(bytes)?;
+            }
+            SpdmAlg::SpdmAlgoPqcReqAsym(alg_supported) => {
+                cnt += alg_supported.encode(bytes)?;
+            }
             SpdmAlg::SpdmAlgoUnknown(alg_supported) => {
                 cnt += alg_supported.encode(bytes)?;
             }
@@ -811,6 +1044,10 @@ impl Codec for SpdmAlgStruct {
             }
             SpdmAlgType::SpdmAlgTypeKeySchedule => {
                 Some(SpdmAlg::SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo::read(r)?))
+            }
+            SpdmAlgType::SpdmAlgTypeKEM => Some(SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::read(r)?)),
+            SpdmAlgType::SpdmAlgTypePqcReqAsym => {
+                Some(SpdmAlg::SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo::read(r)?))
             }
             _ => return None,
         };

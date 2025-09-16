@@ -71,7 +71,7 @@ fn test_case0_handle_spdm_algorithm() {
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
-            alg_struct_count: 4,
+            alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
             alg_struct: [
                 SpdmAlgStruct {
                     alg_type: SpdmAlgType::SpdmAlgTypeDHE,
@@ -92,6 +92,14 @@ fn test_case0_handle_spdm_algorithm() {
                     alg_supported: SpdmAlg::SpdmAlgoKeySchedule(
                         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
                     ),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                    alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo::ALG_MLDSA_87),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeKEM,
+                    alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
                 },
             ],
         };
@@ -153,7 +161,10 @@ fn test_case0_handle_spdm_algorithm() {
             spdm_sturct_data.mel_specification,
             SpdmMelSpecification::DMTF_MEL_SPEC
         );
-        assert_eq!(spdm_sturct_data.alg_struct_count, 4);
+        assert_eq!(
+            spdm_sturct_data.alg_struct_count,
+            MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8
+        );
         assert_eq!(
             spdm_sturct_data.alg_struct[0].alg_type,
             SpdmAlgType::SpdmAlgTypeDHE
@@ -187,7 +198,7 @@ fn test_case0_handle_spdm_algorithm() {
             SpdmAlg::SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,)
         );
 
-        let u8_slice = &u8_slice[46..];
+        let u8_slice = &u8_slice[54..];
         debug!("u8_slice: {:02X?}\n", u8_slice);
         let mut reader = Reader::init(u8_slice);
         let spdm_message: SpdmMessage =
@@ -226,7 +237,7 @@ fn test_case0_handle_spdm_algorithm() {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
             );
             assert_eq!(payload.base_hash_sel, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
-            assert_eq!(payload.alg_struct_count, 4);
+            assert_eq!(payload.alg_struct_count, 4_u8);
             assert_eq!(
                 payload.mel_specification_sel,
                 SpdmMelSpecification::DMTF_MEL_SPEC
