@@ -1016,6 +1016,7 @@ pub struct TdispMmioRange {
     pub first_page_with_offset_added: u64,
     pub number_of_pages: u32,
     pub range_attributes: MMIORangeAttribute,
+    pub range_id: u16,
 }
 
 impl Default for TdispMmioRange {
@@ -1024,6 +1025,7 @@ impl Default for TdispMmioRange {
             first_page_with_offset_added: 0,
             number_of_pages: 0,
             range_attributes: MMIORangeAttribute::empty(),
+            range_id: 0,
         }
     }
 }
@@ -1035,6 +1037,7 @@ impl Codec for TdispMmioRange {
         cnt += self.first_page_with_offset_added.encode(bytes)?;
         cnt += self.number_of_pages.encode(bytes)?;
         cnt += self.range_attributes.encode(bytes)?;
+        cnt += self.range_id.encode(bytes)?;
 
         Ok(cnt)
     }
@@ -1043,11 +1046,13 @@ impl Codec for TdispMmioRange {
         let first_page_with_offset_added = u64::read(r)?;
         let number_of_pages = u32::read(r)?;
         let range_attributes = MMIORangeAttribute::read(r)?;
+        let range_id = u16::read(r)?;
 
         Some(Self {
             first_page_with_offset_added,
             number_of_pages,
             range_attributes,
+            range_id,
         })
     }
 }
