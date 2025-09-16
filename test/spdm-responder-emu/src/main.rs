@@ -147,7 +147,7 @@ fn emu_main_inner() {
         negotiated_version: None,
         interface_id: InterfaceId {
             function_id: FunctionId {
-                requester_id: 0x1234,
+                requester_id: 0xbeef,
                 requester_segment: 0,
                 requester_segment_valid: false,
             },
