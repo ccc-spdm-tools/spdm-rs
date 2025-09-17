@@ -7,16 +7,12 @@ use fuzzlib::{
     spdmlib::message::SpdmMeasurementOperation,
     *,
 };
-use spdmlib::common::SpdmConnectionState;
 use spdmlib::message::*;
 use spdmlib::protocol::*;
 
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::borrow::BorrowMut;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::crypto::asym_verify::register(FAKE_ASYM_VERIFY.clone());

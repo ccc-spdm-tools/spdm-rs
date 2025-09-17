@@ -1,14 +1,12 @@
 // Copyright (c) 2020 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
+
 use fuzzlib::*;
-use spdmlib::common::SpdmConnectionState;
 use spdmlib::protocol::*;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_digest(fuzzdata: Arc<Vec<u8>>) {
     let (req_config_info, req_provision_info) = req_create_info();

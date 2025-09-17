@@ -3,12 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use fuzzlib::{spdmlib::protocol::SpdmVersion, *};
-use spdmlib::common::SpdmConnectionState;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_algorithm(fuzzdata: Arc<Vec<u8>>) {
     let (req_config_info, req_provision_info) = req_create_info();

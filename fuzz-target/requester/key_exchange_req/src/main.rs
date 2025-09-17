@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use fuzzlib::*;
-use spdmlib::common::SpdmConnectionState;
 use spdmlib::protocol::*;
 
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_key_exchange(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());

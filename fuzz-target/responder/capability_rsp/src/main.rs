@@ -6,9 +6,7 @@ use fuzzlib::{spdmlib::protocol::SpdmVersion, *};
 use spdmlib::common::SpdmConnectionState;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_handle_spdm_capability(data: Arc<Vec<u8>>) {
     let (config_info, provision_info) = rsp_create_info();
