@@ -165,7 +165,7 @@ fn fake_hkdf_expand(
 }
 
 fn fake_get_cert_from_cert_chain(cert_chain: &[u8], _index: isize) -> SpdmResult<(usize, usize)> {
-    return Ok((0, cert_chain.len()));
+    Ok((0, cert_chain.len()))
 }
 
 fn fake_verify_cert_chain(_cert_chain: &[u8]) -> SpdmResult {

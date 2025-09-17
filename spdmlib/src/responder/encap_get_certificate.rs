@@ -152,7 +152,7 @@ impl ResponderContext {
 
         let result = self.verify_spdm_certificate_chain().map(|_| {
             self.common.peer_info.peer_cert_chain[self.common.encap_context.req_slot_id as usize] =
-                self.common.peer_info.peer_cert_chain_temp.clone();
+                self.common.peer_info.peer_cert_chain_temp;
             self.common
                 .runtime_info
                 .set_peer_used_cert_chain_slot_id(self.common.encap_context.req_slot_id);
