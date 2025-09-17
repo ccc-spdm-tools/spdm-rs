@@ -63,8 +63,10 @@ static EKU_SPDM_REQUESTER_AUTH: &[u8] =
 /// - If EKU contains SPDM responder auth OID, it must also contain SPDM requester auth OID
 /// - If EKU contains only non-SPDM OIDs, validation passes
 /// - Otherwise, validation fails
+#[allow(dead_code)]
 struct SpdmRequesterEkuValidator;
 
+#[allow(dead_code)]
 impl ExtendedKeyUsageValidator for SpdmRequesterEkuValidator {
     fn validate(&self, iter: KeyPurposeIdIter<'_, '_>) -> Result<(), webpki::Error> {
         let mut has_spdm_requester = false;
@@ -111,6 +113,7 @@ impl ExtendedKeyUsageValidator for SpdmRequesterEkuValidator {
 }
 
 /// Create an EKU validator for SPDM Requester certificates
+#[allow(dead_code)]
 pub fn spdm_requester_eku_validator() -> impl ExtendedKeyUsageValidator {
     SpdmRequesterEkuValidator
 }
