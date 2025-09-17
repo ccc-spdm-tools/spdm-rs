@@ -9,9 +9,7 @@ use fuzzlib::{
 use spdmlib::protocol::*;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_handle_spdm_key_update(data: Arc<Vec<u8>>) {
     let (config_info, provision_info) = rsp_create_info();

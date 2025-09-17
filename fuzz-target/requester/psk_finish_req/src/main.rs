@@ -9,9 +9,7 @@ use fuzzlib::{
 use spdmlib::protocol::*;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_psk_finish(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());

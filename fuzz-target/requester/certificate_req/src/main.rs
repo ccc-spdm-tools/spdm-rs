@@ -7,9 +7,7 @@ use spdmlib::common::session::{SpdmSession, SpdmSessionState};
 use spdmlib::protocol::*;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_certificate(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());

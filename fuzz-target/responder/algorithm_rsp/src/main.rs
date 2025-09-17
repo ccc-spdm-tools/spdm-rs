@@ -2,14 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use fuzzlib::config::MAX_SPDM_MSG_SIZE;
 use fuzzlib::{spdmlib::protocol::SpdmVersion, *};
 use spdmlib::common::SpdmConnectionState;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_handle_spdm_algorithm(data: Arc<Vec<u8>>) {
     let (config_info, provision_info) = rsp_create_info();

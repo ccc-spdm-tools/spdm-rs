@@ -9,9 +9,7 @@ use spdmlib::common::session::{SpdmSession, SpdmSessionState};
 use spdmlib::protocol::*;
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_encap_handle_get_digest(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());

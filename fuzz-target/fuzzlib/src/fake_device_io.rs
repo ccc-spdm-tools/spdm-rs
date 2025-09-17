@@ -5,15 +5,12 @@
 #![forbid(unsafe_code)]
 
 use super::*;
-use crate::spdmlib::error::SPDM_STATUS_SEND_FAIL;
 use async_trait::async_trait;
 use spdmlib_test::common::device_io::SharedBuffer;
 
 use spin::Mutex;
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::borrow::BorrowMut;
 use core::ops::DerefMut;
 
 pub struct FakeSpdmDeviceIoReceve {
@@ -81,7 +78,7 @@ impl SpdmDeviceIo for FuzzTmpSpdmDeviceIoReceve {
         Ok(len)
     }
 
-    async fn send(&mut self, buffer: Arc<&[u8]>) -> SpdmResult {
+    async fn send(&mut self, _buffer: Arc<&[u8]>) -> SpdmResult {
         let buffer: &[u8] = &self.fuzzdata[self.current];
         self.data.set_buffer_ref(Arc::new(buffer));
         log::info!("responder send    RAW - {:02x?}\n", buffer);

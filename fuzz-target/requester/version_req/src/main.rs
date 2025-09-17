@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use fuzzlib::{
-    fake_device_io::{self, FakeSpdmDeviceIo},
-    req_create_info, spdmlib,
+    fake_device_io, req_create_info, spdmlib,
     spdmlib::protocol::MAX_SPDM_VERSION_COUNT,
     spdmlib::{protocol::SpdmVersion, requester::RequesterContext},
     time::SPDM_TIME_IMPL,
@@ -15,9 +14,7 @@ use fuzzlib::{
 use fuzzlib::flexi_logger;
 
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
 
 async fn fuzz_send_receive_spdm_version(fuzzdata: Arc<Vec<u8>>) {
     // TCD:
