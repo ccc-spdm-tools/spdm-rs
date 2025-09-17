@@ -251,6 +251,32 @@ To run a specific test, use `cargo test <test_func_name>`
 
 To run test with println!() message, use `cargo test -- --nocapture`
 
+To run tests with chunk capability:
+```
+export SPDM_CONFIG="etc/chunk_test_config.json"
+cargo test --no-default-features --features "spdmlib/std,spdmlib/spdm-ring,spdm-emu/is_sync,spdmlib/is_sync,maybe-async/is_sync,idekm/is_sync,tdisp/is_sync,mctp_transport/is_sync,pcidoe_transport/is_sync,spdm-requester-emu/is_sync,spdm-responder-emu/is_sync,chunk-cap" -- --test-threads=1
+export SPDM_CONFIG="etc/config.json"
+```
+
+To run spdmlib-test:
+```
+pushd test/spdmlib-test
+export SPDM_CONFIG="etc/chunk_test_config.json"
+cargo test --no-default-features -- --test-threads=1
+export SPDM_CONFIG="etc/config.json"
+popd
+```
+
+To run spdmlib-test with chunk capability:
+```
+pushd test/spdmlib-test
+export SPDM_CONFIG="etc/chunk_test_config.json"
+cargo test --no-default-features --features "chunk-cap" -- --test-threads=1
+export SPDM_CONFIG="etc/config.json"
+popd
+```
+
+
 ## Collect memory usage
 
 To collect memory usage, use
