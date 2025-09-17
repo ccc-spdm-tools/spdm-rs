@@ -2,21 +2,25 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::common::crypto_callback::FAKE_HMAC;
-use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::*;
-use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::create_info;
-use codec::{Codec, Writer};
-use spdmlib::common::opaque::{SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
-use spdmlib::common::session::{SpdmSession, SpdmSessionState};
-use spdmlib::common::SpdmCodec;
-use spdmlib::message::*;
-use spdmlib::protocol::*;
-use spdmlib::{crypto, responder, secret};
-use spin::Mutex;
+#[cfg(not(feature = "hashed-transcript-data"))]
 extern crate alloc;
-use alloc::sync::Arc;
+#[cfg(not(feature = "hashed-transcript-data"))]
+use {
+    crate::common::crypto_callback::FAKE_HMAC,
+    crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer},
+    crate::common::secret_callback::*,
+    crate::common::transport::PciDoeTransportEncap,
+    crate::common::util::create_info,
+    alloc::sync::Arc,
+    codec::{Codec, Writer},
+    spdmlib::common::opaque::{SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE},
+    spdmlib::common::session::{SpdmSession, SpdmSessionState},
+    spdmlib::common::SpdmCodec,
+    spdmlib::message::*,
+    spdmlib::protocol::*,
+    spdmlib::{crypto, responder, secret},
+    spin::Mutex,
+};
 
 #[test]
 #[cfg(not(feature = "hashed-transcript-data"))]
@@ -78,7 +82,8 @@ fn test_case0_handle_spdm_psk_finish() {
         bytes[2..].copy_from_slice(&psk_finish[0..1022]);
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_psk_finish(4294901758, bytes, &mut writer);
+        let (_status, _send_buffer) =
+            context.handle_spdm_psk_finish(4294901758, bytes, &mut writer);
     };
     executor::block_on(future);
 }
@@ -143,7 +148,8 @@ fn test_case1_handle_spdm_psk_finish() {
         bytes[2..].copy_from_slice(&psk_finish[0..1022]);
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_psk_finish(4294901758, bytes, &mut writer);
+        let (_status, _send_buffer) =
+            context.handle_spdm_psk_finish(4294901758, bytes, &mut writer);
 
         for session in context.common.session.iter() {
             assert_eq!(

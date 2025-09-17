@@ -2,19 +2,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::*;
-use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::create_info;
-use spdmlib::common::SpdmConnectionState;
-use spdmlib::error::SPDM_STATUS_ERROR_PEER;
-use spdmlib::message::{SpdmMeasurementAttributes, SpdmMeasurementOperation};
-use spdmlib::protocol::*;
-use spdmlib::requester::RequesterContext;
-use spdmlib::{config, responder, secret};
-use spin::Mutex;
+#[cfg(feature = "hashed-transcript-data")]
 extern crate alloc;
-use alloc::sync::Arc;
+#[cfg(feature = "hashed-transcript-data")]
+use {
+    crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
+    crate::common::secret_callback::*,
+    crate::common::transport::PciDoeTransportEncap,
+    crate::common::util::create_info,
+    alloc::sync::Arc,
+    spdmlib::common::SpdmConnectionState,
+    spdmlib::error::SPDM_STATUS_ERROR_PEER,
+    spdmlib::message::{SpdmMeasurementAttributes, SpdmMeasurementOperation},
+    spdmlib::protocol::*,
+    spdmlib::requester::RequesterContext,
+    spdmlib::{config, responder, secret},
+    spin::Mutex,
+};
 
 #[test]
 #[cfg(feature = "hashed-transcript-data")]

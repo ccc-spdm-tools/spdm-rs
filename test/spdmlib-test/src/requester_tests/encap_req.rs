@@ -24,6 +24,7 @@ use alloc::sync::Arc;
 use core::ops::DerefMut;
 
 const SESSION_ID: u32 = 4294901758;
+#[cfg(not(feature = "chunk-cap"))]
 const CERT_PORTION_LEN: usize = 512;
 
 #[test]

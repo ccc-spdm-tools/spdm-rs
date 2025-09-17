@@ -6,7 +6,7 @@ use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedB
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
-use spdmlib::common::session::{SpdmSession, SpdmSessionState};
+use spdmlib::common::session::SpdmSession;
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;
 use spdmlib::{responder, secret};

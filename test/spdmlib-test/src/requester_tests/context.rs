@@ -8,7 +8,7 @@ use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use crate::watchdog_impl_sample::init_watchdog;
 use codec::Writer;
-use spdmlib::common::session::{SpdmSession, SpdmSessionState};
+use spdmlib::common::session::SpdmSession;
 use spdmlib::common::SpdmCodec;
 use spdmlib::message::*;
 use spdmlib::protocol::*;

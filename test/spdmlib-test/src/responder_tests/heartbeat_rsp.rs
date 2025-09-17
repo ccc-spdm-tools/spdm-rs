@@ -82,7 +82,7 @@ fn test_case0_handle_spdm_heartbeat() {
         assert!(value.encode(&mut writer).is_ok());
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_heartbeat(session_id, bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_heartbeat(session_id, bytes, &mut writer);
     };
     executor::block_on(future);
 }

@@ -2,18 +2,28 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::common::device_io::{self, FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
-use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, ResponderRunner, TestCase, TestSpdmMessage};
-use codec::{Codec, Writer};
-use spdmlib::common::*;
-use spdmlib::message::*;
-use spdmlib::protocol::*;
-use spdmlib::{config, responder, secret};
-use spin::Mutex;
+#[cfg(any(not(feature = "chunk-cap"), feature = "hashed-transcript-data"))]
+use crate::common::util::create_info;
+#[cfg(not(feature = "chunk-cap"))]
+use {
+    crate::common::device_io,
+    crate::common::util::{ResponderRunner, TestCase, TestSpdmMessage},
+};
+#[cfg(feature = "hashed-transcript-data")]
 extern crate alloc;
-use alloc::sync::Arc;
+#[cfg(feature = "hashed-transcript-data")]
+use {
+    crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer},
+    crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE,
+    crate::common::transport::PciDoeTransportEncap,
+    alloc::sync::Arc,
+    codec::{Codec, Writer},
+    spdmlib::common::*,
+    spdmlib::message::*,
+    spdmlib::protocol::*,
+    spdmlib::{config, responder, secret},
+    spin::Mutex,
+};
 
 #[test]
 #[cfg(feature = "hashed-transcript-data")]
@@ -130,6 +140,7 @@ fn test_case0_handle_spdm_certificate() {
     executor::block_on(future);
 }
 
+#[cfg(not(feature = "chunk-cap"))]
 pub fn construct_certificate_positive() -> (Vec<TestSpdmMessage>, Vec<TestSpdmMessage>) {
     use crate::protocol;
     let (config_info, provision_info) = create_info();

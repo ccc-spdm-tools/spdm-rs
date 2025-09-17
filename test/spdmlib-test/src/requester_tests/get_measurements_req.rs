@@ -6,7 +6,6 @@ use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedB
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::{create_info, get_rsp_cert_chain_buff};
-use ring::signature;
 use spdmlib::common::{ManagedBufferL1L2, SpdmConnectionState};
 use spdmlib::config::MAX_SPDM_MSG_SIZE;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD};

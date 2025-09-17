@@ -7,7 +7,9 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use spdmlib::common::SpdmConnectionState;
-use spdmlib::config::{MAX_SPDM_PSK_HINT_SIZE, SPDM_DATA_TRANSFER_SIZE};
+use spdmlib::config::MAX_SPDM_PSK_HINT_SIZE;
+#[cfg(feature = "chunk-cap")]
+use spdmlib::config::SPDM_DATA_TRANSFER_SIZE;
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;
 use spdmlib::{responder, secret};

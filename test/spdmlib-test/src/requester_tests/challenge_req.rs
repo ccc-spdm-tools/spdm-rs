@@ -2,18 +2,22 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::common::crypto_callback::FAKE_RAND;
-use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
-use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, get_rsp_cert_chain_buff};
-use spdmlib::common::SpdmConnectionState;
-use spdmlib::protocol::*;
-use spdmlib::requester::RequesterContext;
-use spdmlib::{config, crypto, responder, secret};
-use spin::Mutex;
+#[cfg(feature = "hashed-transcript-data")]
 extern crate alloc;
-use alloc::sync::Arc;
+#[cfg(feature = "hashed-transcript-data")]
+use {
+    crate::common::crypto_callback::FAKE_RAND,
+    crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
+    crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE,
+    crate::common::transport::PciDoeTransportEncap,
+    crate::common::util::{create_info, get_rsp_cert_chain_buff},
+    alloc::sync::Arc,
+    spdmlib::common::SpdmConnectionState,
+    spdmlib::protocol::*,
+    spdmlib::requester::RequesterContext,
+    spdmlib::{config, crypto, responder, secret},
+    spin::Mutex,
+};
 
 #[test]
 #[cfg(feature = "hashed-transcript-data")]

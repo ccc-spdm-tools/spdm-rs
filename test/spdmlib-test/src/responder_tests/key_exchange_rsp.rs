@@ -63,7 +63,7 @@ fn test_case0_handle_spdm_key_exchange() {
 
         let key_exchange: &mut [u8; 1024] = &mut [0u8; 1024];
         let mut writer = Writer::init(key_exchange);
-        let mut value = SpdmKeyExchangeRequestPayload {
+        let value = SpdmKeyExchangeRequestPayload {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
             slot_id: 100u8,
@@ -111,7 +111,7 @@ fn test_case0_handle_spdm_key_exchange() {
 
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_key_exchange(bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_key_exchange(bytes, &mut writer);
     };
     executor::block_on(future);
 }
@@ -160,7 +160,7 @@ fn test_case1_handle_spdm_key_exchange() {
 
         let key_exchange: &mut [u8; 1024] = &mut [0u8; 1024];
         let mut writer = Writer::init(key_exchange);
-        let mut value = SpdmKeyExchangeRequestPayload {
+        let value = SpdmKeyExchangeRequestPayload {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
             slot_id: 0u8,
@@ -208,7 +208,7 @@ fn test_case1_handle_spdm_key_exchange() {
 
         let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_key_exchange(bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_key_exchange(bytes, &mut writer);
 
         for session in context.common.session.iter() {
             assert_eq!(

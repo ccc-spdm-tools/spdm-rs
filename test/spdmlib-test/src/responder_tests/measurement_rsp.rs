@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::common::device_io::{self, FakeSpdmDeviceIoReceve, SharedBuffer};
+use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, ResponderRunner, TestCase, TestSpdmMessage};
-use codec::{Codec, Reader, Writer};
+use crate::common::util::create_info;
+#[cfg(not(feature = "hashed-transcript-data"))]
+use codec::Reader;
+use codec::{Codec, Writer};
 use spdmlib::common::SpdmCodec;
 use spdmlib::common::SpdmConnectionState;
 use spdmlib::config::MAX_SPDM_MSG_SIZE;
@@ -14,6 +16,11 @@ use spdmlib::message::*;
 use spdmlib::protocol::*;
 use spdmlib::{responder, secret};
 use spin::Mutex;
+#[cfg(not(feature = "chunk-cap"))]
+use {
+    crate::common::device_io,
+    crate::common::util::{ResponderRunner, TestCase, TestSpdmMessage},
+};
 extern crate alloc;
 use alloc::sync::Arc;
 
@@ -76,7 +83,7 @@ fn test_case0_handle_spdm_measurement() {
         bytes[2..].copy_from_slice(&measurements_struct[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_measurement(None, bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_measurement(None, bytes, &mut writer);
 
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
@@ -185,7 +192,7 @@ fn test_case1_handle_spdm_measurement() {
         bytes[2..].copy_from_slice(&measurements_struct[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_measurement(None, bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_measurement(None, bytes, &mut writer);
 
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
@@ -238,6 +245,7 @@ fn test_case1_handle_spdm_measurement() {
     executor::block_on(future);
 }
 
+#[cfg(not(feature = "chunk-cap"))]
 fn test_handle_spdm_measurement_runner(
     get_measurement_msg: TestSpdmMessage,
     measurement_msg: TestSpdmMessage,
@@ -300,7 +308,6 @@ fn test_case2_handle_spdm_measurements() {
     )
     .unwrap();
 
-    let siglen = config_info.base_asym_algo.get_size() as usize;
     let measurement_msg = TestSpdmMessage {
         message: protocol::Message::MEASUREMENTS(protocol::measurement::MEASUREMENTS {
             SPDMVersion: 0x12,
