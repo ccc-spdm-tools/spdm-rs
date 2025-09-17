@@ -6,7 +6,8 @@ use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedB
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::{create_info, get_rsp_cert_chain_buff};
-use spdmlib::common::{session, SpdmConnectionState};
+use spdmlib::common::SpdmConnectionState;
+#[cfg(feature = "chunk-cap")]
 use spdmlib::config;
 use spdmlib::protocol::*;
 use spdmlib::requester::RequesterContext;

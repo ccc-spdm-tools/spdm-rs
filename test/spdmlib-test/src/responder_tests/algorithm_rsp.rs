@@ -5,7 +5,9 @@
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, TestSpdmMessage};
+use crate::common::util::create_info;
+#[cfg(not(feature = "chunk-cap"))]
+use crate::common::util::TestSpdmMessage;
 use codec::{Codec, Reader, Writer};
 use log::debug;
 use spdmlib::common::*;
@@ -111,7 +113,7 @@ fn test_case0_handle_spdm_algorithm() {
 
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        context.handle_spdm_algorithm(bytes, &mut writer);
+        let _result = context.handle_spdm_algorithm(bytes, &mut writer);
 
         let data = context.common.runtime_info.message_a.as_ref();
         let u8_slice = &mut [0u8; 2048];
@@ -282,9 +284,10 @@ fn test_case0_handle_spdm_algorithm() {
     executor::block_on(future);
 }
 
+#[cfg(not(feature = "chunk-cap"))]
 pub fn consturct_algorithm_positive() -> (TestSpdmMessage, TestSpdmMessage) {
     use crate::protocol;
-    let (config_info, provision_info) = create_info();
+    let (config_info, _provision_info) = create_info();
     let negotiate_algorithm_msg = TestSpdmMessage {
         message: protocol::Message::NEGOTIATE_ALGORITHMS(
             protocol::algorithm::NEGOTIATE_ALGORITHMS {

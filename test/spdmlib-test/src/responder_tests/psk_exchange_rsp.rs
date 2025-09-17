@@ -7,7 +7,6 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use codec::{Codec, Writer};
-use spdmlib::common::opaque;
 use spdmlib::common::opaque::*;
 use spdmlib::common::SpdmCodec;
 use spdmlib::config::{MAX_SPDM_MSG_SIZE, MAX_SPDM_PSK_CONTEXT_SIZE, MAX_SPDM_PSK_HINT_SIZE};
@@ -50,7 +49,7 @@ fn test_case0_handle_spdm_psk_exchange() {
 
         let challenge = &mut [0u8; 1024];
         let mut writer = Writer::init(challenge);
-        let mut value = SpdmPskExchangeRequestPayload {
+        let value = SpdmPskExchangeRequestPayload {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
             req_session_id: 100u16,
@@ -99,7 +98,7 @@ fn test_case0_handle_spdm_psk_exchange() {
         bytes[2..].copy_from_slice(&challenge[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_psk_exchange(bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_psk_exchange(bytes, &mut writer);
     };
     executor::block_on(future);
 }
@@ -136,7 +135,7 @@ fn test_case1_handle_spdm_psk_exchange() {
 
         let challenge = &mut [0u8; 1024];
         let mut writer = Writer::init(challenge);
-        let mut value = SpdmPskExchangeRequestPayload {
+        let value = SpdmPskExchangeRequestPayload {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
             req_session_id: 100u16,
@@ -185,7 +184,7 @@ fn test_case1_handle_spdm_psk_exchange() {
         bytes[2..].copy_from_slice(&challenge[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_psk_exchange(bytes, &mut writer);
+        let (_status, _send_buffer) = context.handle_spdm_psk_exchange(bytes, &mut writer);
 
         for session in context.common.session.iter() {
             assert_eq!(

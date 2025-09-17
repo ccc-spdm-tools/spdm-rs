@@ -88,7 +88,8 @@ fn test_case0_handle_spdm_key_update() {
         bytes[2..].copy_from_slice(&key_exchange[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_key_update(session_id, bytes, &mut writer);
+        let (_status, _send_buffer) =
+            context.handle_spdm_key_update(session_id, bytes, &mut writer);
     };
     executor::block_on(future);
 }
@@ -162,7 +163,8 @@ fn test_case1_handle_spdm_key_update() {
         bytes[2..].copy_from_slice(&key_exchange[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_key_update(session_id, bytes, &mut writer);
+        let (_status, _send_buffer) =
+            context.handle_spdm_key_update(session_id, bytes, &mut writer);
     };
     executor::block_on(future);
 }

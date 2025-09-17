@@ -5,7 +5,9 @@
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, TestSpdmMessage};
+use crate::common::util::create_info;
+#[cfg(not(feature = "chunk-cap"))]
+use crate::common::util::TestSpdmMessage;
 use codec::{Codec, Reader, Writer};
 use spdmlib::common::*;
 use spdmlib::config::MAX_SPDM_MSG_SIZE;
@@ -46,7 +48,7 @@ fn test_case0_handle_spdm_version() {
 
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        context.handle_spdm_version(bytes, &mut writer);
+        let _result = context.handle_spdm_version(bytes, &mut writer);
 
         let data = context.common.runtime_info.message_a.as_ref();
         let u8_slice = &mut [0u8; 1024];
@@ -92,6 +94,7 @@ fn test_case0_handle_spdm_version() {
     executor::block_on(future);
 }
 
+#[cfg(not(feature = "chunk-cap"))]
 pub fn construct_version_positive() -> (TestSpdmMessage, TestSpdmMessage) {
     use crate::protocol;
     let get_version_msg = TestSpdmMessage {
@@ -103,15 +106,15 @@ pub fn construct_version_positive() -> (TestSpdmMessage, TestSpdmMessage) {
         }),
         secure: 0,
     };
-    let (config_info, provision_info) = create_info();
-    let mut VersionNumberEntryCount = 0;
-    let mut VersionNumberEntry: [u16; MAX_SPDM_VERSION_COUNT] = gen_array_clone(
+    let (config_info, _provision_info) = create_info();
+    let mut version_number_entry_count = 0;
+    let mut version_number_entry: [u16; MAX_SPDM_VERSION_COUNT] = gen_array_clone(
         u8::from(SpdmVersion::default()) as u16,
         MAX_SPDM_VERSION_COUNT,
     );
     for (_, v) in config_info.spdm_version.iter().flatten().enumerate() {
-        VersionNumberEntry[VersionNumberEntryCount] = (u8::from(*v) as u16) << 8;
-        VersionNumberEntryCount += 1;
+        version_number_entry[version_number_entry_count] = (u8::from(*v) as u16) << 8;
+        version_number_entry_count += 1;
     }
     let version_msg = TestSpdmMessage {
         message: protocol::Message::VERSION(protocol::version::VERSION {
@@ -120,8 +123,8 @@ pub fn construct_version_positive() -> (TestSpdmMessage, TestSpdmMessage) {
             Param1: 0,
             Param2: 0,
             Reserved: 0,
-            VersionNumberEntryCount: VersionNumberEntryCount as u8,
-            VersionNumberEntry: VersionNumberEntry.to_vec(),
+            VersionNumberEntryCount: version_number_entry_count as u8,
+            VersionNumberEntry: version_number_entry.to_vec(),
         }),
         secure: 0,
     };

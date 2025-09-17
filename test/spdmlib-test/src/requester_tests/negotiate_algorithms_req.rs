@@ -7,6 +7,7 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use spdmlib::common::SpdmConnectionState;
+#[cfg(feature = "chunk-cap")]
 use spdmlib::config;
 use spdmlib::protocol::{
     SpdmAlgoOtherParams, SpdmMelSpecification, SpdmRequestCapabilityFlags,

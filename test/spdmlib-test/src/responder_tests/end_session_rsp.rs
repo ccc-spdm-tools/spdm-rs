@@ -95,7 +95,8 @@ fn test_case0_handle_spdm_end_session() {
         bytes[2..].copy_from_slice(&session_request[0..1022]);
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
         let mut writer = Writer::init(&mut response_buffer);
-        let (status, send_buffer) = context.handle_spdm_end_session(session_id, bytes, &mut writer);
+        let (status, _send_buffer) =
+            context.handle_spdm_end_session(session_id, bytes, &mut writer);
         assert!(status.is_ok());
     };
     executor::block_on(future);
