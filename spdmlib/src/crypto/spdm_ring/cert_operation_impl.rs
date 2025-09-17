@@ -115,6 +115,65 @@ pub fn spdm_requester_eku_validator() -> impl ExtendedKeyUsageValidator {
     SpdmRequesterEkuValidator
 }
 
+/// EKU validator for SPDM Responder certificates
+///
+/// Validation rules:
+/// - If no EKU extension is present, validation passes
+/// - If EKU contains SPDM requester auth OID, it must also contain SPDM responder auth OID
+/// - If EKU contains only non-SPDM OIDs, validation passes
+/// - Otherwise, validation fails
+struct SpdmResponderEkuValidator;
+
+impl ExtendedKeyUsageValidator for SpdmResponderEkuValidator {
+    fn validate(&self, iter: KeyPurposeIdIter<'_, '_>) -> Result<(), webpki::Error> {
+        let mut has_spdm_requester = false;
+        let mut has_spdm_responder = false;
+        let mut has_any_eku = false;
+
+        // Create KeyPurposeId instances for comparison
+        let spdm_requester_id = KeyPurposeId::new(EKU_SPDM_REQUESTER_AUTH);
+        let spdm_responder_id = KeyPurposeId::new(EKU_SPDM_RESPONDER_AUTH);
+
+        for oid_result in iter {
+            match oid_result {
+                Ok(key_purpose) => {
+                    has_any_eku = true;
+
+                    if key_purpose == spdm_requester_id {
+                        has_spdm_requester = true;
+                    } else if key_purpose == spdm_responder_id {
+                        has_spdm_responder = true;
+                    }
+                    // Other OIDs are allowed and don't affect validation
+                }
+                Err(_) => {
+                    // Malformed EKU extension
+                    return Err(webpki::Error::ExtensionValueInvalid);
+                }
+            }
+        }
+
+        // If no EKU extension, pass validation
+        if !has_any_eku {
+            return Ok(());
+        }
+
+        // If has SPDM requester auth, must also have SPDM responder auth
+        if has_spdm_requester && !has_spdm_responder {
+            error!("SPDM Responder certificate validation failed: Missing required SPDM Responder Auth EKU when SPDM Requester Auth EKU is present");
+            return Err(webpki::Error::RequiredEkuNotFound);
+        }
+
+        // All other cases pass (including having only SPDM requester auth, or only non-SPDM OIDs)
+        Ok(())
+    }
+}
+
+/// Create an EKU validator for SPDM Responder certificates
+pub fn spdm_responder_eku_validator() -> impl ExtendedKeyUsageValidator {
+    SpdmResponderEkuValidator
+}
+
 fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
     static ALL_SIGALGS: &[&dyn SignatureVerificationAlgorithm] = &[
         webpki::ring::RSA_PKCS1_2048_8192_SHA256,
