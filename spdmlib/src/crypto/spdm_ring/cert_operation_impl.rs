@@ -332,8 +332,8 @@ fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
         .map(|&cert| CertificateDer::from(cert))
         .collect();
 
-    // Use SPDM requester EKU validator for certificate verification
-    let eku_validator = spdm_requester_eku_validator();
+    // Use SPDM responder EKU validator for certificate verification
+    let eku_validator = spdm_responder_eku_validator();
 
     match cert.verify_for_usage(
         ALL_SIGALGS,
