@@ -164,6 +164,7 @@ enum_builder! {
         ReqSlotNumber => 2
     }
 }
+#[allow(clippy::derivable_impls)]
 impl Default for SpdmEncapsulatedResponseAckPayloadType {
     fn default() -> SpdmEncapsulatedResponseAckPayloadType {
         SpdmEncapsulatedResponseAckPayloadType::Absent

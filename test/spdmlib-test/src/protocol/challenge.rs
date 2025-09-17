@@ -65,7 +65,7 @@ impl CHALLENGE_AUTH {
         let MeasurementSummaryHash: Vec<u8> = Vec::<u8>::read_vec(reader, H)?;
         let OpaqueDataLength = u16::read(reader)?;
         let OpaqueData: Vec<u8> = Vec::<u8>::read_vec(reader, OpaqueDataLength as usize)?;
-        let Signature: Vec<u8> = Vec::<u8>::read_vec(reader, SigLen as usize)?;
+        let Signature: Vec<u8> = Vec::<u8>::read_vec(reader, SigLen)?;
 
         Some(CHALLENGE_AUTH {
             SPDMVersion,

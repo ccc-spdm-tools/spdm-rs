@@ -128,7 +128,7 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
 
     let provision_info = SpdmProvisionInfo {
         my_cert_chain_data: [
-            Some(my_cert_chain_data.clone()),
+            Some(my_cert_chain_data),
             None,
             None,
             None,
@@ -219,7 +219,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SpdmVersion::SpdmVersion13),
             Some(SpdmVersion::SpdmVersion14),
         ],
-        req_capabilities: req_capabilities,
+        req_capabilities,
         req_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
         base_asym_algo: if USE_ECDSA {
@@ -383,7 +383,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             Some(SpdmVersion::SpdmVersion13),
             Some(SpdmVersion::SpdmVersion14),
         ],
-        rsp_capabilities: rsp_capabilities,
+        rsp_capabilities,
         rsp_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
         measurement_hash_algo: SpdmMeasurementHashAlgo::TPM_ALG_SHA_384,

@@ -276,11 +276,7 @@ impl SpdmTransportEncap for TestTransportEncap {
     ) -> SpdmResult<(usize, bool)> {
         let mut spdm_buffer = spdm_buffer.lock();
         let spdm_buffer_len = transport_buffer.len() - 1;
-        let secure_message = if transport_buffer[0] == 0 {
-            false
-        } else {
-            true
-        };
+        let secure_message = transport_buffer[0] != 0;
         spdm_buffer[0..spdm_buffer_len].copy_from_slice(&transport_buffer[1..]);
         Ok((spdm_buffer_len, secure_message))
     }
