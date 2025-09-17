@@ -261,9 +261,7 @@ export SPDM_CONFIG="etc/config.json"
 To run spdmlib-test:
 ```
 pushd test/spdmlib-test
-export SPDM_CONFIG="etc/chunk_test_config.json"
 cargo test --no-default-features -- --test-threads=1
-export SPDM_CONFIG="etc/config.json"
 popd
 ```
 
