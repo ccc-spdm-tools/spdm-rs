@@ -26,6 +26,7 @@ bitflags! {
         const EVENT_CAP                  = 0b0000_0010_0000_0000_0000_0000_0000_0000;
         const MULTI_KEY_CAP_ONLY         = 0b0000_0100_0000_0000_0000_0000_0000_0000;
         const MULTI_KEY_CAP_CONN_SEL     = 0b0000_1000_0000_0000_0000_0000_0000_0000;
+        const LARGE_RESP_CAP             = 0b1000_0000_0000_0000_0000_0000_0000_0000;
         const VALID_MASK = Self::CERT_CAP.bits
             | Self::CHAL_CAP.bits
             | Self::ENCRYPT_CAP.bits
@@ -44,7 +45,8 @@ bitflags! {
             | Self::EP_INFO_CAP_SIG.bits
             | Self::EVENT_CAP.bits
             | Self::MULTI_KEY_CAP_ONLY.bits
-            | Self::MULTI_KEY_CAP_CONN_SEL.bits;
+            | Self::MULTI_KEY_CAP_CONN_SEL.bits
+            | Self::LARGE_RESP_CAP.bits;
     }
 }
 
@@ -93,6 +95,8 @@ bitflags! {
         const MULTI_KEY_CAP_CONN_SEL     = 0b0000_1000_0000_0000_0000_0000_0000_0000;
         const GET_KEY_PAIR_INFO_CAP      = 0b0001_0000_0000_0000_0000_0000_0000_0000;
         const SET_KEY_PAIR_INFO_CAP      = 0b0010_0000_0000_0000_0000_0000_0000_0000;
+        const SET_KEY_PAIR_RESET_CAP     = 0b0100_0000_0000_0000_0000_0000_0000_0000;
+        const LARGE_RESP_CAP             = 0b1000_0000_0000_0000_0000_0000_0000_0000;
         const VALID_MASK = Self::CACHE_CAP.bits
             | Self::CERT_CAP.bits
             | Self::CHAL_CAP.bits
@@ -122,7 +126,9 @@ bitflags! {
             | Self::MULTI_KEY_CAP_ONLY.bits
             | Self::MULTI_KEY_CAP_CONN_SEL.bits
             | Self::GET_KEY_PAIR_INFO_CAP.bits
-            | Self::SET_KEY_PAIR_INFO_CAP.bits;
+            | Self::SET_KEY_PAIR_INFO_CAP.bits
+            | Self::SET_KEY_PAIR_RESET_CAP.bits
+            | Self::LARGE_RESP_CAP.bits;
     }
 }
 
