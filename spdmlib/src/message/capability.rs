@@ -12,6 +12,8 @@ pub struct SpdmGetCapabilitiesRequestPayload {
     // New fields from SpdmVersion12
     pub data_transfer_size: u32,
     pub max_spdm_msg_size: u32,
+    // New fields from SpdmVersion14
+    pub ex_flags: SpdmRequestCapabilityExFlags,
 }
 
 impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
@@ -30,7 +32,15 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
                 .ct_exponent
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-            cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved2
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                cnt += self
+                    .ex_flags
+                    .encode(bytes)
+                    .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            } else {
+                cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+                // reserved2
+            }
             cnt += self
                 .flags
                 .encode(bytes)
@@ -71,10 +81,15 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
 
         let mut ct_exponent = 0;
         let mut flags = SpdmRequestCapabilityFlags::default();
+        let mut ex_flags = SpdmRequestCapabilityExFlags::default();
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
             u8::read(r)?; // reserved
             ct_exponent = u8::read(r)?;
-            u16::read(r)?; // reserved2
+            if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                ex_flags = SpdmRequestCapabilityExFlags::read(r)?;
+            } else {
+                u16::read(r)?; // reserved2
+            }
             flags = SpdmRequestCapabilityFlags::read(r)?;
 
             // check req_capability
@@ -179,6 +194,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
             flags,
             data_transfer_size,
             max_spdm_msg_size,
+            ex_flags,
         })
     }
 }
@@ -189,6 +205,8 @@ pub struct SpdmCapabilitiesResponsePayload {
     pub flags: SpdmResponseCapabilityFlags,
     pub data_transfer_size: u32,
     pub max_spdm_msg_size: u32,
+    // New fields from SpdmVersion14
+    pub ex_flags: SpdmResponseCapabilityExFlags,
 }
 
 impl SpdmCodec for SpdmCapabilitiesResponsePayload {
@@ -206,7 +224,14 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
             .ct_exponent
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved2
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            cnt += self
+                .ex_flags
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        } else {
+            cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved2
+        }
         cnt += self
             .flags
             .encode(bytes)
@@ -235,7 +260,12 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
 
         u8::read(r)?; // reserved
         let ct_exponent = u8::read(r)?;
-        u16::read(r)?; // reserved2
+        let mut ex_flags = SpdmResponseCapabilityExFlags::default();
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            ex_flags = SpdmResponseCapabilityExFlags::read(r)?;
+        } else {
+            u16::read(r)?; // reserved2
+        }
         let flags = SpdmResponseCapabilityFlags::read(r)?;
 
         // check rsp_capability
@@ -373,29 +403,25 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
             }
         }
 
+        let mut data_transfer_size = 0u32;
+        let mut max_spdm_msg_size = 0u32;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
-            let data_transfer_size = u32::read(r)?;
-            let max_spdm_msg_size = u32::read(r)?;
+            data_transfer_size = u32::read(r)?;
+            max_spdm_msg_size = u32::read(r)?;
             if data_transfer_size < 42 || max_spdm_msg_size < data_transfer_size {
                 log::error!(
                     "requester: data_transfer_size < 42 or max_spdm_msg_size < data_transfer_size"
                 );
                 return None;
             }
-            Some(SpdmCapabilitiesResponsePayload {
-                ct_exponent,
-                flags,
-                data_transfer_size,
-                max_spdm_msg_size,
-            })
-        } else {
-            Some(SpdmCapabilitiesResponsePayload {
-                ct_exponent,
-                flags,
-                data_transfer_size: 0,
-                max_spdm_msg_size: 0,
-            })
         }
+        Some(SpdmCapabilitiesResponsePayload {
+            ct_exponent,
+            flags,
+            data_transfer_size,
+            max_spdm_msg_size,
+            ex_flags,
+        })
     }
 }
 
@@ -505,6 +531,7 @@ mod tests {
             flags: SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::CHAL_CAP,
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
+            ex_flags: SpdmRequestCapabilityExFlags::default(),
         };
 
         create_spdm_context!(context);
@@ -531,6 +558,7 @@ mod tests {
             flags: SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::CHAL_CAP,
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
+            ex_flags: SpdmRequestCapabilityExFlags::default(),
         };
 
         create_spdm_context!(context);
@@ -572,6 +600,7 @@ mod tests {
             flags: SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::CHAL_CAP,
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
+            ex_flags: SpdmResponseCapabilityExFlags::default(),
         };
 
         create_spdm_context!(context);
@@ -598,6 +627,7 @@ mod tests {
             flags: SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::CHAL_CAP,
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
+            ex_flags: SpdmResponseCapabilityExFlags::default(),
         };
 
         create_spdm_context!(context);

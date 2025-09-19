@@ -54,6 +54,7 @@ fn test_case0_handle_spdm_capability() {
             flags: SpdmRequestCapabilityFlags::CERT_CAP | SpdmRequestCapabilityFlags::CHAL_CAP,
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
+            ex_flags: SpdmRequestCapabilityExFlags::default(),
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
         let bytes = &mut [0u8; 1024];
