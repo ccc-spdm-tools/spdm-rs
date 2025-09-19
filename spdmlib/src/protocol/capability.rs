@@ -64,6 +64,24 @@ impl Codec for SpdmRequestCapabilityFlags {
 
 bitflags! {
     #[derive(Default)]
+    pub struct SpdmRequestCapabilityExFlags: u16 {
+    }
+}
+
+impl Codec for SpdmRequestCapabilityExFlags {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmRequestCapabilityExFlags> {
+        let _bits = u16::read(r)?;
+
+        SpdmRequestCapabilityExFlags::from_bits(0)
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
     pub struct SpdmResponseCapabilityFlags: u32 {
         const CACHE_CAP                  =                               0b0000_0001;
         const CERT_CAP                   =                               0b0000_0010;
@@ -141,6 +159,28 @@ impl Codec for SpdmResponseCapabilityFlags {
         let bits = u32::read(r)?;
 
         SpdmResponseCapabilityFlags::from_bits(bits & SpdmResponseCapabilityFlags::VALID_MASK.bits)
+    }
+}
+
+bitflags! {
+    #[derive(Default)]
+    pub struct SpdmResponseCapabilityExFlags: u16 {
+        const SLOT_MGMT_CAP = 0b0000_0001;
+        const VALID_MASK = Self::SLOT_MGMT_CAP.bits;
+    }
+}
+
+impl Codec for SpdmResponseCapabilityExFlags {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmResponseCapabilityExFlags> {
+        let bits = u16::read(r)?;
+
+        SpdmResponseCapabilityExFlags::from_bits(
+            bits & SpdmResponseCapabilityExFlags::VALID_MASK.bits,
+        )
     }
 }
 

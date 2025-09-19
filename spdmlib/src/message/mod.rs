@@ -691,6 +691,7 @@ mod tests {
                         | SpdmRequestCapabilityFlags::CHAL_CAP,
                     data_transfer_size: 0,
                     max_spdm_msg_size: 0,
+                    ex_flags: SpdmRequestCapabilityExFlags::default(),
                 },
             ),
         };
@@ -723,6 +724,7 @@ mod tests {
                     flags: SpdmResponseCapabilityFlags::CACHE_CAP,
                     data_transfer_size: 0,
                     max_spdm_msg_size: 0,
+                    ex_flags: SpdmResponseCapabilityExFlags::default(),
                 },
             ),
         };

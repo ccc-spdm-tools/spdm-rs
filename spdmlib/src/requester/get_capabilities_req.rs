@@ -40,6 +40,7 @@ impl RequesterContext {
                     flags: self.common.config_info.req_capabilities,
                     data_transfer_size: self.common.config_info.data_transfer_size,
                     max_spdm_msg_size: self.common.config_info.max_spdm_msg_size,
+                    ex_flags: SpdmRequestCapabilityExFlags::default(),
                 },
             ),
         };

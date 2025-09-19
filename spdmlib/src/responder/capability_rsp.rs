@@ -134,6 +134,7 @@ impl ResponderContext {
                     flags: self.common.config_info.rsp_capabilities,
                     data_transfer_size: self.common.config_info.data_transfer_size,
                     max_spdm_msg_size: self.common.config_info.max_spdm_msg_size,
+                    ex_flags: SpdmResponseCapabilityExFlags::default(),
                 },
             ),
         };
