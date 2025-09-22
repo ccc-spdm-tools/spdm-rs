@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use fuzzlib::*;
-use spdmlib::common::SpdmConnectionState;
 use spdmlib::message::{
     RegistryOrStandardsBodyID, VendorDefinedReqPayloadStruct, VendorIDStruct,
-    MAX_SPDM_VENDOR_DEFINED_VENDOR_ID_LEN,
+    MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE, MAX_SPDM_VENDOR_DEFINED_VENDOR_ID_LEN,
 };
 use spdmlib::protocol::*;
 use spin::Mutex;
@@ -41,7 +40,7 @@ async fn fuzz_send_spdm_vendor_defined_request(fuzzdata: Arc<Vec<u8>>) {
     };
     let req_payload_struct: VendorDefinedReqPayloadStruct = VendorDefinedReqPayloadStruct {
         req_length: 0,
-        vendor_defined_req_payload: [0u8; config::MAX_SPDM_MSG_SIZE - 7 - 2],
+        vendor_defined_req_payload: [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE],
     };
 
     let _ = requester

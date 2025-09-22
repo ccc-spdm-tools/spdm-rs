@@ -54,7 +54,7 @@ pub async fn pci_tdisp_req_set_mmio_attribute_request(
     }
     .encode(&mut writer)
     .map_err(|_| SPDM_STATUS_BUFFER_FULL)?
-        as u16;
+        as u32;
 
     let vendor_defined_rsp_payload_struct = spdm_requester
         .send_spdm_vendor_defined_request(

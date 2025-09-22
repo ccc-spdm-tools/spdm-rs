@@ -86,7 +86,7 @@ pub fn pci_tdisp_rsp_dispatcher(
                     &[],
                     &mut vendor_defined_rsp_payload_struct.vendor_defined_rsp_payload,
                 )?;
-                vendor_defined_rsp_payload_struct.rsp_length = len as u16;
+                vendor_defined_rsp_payload_struct.rsp_length = len as u32;
                 Ok(vendor_defined_rsp_payload_struct)
             }
         }

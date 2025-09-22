@@ -7,10 +7,10 @@ use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use spdmlib::error::SpdmResult;
-use spdmlib::message::VendorDefinedReqPayloadStruct;
 use spdmlib::message::*;
+use spdmlib::message::{VendorDefinedReqPayloadStruct, MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE};
 use spdmlib::responder::ResponderContext;
-use spdmlib::{config, secret};
+use spdmlib::secret;
 use spin::Mutex;
 extern crate alloc;
 use alloc::sync::Arc;
@@ -36,7 +36,7 @@ fn test_case0_handle_spdm_vendor_defined_request() {
 
     let req = VendorDefinedReqPayloadStruct {
         req_length: 0,
-        vendor_defined_req_payload: [0; config::MAX_SPDM_MSG_SIZE - 7 - 2],
+        vendor_defined_req_payload: [0; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE],
     };
 
     let vendor_defined_func: for<'r> fn(
@@ -49,7 +49,7 @@ fn test_case0_handle_spdm_vendor_defined_request() {
      -> SpdmResult<VendorDefinedRspPayloadStruct> {
         let mut vendor_defined_res_payload_struct = VendorDefinedRspPayloadStruct {
             rsp_length: 0,
-            vendor_defined_rsp_payload: [0; config::MAX_SPDM_MSG_SIZE - 7 - 2],
+            vendor_defined_rsp_payload: [0; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE],
         };
         vendor_defined_res_payload_struct.rsp_length = 8;
         vendor_defined_res_payload_struct.vendor_defined_rsp_payload[0..8]

@@ -8,13 +8,14 @@ use crate::config;
 use crate::error::{
     SpdmResult, SpdmStatus, SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_INVALID_STATE_LOCAL,
 };
+use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion};
 use codec::{enum_builder, Codec, Reader, Writer};
 use conquer_once::spin::OnceCell;
 use zeroize::ZeroizeOnDrop;
 
-// config::MAX_SPDM_MSG_SIZE - 7 - 2
-// SPDM0274 1.2.1: Table 56, table 57 VENDOR_DEFINED_RESPONSE message format
-pub const MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE: usize = config::MAX_SPDM_MSG_SIZE - 7 - 2;
+// config::MAX_SPDM_MSG_SIZE - 7 - 6
+// SPDM0274 1.4: VENDOR_DEFINED_RESPONSE message format
+pub const MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE: usize = config::MAX_SPDM_MSG_SIZE - 7 - 6;
 
 pub const MAX_SPDM_VENDOR_DEFINED_VENDOR_ID_LEN: usize = 0xFF;
 
@@ -111,13 +112,14 @@ impl Default for VendorIDStruct {
 
 #[derive(Debug, Clone, ZeroizeOnDrop)]
 pub struct VendorDefinedReqPayloadStruct {
-    pub req_length: u16,
+    pub req_length: u32,
     pub vendor_defined_req_payload: [u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE],
 }
 impl Codec for VendorDefinedReqPayloadStruct {
     fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        assert!(MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE <= u16::MAX as usize);
         let mut cnt = 0usize;
-        cnt += self.req_length.encode(bytes)?;
+        cnt += (self.req_length as u16).encode(bytes)?;
         for d in self
             .vendor_defined_req_payload
             .iter()
@@ -129,31 +131,75 @@ impl Codec for VendorDefinedReqPayloadStruct {
     }
 
     fn read(r: &mut Reader) -> Option<VendorDefinedReqPayloadStruct> {
-        let req_length = u16::read(r)?;
-        let mut vendor_defined_req_payload = [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE];
-        for d in vendor_defined_req_payload
-            .iter_mut()
-            .take(req_length as usize)
-        {
-            *d = u8::read(r)?;
+        assert!(MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE <= u16::MAX as usize);
+        let req_length = u16::read(r)? as u32;
+        if req_length as usize > MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE {
+            log::error!("invalid req length!!!\n");
+            None
+        } else {
+            let mut vendor_defined_req_payload = [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE];
+            for d in vendor_defined_req_payload
+                .iter_mut()
+                .take(req_length as usize)
+            {
+                *d = u8::read(r)?;
+            }
+            Some(VendorDefinedReqPayloadStruct {
+                req_length,
+                vendor_defined_req_payload,
+            })
         }
-        Some(VendorDefinedReqPayloadStruct {
-            req_length,
-            vendor_defined_req_payload,
-        })
+    }
+}
+
+impl VendorDefinedReqPayloadStruct {
+    fn encode_large(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut cnt = 0usize;
+        cnt += 0u16.encode(bytes)?; // req_length
+        cnt += self.req_length.encode(bytes)?;
+        for d in self
+            .vendor_defined_req_payload
+            .iter()
+            .take(self.req_length as usize)
+        {
+            cnt += d.encode(bytes)?;
+        }
+        Ok(cnt)
+    }
+
+    fn read_large(r: &mut Reader) -> Option<VendorDefinedReqPayloadStruct> {
+        u16::read(r)?; // req_length
+        let req_length = u32::read(r)?;
+        if req_length as usize > MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE {
+            log::error!("invalid req length!!!\n");
+            None
+        } else {
+            let mut vendor_defined_req_payload = [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE];
+            for d in vendor_defined_req_payload
+                .iter_mut()
+                .take(req_length as usize)
+            {
+                *d = u8::read(r)?;
+            }
+            Some(VendorDefinedReqPayloadStruct {
+                req_length,
+                vendor_defined_req_payload,
+            })
+        }
     }
 }
 
 #[derive(Debug, Clone, ZeroizeOnDrop)]
 pub struct VendorDefinedRspPayloadStruct {
-    pub rsp_length: u16,
+    pub rsp_length: u32,
     pub vendor_defined_rsp_payload: [u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE],
 }
 
 impl Codec for VendorDefinedRspPayloadStruct {
     fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        assert!(MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE <= u16::MAX as usize);
         let mut cnt = 0usize;
-        cnt += self.rsp_length.encode(bytes)?;
+        cnt += (self.rsp_length as u16).encode(bytes)?;
         for d in self
             .vendor_defined_rsp_payload
             .iter()
@@ -165,7 +211,45 @@ impl Codec for VendorDefinedRspPayloadStruct {
     }
 
     fn read(r: &mut Reader) -> Option<VendorDefinedRspPayloadStruct> {
-        let rsp_length = u16::read(r)?;
+        assert!(MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE <= u16::MAX as usize);
+        let rsp_length = u16::read(r)? as u32;
+        if rsp_length as usize > MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE {
+            log::error!("invalid rsp length!!!\n");
+            None
+        } else {
+            let mut vendor_defined_rsp_payload = [0u8; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE];
+            for d in vendor_defined_rsp_payload
+                .iter_mut()
+                .take(rsp_length as usize)
+            {
+                *d = u8::read(r)?;
+            }
+            Some(VendorDefinedRspPayloadStruct {
+                rsp_length,
+                vendor_defined_rsp_payload,
+            })
+        }
+    }
+}
+
+impl VendorDefinedRspPayloadStruct {
+    fn encode_large(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut cnt = 0usize;
+        cnt += 0u16.encode(bytes)?; // rsp_length
+        cnt += self.rsp_length.encode(bytes)?;
+        for d in self
+            .vendor_defined_rsp_payload
+            .iter()
+            .take(self.rsp_length as usize)
+        {
+            cnt += d.encode(bytes)?;
+        }
+        Ok(cnt)
+    }
+
+    fn read_large(r: &mut Reader) -> Option<VendorDefinedRspPayloadStruct> {
+        u16::read(r)?; // rsp_length
+        let rsp_length = u32::read(r)?;
         if rsp_length as usize > MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE {
             log::error!("invalid rsp length!!!\n");
             None
@@ -195,11 +279,21 @@ pub struct SpdmVendorDefinedRequestPayload {
 impl SpdmCodec for SpdmVendorDefinedRequestPayload {
     fn spdm_encode(
         &self,
-        _context: &mut common::SpdmContext,
+        context: &mut common::SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
+        let large_payload = context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+            && context
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::LARGE_RESP_CAP)
+            && context
+                .negotiate_info
+                .req_capabilities_sel
+                .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP);
         let mut cnt = 0usize;
-        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        let param1 = if large_payload { 0x80u8 } else { 0u8 };
+        cnt += param1.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
         cnt += self
             .standard_id
@@ -209,22 +303,47 @@ impl SpdmCodec for SpdmVendorDefinedRequestPayload {
             .vendor_id
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        cnt += self
-            .req_payload
-            .encode(bytes)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        if large_payload {
+            cnt += self
+                .req_payload
+                .encode_large(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        } else {
+            cnt += self
+                .req_payload
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
         Ok(cnt)
     }
 
     fn spdm_read(
-        _context: &mut common::SpdmContext,
+        context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmVendorDefinedRequestPayload> {
-        u8::read(r)?; // param1
+        let param1 = u8::read(r)?; // param1
         u8::read(r)?; // param2
+        let large_payload = (param1 & 0x80) != 0;
+        if large_payload
+            && !(context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+                && context
+                    .negotiate_info
+                    .rsp_capabilities_sel
+                    .contains(SpdmResponseCapabilityFlags::LARGE_RESP_CAP)
+                && context
+                    .negotiate_info
+                    .req_capabilities_sel
+                    .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP))
+        {
+            return None;
+        }
         let standard_id = RegistryOrStandardsBodyID::read(r)?; // Standard ID
         let vendor_id = VendorIDStruct::read(r)?;
-        let req_payload = VendorDefinedReqPayloadStruct::read(r)?;
+        let req_payload = if large_payload {
+            VendorDefinedReqPayloadStruct::read_large(r)?
+        } else {
+            VendorDefinedReqPayloadStruct::read(r)?
+        };
 
         Some(SpdmVendorDefinedRequestPayload {
             standard_id,
@@ -244,11 +363,21 @@ pub struct SpdmVendorDefinedResponsePayload {
 impl SpdmCodec for SpdmVendorDefinedResponsePayload {
     fn spdm_encode(
         &self,
-        _context: &mut common::SpdmContext,
+        context: &mut common::SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
+        let large_payload = context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+            && context
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::LARGE_RESP_CAP)
+            && context
+                .negotiate_info
+                .req_capabilities_sel
+                .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP);
         let mut cnt = 0usize;
-        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        let param1 = if large_payload { 0x80u8 } else { 0u8 };
+        cnt += param1.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
         cnt += self
             .standard_id
@@ -258,22 +387,47 @@ impl SpdmCodec for SpdmVendorDefinedResponsePayload {
             .vendor_id
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        cnt += self
-            .rsp_payload
-            .encode(bytes)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        if large_payload {
+            cnt += self
+                .rsp_payload
+                .encode_large(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        } else {
+            cnt += self
+                .rsp_payload
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
         Ok(cnt)
     }
 
     fn spdm_read(
-        _context: &mut common::SpdmContext,
+        context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmVendorDefinedResponsePayload> {
-        u8::read(r)?; // param1
+        let param1 = u8::read(r)?; // param1
         u8::read(r)?; // param2
+        let large_payload = (param1 & 0x80) != 0;
+        if large_payload
+            && !(context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+                && context
+                    .negotiate_info
+                    .rsp_capabilities_sel
+                    .contains(SpdmResponseCapabilityFlags::LARGE_RESP_CAP)
+                && context
+                    .negotiate_info
+                    .req_capabilities_sel
+                    .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP))
+        {
+            return None;
+        }
         let standard_id = RegistryOrStandardsBodyID::read(r)?; // Standard ID
         let vendor_id = VendorIDStruct::read(r)?;
-        let rsp_payload = VendorDefinedRspPayloadStruct::read(r)?;
+        let rsp_payload = if large_payload {
+            VendorDefinedRspPayloadStruct::read_large(r)?
+        } else {
+            VendorDefinedRspPayloadStruct::read(r)?
+        };
 
         Some(SpdmVendorDefinedResponsePayload {
             standard_id,
