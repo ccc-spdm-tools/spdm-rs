@@ -106,7 +106,7 @@ pub(crate) fn pci_tdisp_rsp_unbind_p2p_stream(
             &[],
             &mut vendor_defined_rsp_payload_struct.vendor_defined_rsp_payload,
         )?;
-        vendor_defined_rsp_payload_struct.rsp_length = len as u16;
+        vendor_defined_rsp_payload_struct.rsp_length = len as u32;
         return Ok(vendor_defined_rsp_payload_struct);
     }
 
@@ -129,7 +129,7 @@ pub(crate) fn pci_tdisp_rsp_unbind_p2p_stream(
     if cnt > u16::MAX as usize {
         Err(SPDM_STATUS_INVALID_STATE_LOCAL)
     } else {
-        vendor_defined_rsp_payload_struct.rsp_length = cnt as u16;
+        vendor_defined_rsp_payload_struct.rsp_length = cnt as u32;
         Ok(vendor_defined_rsp_payload_struct)
     }
 }

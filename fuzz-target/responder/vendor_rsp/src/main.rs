@@ -5,7 +5,7 @@
 use fuzzlib::spdmlib::error::SpdmResult;
 use fuzzlib::spdmlib::message::{
     register_vendor_defined_struct, VendorDefinedReqPayloadStruct, VendorDefinedRspPayloadStruct,
-    VendorDefinedStruct, VendorIDStruct,
+    VendorDefinedStruct, VendorIDStruct, MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE,
 };
 use fuzzlib::*;
 use spdmlib::common::SpdmConnectionState;
@@ -62,7 +62,7 @@ async fn fuzz_handle_spdm_vendor_defined_request(data: Arc<Vec<u8>>) {
      -> SpdmResult<VendorDefinedRspPayloadStruct> {
         let mut vendor_defined_res_payload_struct = VendorDefinedRspPayloadStruct {
             rsp_length: 0,
-            vendor_defined_rsp_payload: [0; config::MAX_SPDM_MSG_SIZE - 7 - 2],
+            vendor_defined_rsp_payload: [0; MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE],
         };
         vendor_defined_res_payload_struct.rsp_length = 8;
         vendor_defined_res_payload_struct.vendor_defined_rsp_payload[0..8]

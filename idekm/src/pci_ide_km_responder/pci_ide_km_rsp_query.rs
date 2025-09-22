@@ -123,7 +123,7 @@ pub(crate) fn pci_ide_km_rsp_query(
     if cnt > u16::MAX as usize {
         Err(SPDM_STATUS_INVALID_STATE_LOCAL)
     } else {
-        vendor_defined_rsp_payload_struct.rsp_length = cnt as u16;
+        vendor_defined_rsp_payload_struct.rsp_length = cnt as u32;
         Ok(vendor_defined_rsp_payload_struct)
     }
 }
