@@ -343,6 +343,7 @@ async fn test_spdm(
 
         #[cfg(feature = "test_update_keys")]
         {
+            let spdm_version_sel = context.common.negotiate_info.spdm_version_sel;
             context.common.reset_buffer_via_request_code(
                 SpdmRequestResponseCode::SpdmRequestKeyUpdate,
                 Some(session_id),
@@ -375,7 +376,7 @@ async fn test_spdm(
 
             // Create new keys after sending KeyUpdate request.
             let _ = session
-                .create_data_secret_update(SpdmVersion::SpdmVersion12, true, true)
+                .create_data_secret_update(spdm_version_sel, true, true)
                 .ok();
 
             // Update all keys to new keys.
@@ -409,6 +410,7 @@ async fn test_spdm(
 
         #[cfg(feature = "test_verify_keys")]
         {
+            let spdm_version_sel = context.common.negotiate_info.spdm_version_sel;
             context.common.reset_buffer_via_request_code(
                 SpdmRequestResponseCode::SpdmRequestKeyUpdate,
                 Some(session_id),
@@ -441,7 +443,7 @@ async fn test_spdm(
 
             // Create new keys after sending KeyUpdate request.
             let _ = session
-                .create_data_secret_update(SpdmVersion::SpdmVersion12, true, true)
+                .create_data_secret_update(spdm_version_sel, true, true)
                 .ok();
 
             // Update all keys to new keys.
@@ -498,7 +500,7 @@ async fn test_spdm(
 
             // No keys update in VerifyNewKeys step.
             let _ = session
-                .create_data_secret_update(SpdmVersion::SpdmVersion12, false, false)
+                .create_data_secret_update(spdm_version_sel, false, false)
                 .ok();
 
             // Receive verify response message.
