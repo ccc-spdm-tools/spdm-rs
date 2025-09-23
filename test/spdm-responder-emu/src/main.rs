@@ -267,7 +267,8 @@ async fn handle_message(
         | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
         | SpdmResponseCapabilityFlags::ENCAP_CAP
         | SpdmResponseCapabilityFlags::HBEAT_CAP
-        | SpdmResponseCapabilityFlags::KEY_UPD_CAP;
+        | SpdmResponseCapabilityFlags::KEY_UPD_CAP
+        | SpdmResponseCapabilityFlags::LARGE_RESP_CAP;
     // | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
     // | SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP
     let rsp_capabilities = if cfg!(feature = "mut-auth") {
