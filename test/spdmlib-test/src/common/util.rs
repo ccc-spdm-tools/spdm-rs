@@ -114,13 +114,13 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
     let inter_len = inter_cert.len();
     let leaf_len = leaf_cert.len();
 
-    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u16;
+    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
     my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
     my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
     my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
         .copy_from_slice(leaf_cert.as_ref());
 
-    peer_root_cert_data.data_size = (ca_len) as u16;
+    peer_root_cert_data.data_size = (ca_len) as u32;
     peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
 
     let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
@@ -283,7 +283,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         inter_len,
         leaf_len
     );
-    peer_root_cert_data.data_size = (ca_len) as u16;
+    peer_root_cert_data.data_size = (ca_len) as u32;
     peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
 
     let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
@@ -295,7 +295,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             ..Default::default()
         };
 
-        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u16;
+        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
         my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
         my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
         my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
@@ -450,7 +450,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         inter_len,
         leaf_len
     );
-    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u16;
+    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
     my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
     my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
     my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]

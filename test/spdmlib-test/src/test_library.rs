@@ -876,7 +876,7 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
     // Populate all certificate slots with maximum data
     for slot in 0..spdmlib::protocol::SPDM_MAX_SLOT_NUMBER {
         let mut cert_chain_data = spdmlib::protocol::SpdmCertChainData {
-            data_size: spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u16,
+            data_size: spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32,
             data: [0u8; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
         };
         // Fill with pattern specific to slot
@@ -888,7 +888,7 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
         let mut cert_chain_buffer = spdmlib::protocol::SpdmCertChainBuffer {
             data_size: (4
                 + spdmlib::protocol::SPDM_MAX_HASH_SIZE
-                + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u16,
+                + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u32,
             data: [0u8; 4
                 + spdmlib::protocol::SPDM_MAX_HASH_SIZE
                 + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],

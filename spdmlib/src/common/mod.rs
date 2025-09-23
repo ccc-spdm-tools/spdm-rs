@@ -287,11 +287,13 @@ impl SpdmContext {
                 if let Some(root_hash) =
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, root_cert)
                 {
-                    let data_size = 4 + root_hash.data_size + cert_chain.data_size;
+                    let data_size = 4 + root_hash.data_size as u32 + cert_chain.data_size;
                     let mut data =
                         [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
                     data[0] = (data_size & 0xFF) as u8;
                     data[1] = (data_size >> 8) as u8;
+                    data[2] = (data_size >> 16) as u8;
+                    data[3] = (data_size >> 24) as u8;
                     data[4..(4 + root_hash.data_size as usize)]
                         .copy_from_slice(&root_hash.data[..(root_hash.data_size as usize)]);
                     data[(4 + root_hash.data_size as usize)..(data_size as usize)]
@@ -2546,7 +2548,7 @@ impl Codec for SpdmPeerInfo {
 pub struct SpdmEncapContext {
     pub req_slot_id: u8,
     pub request_id: u8,
-    pub encap_cert_size: u16,
+    pub encap_cert_size: u32,
 }
 
 #[cfg(feature = "mut-auth")]
@@ -2563,7 +2565,7 @@ impl Codec for SpdmEncapContext {
         Some(Self {
             req_slot_id: u8::read(reader)?,
             request_id: u8::read(reader)?,
-            encap_cert_size: u16::read(reader)?,
+            encap_cert_size: u32::read(reader)?,
         })
     }
 }

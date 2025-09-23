@@ -353,7 +353,7 @@ async fn handle_message(
         inter_len,
         leaf_len
     );
-    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u16;
+    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
     my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
     my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
     my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]

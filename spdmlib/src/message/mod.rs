@@ -954,8 +954,8 @@ mod tests {
                 request_response_code: SpdmRequestResponseCode::SpdmResponseCertificate,
             },
             payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {
-                slot_id: 100,
-                portion_length: MAX_SPDM_CERT_PORTION_LEN as u16,
+                slot_id: 4,
+                portion_length: MAX_SPDM_CERT_PORTION_LEN as u32,
                 remainder_length: 100,
                 cert_chain: [100u8; MAX_SPDM_CERT_PORTION_LEN],
             }),
@@ -968,8 +968,8 @@ mod tests {
             SpdmRequestResponseCode::SpdmResponseCertificate
         );
         if let SpdmMessagePayload::SpdmCertificateResponse(payload) = &spdm_message.payload {
-            assert_eq!(payload.slot_id, 100);
-            assert_eq!(payload.portion_length, MAX_SPDM_CERT_PORTION_LEN as u16);
+            assert_eq!(payload.slot_id, 4);
+            assert_eq!(payload.portion_length, MAX_SPDM_CERT_PORTION_LEN as u32);
             assert_eq!(payload.remainder_length, 100);
             for i in 0..MAX_SPDM_CERT_PORTION_LEN {
                 assert_eq!(payload.cert_chain[i], 100u8);
@@ -1678,7 +1678,7 @@ mod tests {
             },
             payload: SpdmMessagePayload::SpdmGetCertificateRequest(
                 SpdmGetCertificateRequestPayload {
-                    slot_id: 100,
+                    slot_id: 4,
                     offset: 100,
                     length: 100,
                 },
@@ -1692,7 +1692,7 @@ mod tests {
             SpdmRequestResponseCode::SpdmRequestGetCertificate
         );
         if let SpdmMessagePayload::SpdmGetCertificateRequest(payload) = &spdm_message.payload {
-            assert_eq!(payload.slot_id, 100);
+            assert_eq!(payload.slot_id, 4);
             assert_eq!(payload.offset, 100);
             assert_eq!(payload.length, 100);
         }

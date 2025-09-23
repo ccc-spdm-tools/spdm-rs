@@ -227,7 +227,7 @@ fn test_receive_encapsulated_response_ack() {
         let encap_payload = SpdmGetCertificateRequestPayload {
             slot_id: 0,
             offset: 0,
-            length: CERT_PORTION_LEN as u16,
+            length: CERT_PORTION_LEN as u32,
         };
         assert!(encap_payload
             .spdm_encode(&mut context.common, &mut writer)

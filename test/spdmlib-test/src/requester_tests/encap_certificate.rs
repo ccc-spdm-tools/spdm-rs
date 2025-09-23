@@ -37,7 +37,7 @@ fn test_encap_handle_get_certificate() {
     );
     context.common.provision_info.my_cert_chain = [
         Some(SpdmCertChainBuffer {
-            data_size: 1024u16,
+            data_size: 1024u32,
             data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
         }),
         None,
@@ -62,7 +62,7 @@ fn test_encap_handle_get_certificate() {
         payload: SpdmMessagePayload::SpdmGetCertificateRequest(SpdmGetCertificateRequestPayload {
             slot_id: 0,
             offset: 0,
-            length: CERT_PORTION_LEN as u16,
+            length: CERT_PORTION_LEN as u32,
         }),
     };
     assert!(get_cert

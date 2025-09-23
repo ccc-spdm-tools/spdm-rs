@@ -645,9 +645,9 @@ fn test_spdm_peer_info_codec_with_populated_data() {
     let mut cert_chain_templates = Vec::new();
     for slot in 0..SPDM_MAX_SLOT_NUMBER {
         let mut cert_chain = SpdmCertChainBuffer::default();
-        cert_chain.data_size = 80 + (slot as u16 * 10); // Smaller sizes to fit
+        cert_chain.data_size = 80 + (slot as u32 * 10); // Smaller sizes to fit
         for i in 0..cert_chain.data_size {
-            cert_chain.data[i as usize] = ((i + slot as u16 * 3) % 256) as u8;
+            cert_chain.data[i as usize] = ((i + slot as u32 * 3) % 256) as u8;
         }
         cert_chain_templates.push(cert_chain);
     }

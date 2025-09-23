@@ -29,7 +29,7 @@ async fn fuzz_handle_encap_response_digest(data: Arc<Vec<u8>>) {
 
     context.common.provision_info.my_cert_chain = [
         Some(SpdmCertChainBuffer {
-            data_size: 512u16,
+            data_size: 512u32,
             data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
         }),
         None,
