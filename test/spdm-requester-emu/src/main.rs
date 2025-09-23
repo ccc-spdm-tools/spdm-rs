@@ -189,7 +189,7 @@ async fn test_spdm(
         inter_len,
         leaf_len
     );
-    peer_root_cert_data.data_size = (ca_len) as u16;
+    peer_root_cert_data.data_size = (ca_len) as u32;
     peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
 
     let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
@@ -201,7 +201,7 @@ async fn test_spdm(
             ..Default::default()
         };
 
-        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u16;
+        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
         my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
         my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
         my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
@@ -693,7 +693,7 @@ async fn test_idekm_tdisp(
         inter_len,
         leaf_len
     );
-    peer_root_cert_data.data_size = (ca_len) as u16;
+    peer_root_cert_data.data_size = (ca_len) as u32;
     peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
 
     let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
@@ -705,7 +705,7 @@ async fn test_idekm_tdisp(
             ..Default::default()
         };
 
-        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u16;
+        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
         my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
         my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
         my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]

@@ -374,7 +374,7 @@ fn write_spdm_get_certificate_response(
         },
         payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {
             slot_id: 0,
-            portion_length: CERT_PORTION_LEN as u16,
+            portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x200,
             cert_chain: [0xffu8; CERT_PORTION_LEN],
         }),

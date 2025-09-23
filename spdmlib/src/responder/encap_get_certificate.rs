@@ -46,7 +46,7 @@ impl ResponderContext {
                         .as_ref()
                         .unwrap()
                         .data_size,
-                    length: MAX_SPDM_CERT_PORTION_LEN as u16,
+                    length: MAX_SPDM_CERT_PORTION_LEN as u32,
                     slot_id: self.common.encap_context.req_slot_id,
                 },
             ),
@@ -84,12 +84,12 @@ impl ResponderContext {
 
                             if certificate.portion_length as usize > MAX_SPDM_CERT_PORTION_LEN
                                 || certificate.portion_length
-                                    > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u16 - offset
+                                    > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32 - offset
                             {
                                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                             }
                             if certificate.remainder_length
-                                >= config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u16
+                                >= config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32
                                     - offset
                                     - certificate.portion_length
                             {
@@ -184,18 +184,23 @@ impl ResponderContext {
             .peer_cert_chain_temp
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
-        if peer_cert_chain.data_size <= (4 + self.common.negotiate_info.base_hash_sel.get_size()) {
+        if peer_cert_chain.data_size
+            <= (4 + self.common.negotiate_info.base_hash_sel.get_size() as u32)
+        {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let data_size_in_cert_chain =
-            peer_cert_chain.data[0] as u16 + ((peer_cert_chain.data[1] as u16) << 8);
+        let data_size_in_cert_chain = peer_cert_chain.data[0] as u32
+            + ((peer_cert_chain.data[1] as u32) << 8)
+            + ((peer_cert_chain.data[2] as u32) << 16)
+            + ((peer_cert_chain.data[3] as u32) << 24);
         if data_size_in_cert_chain != peer_cert_chain.data_size {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let data_size =
-            peer_cert_chain.data_size - 4 - self.common.negotiate_info.base_hash_sel.get_size();
+        let data_size = peer_cert_chain.data_size
+            - 4
+            - self.common.negotiate_info.base_hash_sel.get_size() as u32;
         let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
         data[0..(data_size as usize)].copy_from_slice(
             &peer_cert_chain.data[(4usize

@@ -1,25 +1,3 @@
-impl Codec for SpdmCertChainData {
-    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
-        let mut size = 0usize;
-        size += self.data_size.encode(writer)?;
-        for d in self.data.iter() {
-            size += d.encode(writer)?;
-        }
-        Ok(size)
-    }
-
-    fn read(reader: &mut Reader) -> Option<SpdmCertChainData> {
-        let data_size = u16::read(reader)?;
-        if data_size > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u16 {
-            return None;
-        }
-        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
-        for d in data.iter_mut() {
-            *d = u8::read(reader)?;
-        }
-        Some(SpdmCertChainData { data_size, data })
-    }
-}
 // Copyright (c) 2020 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
@@ -1242,14 +1220,14 @@ impl From<BytesMut> for SpdmSignatureStruct {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SpdmCertChainData {
-    pub data_size: u16,
+    pub data_size: u32,
     pub data: [u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
 }
 
 impl Default for SpdmCertChainData {
     fn default() -> Self {
         SpdmCertChainData {
-            data_size: 0u16,
+            data_size: 0u32,
             data: [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
         }
     }
@@ -1260,16 +1238,39 @@ impl AsRef<[u8]> for SpdmCertChainData {
     }
 }
 
+impl Codec for SpdmCertChainData {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0usize;
+        size += self.data_size.encode(writer)?;
+        for d in self.data.iter() {
+            size += d.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<SpdmCertChainData> {
+        let data_size = u32::read(reader)?;
+        if data_size > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32 {
+            return None;
+        }
+        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        for d in data.iter_mut() {
+            *d = u8::read(reader)?;
+        }
+        Some(SpdmCertChainData { data_size, data })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SpdmCertChainBuffer {
-    pub data_size: u16,
+    pub data_size: u32,
     pub data: [u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
 }
 
 impl Default for SpdmCertChainBuffer {
     fn default() -> Self {
         SpdmCertChainBuffer {
-            data_size: 0u16,
+            data_size: 0u32,
             data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
         }
     }
@@ -1315,7 +1316,7 @@ impl SpdmCertChainBuffer {
         buff.data[pos..(pos + len)].copy_from_slice(cert_chain);
         pos += len;
 
-        buff.data_size = pos as u16;
+        buff.data_size = pos as u32;
         Some(buff)
     }
 }
@@ -1331,8 +1332,8 @@ impl Codec for SpdmCertChainBuffer {
     }
 
     fn read(r: &mut Reader) -> Option<SpdmCertChainBuffer> {
-        let data_size = u16::read(r)?;
-        if data_size > (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u16 {
+        let data_size = u32::read(r)?;
+        if data_size > (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u32 {
             return None;
         }
         let mut data = [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];

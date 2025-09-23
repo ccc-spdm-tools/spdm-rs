@@ -56,7 +56,7 @@ fn test_encode_encap_requst_get_certificate() {
         header.request_response_code,
         SpdmRequestResponseCode::SpdmRequestGetCertificate
     );
-    assert_eq!(payload.length, CERT_PORTION_LEN as u16);
+    assert_eq!(payload.length, CERT_PORTION_LEN as u32);
     assert_eq!(payload.offset, 0);
     assert_eq!(payload.slot_id, 0);
 }
@@ -91,7 +91,7 @@ fn test_handle_encap_response_certificate() {
         },
         payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {
             slot_id: 0,
-            portion_length: CERT_PORTION_LEN as u16,
+            portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x600,
             cert_chain: [0xa; CERT_PORTION_LEN],
         }),
@@ -121,14 +121,14 @@ fn test_handle_encap_response_certificate() {
         .as_mut()
         .unwrap()
         .data_size;
-    assert_eq!(offset, CERT_PORTION_LEN as u16);
+    assert_eq!(offset, CERT_PORTION_LEN as u32);
     assert_eq!(context.common.encap_context.encap_cert_size, offset + 0x600);
 
     let mut writer = Writer::init(encap_response);
     cert_rsp.payload =
         SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {
             slot_id: 0xa,
-            portion_length: CERT_PORTION_LEN as u16,
+            portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x400,
             cert_chain: [0xa; CERT_PORTION_LEN],
         });
@@ -145,7 +145,7 @@ fn test_handle_encap_response_certificate() {
     cert_rsp.payload =
         SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {
             slot_id: 0,
-            portion_length: CERT_PORTION_LEN as u16,
+            portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x400,
             cert_chain: [0xa; CERT_PORTION_LEN],
         });
@@ -163,6 +163,6 @@ fn test_handle_encap_response_certificate() {
         .as_mut()
         .unwrap()
         .data_size;
-    assert_eq!(offset, 0x400 as u16);
+    assert_eq!(offset, 0x400 as u32);
     assert_eq!(context.common.encap_context.encap_cert_size, offset + 0x400);
 }

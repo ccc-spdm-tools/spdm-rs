@@ -120,8 +120,8 @@ impl ResponderContext {
             .unwrap();
 
         let mut length = get_certificate.length;
-        if length > MAX_SPDM_CERT_PORTION_LEN as u16 {
-            length = MAX_SPDM_CERT_PORTION_LEN as u16;
+        if length > MAX_SPDM_CERT_PORTION_LEN as u32 {
+            length = MAX_SPDM_CERT_PORTION_LEN as u32;
         }
 
         let offset = get_certificate.offset;
