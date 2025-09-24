@@ -131,7 +131,6 @@ fn test_negotiate_struct() {
     assert!(res.is_none());
 }
 
-#[ignore = "Test Fail"]
 #[test]
 fn test_negotiate_struct_response_negative_ext_alg_count_2() {
     create_spdm_context!(context);
