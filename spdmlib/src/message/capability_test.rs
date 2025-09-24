@@ -8,12 +8,12 @@ use byteorder::{ByteOrder, LittleEndian};
 use testlib::{create_spdm_context, DeviceIO, TransportEncap};
 extern crate alloc;
 
-#[ignore = "Test Fail"]
 #[test]
 fn test_capability_struct() {
     // 1. Validate Negative DataTransferSize < MinDataTransferSize. Expectation failed.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
+    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
     u8_slice[5] = 10;
     let flags = SpdmResponseCapabilityFlags::CERT_CAP
@@ -30,6 +30,7 @@ fn test_capability_struct() {
     // 2. Validate DataTransferSize > MaxSPDMmsgSize. Expectation failed.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
+    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
     u8_slice[5] = 10;
     let flags = SpdmResponseCapabilityFlags::CERT_CAP
