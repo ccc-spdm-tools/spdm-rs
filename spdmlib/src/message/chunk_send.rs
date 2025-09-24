@@ -10,11 +10,13 @@ pub const SPDM_VERSION_1_2_OFFSET_OF_RESPONSE_OF_LARGE_REQUEST_IN_CHUNK_SEND_ACK
 pub const SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_FIRST_CHUNK_SEND: usize = 16;
 pub const SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_CHUNK_SEND: usize = 12;
 
+pub const SPDM_VERSION_1_4_OFFSET_OF_RESPONSE_OF_LARGE_REQUEST_IN_CHUNK_SEND_ACK: usize = 8;
+
 #[derive(Debug, Clone, Default)]
 pub struct SpdmChunkSendRequestPayload {
     pub chunk_sender_attributes: SpdmChunkSenderAttributes,
     pub handle: u8,
-    pub chunk_seq_num: u16,
+    pub chunk_seq_num: u32,
     pub chunk_size: u32,
     pub large_message_size: Option<u32>, // Only present in the first chunk
 }
@@ -25,6 +27,7 @@ impl SpdmCodec for SpdmChunkSendRequestPayload {
         context: &mut common::SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
+        let large_chunk = context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14;
         let mut cnt = 0usize;
 
         cnt += self
@@ -35,11 +38,17 @@ impl SpdmCodec for SpdmChunkSendRequestPayload {
             .handle
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Param2
-        cnt += self
-            .chunk_seq_num
-            .encode(bytes)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Seq No
-        cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Reserved
+        if large_chunk {
+            cnt += self
+                .chunk_seq_num
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Seq No
+        } else {
+            cnt += (self.chunk_seq_num as u16)
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Seq No
+            cnt += 0u16.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Reserved
+        }
         cnt += self
             .chunk_size
             .encode(bytes)
@@ -67,10 +76,17 @@ impl SpdmCodec for SpdmChunkSendRequestPayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmChunkSendRequestPayload> {
+        let large_chunk = context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14;
         let chunk_sender_attributes = SpdmChunkSenderAttributes::read(r)?; // Param1
         let handle = u8::read(r)?; // Param2
-        let chunk_seq_num = u16::read(r)?; // Chunk Seq No
-        u16::read(r)?; // Reserved
+        let chunk_seq_num = if large_chunk {
+            u32::read(r)?
+        } else {
+            u16::read(r)? as u32
+        }; // Chunk Seq No
+        if !large_chunk {
+            u16::read(r)?;
+        } // Reserved
         let chunk_size = u32::read(r)?; // Chunk Size
         let large_message_size = if chunk_seq_num == 0 {
             u32::read(r) // Large Message Size
@@ -132,7 +148,7 @@ impl Codec for SpdmChunkSenderAttributes {
 pub struct SpdmChunkSendAckResponsePayload {
     pub chunk_receiver_attributes: SpdmChunkReceiverAttributes,
     pub handle: u8,
-    pub chunk_seq_num: u16,
+    pub chunk_seq_num: u32,
     pub response_to_large_request_size: usize,
 }
 
@@ -142,6 +158,7 @@ impl SpdmCodec for SpdmChunkSendAckResponsePayload {
         context: &mut common::SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
+        let large_chunk = context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14;
         let mut cnt = 0usize;
         cnt += self
             .chunk_receiver_attributes
@@ -151,10 +168,16 @@ impl SpdmCodec for SpdmChunkSendAckResponsePayload {
             .handle
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Param2
-        cnt += self
-            .chunk_seq_num
-            .encode(bytes)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Seq No
+        if large_chunk {
+            cnt += self
+                .chunk_seq_num
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Seq No
+        } else {
+            cnt += (self.chunk_seq_num as u16)
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Seq No
+        }
         if self.response_to_large_request_size > 0 {
             cnt += bytes
                 .extend_from_slice(
@@ -170,9 +193,14 @@ impl SpdmCodec for SpdmChunkSendAckResponsePayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmChunkSendAckResponsePayload> {
+        let large_chunk = context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14;
         let chunk_receiver_attributes = SpdmChunkReceiverAttributes::read(r)?; // Param1
         let handle = u8::read(r)?; // Param2
-        let chunk_seq_num = u16::read(r)?; // Chunk Seq No
+        let chunk_seq_num = if large_chunk {
+            u32::read(r)?
+        } else {
+            u16::read(r)? as u32
+        }; // Chunk Seq No
         let response_to_large_request_size;
         if context.chunk_context.transferred_size >= context.chunk_context.chunk_message_size
             || chunk_receiver_attributes.contains(SpdmChunkReceiverAttributes::EARLY_ERROR_DETECTED)
