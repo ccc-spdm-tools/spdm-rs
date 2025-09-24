@@ -66,7 +66,7 @@ fn test_case0_handle_spdm_key_exchange() {
         let value = SpdmKeyExchangeRequestPayload {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
-            slot_id: 100u8,
+            slot_id: 4,
             req_session_id: 0xffu16,
             session_policy: 1,
             random: SpdmRandomStruct {

@@ -4,7 +4,9 @@
 
 use crate::common::spdm_codec::SpdmCodec;
 use crate::error::SPDM_STATUS_BUFFER_FULL;
-use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion};
+use crate::protocol::{
+    SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion, SPDM_MAX_SLOT_NUMBER,
+};
 use crate::{common, error::SpdmStatus};
 use codec::{Codec, Reader, Writer};
 
@@ -64,6 +66,9 @@ impl SpdmCodec for SpdmGetCertificateRequestPayload {
     ) -> Option<SpdmGetCertificateRequestPayload> {
         let param1 = u8::read(r)?; // param1
         let slot_id = param1 & 0xF;
+        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
+            return None;
+        }
         let large_cert = (param1 & 0x80) != 0;
         if large_cert
             && !(context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
@@ -171,6 +176,9 @@ impl SpdmCodec for SpdmCertificateResponsePayload {
     ) -> Option<SpdmCertificateResponsePayload> {
         let param1 = u8::read(r)?; // param1
         let slot_id = param1 & 0xF;
+        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
+            return None;
+        }
         let large_cert = (param1 & 0x80) != 0;
         if large_cert
             && !(context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14

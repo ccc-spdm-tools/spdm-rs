@@ -44,7 +44,6 @@ fn test_measurement_struct() {
     assert_eq!(writer.used(), 4 - 2);
 }
 
-#[ignore = "Extend unit tests"]
 #[test]
 fn test_measurement_response() {
     create_spdm_context!(context);

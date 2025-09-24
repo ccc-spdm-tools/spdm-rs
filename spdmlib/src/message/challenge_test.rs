@@ -63,7 +63,6 @@ fn test_challenge_struct() {
     assert!(ret.is_none());
 }
 
-#[ignore = "Extend unit tests"]
 #[test]
 fn test_challenge_struct_opaque_data_length_negative() {
     create_spdm_context!(context);

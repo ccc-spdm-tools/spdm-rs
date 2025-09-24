@@ -9,6 +9,7 @@ use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
     SpdmDigestStruct, SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmSignatureStruct,
+    SPDM_MAX_SLOT_NUMBER,
 };
 use codec::{Codec, Reader, Writer};
 
@@ -75,6 +76,9 @@ impl SpdmCodec for SpdmFinishRequestPayload {
     ) -> Option<SpdmFinishRequestPayload> {
         let finish_request_attributes = SpdmFinishRequestAttributes::read(r)?; // param1
         let req_slot_id = u8::read(r)?; // param2
+        if (req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (req_slot_id != 0xFF) {
+            return None;
+        }
         let mut opaque = SpdmOpaqueStruct::default();
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
             opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
@@ -178,7 +182,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmFinishRequestPayload {
             finish_request_attributes: SpdmFinishRequestAttributes::SIGNATURE_INCLUDED,
-            req_slot_id: 100,
+            req_slot_id: 4,
             signature: SpdmSignatureStruct {
                 data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
                 data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
@@ -210,7 +214,7 @@ mod tests {
             spdm_finish_request_payload.finish_request_attributes,
             SpdmFinishRequestAttributes::SIGNATURE_INCLUDED
         );
-        assert_eq!(spdm_finish_request_payload.req_slot_id, 100);
+        assert_eq!(spdm_finish_request_payload.req_slot_id, 4);
         assert_eq!(
             spdm_finish_request_payload.signature.data_size,
             RSASSA_4096_KEY_SIZE as u16
@@ -232,7 +236,7 @@ mod tests {
         let mut writer = Writer::init(u8_slice);
         let value = SpdmFinishRequestPayload {
             finish_request_attributes: SpdmFinishRequestAttributes::empty(),
-            req_slot_id: 100,
+            req_slot_id: 4,
             signature: SpdmSignatureStruct {
                 data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
                 data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
@@ -261,7 +265,7 @@ mod tests {
             spdm_finish_request_payload.finish_request_attributes,
             SpdmFinishRequestAttributes::empty()
         );
-        assert_eq!(spdm_finish_request_payload.req_slot_id, 100);
+        assert_eq!(spdm_finish_request_payload.req_slot_id, 4);
         assert_eq!(spdm_finish_request_payload.signature.data_size, 0);
         for i in 0..RSASSA_4096_KEY_SIZE {
             assert_eq!(spdm_finish_request_payload.signature.data[i], 0);

@@ -140,7 +140,7 @@ fn test_case0_handle_spdm_challenge() {
             let mut reader = Reader::init(spdm_struct_slice);
             let spdm_challenge_request_payload =
                 SpdmChallengeRequestPayload::spdm_read(&mut context.common, &mut reader).unwrap();
-            assert_eq!(spdm_challenge_request_payload.slot_id, 100);
+            assert_eq!(spdm_challenge_request_payload.slot_id, 4);
             assert_eq!(
                 spdm_challenge_request_payload.measurement_summary_hash_type,
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll

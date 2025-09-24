@@ -984,7 +984,7 @@ mod tests {
                 request_response_code: SpdmRequestResponseCode::SpdmRequestChallenge,
             },
             payload: SpdmMessagePayload::SpdmChallengeRequest(SpdmChallengeRequestPayload {
-                slot_id: 100,
+                slot_id: 4,
                 measurement_summary_hash_type:
                     SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
                 nonce: SpdmNonceStruct {
@@ -1005,7 +1005,7 @@ mod tests {
             SpdmRequestResponseCode::SpdmRequestChallenge
         );
         if let SpdmMessagePayload::SpdmChallengeRequest(payload) = &spdm_message.payload {
-            assert_eq!(payload.slot_id, 100);
+            assert_eq!(payload.slot_id, 4);
             assert_eq!(
                 payload.measurement_summary_hash_type,
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone
@@ -1251,7 +1251,7 @@ mod tests {
             payload: SpdmMessagePayload::SpdmKeyExchangeRequest(SpdmKeyExchangeRequestPayload {
                 measurement_summary_hash_type:
                     SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
-                slot_id: 100u8,
+                slot_id: 4,
                 req_session_id: 100u16,
                 session_policy: 1,
                 random: SpdmRandomStruct {
@@ -1280,7 +1280,7 @@ mod tests {
                 payload.measurement_summary_hash_type,
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone
             );
-            assert_eq!(payload.slot_id, 100);
+            assert_eq!(payload.slot_id, 4);
             for i in 0..SPDM_RANDOM_SIZE {
                 assert_eq!(payload.random.data[i], 100);
             }
@@ -1306,7 +1306,7 @@ mod tests {
             },
             payload: SpdmMessagePayload::SpdmFinishRequest(SpdmFinishRequestPayload {
                 finish_request_attributes: SpdmFinishRequestAttributes::SIGNATURE_INCLUDED,
-                req_slot_id: 100,
+                req_slot_id: 4,
                 signature: SpdmSignatureStruct {
                     data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
                     data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
@@ -1334,7 +1334,7 @@ mod tests {
                 payload.finish_request_attributes,
                 SpdmFinishRequestAttributes::SIGNATURE_INCLUDED
             );
-            assert_eq!(payload.req_slot_id, 100);
+            assert_eq!(payload.req_slot_id, 4);
             assert_eq!(payload.signature.data_size, RSASSA_4096_KEY_SIZE as u16);
             for i in 0..RSASSA_4096_KEY_SIZE {
                 assert_eq!(payload.signature.data[i], 0xa5u8);

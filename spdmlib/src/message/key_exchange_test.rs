@@ -49,11 +49,11 @@ fn test_key_exchange_req_struct() {
     assert_eq!(reader.left(), 0);
 }
 
-#[ignore = "extended unit test"]
 #[test]
 fn test_key_exchange_req_struct_extend() {
     create_spdm_context!(context);
     let context = &mut context;
+    context.negotiate_info.rsp_capabilities_sel = SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG;
 
     // 3. Validate request length equal to 42 + D + OpaqueDataLength
     // OpaqueDataLength = 256
@@ -149,7 +149,6 @@ fn test_key_exchange_rsp_struct() {
     assert!(ret.is_some());
 }
 
-#[ignore = "extended unit test"]
 #[test]
 fn test_key_exchange_rsp_struct_extend() {
     create_spdm_context!(context);
@@ -158,6 +157,8 @@ fn test_key_exchange_rsp_struct_extend() {
     context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
     context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
 
+    context.runtime_info.need_measurement_summary_hash = false;
+
     // 2. validate req OpaqueDatalength 0, expectation. ok
     const OPAQUE_DATA_LENGTH_CASE1: usize = 0;
     let u8_slice = &mut [0u8; 42 + 64 + OPAQUE_DATA_LENGTH_CASE1 + 64 + 32];
@@ -165,7 +166,7 @@ fn test_key_exchange_rsp_struct_extend() {
     // RspSessionId
     LittleEndian::write_u16(&mut u8_slice[4..6], 0xfffe);
     // MutAuthRequested
-    u8_slice[6] = 3;
+    u8_slice[6] = 1;
     // SlotIDParam
     u8_slice[7] = 0;
     // OpaqueDataLength

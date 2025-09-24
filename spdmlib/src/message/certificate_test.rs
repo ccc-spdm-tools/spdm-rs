@@ -35,7 +35,6 @@ fn test_certificate_struct() {
     assert_eq!(reader.used(), 8 + 512 - 2);
 }
 
-#[ignore = "Extended unit test"]
 #[test]
 fn test_certificate_struct_negative() {
     create_spdm_context!(context);
