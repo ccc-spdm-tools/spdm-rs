@@ -114,7 +114,7 @@ fn test_case0_handle_spdm_certificate() {
             let spdm_get_certificate_request_payload =
                 SpdmGetCertificateRequestPayload::spdm_read(&mut context.common, &mut reader)
                     .unwrap();
-            assert_eq!(spdm_get_certificate_request_payload.slot_id, 100);
+            assert_eq!(spdm_get_certificate_request_payload.slot_id, 4);
             assert_eq!(spdm_get_certificate_request_payload.offset, 100);
             assert_eq!(spdm_get_certificate_request_payload.length, 600);
 
@@ -128,7 +128,7 @@ fn test_case0_handle_spdm_certificate() {
                 SpdmRequestResponseCode::SpdmResponseCertificate
             );
             if let SpdmMessagePayload::SpdmCertificateResponse(payload) = &spdm_message.payload {
-                assert_eq!(payload.slot_id, 100);
+                assert_eq!(payload.slot_id, 4);
                 assert_eq!(payload.portion_length, 412);
                 assert_eq!(payload.remainder_length, 0);
                 for i in 0..412 {

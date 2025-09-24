@@ -8,7 +8,7 @@ use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
     SpdmChallengeContextStruct, SpdmDigestStruct, SpdmMeasurementSummaryHashType, SpdmNonceStruct,
-    SpdmResponseCapabilityFlags, SpdmSignatureStruct, SpdmVersion,
+    SpdmResponseCapabilityFlags, SpdmSignatureStruct, SpdmVersion, SPDM_MAX_SLOT_NUMBER,
 };
 use codec::{Codec, Reader, Writer};
 
@@ -53,6 +53,9 @@ impl SpdmCodec for SpdmChallengeRequestPayload {
         r: &mut Reader,
     ) -> Option<SpdmChallengeRequestPayload> {
         let slot_id = u8::read(r)?;
+        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != 0xFF) {
+            return None;
+        }
         let measurement_summary_hash_type = SpdmMeasurementSummaryHashType::read(r)?;
         match measurement_summary_hash_type {
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone => {}
@@ -149,6 +152,9 @@ impl SpdmCodec for SpdmChallengeAuthResponsePayload {
     ) -> Option<SpdmChallengeAuthResponsePayload> {
         let param1 = u8::read(r)?;
         let slot_id = param1 & 0xF;
+        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != 0xF) {
+            return None;
+        }
         let challenge_auth_attribute = SpdmChallengeAuthAttribute::from_bits(
             param1 & SpdmChallengeAuthAttribute::VALID_MASK.bits,
         )?;
@@ -202,7 +208,7 @@ mod tests {
         let u8_slice = &mut [0u8; 2 + SPDM_NONCE_SIZE + SPDM_CHALLENGE_CONTEXT_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmChallengeRequestPayload {
-            slot_id: 100,
+            slot_id: 4,
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
             nonce: SpdmNonceStruct {
@@ -221,7 +227,7 @@ mod tests {
         assert_eq!(42, reader.left());
         let spdm_challenge_request_payload =
             SpdmChallengeRequestPayload::spdm_read(&mut context, &mut reader).unwrap();
-        assert_eq!(spdm_challenge_request_payload.slot_id, 100);
+        assert_eq!(spdm_challenge_request_payload.slot_id, 4);
         assert_eq!(
             spdm_challenge_request_payload.measurement_summary_hash_type,
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone
@@ -239,7 +245,7 @@ mod tests {
         let u8_slice = &mut [0u8; 2 + SPDM_NONCE_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmChallengeRequestPayload {
-            slot_id: 100,
+            slot_id: 4,
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
             nonce: SpdmNonceStruct {
@@ -256,7 +262,7 @@ mod tests {
         assert_eq!(34, reader.left());
         let spdm_challenge_request_payload =
             SpdmChallengeRequestPayload::spdm_read(&mut context, &mut reader).unwrap();
-        assert_eq!(spdm_challenge_request_payload.slot_id, 100);
+        assert_eq!(spdm_challenge_request_payload.slot_id, 4);
         assert_eq!(
             spdm_challenge_request_payload.measurement_summary_hash_type,
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone

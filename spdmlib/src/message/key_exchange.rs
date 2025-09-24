@@ -9,6 +9,7 @@ use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
     SpdmDheExchangeStruct, SpdmDigestStruct, SpdmMeasurementSummaryHashType, SpdmRandomStruct,
     SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmSignatureStruct,
+    SPDM_MAX_SLOT_NUMBER,
 };
 use codec::{Codec, Reader, Writer};
 
@@ -105,6 +106,9 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
             SpdmMeasurementSummaryHashType::Unknown(_) => return None,
         }
         let slot_id = u8::read(r)?; // param2
+        if (slot_id > 8) && (slot_id != 0xFF) {
+            return None;
+        }
         let req_session_id = u16::read(r)?;
         let session_policy = match context.negotiate_info.spdm_version_sel {
             v if v >= SpdmVersion::SpdmVersion13 => {
@@ -235,7 +239,10 @@ impl SpdmCodec for SpdmKeyExchangeResponsePayload {
 
         let rsp_session_id = u16::read(r)?; // reserved
         let mut_auth_req = SpdmKeyExchangeMutAuthAttributes::read(r)?;
-        let req_slot_id = u8::read(r)?;
+        let req_slot_id = u8::read(r)? & 0xF;
+        if (req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (req_slot_id != 0xF) {
+            return None;
+        }
 
         if !mut_auth_req.is_empty()
             && mut_auth_req != SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
@@ -320,7 +327,7 @@ mod tests {
         let value = SpdmKeyExchangeRequestPayload {
             measurement_summary_hash_type:
                 SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
-            slot_id: 100u8,
+            slot_id: 4,
             req_session_id: 100u16,
             session_policy: 3,
             random: SpdmRandomStruct {
@@ -355,7 +362,7 @@ mod tests {
             exchange_request_payload.measurement_summary_hash_type,
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone
         );
-        assert_eq!(exchange_request_payload.slot_id, 100);
+        assert_eq!(exchange_request_payload.slot_id, 4);
         assert_eq!(exchange_request_payload.session_policy, 3);
         for i in 0..SPDM_RANDOM_SIZE {
             assert_eq!(exchange_request_payload.random.data[i], 100);
@@ -391,7 +398,7 @@ mod tests {
             heartbeat_period: 100u8,
             rsp_session_id: 100u16,
             mut_auth_req: SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ,
-            req_slot_id: 100u8,
+            req_slot_id: 4,
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
@@ -445,7 +452,7 @@ mod tests {
             exchange_request_payload.mut_auth_req,
             SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
         );
-        assert_eq!(exchange_request_payload.req_slot_id, 100);
+        assert_eq!(exchange_request_payload.req_slot_id, 4);
         for i in 0..SPDM_RANDOM_SIZE {
             assert_eq!(exchange_request_payload.random.data[i], 100);
         }
@@ -506,7 +513,7 @@ mod tests {
             heartbeat_period: 100u8,
             rsp_session_id: 100u16,
             mut_auth_req: SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ,
-            req_slot_id: 100u8,
+            req_slot_id: 4,
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
@@ -556,7 +563,7 @@ mod tests {
             exchange_request_payload.mut_auth_req,
             SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
         );
-        assert_eq!(exchange_request_payload.req_slot_id, 100);
+        assert_eq!(exchange_request_payload.req_slot_id, 4);
         for i in 0..SPDM_RANDOM_SIZE {
             assert_eq!(exchange_request_payload.random.data[i], 100);
         }
