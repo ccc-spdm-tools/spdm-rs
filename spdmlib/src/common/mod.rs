@@ -2588,7 +2588,7 @@ impl Default for SpdmChunkStatus {
 #[cfg(feature = "chunk-cap")]
 pub struct SpdmChunkContext {
     pub chunk_status: SpdmChunkStatus,
-    pub chunk_seq_num: u16,
+    pub chunk_seq_num: u32,
     pub chunk_message_size: usize,
     pub chunk_message_data: [u8; config::MAX_SPDM_MSG_SIZE],
     pub transferred_size: usize,

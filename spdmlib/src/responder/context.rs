@@ -819,6 +819,18 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
+        let offset_of_response_of_large_request_in_chunk_send_ack =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                SPDM_VERSION_1_4_OFFSET_OF_RESPONSE_OF_LARGE_REQUEST_IN_CHUNK_SEND_ACK
+            } else {
+                SPDM_VERSION_1_2_OFFSET_OF_RESPONSE_OF_LARGE_REQUEST_IN_CHUNK_SEND_ACK
+            };
+        let max_chunk_seq_num =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                u32::MAX
+            } else {
+                u16::MAX as u32
+            };
         if !self
             .common
             .negotiate_info
@@ -917,7 +929,7 @@ impl ResponderContext {
                 let max_chunk_size = (config::SPDM_DATA_TRANSFER_SIZE
                     - SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_CHUNK_SEND)
                     as u32;
-                if self.common.chunk_context.chunk_seq_num < u16::MAX {
+                if self.common.chunk_context.chunk_seq_num < max_chunk_seq_num {
                     self.common.chunk_context.chunk_seq_num += 1;
                 } else {
                     error!("!!! chunk_send: chunk_seq_num overflow detected !!!\n");
@@ -985,8 +997,8 @@ impl ResponderContext {
                 };
 
                 if let Some(send_buffer) = send_buffer {
-                    let last_chunk_send_ack_size = send_buffer.len()
-                        + SPDM_VERSION_1_2_OFFSET_OF_RESPONSE_OF_LARGE_REQUEST_IN_CHUNK_SEND_ACK;
+                    let last_chunk_send_ack_size =
+                        send_buffer.len() + offset_of_response_of_large_request_in_chunk_send_ack;
                     if (self.common.negotiate_info.req_data_transfer_size_sel != 0
                         && last_chunk_send_ack_size
                             > self.common.negotiate_info.req_data_transfer_size_sel as usize)
@@ -1079,6 +1091,12 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
+        let max_chunk_seq_num =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                u32::MAX
+            } else {
+                u16::MAX as u32
+            };
         if !self
             .common
             .negotiate_info
@@ -1216,7 +1234,7 @@ impl ResponderContext {
             );
         }
 
-        assert!(self.common.chunk_context.chunk_seq_num < u16::MAX);
+        assert!(self.common.chunk_context.chunk_seq_num < max_chunk_seq_num);
         self.common.chunk_context.chunk_seq_num += 1;
 
         (Ok(()), Some(writer.used_slice()))
