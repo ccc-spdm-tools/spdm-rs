@@ -502,7 +502,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "TBD"]
     fn test_certificate_eku_v3_end_with_eku_spdm_oid_4() {
         let cert_der = &include_bytes!(
             "../../../../test_key/test_spdm_eku/gen/v3_end_with_eku_spdm_oid_4/cert.der"
