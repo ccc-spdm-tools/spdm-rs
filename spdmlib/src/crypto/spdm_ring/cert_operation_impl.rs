@@ -11,7 +11,7 @@ use crate::crypto::SpdmCertOperation;
 use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_INVALID_STATE_LOCAL};
 use ring::io::der;
 use rustls_pki_types::{CertificateDer, SignatureVerificationAlgorithm, UnixTime};
-use webpki::{ExtendedKeyUsageValidator, KeyPurposeId, KeyPurposeIdIter};
+use webpki::{ExtendedKeyUsageValidator, KeyPurposeId, KeyPurposeIdIter, KeyUsage};
 
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: get_cert_from_cert_chain,
@@ -102,7 +102,15 @@ impl ExtendedKeyUsageValidator for SpdmRequesterEkuValidator {
         // If has SPDM responder auth, must also have SPDM requester auth
         if has_spdm_responder && !has_spdm_requester {
             error!("SPDM Requester certificate validation failed: Missing required SPDM Requester Auth EKU when SPDM Responder Auth EKU is present");
-            return Err(webpki::Error::RequiredEkuNotFound);
+            return Err(webpki::Error::RequiredEkuNotFoundContext(
+                webpki::RequiredEkuNotFoundContext {
+                    required: KeyUsage::required(EKU_SPDM_REQUESTER_AUTH),
+                    present: vec![EKU_SPDM_RESPONDER_AUTH
+                        .iter()
+                        .map(|&b| b as usize)
+                        .collect()],
+                },
+            ));
         }
 
         // All other cases pass (including having only SPDM requester auth, or only non-SPDM OIDs)
@@ -162,7 +170,15 @@ impl ExtendedKeyUsageValidator for SpdmResponderEkuValidator {
         // If has SPDM requester auth, must also have SPDM responder auth
         if has_spdm_requester && !has_spdm_responder {
             error!("SPDM Responder certificate validation failed: Missing required SPDM Responder Auth EKU when SPDM Requester Auth EKU is present");
-            return Err(webpki::Error::RequiredEkuNotFound);
+            return Err(webpki::Error::RequiredEkuNotFoundContext(
+                webpki::RequiredEkuNotFoundContext {
+                    required: webpki::KeyUsage::required(EKU_SPDM_RESPONDER_AUTH),
+                    present: vec![EKU_SPDM_REQUESTER_AUTH
+                        .iter()
+                        .map(|&b| b as usize)
+                        .collect()],
+                },
+            ));
         }
 
         // All other cases pass (including having only SPDM requester auth, or only non-SPDM OIDs)
