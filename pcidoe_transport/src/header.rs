@@ -31,7 +31,9 @@ enum_builder! {
     EnumVal{
         PciDoeDataObjectTypeDoeDiscovery => 0x00,
         PciDoeDataObjectTypeSpdm => 0x01,
-        PciDoeDataObjectTypeSecuredSpdm => 0x02
+        PciDoeDataObjectTypeSecuredSpdm => 0x02,
+        PciDoeDataObjectTypeSpdmWithConnectionID => 0x03,
+        PciDoeDataObjectTypeSecuredSpdmWithConnectionID => 0x04
     }
 }
 impl Default for PciDoeDataObjectType {
@@ -45,6 +47,7 @@ pub struct PciDoeMessageHeader {
     pub vendor_id: PciDoeVendorId,
     pub data_object_type: PciDoeDataObjectType,
     pub payload_length: u32, // in bytes
+    pub connection_id: u16,  // doe 2.0
 }
 
 impl Codec for PciDoeMessageHeader {
@@ -60,7 +63,11 @@ impl Codec for PciDoeMessageHeader {
         if length == 0x40000 {
             length = 0;
         }
-        cnt += length.encode(bytes)?;
+        if self.connection_id >= 0x1000 {
+            panic!();
+        }
+        let header2 = length | (self.connection_id as u32 >> 18);
+        cnt += header2.encode(bytes)?;
         Ok(cnt)
     }
 
@@ -68,8 +75,9 @@ impl Codec for PciDoeMessageHeader {
         let vendor_id = PciDoeVendorId::read(r)?;
         let data_object_type = PciDoeDataObjectType::read(r)?;
         u8::read(r)?;
-        let mut length = u32::read(r)?;
-        length &= 0x3ffff;
+        let header2 = u32::read(r)?;
+        let mut length = header2 & 0x3ffff;
+        let connection_id = (header2 >> 18) as u16 & 0x0fff;
         if length == 0 {
             length = 0x40000;
         }
@@ -81,6 +89,7 @@ impl Codec for PciDoeMessageHeader {
             vendor_id,
             data_object_type,
             payload_length,
+            connection_id,
         })
     }
 }
@@ -109,6 +118,7 @@ impl SpdmTransportEncap for PciDoeTransportEncap {
                 PciDoeDataObjectType::PciDoeDataObjectTypeSpdm
             },
             payload_length: aligned_payload_len as u32,
+            connection_id: 0,
         };
         pcidoe_header
             .encode(&mut writer)
@@ -196,6 +206,7 @@ mod tests_header {
             vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
             data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
             payload_length: 100,
+            connection_id: 0,
         };
         assert!(value.encode(&mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -220,6 +231,7 @@ mod tests_header {
             vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
             data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
             payload_length: 0xffff8,
+            connection_id: 0,
         };
         assert!(value.encode(&mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -234,6 +246,7 @@ mod tests_header {
             vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
             data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
             payload_length: 0,
+            connection_id: 0,
         };
         assert!(value.encode(&mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -249,6 +262,7 @@ mod tests_header {
             vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
             data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
             payload_length: 0x100,
+            connection_id: 0,
         };
 
         assert!(value.encode(&mut writer).is_ok());
@@ -269,6 +283,7 @@ mod tests_header {
             vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
             data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
             payload_length: 0xffffffff,
+            connection_id: 0,
         };
         assert!(value.encode(&mut writer).is_ok());
     }
@@ -281,6 +296,7 @@ mod tests_header {
             vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
             data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
             payload_length: 0xf00000,
+            connection_id: 0,
         };
         assert!(value.encode(&mut writer).is_ok());
     }
