@@ -101,6 +101,7 @@ fn test_case0_receive_message() {
         vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
         data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeSecuredSpdm,
         payload_length: 100,
+        connection_id: 0,
     };
     assert!(value.encode(&mut writer).is_ok());
 
@@ -132,6 +133,7 @@ fn test_case0_process_message() {
         vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
         data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeSecuredSpdm,
         payload_length: 100,
+        connection_id: 0,
     };
     assert!(value.encode(&mut writer).is_ok());
 

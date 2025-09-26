@@ -525,6 +525,7 @@ pub async fn send_pci_discovery(
         vendor_id: PciDoeVendorId::PciDoeVendorIdPciSig,
         data_object_type: PciDoeDataObjectType::PciDoeDataObjectTypeDoeDiscovery,
         payload_length: 4,
+        connection_id: 0,
     };
     assert!(pcidoe_header.encode(&mut writer).is_ok());
     let header_size = writer.used();
