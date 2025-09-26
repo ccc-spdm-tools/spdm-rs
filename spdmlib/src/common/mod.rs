@@ -1251,6 +1251,9 @@ pub struct SpdmConfigInfo {
     pub heartbeat_period: u8, // used by responder only
     pub secure_spdm_version: [Option<SecuredMessageVersion>; MAX_SECURE_SPDM_VERSION_COUNT],
     pub mel_specification: SpdmMelSpecification, // spdm 1.3
+    pub pqc_asym_algo: SpdmPqcAsymAlgo,          // spdm 1.4
+    pub pqc_req_asym_algo: SpdmPqcReqAsymAlgo,   // spdm 1.4
+    pub kem_algo: SpdmKemAlgo,                   // spdm 1.4
 }
 
 impl Codec for SpdmConfigInfo {
@@ -1289,6 +1292,9 @@ impl Codec for SpdmConfigInfo {
         }
 
         size += self.mel_specification.encode(writer)?;
+        size += self.pqc_asym_algo.encode(writer)?;
+        size += self.pqc_req_asym_algo.encode(writer)?;
+        size += self.kem_algo.encode(writer)?;
         Ok(size)
     }
 
@@ -1331,6 +1337,9 @@ impl Codec for SpdmConfigInfo {
         }
 
         let mel_specification = SpdmMelSpecification::read(reader)?;
+        let pqc_asym_algo = SpdmPqcAsymAlgo::read(reader)?;
+        let pqc_req_asym_algo = SpdmPqcReqAsymAlgo::read(reader)?;
+        let kem_algo = SpdmKemAlgo::read(reader)?;
 
         Some(Self {
             spdm_version,
@@ -1354,6 +1363,9 @@ impl Codec for SpdmConfigInfo {
             heartbeat_period,
             secure_spdm_version,
             mel_specification,
+            pqc_asym_algo,
+            pqc_req_asym_algo,
+            kem_algo,
         })
     }
 }
@@ -1382,6 +1394,9 @@ pub struct SpdmNegotiateInfo {
     pub mel_specification_sel: SpdmMelSpecification, // spdm 1.3
     pub multi_key_conn_req: bool,     // spdm 1.3
     pub multi_key_conn_rsp: bool,     // spdm 1.3
+    pub pqc_asym_sel: SpdmPqcAsymAlgo,
+    pub pqc_req_asym_sel: SpdmPqcReqAsymAlgo,
+    pub kem_sel: SpdmKemAlgo,
 }
 
 impl Codec for SpdmNegotiateInfo {
@@ -1409,6 +1424,9 @@ impl Codec for SpdmNegotiateInfo {
         size += self.mel_specification_sel.encode(writer)?;
         size += (self.multi_key_conn_req as u8).encode(writer)?;
         size += (self.multi_key_conn_rsp as u8).encode(writer)?;
+        size += self.pqc_asym_sel.encode(writer)?;
+        size += self.pqc_req_asym_sel.encode(writer)?;
+        size += self.kem_sel.encode(writer)?;
         Ok(size)
     }
 
@@ -1436,6 +1454,9 @@ impl Codec for SpdmNegotiateInfo {
             mel_specification_sel: SpdmMelSpecification::read(reader)?,
             multi_key_conn_req: u8::read(reader)? != 0,
             multi_key_conn_rsp: u8::read(reader)? != 0,
+            pqc_asym_sel: SpdmPqcAsymAlgo::read(reader)?,
+            pqc_req_asym_sel: SpdmPqcReqAsymAlgo::read(reader)?,
+            kem_sel: SpdmKemAlgo::read(reader)?,
         })
     }
 }

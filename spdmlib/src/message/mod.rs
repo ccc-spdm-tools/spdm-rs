@@ -754,6 +754,7 @@ mod tests {
                     other_params_support: SpdmAlgoOtherParams::empty(),
                     base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                     base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                    pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
                     mel_specification: SpdmMelSpecification::empty(),
                     alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
                     alg_struct: [
@@ -854,6 +855,7 @@ mod tests {
                 measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
                 base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
                 base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                pqc_asym_sel: SpdmPqcAsymAlgo::empty(),
                 mel_specification_sel: SpdmMelSpecification::empty(),
                 alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
                 alg_struct: [
@@ -879,13 +881,11 @@ mod tests {
                     },
                     SpdmAlgStruct {
                         alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
-                        alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(
-                            SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
-                        ),
+                        alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo::empty()),
                     },
                     SpdmAlgStruct {
                         alg_type: SpdmAlgType::SpdmAlgTypeKEM,
-                        alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
+                        alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::empty()),
                     },
                 ],
             }),
