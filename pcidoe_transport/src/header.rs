@@ -199,7 +199,7 @@ mod tests_header {
     use super::*;
 
     #[test]
-    fn test_case0_mctpmessageheader() {
+    fn test_case0_pcidoemessageheader() {
         let u8_slice = &mut [0u8; 8];
         let mut writer = Writer::init(u8_slice);
         let value = PciDoeMessageHeader {
@@ -224,7 +224,7 @@ mod tests_header {
         assert_eq!(pcidoemessageheader.payload_length, 100);
     }
     #[test]
-    fn test_case1_mctpmessageheader() {
+    fn test_case1_pcidoemessageheader() {
         let u8_slice = &mut [0u8; 8];
         let mut writer = Writer::init(u8_slice);
         let value = PciDoeMessageHeader {
@@ -239,7 +239,7 @@ mod tests_header {
         assert_eq!(pcidoemessageheader.payload_length, 0xffff8);
     }
     #[test]
-    fn test_case2_mctpmessageheader() {
+    fn test_case2_pcidoemessageheader() {
         let u8_slice = &mut [0u8; 10];
         let mut writer = Writer::init(u8_slice);
         let value = PciDoeMessageHeader {
@@ -255,7 +255,7 @@ mod tests_header {
         assert_eq!(pcidoemessageheader.payload_length, 0);
     }
     #[test]
-    fn test_case3_mctpmessageheader() {
+    fn test_case3_pcidoemessageheader() {
         let u8_slice = &mut [0u8; 4];
         let mut writer = Writer::init(u8_slice);
         let value = PciDoeMessageHeader {
@@ -276,7 +276,7 @@ mod tests_header {
     }
     #[test]
     #[should_panic]
-    fn test_case4_mctpmessageheader() {
+    fn test_case4_pcidoemessageheader() {
         let u8_slice = &mut [0u8; 8];
         let mut writer = Writer::init(u8_slice);
         let value = PciDoeMessageHeader {
@@ -289,7 +289,7 @@ mod tests_header {
     }
     #[test]
     #[should_panic]
-    fn test_case5_mctpmessageheader() {
+    fn test_case5_pcidoemessageheader() {
         let u8_slice = &mut [0u8; 8];
         let mut writer = Writer::init(u8_slice);
         let value = PciDoeMessageHeader {
