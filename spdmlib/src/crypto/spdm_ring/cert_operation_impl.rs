@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-#![allow(deprecated)]
-
 extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
