@@ -72,6 +72,7 @@ fn test_case0_handle_spdm_algorithm() {
                 | SpdmAlgoOtherParams::MULTI_KEY_CONN,
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
             mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
             alg_struct_count: MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8,
             alg_struct: [
@@ -239,7 +240,7 @@ fn test_case0_handle_spdm_algorithm() {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
             );
             assert_eq!(payload.base_hash_sel, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
-            assert_eq!(payload.alg_struct_count, 4_u8);
+            assert_eq!(payload.alg_struct_count, 1);
             assert_eq!(
                 payload.mel_specification_sel,
                 SpdmMelSpecification::DMTF_MEL_SPEC
@@ -249,33 +250,12 @@ fn test_case0_handle_spdm_algorithm() {
                 SpdmMelSpecification::DMTF_MEL_SPEC
             );
 
-            assert_eq!(payload.alg_struct[0].alg_type, SpdmAlgType::SpdmAlgTypeDHE);
             assert_eq!(
-                payload.alg_struct[0].alg_supported,
-                SpdmAlg::SpdmAlgoDhe(SpdmDheAlgo::empty())
-            );
-
-            assert_eq!(payload.alg_struct[1].alg_type, SpdmAlgType::SpdmAlgTypeAEAD);
-            assert_eq!(
-                payload.alg_struct[1].alg_supported,
-                SpdmAlg::SpdmAlgoAead(SpdmAeadAlgo::empty())
-            );
-
-            assert_eq!(
-                payload.alg_struct[2].alg_type,
-                SpdmAlgType::SpdmAlgTypeReqAsym
-            );
-            assert_eq!(
-                payload.alg_struct[2].alg_supported,
-                SpdmAlg::SpdmAlgoReqAsym(SpdmReqAsymAlgo::empty())
-            );
-
-            assert_eq!(
-                payload.alg_struct[3].alg_type,
+                payload.alg_struct[0].alg_type,
                 SpdmAlgType::SpdmAlgTypeKeySchedule
             );
             assert_eq!(
-                payload.alg_struct[3].alg_supported,
+                payload.alg_struct[0].alg_supported,
                 SpdmAlg::SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE)
             );
         }

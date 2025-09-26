@@ -94,6 +94,27 @@ impl RequesterContext {
                 SpdmAlg::SpdmAlgoKeySchedule(self.common.config_info.key_schedule_algo);
             alg_struct_count += 1;
         }
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            if self.common.config_info.pqc_req_asym_algo.is_valid() {
+                alg_struct[alg_struct_count].alg_type = SpdmAlgType::SpdmAlgTypePqcReqAsym;
+                alg_struct[alg_struct_count].alg_supported =
+                    SpdmAlg::SpdmAlgoPqcReqAsym(self.common.config_info.pqc_req_asym_algo);
+                alg_struct_count += 1;
+            }
+            if self.common.config_info.kem_algo.is_valid() {
+                alg_struct[alg_struct_count].alg_type = SpdmAlgType::SpdmAlgTypeKEM;
+                alg_struct[alg_struct_count].alg_supported =
+                    SpdmAlg::SpdmAlgoKem(self.common.config_info.kem_algo);
+                alg_struct_count += 1;
+            }
+        }
+
+        let pqc_asym_algo =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                self.common.config_info.pqc_asym_algo
+            } else {
+                SpdmPqcAsymAlgo::empty()
+            };
 
         let mut writer = Writer::init(buf);
         let request = SpdmMessage {
@@ -107,6 +128,7 @@ impl RequesterContext {
                     other_params_support,
                     base_asym_algo: self.common.config_info.base_asym_algo,
                     base_hash_algo: self.common.config_info.base_hash_algo,
+                    pqc_asym_algo,
                     mel_specification,
                     alg_struct_count: alg_struct_count as u8,
                     alg_struct,
@@ -202,10 +224,17 @@ impl RequesterContext {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
                             self.common.negotiate_info.base_hash_sel = algorithms.base_hash_sel;
-                            if algorithms.base_asym_sel.bits() == 0 {
+                            self.common.negotiate_info.base_asym_sel = algorithms.base_asym_sel;
+                            if self.common.negotiate_info.spdm_version_sel
+                                >= SpdmVersion::SpdmVersion14
+                            {
+                                self.common.negotiate_info.pqc_asym_sel = algorithms.pqc_asym_sel;
+                            }
+                            if algorithms.base_asym_sel.bits() == 0
+                                && algorithms.pqc_asym_sel.bits() == 0
+                            {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
-                            self.common.negotiate_info.base_asym_sel = algorithms.base_asym_sel;
                             for alg in algorithms
                                 .alg_struct
                                 .iter()
@@ -214,9 +243,7 @@ impl RequesterContext {
                                 match &alg.alg_supported {
                                     SpdmAlg::SpdmAlgoDhe(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.dhe_sel =
-                                                self.common.config_info.dhe_algo;
-                                            self.common.negotiate_info.dhe_sel.prioritize(*v);
+                                            self.common.negotiate_info.dhe_sel = *v;
                                         } else {
                                             error!(
                                                 "unknown Dhe algorithm structure:{:X?}\n",
@@ -227,9 +254,7 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoAead(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.aead_sel =
-                                                self.common.config_info.aead_algo;
-                                            self.common.negotiate_info.aead_sel.prioritize(*v);
+                                            self.common.negotiate_info.aead_sel = *v;
                                         } else {
                                             error!(
                                                 "unknown aead algorithm structure:{:X?}\n",
@@ -240,9 +265,7 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoReqAsym(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.req_asym_sel =
-                                                self.common.config_info.req_asym_algo;
-                                            self.common.negotiate_info.req_asym_sel.prioritize(*v);
+                                            self.common.negotiate_info.req_asym_sel = *v;
                                         } else {
                                             error!(
                                                 "unknown req asym algorithm structure:{:X?}\n",
@@ -253,12 +276,7 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoKeySchedule(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
-                                            self.common.negotiate_info.key_schedule_sel =
-                                                self.common.config_info.key_schedule_algo;
-                                            self.common
-                                                .negotiate_info
-                                                .key_schedule_sel
-                                                .prioritize(*v);
+                                            self.common.negotiate_info.key_schedule_sel = *v;
                                         } else {
                                             error!(
                                                 "unknown key schedule algorithm structure:{:X?}\n",
@@ -267,8 +285,36 @@ impl RequesterContext {
                                             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                         }
                                     }
-                                    SpdmAlg::SpdmAlgoKem(_v) => {}
-                                    SpdmAlg::SpdmAlgoPqcReqAsym(_v) => {}
+                                    SpdmAlg::SpdmAlgoPqcReqAsym(v) => {
+                                        if self.common.negotiate_info.spdm_version_sel
+                                            >= SpdmVersion::SpdmVersion14
+                                        {
+                                            if v.is_no_more_than_one_selected() || v.bits() == 0 {
+                                                self.common.negotiate_info.pqc_req_asym_sel = *v;
+                                            } else {
+                                                error!(
+                                                    "unknown pqc req asym algorithm structure:{:X?}\n",
+                                                    v.bits()
+                                                );
+                                                return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                            }
+                                        }
+                                    }
+                                    SpdmAlg::SpdmAlgoKem(v) => {
+                                        if self.common.negotiate_info.spdm_version_sel
+                                            >= SpdmVersion::SpdmVersion14
+                                        {
+                                            if v.is_no_more_than_one_selected() || v.bits() == 0 {
+                                                self.common.negotiate_info.kem_sel = *v;
+                                            } else {
+                                                error!(
+                                                    "unknown Kem algorithm structure:{:X?}\n",
+                                                    v.bits()
+                                                );
+                                                return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                            }
+                                        }
+                                    }
                                     SpdmAlg::SpdmAlgoUnknown(_v) => {}
                                 }
                             }
