@@ -39,6 +39,7 @@ async fn fuzz_send_receive_spdm_heartbeat(fuzzdata: Arc<Vec<u8>>) {
     requester.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         SpdmDheAlgo::SECP_384_R1,
+        SpdmKemAlgo::empty(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
