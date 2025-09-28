@@ -19,7 +19,7 @@ fn asym_verify(
     data: &[u8],
     signature: &SpdmSignatureStruct,
 ) -> SpdmResult {
-    if signature.data_size != base_asym_algo.get_size() {
+    if signature.data_size != base_asym_algo.get_sig_size() {
         return Err(SPDM_STATUS_VERIF_FAIL);
     }
 
@@ -90,7 +90,7 @@ fn asym_verify(
                 | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
                     // DER has this format: 0x30 size 0x02 r_size 0x00 [r_size] 0x02 s_size 0x00 [s_size]
                     let mut der_signature =
-                        [0u8; crate::protocol::ECDSA_ECC_NIST_P384_KEY_SIZE + 8];
+                        [0u8; crate::protocol::ECDSA_ECC_NIST_P384_SIG_SIZE + 8];
                     let der_sign_size =
                         ecc_signature_bin_to_der(signature.as_ref(), &mut der_signature)?;
 
@@ -124,8 +124,8 @@ fn ecc_signature_bin_to_der(signature: &[u8], der_signature: &mut [u8]) -> SpdmR
     let sign_size = signature.len();
     assert!(
         // prevent API misuse
-        sign_size == crate::protocol::ECDSA_ECC_NIST_P256_KEY_SIZE
-            || sign_size == crate::protocol::ECDSA_ECC_NIST_P384_KEY_SIZE
+        sign_size == crate::protocol::ECDSA_ECC_NIST_P256_SIG_SIZE
+            || sign_size == crate::protocol::ECDSA_ECC_NIST_P384_SIG_SIZE
     );
     let half_size = sign_size / 2;
 
@@ -241,7 +241,7 @@ mod tests {
         let base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
         let mut signature = SpdmSignatureStruct {
             data_size: 512,
-            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_SIG_SIZE],
         };
         signature.data[250] = 0x10;
         signature.data[510] = 0x10;
@@ -264,7 +264,7 @@ mod tests {
         let base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         let mut signature = SpdmSignatureStruct {
             data_size: 512,
-            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_SIG_SIZE],
         };
         signature.data[250] = 0x10;
         signature.data[510] = 0x10;
@@ -298,7 +298,7 @@ mod tests {
         ];
         let mut signature = SpdmSignatureStruct {
             data_size: 512,
-            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_SIG_SIZE],
         };
         signature.data[250] = 0x10;
         signature.data[510] = 0x10;
@@ -325,7 +325,7 @@ mod tests {
         let base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
         let mut signature = SpdmSignatureStruct {
             data_size: 512,
-            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0x00u8; crate::protocol::SPDM_MAX_ASYM_SIG_SIZE],
         };
         signature.data[250] = 0x10;
         signature.data[510] = 0x10;

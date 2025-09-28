@@ -388,11 +388,11 @@ mod tests {
         let u8_slice = &mut [0u8; 6
             + SPDM_RANDOM_SIZE
             + SECP_384_R1_KEY_SIZE
-            + SPDM_MAX_HASH_SIZE
+            + SHA512_DIGEST_SIZE
             + 2
             + MAX_SPDM_OPAQUE_SIZE
-            + SPDM_MAX_ASYM_KEY_SIZE
-            + SPDM_MAX_HASH_SIZE];
+            + RSASSA_4096_SIG_SIZE
+            + SHA512_DIGEST_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmKeyExchangeResponsePayload {
             heartbeat_period: 100u8,
@@ -407,7 +407,7 @@ mod tests {
                 data: [0xa5u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE],
             },
             measurement_summary_hash: SpdmDigestStruct {
-                data_size: SPDM_MAX_HASH_SIZE as u16,
+                data_size: SHA512_DIGEST_SIZE as u16,
                 data: Box::new([0x11u8; SPDM_MAX_HASH_SIZE]),
             },
             opaque: SpdmOpaqueStruct {
@@ -415,11 +415,11 @@ mod tests {
                 data: [0x22u8; MAX_SPDM_OPAQUE_SIZE],
             },
             signature: SpdmSignatureStruct {
-                data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
-                data: [0x5au8; SPDM_MAX_ASYM_KEY_SIZE],
+                data_size: RSASSA_4096_SIG_SIZE as u16,
+                data: [0x5au8; SPDM_MAX_ASYM_SIG_SIZE],
             },
             verify_data: SpdmDigestStruct {
-                data_size: SPDM_MAX_HASH_SIZE as u16,
+                data_size: SHA512_DIGEST_SIZE as u16,
                 data: Box::new([0x33u8; SPDM_MAX_HASH_SIZE]),
             },
         };
@@ -436,11 +436,11 @@ mod tests {
         assert_eq!(
             6 + SPDM_RANDOM_SIZE
                 + SECP_384_R1_KEY_SIZE
-                + SPDM_MAX_HASH_SIZE
+                + SHA512_DIGEST_SIZE
                 + 2
                 + MAX_SPDM_OPAQUE_SIZE
-                + SPDM_MAX_ASYM_KEY_SIZE
-                + SPDM_MAX_HASH_SIZE,
+                + RSASSA_4096_SIG_SIZE
+                + SHA512_DIGEST_SIZE,
             reader.left()
         );
         let exchange_request_payload =
@@ -467,9 +467,9 @@ mod tests {
 
         assert_eq!(
             exchange_request_payload.signature.data_size,
-            RSAPSS_4096_KEY_SIZE as u16
+            RSAPSS_4096_SIG_SIZE as u16
         );
-        for i in 0..RSAPSS_4096_KEY_SIZE {
+        for i in 0..RSAPSS_4096_SIG_SIZE {
             assert_eq!(exchange_request_payload.signature.data[i], 0x5a);
         }
 
@@ -506,8 +506,8 @@ mod tests {
             + SECP_384_R1_KEY_SIZE
             + 2
             + MAX_SPDM_OPAQUE_SIZE
-            + SPDM_MAX_ASYM_KEY_SIZE
-            + SPDM_MAX_HASH_SIZE];
+            + RSAPSS_4096_SIG_SIZE
+            + SHA512_DIGEST_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmKeyExchangeResponsePayload {
             heartbeat_period: 100u8,
@@ -527,11 +527,11 @@ mod tests {
                 data: [0x22u8; MAX_SPDM_OPAQUE_SIZE],
             },
             signature: SpdmSignatureStruct {
-                data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
-                data: [0x5au8; SPDM_MAX_ASYM_KEY_SIZE],
+                data_size: RSAPSS_4096_SIG_SIZE as u16,
+                data: [0x5au8; SPDM_MAX_ASYM_SIG_SIZE],
             },
             verify_data: SpdmDigestStruct {
-                data_size: SPDM_MAX_HASH_SIZE as u16,
+                data_size: SHA512_DIGEST_SIZE as u16,
                 data: Box::new([0x33u8; SPDM_MAX_HASH_SIZE]),
             },
         };
@@ -550,8 +550,8 @@ mod tests {
                 + SECP_384_R1_KEY_SIZE
                 + 2
                 + MAX_SPDM_OPAQUE_SIZE
-                + SPDM_MAX_ASYM_KEY_SIZE
-                + SPDM_MAX_HASH_SIZE,
+                + RSAPSS_4096_SIG_SIZE
+                + SHA512_DIGEST_SIZE,
             reader.left()
         );
         let exchange_request_payload =
@@ -578,9 +578,9 @@ mod tests {
 
         assert_eq!(
             exchange_request_payload.signature.data_size,
-            RSAPSS_4096_KEY_SIZE as u16
+            RSAPSS_4096_SIG_SIZE as u16
         );
-        for i in 0..RSAPSS_4096_KEY_SIZE {
+        for i in 0..RSAPSS_4096_SIG_SIZE {
             assert_eq!(exchange_request_payload.signature.data[i], 0x5a);
         }
 

@@ -14,15 +14,15 @@ pub const SHA256_DIGEST_SIZE: usize = 32;
 pub const SHA384_DIGEST_SIZE: usize = 48;
 pub const SHA512_DIGEST_SIZE: usize = 64;
 
-pub const RSASSA_2048_KEY_SIZE: usize = 256;
-pub const RSASSA_3072_KEY_SIZE: usize = 384;
-pub const RSASSA_4096_KEY_SIZE: usize = 512;
-pub const RSAPSS_2048_KEY_SIZE: usize = 256;
-pub const RSAPSS_3072_KEY_SIZE: usize = 384;
-pub const RSAPSS_4096_KEY_SIZE: usize = 512;
+pub const RSASSA_2048_SIG_SIZE: usize = 256;
+pub const RSASSA_3072_SIG_SIZE: usize = 384;
+pub const RSASSA_4096_SIG_SIZE: usize = 512;
+pub const RSAPSS_2048_SIG_SIZE: usize = 256;
+pub const RSAPSS_3072_SIG_SIZE: usize = 384;
+pub const RSAPSS_4096_SIG_SIZE: usize = 512;
 
-pub const ECDSA_ECC_NIST_P256_KEY_SIZE: usize = 32 * 2;
-pub const ECDSA_ECC_NIST_P384_KEY_SIZE: usize = 48 * 2;
+pub const ECDSA_ECC_NIST_P256_SIG_SIZE: usize = 32 * 2;
+pub const ECDSA_ECC_NIST_P384_SIG_SIZE: usize = 48 * 2;
 
 pub const SECP_256_R1_KEY_SIZE: usize = 32 * 2;
 pub const SECP_384_R1_KEY_SIZE: usize = 48 * 2;
@@ -50,7 +50,6 @@ pub const SPDM_CHALLENGE_CONTEXT_SIZE: usize = 8;
 pub const SPDM_MEASUREMENTS_CONTEXT_SIZE: usize = 8;
 pub const SPDM_RANDOM_SIZE: usize = 32;
 pub const SPDM_MAX_HASH_SIZE: usize = 64;
-pub const SPDM_MAX_ASYM_KEY_SIZE: usize = 512;
 pub const SPDM_MAX_DHE_KEY_SIZE: usize = SECP_384_R1_KEY_SIZE;
 pub const SPDM_MAX_AEAD_KEY_SIZE: usize = 32;
 pub const SPDM_MAX_AEAD_IV_SIZE: usize = 12;
@@ -59,6 +58,15 @@ pub const SPDM_MAX_HKDF_OKM_SIZE: usize = SPDM_MAX_HASH_SIZE;
 pub const MLDSA_44_SIG_SIZE: usize = 2420;
 pub const MLDSA_65_SIG_SIZE: usize = 3309;
 pub const MLDSA_87_SIG_SIZE: usize = 4627;
+
+pub const SPDM_MAX_BASE_ASYM_SIG_SIZE: usize = RSASSA_4096_SIG_SIZE;
+pub const SPDM_MAX_PQC_ASYM_SIG_SIZE: usize = MLDSA_87_SIG_SIZE;
+pub const SPDM_MAX_ASYM_SIG_SIZE: usize =
+    if SPDM_MAX_BASE_ASYM_SIG_SIZE > SPDM_MAX_PQC_ASYM_SIG_SIZE {
+        SPDM_MAX_BASE_ASYM_SIG_SIZE
+    } else {
+        SPDM_MAX_PQC_ASYM_SIG_SIZE
+    };
 
 pub const MLKEM_512_ENCAP_KEY_SIZE: usize = 800;
 pub const MLKEM_768_ENCAP_KEY_SIZE: usize = 1184;
@@ -275,16 +283,16 @@ impl SpdmBaseAsymAlgo {
         }
         *self = SpdmBaseAsymAlgo::empty();
     }
-    pub fn get_size(&self) -> u16 {
+    pub fn get_sig_size(&self) -> u16 {
         match *self {
-            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048 => RSASSA_2048_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048 => RSAPSS_2048_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072 => RSASSA_3072_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072 => RSAPSS_3072_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => RSASSA_4096_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096 => RSAPSS_4096_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256 => ECDSA_ECC_NIST_P256_KEY_SIZE as u16,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => ECDSA_ECC_NIST_P384_KEY_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048 => RSASSA_2048_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048 => RSAPSS_2048_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072 => RSASSA_3072_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072 => RSAPSS_3072_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => RSASSA_4096_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096 => RSAPSS_4096_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256 => ECDSA_ECC_NIST_P256_SIG_SIZE as u16,
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => ECDSA_ECC_NIST_P384_SIG_SIZE as u16,
             _ => {
                 panic!("invalid AsymAlgo");
             }
@@ -785,16 +793,16 @@ impl SpdmReqAsymAlgo {
         }
         *self = SpdmReqAsymAlgo::empty();
     }
-    pub fn get_size(&self) -> u16 {
+    pub fn get_sig_size(&self) -> u16 {
         match *self {
-            SpdmReqAsymAlgo::TPM_ALG_RSASSA_2048 => RSASSA_2048_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048 => RSAPSS_2048_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072 => RSASSA_3072_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_RSAPSS_3072 => RSAPSS_3072_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_RSASSA_4096 => RSASSA_4096_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_RSAPSS_4096 => RSAPSS_4096_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256 => ECDSA_ECC_NIST_P256_KEY_SIZE as u16,
-            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => ECDSA_ECC_NIST_P384_KEY_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_RSASSA_2048 => RSASSA_2048_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048 => RSAPSS_2048_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072 => RSASSA_3072_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_RSAPSS_3072 => RSAPSS_3072_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_RSASSA_4096 => RSASSA_4096_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_RSAPSS_4096 => RSAPSS_4096_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256 => ECDSA_ECC_NIST_P256_SIG_SIZE as u16,
+            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => ECDSA_ECC_NIST_P384_SIG_SIZE as u16,
             _ => {
                 panic!("invalid ReqAsymAlgo");
             }
@@ -1221,13 +1229,13 @@ impl Codec for SpdmRandomStruct {
 #[derive(Debug, Clone)]
 pub struct SpdmSignatureStruct {
     pub data_size: u16,
-    pub data: [u8; SPDM_MAX_ASYM_KEY_SIZE],
+    pub data: [u8; SPDM_MAX_ASYM_SIG_SIZE],
 }
 impl Default for SpdmSignatureStruct {
     fn default() -> SpdmSignatureStruct {
         SpdmSignatureStruct {
             data_size: 0,
-            data: [0u8; SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0u8; SPDM_MAX_ASYM_SIG_SIZE],
         }
     }
 }
@@ -1240,9 +1248,9 @@ impl AsRef<[u8]> for SpdmSignatureStruct {
 
 impl From<BytesMut> for SpdmSignatureStruct {
     fn from(value: BytesMut) -> Self {
-        assert!(value.as_ref().len() <= SPDM_MAX_ASYM_KEY_SIZE);
+        assert!(value.as_ref().len() <= SPDM_MAX_ASYM_SIG_SIZE);
         let data_size = value.as_ref().len() as u16;
-        let mut data = [0u8; SPDM_MAX_ASYM_KEY_SIZE];
+        let mut data = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
         data[0..value.as_ref().len()].copy_from_slice(value.as_ref());
         Self { data_size, data }
     }
@@ -2414,7 +2422,7 @@ mod tests {
         let bytes_mut = BytesMut::new();
         let spdm_signature_struct = SpdmSignatureStruct::from(bytes_mut);
         assert_eq!(spdm_signature_struct.data_size, 0);
-        for i in 0..SPDM_MAX_ASYM_KEY_SIZE {
+        for i in 0..SPDM_MAX_ASYM_SIG_SIZE {
             assert_eq!(spdm_signature_struct.data[i], 0);
         }
     }
@@ -2441,31 +2449,31 @@ mod tests {
     #[should_panic(expected = "invalid AsymAlgo")]
     fn test_case1_spdm_base_asym_algo() {
         let mut value = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
-        assert_eq!(value.get_size(), RSASSA_2048_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSASSA_2048_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048;
-        assert_eq!(value.get_size(), RSAPSS_2048_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSAPSS_2048_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072;
-        assert_eq!(value.get_size(), RSASSA_3072_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSASSA_3072_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072;
-        assert_eq!(value.get_size(), RSAPSS_3072_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSAPSS_3072_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096;
-        assert_eq!(value.get_size(), RSASSA_4096_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSASSA_4096_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096;
-        assert_eq!(value.get_size(), RSAPSS_4096_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSAPSS_4096_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
-        assert_eq!(value.get_size(), ECDSA_ECC_NIST_P256_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), ECDSA_ECC_NIST_P256_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        assert_eq!(value.get_size(), ECDSA_ECC_NIST_P384_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), ECDSA_ECC_NIST_P384_SIG_SIZE as u16);
 
         value = SpdmBaseAsymAlgo::empty();
-        value.get_size();
+        value.get_sig_size();
     }
     #[test]
     #[should_panic(expected = "invalid DheAlgo")]
@@ -2543,31 +2551,31 @@ mod tests {
     #[should_panic(expected = "invalid ReqAsymAlgo")]
     fn test_case1_spdm_req_asym_algo() {
         let mut value = SpdmReqAsymAlgo::TPM_ALG_RSASSA_2048;
-        assert_eq!(value.get_size(), RSASSA_2048_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSASSA_2048_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
-        assert_eq!(value.get_size(), RSAPSS_2048_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSAPSS_2048_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072;
-        assert_eq!(value.get_size(), RSASSA_3072_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSASSA_3072_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_3072;
-        assert_eq!(value.get_size(), RSAPSS_3072_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSAPSS_3072_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_RSASSA_4096;
-        assert_eq!(value.get_size(), RSASSA_4096_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSASSA_4096_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_4096;
-        assert_eq!(value.get_size(), RSAPSS_4096_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), RSAPSS_4096_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
-        assert_eq!(value.get_size(), ECDSA_ECC_NIST_P256_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), ECDSA_ECC_NIST_P256_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        assert_eq!(value.get_size(), ECDSA_ECC_NIST_P384_KEY_SIZE as u16);
+        assert_eq!(value.get_sig_size(), ECDSA_ECC_NIST_P384_SIG_SIZE as u16);
 
         value = SpdmReqAsymAlgo::empty();
-        value.get_size();
+        value.get_sig_size();
     }
     #[test]
     fn test_case0_spdm_unknown_algo() {

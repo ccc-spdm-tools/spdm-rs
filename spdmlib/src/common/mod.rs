@@ -188,8 +188,12 @@ impl SpdmContext {
     pub fn get_hash_size(&self) -> u16 {
         self.negotiate_info.base_hash_sel.get_size()
     }
-    pub fn get_asym_key_size(&self) -> u16 {
-        self.negotiate_info.base_asym_sel.get_size()
+    pub fn get_asym_sig_size(&self) -> u16 {
+        if self.negotiate_info.pqc_asym_sel != SpdmPqcAsymAlgo::empty() {
+            self.negotiate_info.pqc_asym_sel.get_sig_size()
+        } else {
+            self.negotiate_info.base_asym_sel.get_sig_size()
+        }
     }
     pub fn get_req_key_exchange_size(&self) -> u16 {
         if self.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
@@ -1476,19 +1480,19 @@ pub const MAX_MANAGED_BUFFER_A_SIZE: usize = 150 + 2 * 255; // for version respo
 pub const MAX_MANAGED_BUFFER_B_SIZE: usize =
     24 + SPDM_MAX_HASH_SIZE * SPDM_MAX_SLOT_NUMBER + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE;
 pub const MAX_MANAGED_BUFFER_C_SIZE: usize =
-    78 + SPDM_MAX_HASH_SIZE * 2 + SPDM_MAX_ASYM_KEY_SIZE + MAX_SPDM_OPAQUE_SIZE;
+    78 + SPDM_MAX_HASH_SIZE * 2 + SPDM_MAX_ASYM_SIG_SIZE + MAX_SPDM_OPAQUE_SIZE;
 pub const MAX_MANAGED_BUFFER_M_SIZE: usize = 47
     + SPDM_NONCE_SIZE
     + config::MAX_SPDM_MEASUREMENT_RECORD_SIZE
-    + SPDM_MAX_ASYM_KEY_SIZE
+    + SPDM_MAX_ASYM_SIG_SIZE
     + MAX_SPDM_OPAQUE_SIZE;
 pub const MAX_MANAGED_BUFFER_K_SIZE: usize = 84
     + SPDM_MAX_REQ_KEY_EXCHANGE_SIZE
     + SPDM_MAX_RSP_KEY_EXCHANGE_SIZE
     + SPDM_MAX_HASH_SIZE * 2
-    + SPDM_MAX_ASYM_KEY_SIZE
+    + SPDM_MAX_ASYM_SIG_SIZE
     + MAX_SPDM_OPAQUE_SIZE * 2;
-pub const MAX_MANAGED_BUFFER_F_SIZE: usize = 8 + SPDM_MAX_HASH_SIZE * 2 + SPDM_MAX_ASYM_KEY_SIZE;
+pub const MAX_MANAGED_BUFFER_F_SIZE: usize = 8 + SPDM_MAX_HASH_SIZE * 2 + SPDM_MAX_ASYM_SIG_SIZE;
 pub const MAX_MANAGED_BUFFER_M1M2_SIZE: usize =
     MAX_MANAGED_BUFFER_A_SIZE + MAX_MANAGED_BUFFER_B_SIZE + MAX_MANAGED_BUFFER_C_SIZE;
 pub const MAX_MANAGED_BUFFER_L1L2_SIZE: usize =

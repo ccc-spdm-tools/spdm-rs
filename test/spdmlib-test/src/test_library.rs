@@ -63,11 +63,11 @@ fn test_case0_spdm_digest_struct() {
 }
 #[test]
 fn test_case0_spdm_signature_struct() {
-    let u8_slice = &mut [0u8; SPDM_MAX_ASYM_KEY_SIZE];
+    let u8_slice = &mut [0u8; RSASSA_4096_SIG_SIZE];
     let mut writer = Writer::init(u8_slice);
     let value = SpdmSignatureStruct {
-        data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
-        data: [100u8; SPDM_MAX_ASYM_KEY_SIZE],
+        data_size: RSASSA_4096_SIG_SIZE as u16,
+        data: [100u8; SPDM_MAX_ASYM_SIG_SIZE],
     };
 
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
@@ -77,10 +77,10 @@ fn test_case0_spdm_signature_struct() {
 
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);
-    assert_eq!(SPDM_MAX_ASYM_KEY_SIZE, reader.left());
+    assert_eq!(RSASSA_4096_SIG_SIZE, reader.left());
     let spdm_signature_struct = SpdmSignatureStruct::spdm_read(&mut context, &mut reader).unwrap();
-    assert_eq!(spdm_signature_struct.data_size, RSASSA_4096_KEY_SIZE as u16);
-    for i in 0..RSASSA_4096_KEY_SIZE {
+    assert_eq!(spdm_signature_struct.data_size, RSASSA_4096_SIG_SIZE as u16);
+    for i in 0..RSASSA_4096_SIG_SIZE {
         assert_eq!(spdm_signature_struct.data[i], 100);
     }
 }

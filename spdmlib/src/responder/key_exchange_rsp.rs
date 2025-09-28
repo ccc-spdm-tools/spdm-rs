@@ -371,8 +371,8 @@ impl ResponderContext {
                 measurement_summary_hash,
                 opaque: return_opaque,
                 signature: SpdmSignatureStruct {
-                    data_size: self.common.negotiate_info.base_asym_sel.get_size(),
-                    data: [0xbb; SPDM_MAX_ASYM_KEY_SIZE],
+                    data_size: self.common.negotiate_info.base_asym_sel.get_sig_size(),
+                    data: [0xbb; SPDM_MAX_ASYM_SIG_SIZE],
                 },
                 verify_data: SpdmDigestStruct {
                     data_size: self.common.negotiate_info.base_hash_sel.get_size(),
@@ -392,7 +392,7 @@ impl ResponderContext {
         let used = writer.used();
 
         // generate signature
-        let base_asym_size = self.common.negotiate_info.base_asym_sel.get_size() as usize;
+        let base_asym_size = self.common.negotiate_info.base_asym_sel.get_sig_size() as usize;
         let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
         let temp_used = if in_clear_text {
             used - base_asym_size
