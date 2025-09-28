@@ -267,8 +267,8 @@ impl ResponderContext {
             .measurement_attributes
             .contains(SpdmMeasurementAttributes::SIGNATURE_REQUESTED)
         {
-            let base_asym_size = self.common.get_asym_sig_size() as usize;
-            let temp_used = used - base_asym_size;
+            let signature_size = self.common.get_asym_sig_size() as usize;
+            let temp_used = used - signature_size;
 
             if self
                 .common
@@ -292,7 +292,7 @@ impl ResponderContext {
             }
             let signature = signature.unwrap();
             // patch the message before send
-            writer.mut_used_slice()[(used - base_asym_size)..used]
+            writer.mut_used_slice()[(used - signature_size)..used]
                 .copy_from_slice(signature.as_ref());
 
             self.common.reset_message_m(session_id);

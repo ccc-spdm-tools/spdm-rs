@@ -392,12 +392,12 @@ impl ResponderContext {
         let used = writer.used();
 
         // generate signature
-        let base_asym_size = self.common.get_asym_sig_size() as usize;
+        let signature_size = self.common.get_asym_sig_size() as usize;
         let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
         let temp_used = if in_clear_text {
-            used - base_asym_size
+            used - signature_size
         } else {
-            used - base_asym_size - base_hash_size
+            used - signature_size - base_hash_size
         };
 
         if self
@@ -549,7 +549,7 @@ impl ResponderContext {
 
             // patch the message before send
             writer.mut_used_slice()
-                [(used - base_hash_size - base_asym_size)..(used - base_hash_size)]
+                [(used - base_hash_size - signature_size)..(used - base_hash_size)]
                 .copy_from_slice(signature.as_ref());
             writer.mut_used_slice()[(used - base_hash_size)..used].copy_from_slice(hmac.as_ref());
         }

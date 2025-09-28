@@ -296,13 +296,13 @@ impl RequesterContext {
                             session.runtime_info.req_cert_hash = None;
 
                             // create transcript
-                            let base_asym_size = self.common.get_asym_sig_size() as usize;
+                            let signature_size = self.common.get_asym_sig_size() as usize;
                             let base_hash_size =
                                 self.common.negotiate_info.base_hash_sel.get_size() as usize;
                             let temp_receive_used = if in_clear_text {
-                                receive_used - base_asym_size
+                                receive_used - signature_size
                             } else {
-                                receive_used - base_asym_size - base_hash_size
+                                receive_used - signature_size - base_hash_size
                             };
 
                             self.common.append_message_k(session_id, send_buffer)?;
