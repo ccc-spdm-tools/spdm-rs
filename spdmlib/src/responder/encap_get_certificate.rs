@@ -184,9 +184,7 @@ impl ResponderContext {
             .peer_cert_chain_temp
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
-        if peer_cert_chain.data_size
-            <= (4 + self.common.negotiate_info.base_hash_sel.get_size() as u32)
-        {
+        if peer_cert_chain.data_size <= (4 + self.common.get_hash_size() as u32) {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
@@ -198,13 +196,10 @@ impl ResponderContext {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let data_size = peer_cert_chain.data_size
-            - 4
-            - self.common.negotiate_info.base_hash_sel.get_size() as u32;
+        let data_size = peer_cert_chain.data_size - 4 - self.common.get_hash_size() as u32;
         let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
         data[0..(data_size as usize)].copy_from_slice(
-            &peer_cert_chain.data[(4usize
-                + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+            &peer_cert_chain.data[(4usize + self.common.get_hash_size() as usize)
                 ..(peer_cert_chain.data_size as usize)],
         );
         let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
@@ -240,8 +235,7 @@ impl ResponderContext {
                 return Err(SPDM_STATUS_CRYPTO_ERROR);
             };
             if root_hash.data[..(root_hash.data_size as usize)]
-                != peer_cert_chain.data[4usize
-                    ..(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)]
+                != peer_cert_chain.data[4usize..(4usize + self.common.get_hash_size() as usize)]
             {
                 error!("root_hash - fail!\n");
                 return Err(SPDM_STATUS_INVALID_CERT);

@@ -41,9 +41,6 @@ fn test_digest_struct_case2() {
     u8_slice[3] = 0xcf;
     let mut reader = Reader::init(&u8_slice[2..]);
     let ret = SpdmDigestsResponsePayload::spdm_read(&mut context, &mut reader);
-    assert_eq!(
-        reader.used() + 2,
-        4 + context.negotiate_info.base_hash_sel.get_size() as usize * 6
-    );
+    assert_eq!(reader.used() + 2, 4 + context.get_hash_size() as usize * 6);
     assert!(ret.is_some());
 }

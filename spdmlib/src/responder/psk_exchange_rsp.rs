@@ -285,7 +285,7 @@ impl ResponderContext {
                 },
                 opaque: return_opaque,
                 verify_data: SpdmDigestStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.get_hash_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
             }),
@@ -301,7 +301,7 @@ impl ResponderContext {
         }
         let used = writer.used();
 
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.get_hash_size() as usize;
         let temp_used = used - base_hash_size;
 
         if self

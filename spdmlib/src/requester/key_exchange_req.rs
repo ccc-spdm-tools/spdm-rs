@@ -297,8 +297,7 @@ impl RequesterContext {
 
                             // create transcript
                             let signature_size = self.common.get_asym_sig_size() as usize;
-                            let base_hash_size =
-                                self.common.negotiate_info.base_hash_sel.get_size() as usize;
+                            let base_hash_size = self.common.get_hash_size() as usize;
                             let temp_receive_used = if in_clear_text {
                                 receive_used - signature_size
                             } else {
@@ -470,7 +469,7 @@ impl RequesterContext {
         let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize + self.common.get_hash_size() as usize)
             ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
@@ -527,7 +526,7 @@ impl RequesterContext {
         let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize + self.common.get_hash_size() as usize)
             ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?

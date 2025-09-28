@@ -375,7 +375,7 @@ impl ResponderContext {
                     data: [0xbb; SPDM_MAX_ASYM_SIG_SIZE],
                 },
                 verify_data: SpdmDigestStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.get_hash_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
             }),
@@ -393,7 +393,7 @@ impl ResponderContext {
 
         // generate signature
         let signature_size = self.common.get_asym_sig_size() as usize;
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.get_hash_size() as usize;
         let temp_used = if in_clear_text {
             used - signature_size
         } else {

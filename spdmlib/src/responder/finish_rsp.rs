@@ -162,7 +162,7 @@ impl ResponderContext {
         }
 
         // verify HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.get_hash_size() as usize;
 
         {
             let session = if let Some(session) = self.common.get_session_via_id(session_id) {
@@ -253,11 +253,7 @@ impl ResponderContext {
             },
             payload: SpdmMessagePayload::SpdmFinishResponse(SpdmFinishResponsePayload {
                 verify_data: SpdmDigestStruct {
-                    data_size: (self as &ResponderContext)
-                        .common
-                        .negotiate_info
-                        .base_hash_sel
-                        .get_size(),
+                    data_size: (self as &ResponderContext).common.get_hash_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
                 opaque: SpdmOpaqueStruct {
@@ -403,7 +399,7 @@ impl ResponderContext {
         let peer_cert = &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize + self.common.get_hash_size() as usize)
             ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
@@ -448,7 +444,7 @@ impl ResponderContext {
         let peer_cert = &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
             .as_ref()
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize + self.common.get_hash_size() as usize)
             ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
