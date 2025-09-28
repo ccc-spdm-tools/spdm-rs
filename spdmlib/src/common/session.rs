@@ -39,6 +39,7 @@ impl Default for SpdmSessionState {
 pub struct SpdmSessionCryptoParam {
     pub base_hash_algo: SpdmBaseHashAlgo,
     pub dhe_algo: SpdmDheAlgo,
+    pub kem_algo: SpdmKemAlgo,
     pub aead_algo: SpdmAeadAlgo,
     pub key_schedule_algo: SpdmKeyScheduleAlgo,
 }
@@ -48,6 +49,7 @@ impl Codec for SpdmSessionCryptoParam {
         let mut size = 0;
         size += self.base_hash_algo.encode(writer)?;
         size += self.dhe_algo.encode(writer)?;
+        size += self.kem_algo.encode(writer)?;
         size += self.aead_algo.encode(writer)?;
         size += self.key_schedule_algo.encode(writer)?;
         Ok(size)
@@ -57,6 +59,7 @@ impl Codec for SpdmSessionCryptoParam {
         Some(Self {
             base_hash_algo: SpdmBaseHashAlgo::read(reader)?,
             dhe_algo: SpdmDheAlgo::read(reader)?,
+            kem_algo: SpdmKemAlgo::read(reader)?,
             aead_algo: SpdmAeadAlgo::read(reader)?,
             key_schedule_algo: SpdmKeyScheduleAlgo::read(reader)?,
         })
@@ -614,11 +617,13 @@ impl SpdmSession {
         &mut self,
         base_hash_algo: SpdmBaseHashAlgo,
         dhe_algo: SpdmDheAlgo,
+        kem_algo: SpdmKemAlgo,
         aead_algo: SpdmAeadAlgo,
         key_schedule_algo: SpdmKeyScheduleAlgo,
     ) {
         self.crypto_param.base_hash_algo = base_hash_algo;
         self.crypto_param.dhe_algo = dhe_algo;
+        self.crypto_param.kem_algo = kem_algo;
         self.crypto_param.aead_algo = aead_algo;
         self.crypto_param.key_schedule_algo = key_schedule_algo;
     }
@@ -1460,6 +1465,7 @@ mod tests_session {
         session.set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -1527,6 +1533,7 @@ mod tests_session {
         session.set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -1594,6 +1601,7 @@ mod tests_session {
         session.set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -1662,6 +1670,7 @@ mod tests_session {
         session.set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -1751,6 +1760,7 @@ mod tests_session {
         session.set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -1800,6 +1810,7 @@ mod tests_session {
         session.set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );

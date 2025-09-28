@@ -269,6 +269,7 @@ impl ResponderContext {
         // create session structure
         let hash_algo = self.common.negotiate_info.base_hash_sel;
         let dhe_algo = self.common.negotiate_info.dhe_sel;
+        let kem_algo = self.common.negotiate_info.kem_sel;
         let aead_algo = self.common.negotiate_info.aead_sel;
         let key_schedule_algo = self.common.negotiate_info.key_schedule_sel;
         let sequence_number_count = {
@@ -316,7 +317,7 @@ impl ResponderContext {
         session.setup(session_id).unwrap();
         session.set_use_psk(false);
         session.set_slot_id(slot_id as u8);
-        session.set_crypto_param(hash_algo, dhe_algo, aead_algo, key_schedule_algo);
+        session.set_crypto_param(hash_algo, dhe_algo, kem_algo, aead_algo, key_schedule_algo);
         session.set_mut_auth_requested(mut_auth_req);
         session.set_transport_param(sequence_number_count, max_random_count);
         if session

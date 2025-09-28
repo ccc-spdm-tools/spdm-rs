@@ -252,6 +252,7 @@ fn test_case0_receive_secured_message() {
         responder.common.session[0].set_crypto_param(
             protocol::SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             protocol::SpdmDheAlgo::SECP_384_R1,
+            protocol::SpdmKemAlgo::empty(),
             protocol::SpdmAeadAlgo::AES_256_GCM,
             protocol::SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -307,6 +308,7 @@ fn test_case0_receive_secured_message() {
         requester.common.session[0].set_crypto_param(
             protocol::SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             protocol::SpdmDheAlgo::SECP_384_R1,
+            protocol::SpdmKemAlgo::empty(),
             protocol::SpdmAeadAlgo::AES_256_GCM,
             protocol::SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
