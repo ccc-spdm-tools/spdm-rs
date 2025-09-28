@@ -48,11 +48,12 @@ fn test_case0_send_receive_spdm_key_update() {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         responder.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = responder.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = responder.common.session[0]
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = responder.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
@@ -93,11 +94,12 @@ fn test_case0_send_receive_spdm_key_update() {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         requester.common.session[0].set_session_state(SpdmSessionState::SpdmSessionEstablished);
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = requester.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = requester.common.session[0]
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = requester.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {

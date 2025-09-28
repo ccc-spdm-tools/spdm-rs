@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 
 use crate::crypto::bytes_mut_scrubbed::BytesMutStrubbed;
 use crate::crypto::{SpdmDhe, SpdmDheKeyExchange};
-use crate::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmDheFinalKeyStruct};
+use crate::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmSharedSecretFinalKeyStruct};
 use bytes::{BufMut, BytesMut};
 
 pub static DEFAULT: SpdmDhe = SpdmDhe {
@@ -30,7 +30,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP256 {
     fn compute_final_key(
         self: Box<Self>,
         peer_pub_key: &SpdmDheExchangeStruct,
-    ) -> Option<SpdmDheFinalKeyStruct> {
+    ) -> Option<SpdmSharedSecretFinalKeyStruct> {
         let mut pubkey = BytesMutStrubbed::new();
         pubkey.put_u8(0x4u8);
         pubkey.extend_from_slice(peer_pub_key.as_ref());
@@ -43,7 +43,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP256 {
                 final_key.extend_from_slice(key_material);
             });
         match agree_ephemeral_result {
-            Ok(()) => Some(SpdmDheFinalKeyStruct::from(final_key)),
+            Ok(()) => Some(SpdmSharedSecretFinalKeyStruct::from(final_key)),
             Err(_) => None,
         }
     }
@@ -70,7 +70,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP384 {
     fn compute_final_key(
         self: Box<Self>,
         peer_pub_key: &SpdmDheExchangeStruct,
-    ) -> Option<SpdmDheFinalKeyStruct> {
+    ) -> Option<SpdmSharedSecretFinalKeyStruct> {
         let mut pubkey = BytesMut::new();
         pubkey.put_u8(0x4u8);
         pubkey.extend_from_slice(peer_pub_key.as_ref());
@@ -83,7 +83,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP384 {
                 final_key.extend_from_slice(key_material);
             });
         match agree_ephemeral_result {
-            Ok(()) => Some(SpdmDheFinalKeyStruct::from(final_key)),
+            Ok(()) => Some(SpdmSharedSecretFinalKeyStruct::from(final_key)),
             Err(_) => None,
         }
     }

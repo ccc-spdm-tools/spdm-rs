@@ -319,7 +319,10 @@ impl ResponderContext {
         session.set_crypto_param(hash_algo, dhe_algo, aead_algo, key_schedule_algo);
         session.set_mut_auth_requested(mut_auth_req);
         session.set_transport_param(sequence_number_count, max_random_count);
-        if session.set_dhe_secret(spdm_version_sel, final_key).is_err() {
+        if session
+            .set_shared_secret(spdm_version_sel, final_key)
+            .is_err()
+        {
             session.teardown();
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));

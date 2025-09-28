@@ -47,11 +47,12 @@ fn test_case0_handle_spdm_key_update() {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = context.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ =
+            context.common.session[0].set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = context.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
@@ -123,11 +124,12 @@ fn test_case1_handle_spdm_key_update() {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         context.common.session[0].set_session_state(SpdmSessionState::SpdmSessionHandshaking);
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = context.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ =
+            context.common.session[0].set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = context.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {

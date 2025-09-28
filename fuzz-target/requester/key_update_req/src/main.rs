@@ -46,10 +46,10 @@ async fn fuzz_send_receive_spdm_key_update(data: Arc<Vec<u8>>) {
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
 
-        let mut dhe_secret = SpdmDheFinalKeyStruct::default();
-        dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+        let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
+        shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
         requester.common.session[0]
-            .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
             .unwrap();
         let digest = [0xFF; SPDM_MAX_HASH_SIZE];
         let digest_struct = SpdmDigestStruct::from(digest.as_ref());

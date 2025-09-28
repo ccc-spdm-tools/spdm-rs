@@ -256,11 +256,11 @@ fn test_case0_receive_secured_message() {
             protocol::SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         assert!(responder.common.session[0]
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());
@@ -311,11 +311,11 @@ fn test_case0_receive_secured_message() {
             protocol::SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
         assert!(requester.common.session[0]
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());

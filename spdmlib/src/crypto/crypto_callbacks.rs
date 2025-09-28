@@ -9,8 +9,8 @@ use alloc::boxed::Box;
 
 use crate::protocol::{
     SpdmAeadAlgo, SpdmAeadIvStruct, SpdmAeadKeyStruct, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
-    SpdmDheAlgo, SpdmDheExchangeStruct, SpdmDheFinalKeyStruct, SpdmDigestStruct,
-    SpdmHkdfInputKeyingMaterial, SpdmHkdfOutputKeyingMaterial, SpdmHkdfPseudoRandomKey,
+    SpdmDheAlgo, SpdmDheExchangeStruct, SpdmDigestStruct, SpdmHkdfInputKeyingMaterial,
+    SpdmHkdfOutputKeyingMaterial, SpdmHkdfPseudoRandomKey, SpdmSharedSecretFinalKeyStruct,
     SpdmSignatureStruct,
 };
 
@@ -118,7 +118,7 @@ pub trait SpdmDheKeyExchange {
     fn compute_final_key(
         self: Box<Self>,
         peer_pub_key: &SpdmDheExchangeStruct,
-    ) -> Option<SpdmDheFinalKeyStruct>;
+    ) -> Option<SpdmSharedSecretFinalKeyStruct>;
 }
 
 #[derive(Clone)]

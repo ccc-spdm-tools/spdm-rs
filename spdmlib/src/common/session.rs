@@ -64,16 +64,16 @@ impl Codec for SpdmSessionCryptoParam {
 }
 
 #[derive(Debug, Clone, Default, Zeroize, ZeroizeOnDrop, Eq, PartialEq)]
-pub struct SpdmSessionDheSecretRoot {
-    pub dhe_secret: SpdmDheFinalKeyStruct,
+pub struct SpdmSessionSharedSecretRoot {
+    pub shared_secret: SpdmSharedSecretFinalKeyStruct,
     pub handshake_secret: SpdmHandshakeSecretStruct,
     pub master_secret: SpdmMasterSecretStruct,
 }
 
-impl Codec for SpdmSessionDheSecretRoot {
+impl Codec for SpdmSessionSharedSecretRoot {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
-        size += self.dhe_secret.encode(writer)?;
+        size += self.shared_secret.encode(writer)?;
         size += self.handshake_secret.encode(writer)?;
         size += self.master_secret.encode(writer)?;
         Ok(size)
@@ -81,7 +81,7 @@ impl Codec for SpdmSessionDheSecretRoot {
 
     fn read(reader: &mut Reader) -> Option<Self> {
         Some(Self {
-            dhe_secret: SpdmDheFinalKeyStruct::read(reader)?,
+            shared_secret: SpdmSharedSecretFinalKeyStruct::read(reader)?,
             handshake_secret: SpdmHandshakeSecretStruct::read(reader)?,
             master_secret: SpdmMasterSecretStruct::read(reader)?,
         })
@@ -395,7 +395,7 @@ pub struct SpdmSession {
     mut_auth_requested: SpdmKeyExchangeMutAuthAttributes,
     session_state: SpdmSessionState,
     crypto_param: SpdmSessionCryptoParam,
-    dhe_secret_root: SpdmSessionDheSecretRoot,
+    shared_secret_root: SpdmSessionSharedSecretRoot,
     handshake_secret: SpdmSessionHandshakeSecret,
     application_secret: SpdmSessionApplicationSecret,
     application_secret_backup: SpdmSessionApplicationSecret,
@@ -423,7 +423,7 @@ impl Codec for SpdmSession {
         size += self.mut_auth_requested.encode(writer)?;
         size += self.session_state.encode(writer)?;
         size += self.crypto_param.encode(writer)?;
-        size += self.dhe_secret_root.encode(writer)?;
+        size += self.shared_secret_root.encode(writer)?;
         size += self.handshake_secret.encode(writer)?;
         size += self.application_secret.encode(writer)?;
         size += self.application_secret_backup.encode(writer)?;
@@ -445,7 +445,7 @@ impl Codec for SpdmSession {
             mut_auth_requested: SpdmKeyExchangeMutAuthAttributes::read(reader)?,
             session_state: SpdmSessionState::read(reader)?,
             crypto_param: SpdmSessionCryptoParam::read(reader)?,
-            dhe_secret_root: SpdmSessionDheSecretRoot::read(reader)?,
+            shared_secret_root: SpdmSessionSharedSecretRoot::read(reader)?,
             handshake_secret: SpdmSessionHandshakeSecret::read(reader)?,
             application_secret: SpdmSessionApplicationSecret::read(reader)?,
             application_secret_backup: SpdmSessionApplicationSecret::read(reader)?,
@@ -468,7 +468,7 @@ impl SpdmSession {
             use_psk: false,
             session_state: SpdmSessionState::default(),
             crypto_param: SpdmSessionCryptoParam::default(),
-            dhe_secret_root: SpdmSessionDheSecretRoot::default(),
+            shared_secret_root: SpdmSessionSharedSecretRoot::default(),
             handshake_secret: SpdmSessionHandshakeSecret::default(),
             application_secret: SpdmSessionApplicationSecret::default(),
             application_secret_backup: SpdmSessionApplicationSecret::default(),
@@ -513,7 +513,7 @@ impl SpdmSession {
         self.use_psk = false;
         self.session_state = SpdmSessionState::default();
         self.crypto_param = SpdmSessionCryptoParam::default();
-        self.dhe_secret_root = SpdmSessionDheSecretRoot::default();
+        self.shared_secret_root = SpdmSessionSharedSecretRoot::default();
         self.handshake_secret = SpdmSessionHandshakeSecret::default();
         self.application_secret = SpdmSessionApplicationSecret::default();
         self.application_secret_backup = SpdmSessionApplicationSecret::default();
@@ -563,18 +563,18 @@ impl SpdmSession {
         self.slot_id
     }
 
-    pub fn set_dhe_secret(
+    pub fn set_shared_secret(
         &mut self,
         spdm_version: SpdmVersion,
-        dhe_secret: SpdmDheFinalKeyStruct,
+        shared_secret: SpdmSharedSecretFinalKeyStruct,
     ) -> SpdmResult {
-        self.dhe_secret_root.dhe_secret = dhe_secret; // take the ownership here!
+        self.shared_secret_root.shared_secret = shared_secret; // take the ownership here!
 
-        // generate dhe_secret_root.handshake_secret and dhe_secret_root.master_secret
+        // generate shared_secret_root.handshake_secret and shared_secret_root.master_secret
         let handshake_secret = if let Some(hs) = self.key_schedule.derive_handshake_secret(
             spdm_version,
             self.crypto_param.base_hash_algo,
-            &self.dhe_secret_root.dhe_secret,
+            &self.shared_secret_root.shared_secret,
         ) {
             hs
         } else {
@@ -591,16 +591,16 @@ impl SpdmSession {
             return Err(SPDM_STATUS_CRYPTO_ERROR);
         };
 
-        self.dhe_secret_root.handshake_secret = handshake_secret;
-        self.dhe_secret_root.master_secret = master_secret;
+        self.shared_secret_root.handshake_secret = handshake_secret;
+        self.shared_secret_root.master_secret = master_secret;
 
         debug!(
             "!!! handshake_secret !!!: {:02x?}\n",
-            self.dhe_secret_root.handshake_secret.as_ref()
+            self.shared_secret_root.handshake_secret.as_ref()
         );
         debug!(
             "!!! master_secret !!!: {:02x?}\n",
-            self.dhe_secret_root.master_secret.as_ref()
+            self.shared_secret_root.master_secret.as_ref()
         );
 
         Ok(())
@@ -662,7 +662,7 @@ impl SpdmSession {
                 if self.use_psk {
                     None
                 } else {
-                    Some(&self.dhe_secret_root.handshake_secret)
+                    Some(&self.shared_secret_root.handshake_secret)
                 },
                 self.runtime_info.psk_hint.as_ref(),
                 th1.as_ref(),
@@ -683,7 +683,7 @@ impl SpdmSession {
                 if self.use_psk {
                     None
                 } else {
-                    Some(&self.dhe_secret_root.handshake_secret)
+                    Some(&self.shared_secret_root.handshake_secret)
                 },
                 self.runtime_info.psk_hint.as_ref(),
                 th1.as_ref(),
@@ -799,7 +799,7 @@ impl SpdmSession {
                 if self.use_psk {
                     None
                 } else {
-                    Some(&self.dhe_secret_root.master_secret)
+                    Some(&self.shared_secret_root.master_secret)
                 },
                 self.runtime_info.psk_hint.as_ref(),
                 th2.as_ref(),
@@ -816,7 +816,7 @@ impl SpdmSession {
                 if self.use_psk {
                     None
                 } else {
-                    Some(&self.dhe_secret_root.master_secret)
+                    Some(&self.shared_secret_root.master_secret)
                 },
                 self.runtime_info.psk_hint.as_ref(),
                 th2.as_ref(),
@@ -892,7 +892,7 @@ impl SpdmSession {
                 if self.use_psk {
                     None
                 } else {
-                    Some(&self.dhe_secret_root.master_secret)
+                    Some(&self.shared_secret_root.master_secret)
                 },
                 self.runtime_info.psk_hint.as_ref(),
             ) {
@@ -1466,11 +1466,11 @@ mod tests_session {
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
         std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());
@@ -1533,11 +1533,11 @@ mod tests_session {
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
         std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());
@@ -1600,11 +1600,11 @@ mod tests_session {
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
         std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());
@@ -1668,11 +1668,11 @@ mod tests_session {
         session.set_session_state(crate::common::session::SpdmSessionState::SpdmSessionHandshaking);
         std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());
@@ -1807,11 +1807,11 @@ mod tests_session {
         session.transport_param.sequence_number_count = 1;
         std::println!("session.session_id::{:?}", session.session_id);
         assert!(session
-            .set_dhe_secret(
+            .set_shared_secret(
                 SpdmVersion::SpdmVersion12,
-                SpdmDheFinalKeyStruct {
+                SpdmSharedSecretFinalKeyStruct {
                     data_size: 5,
-                    data: Box::new([100u8; SPDM_MAX_DHE_KEY_SIZE])
+                    data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE])
                 }
             )
             .is_ok());

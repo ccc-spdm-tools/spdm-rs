@@ -55,12 +55,12 @@ impl SpdmKeySchedule {
         &self,
         _spdm_version: SpdmVersion,
         hash_algo: SpdmBaseHashAlgo,
-        key: &SpdmDheFinalKeyStruct,
+        key: &SpdmSharedSecretFinalKeyStruct,
     ) -> Option<SpdmHandshakeSecretStruct> {
         let prk = crypto::hkdf::hkdf_extract(
             hash_algo,
             &SALT_0[0..hash_algo.get_size() as usize],
-            &SpdmHkdfInputKeyingMaterial::SpdmDheFinalKey(key),
+            &SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(key),
         )?;
         SpdmHandshakeSecretStruct::from_spdm_hkdf_prk(prk)
     }

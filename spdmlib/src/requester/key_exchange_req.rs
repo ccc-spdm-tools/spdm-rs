@@ -285,7 +285,7 @@ impl RequesterContext {
                                 key_schedule_algo,
                             );
                             session.set_transport_param(sequence_number_count, max_random_count);
-                            session.set_dhe_secret(spdm_version_sel, final_key)?;
+                            session.set_shared_secret(spdm_version_sel, final_key)?;
                             session.runtime_info.message_a = message_a;
                             session.runtime_info.rsp_cert_hash = cert_chain_hash;
                             session.runtime_info.req_cert_hash = None;
