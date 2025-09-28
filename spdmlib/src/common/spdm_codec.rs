@@ -171,7 +171,7 @@ impl SpdmCodec for SpdmDheExchangeStruct {
         Ok(self.data_size as usize)
     }
     fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<SpdmDheExchangeStruct> {
-        let data_size = context.get_dhe_key_size();
+        let data_size = context.negotiate_info.dhe_sel.get_key_size();
         let mut data = [0u8; SPDM_MAX_DHE_KEY_SIZE];
         for d in data.iter_mut().take(data_size as usize) {
             *d = u8::read(r)?;
