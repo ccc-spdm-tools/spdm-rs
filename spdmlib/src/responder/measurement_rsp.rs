@@ -97,7 +97,7 @@ impl ResponderContext {
         let slot_id = get_measurements.slot_id as usize;
         let requester_context = get_measurements.context;
 
-        let signature_size = self.common.negotiate_info.base_asym_sel.get_sig_size();
+        let signature_size = self.common.get_asym_sig_size();
 
         if get_measurements
             .measurement_attributes
@@ -137,7 +137,6 @@ impl ResponderContext {
             self.common.negotiate_info.measurement_specification_sel;
         let runtime_content_change_support = self.common.config_info.runtime_content_change_support;
         let content_changed = self.common.runtime_info.content_changed;
-        let base_asym_sel = self.common.negotiate_info.base_asym_sel;
 
         if self
             .common
@@ -268,7 +267,7 @@ impl ResponderContext {
             .measurement_attributes
             .contains(SpdmMeasurementAttributes::SIGNATURE_REQUESTED)
         {
-            let base_asym_size = base_asym_sel.get_sig_size() as usize;
+            let base_asym_size = self.common.get_asym_sig_size() as usize;
             let temp_used = used - base_asym_size;
 
             if self
