@@ -232,13 +232,14 @@ impl ResponderContext {
             .runtime_info
             .set_local_used_cert_chain_slot_id(key_exchange_req.slot_id);
 
-        let (exchange, key_exchange_context) =
+        let (dhe_exchange, dhe_key_exchange_context) =
             if let Some(kp) = crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel) {
                 kp
             } else {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
             };
+        let exchange = SpdmRspExchangeStruct::from_dhe(dhe_exchange);
 
         debug!("!!! exchange data : {:02x?}\n", exchange);
 
@@ -247,7 +248,8 @@ impl ResponderContext {
             &key_exchange_req.exchange
         );
 
-        let final_key = key_exchange_context.compute_final_key(&key_exchange_req.exchange);
+        let dhe_exchange = key_exchange_req.exchange.to_dhe();
+        let final_key = dhe_key_exchange_context.compute_final_key(&dhe_exchange);
 
         if final_key.is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);

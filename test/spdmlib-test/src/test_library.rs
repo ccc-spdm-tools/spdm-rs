@@ -168,11 +168,11 @@ fn test_case1_spdm_measurement_record_structure() {
 }
 #[test]
 fn test_case0_spdm_dhe_exchange_struct() {
-    let u8_slice = &mut [0u8; SPDM_MAX_DHE_KEY_SIZE];
+    let u8_slice = &mut [0u8; SECP_384_R1_KEY_SIZE];
     let mut writer = Writer::init(u8_slice);
     SpdmDheExchangeStruct::default();
     let value = SpdmDheExchangeStruct {
-        data_size: SPDM_MAX_DHE_KEY_SIZE as u16,
+        data_size: SECP_384_R1_KEY_SIZE as u16,
         data: [100u8; SPDM_MAX_DHE_KEY_SIZE],
     };
 
@@ -183,14 +183,14 @@ fn test_case0_spdm_dhe_exchange_struct() {
 
     assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
     let mut reader = Reader::init(u8_slice);
-    assert_eq!(SPDM_MAX_DHE_KEY_SIZE, reader.left());
+    assert_eq!(SECP_384_R1_KEY_SIZE, reader.left());
     let spdm_dhe_exchange_struct =
         SpdmDheExchangeStruct::spdm_read(&mut context, &mut reader).unwrap();
     assert_eq!(
         spdm_dhe_exchange_struct.data_size,
-        ECDSA_ECC_NIST_P384_KEY_SIZE as u16
+        SECP_384_R1_KEY_SIZE as u16
     );
-    for i in 0..ECDSA_ECC_NIST_P384_KEY_SIZE {
+    for i in 0..SECP_384_R1_KEY_SIZE {
         assert_eq!(spdm_dhe_exchange_struct.data[i], 100);
     }
     assert_eq!(0, reader.left());

@@ -1257,9 +1257,9 @@ mod tests {
                 random: SpdmRandomStruct {
                     data: [100u8; SPDM_RANDOM_SIZE],
                 },
-                exchange: SpdmDheExchangeStruct {
-                    data_size: SPDM_MAX_DHE_KEY_SIZE as u16,
-                    data: [100u8; SPDM_MAX_DHE_KEY_SIZE],
+                exchange: SpdmReqExchangeStruct {
+                    data_size: SECP_384_R1_KEY_SIZE as u16,
+                    data: [100u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE],
                 },
                 opaque: SpdmOpaqueStruct {
                     data_size: MAX_SPDM_OPAQUE_SIZE as u16,
@@ -1284,11 +1284,8 @@ mod tests {
             for i in 0..SPDM_RANDOM_SIZE {
                 assert_eq!(payload.random.data[i], 100);
             }
-            assert_eq!(
-                payload.exchange.data_size,
-                ECDSA_ECC_NIST_P384_KEY_SIZE as u16
-            );
-            for i in 0..ECDSA_ECC_NIST_P384_KEY_SIZE {
+            assert_eq!(payload.exchange.data_size, SECP_384_R1_KEY_SIZE as u16);
+            for i in 0..SECP_384_R1_KEY_SIZE {
                 assert_eq!(payload.exchange.data[i], 100);
             }
             assert_eq!(payload.opaque.data_size, MAX_SPDM_OPAQUE_SIZE as u16);

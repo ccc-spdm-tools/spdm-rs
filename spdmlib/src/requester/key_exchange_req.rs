@@ -106,9 +106,10 @@ impl RequesterContext {
         let mut random = [0u8; SPDM_RANDOM_SIZE];
         crypto::rand::get_random(&mut random)?;
 
-        let (exchange, key_exchange_context) =
+        let (dhe_exchange, dhe_key_exchange_context) =
             crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel)
                 .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+        let exchange = SpdmReqExchangeStruct::from_dhe(dhe_exchange);
 
         debug!("!!! exchange data : {:02x?}\n", exchange);
 
@@ -146,7 +147,7 @@ impl RequesterContext {
             }),
         };
         request.spdm_encode(&mut self.common, &mut writer)?;
-        Ok((key_exchange_context, writer.used()))
+        Ok((dhe_key_exchange_context, writer.used()))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -157,7 +158,7 @@ impl RequesterContext {
         send_buffer: &[u8],
         receive_buffer: &[u8],
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
-        key_exchange_context: Box<dyn crypto::SpdmDheKeyExchange>,
+        dhe_key_exchange_context: Box<dyn crypto::SpdmDheKeyExchange>,
         target_session_id: &mut Option<u32>,
     ) -> SpdmResult {
         self.common.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
@@ -197,9 +198,11 @@ impl RequesterContext {
                                 &key_exchange_rsp.exchange
                             );
 
-                            let final_key = key_exchange_context
-                                .compute_final_key(&key_exchange_rsp.exchange)
-                                .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                            let dhe_exchange = key_exchange_rsp.exchange.to_dhe();
+                            let final_key: SpdmSharedSecretFinalKeyStruct =
+                                dhe_key_exchange_context
+                                    .compute_final_key(&dhe_exchange)
+                                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
 
                             debug!("!!! final_key : {:02x?}\n", final_key.as_ref());
 
