@@ -203,8 +203,7 @@ impl RequesterContext {
                             *content_changed = None;
                         }
 
-                        let base_asym_size =
-                            self.common.negotiate_info.base_asym_sel.get_sig_size() as usize;
+                        let base_asym_size = self.common.get_asym_sig_size() as usize;
                         let temp_used = used
                             - if self.common.runtime_info.need_measurement_signature {
                                 base_asym_size
