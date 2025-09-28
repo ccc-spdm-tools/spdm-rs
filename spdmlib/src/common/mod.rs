@@ -195,6 +195,13 @@ impl SpdmContext {
             self.negotiate_info.base_asym_sel.get_sig_size()
         }
     }
+    pub fn get_req_asym_sig_size(&self) -> u16 {
+        if self.negotiate_info.pqc_req_asym_sel != SpdmPqcReqAsymAlgo::empty() {
+            self.negotiate_info.pqc_req_asym_sel.get_sig_size()
+        } else {
+            self.negotiate_info.req_asym_sel.get_sig_size()
+        }
+    }
     pub fn get_req_key_exchange_size(&self) -> u16 {
         if self.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
             self.negotiate_info.kem_sel.get_encap_key_size()
