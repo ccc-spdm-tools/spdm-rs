@@ -69,7 +69,7 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         #[cfg(feature = "hashed-transcript-data")]
         {
             let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
-            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_key_size();
             context.common.session[0]
                 .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
@@ -138,7 +138,7 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         #[cfg(feature = "hashed-transcript-data")]
         {
             let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
-            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_key_size();
             context.common.session[0]
                 .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
@@ -207,7 +207,7 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         #[cfg(feature = "hashed-transcript-data")]
         {
             let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
-            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_key_size();
             context.common.session[0]
                 .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
@@ -275,7 +275,7 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         #[cfg(feature = "hashed-transcript-data")]
         {
             let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
-            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_key_size();
             context.common.session[0]
                 .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
@@ -350,7 +350,7 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
         #[cfg(feature = "hashed-transcript-data")]
         {
             let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
-            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_key_size();
             context.common.session[0]
                 .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
