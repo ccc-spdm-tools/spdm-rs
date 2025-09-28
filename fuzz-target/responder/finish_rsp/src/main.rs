@@ -67,10 +67,10 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            let mut dhe_secret = SpdmDheFinalKeyStruct::default();
-            dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
             context.common.session[0]
-                .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
+                .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
             context.common.session[0].runtime_info.digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
@@ -135,10 +135,10 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            let mut dhe_secret = SpdmDheFinalKeyStruct::default();
-            dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
             context.common.session[0]
-                .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
+                .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
             context.common.session[0].runtime_info.digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
@@ -203,10 +203,10 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            let mut dhe_secret = SpdmDheFinalKeyStruct::default();
-            dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
             context.common.session[0]
-                .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
+                .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
             context.common.session[0].runtime_info.digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
@@ -270,10 +270,10 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            let mut dhe_secret = SpdmDheFinalKeyStruct::default();
-            dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
             context.common.session[0]
-                .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
+                .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
             context.common.session[0].runtime_info.digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
@@ -344,10 +344,10 @@ async fn fuzz_handle_spdm_finish(data: Arc<Vec<u8>>) {
 
         #[cfg(feature = "hashed-transcript-data")]
         {
-            let mut dhe_secret = SpdmDheFinalKeyStruct::default();
-            dhe_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
+            let mut shared_secret = SpdmSharedSecretFinalKeyStruct::default();
+            shared_secret.data_size = SpdmDheAlgo::SECP_384_R1.get_size();
             context.common.session[0]
-                .set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret)
+                .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
                 .unwrap();
             context.common.session[0].runtime_info.digest_context_th =
                 spdmlib::crypto::hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_384);

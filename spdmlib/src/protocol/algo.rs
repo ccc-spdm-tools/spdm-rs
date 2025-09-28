@@ -26,6 +26,8 @@ pub const ECDSA_ECC_NIST_P384_KEY_SIZE: usize = 48 * 2;
 
 pub const SECP_256_R1_KEY_SIZE: usize = 32 * 2;
 pub const SECP_384_R1_KEY_SIZE: usize = 48 * 2;
+pub const SECP_256_R1_SHARED_SECRET_SIZE: usize = 32;
+pub const SECP_384_R1_SHARED_SECRET_SIZE: usize = 48;
 
 pub const AEAD_AES_128_GCM_KEY_SIZE: usize = 16;
 pub const AEAD_AES_256_GCM_KEY_SIZE: usize = 32;
@@ -65,6 +67,19 @@ pub const MLKEM_1024_ENCAP_KEY_SIZE: usize = 1568;
 pub const MLKEM_512_CIPHER_TEXT_SIZE: usize = 768;
 pub const MLKEM_768_CIPHER_TEXT_SIZE: usize = 1088;
 pub const MLKEM_1024_CIPHER_TEXT_SIZE: usize = 1568;
+
+pub const MLKEM_512_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM_768_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM_1024_SHARED_SECRET_SIZE: usize = 32;
+
+pub const SPDM_MAX_DHE_SHARED_SECRET_SIZE: usize = SECP_384_R1_SHARED_SECRET_SIZE;
+pub const SPDM_MAX_KEM_SHARED_SECRET_SIZE: usize = MLKEM_1024_SHARED_SECRET_SIZE;
+pub const SPDM_MAX_SHARED_SECRET_SIZE: usize =
+    if SPDM_MAX_DHE_SHARED_SECRET_SIZE > SPDM_MAX_KEM_SHARED_SECRET_SIZE {
+        SPDM_MAX_DHE_SHARED_SECRET_SIZE
+    } else {
+        SPDM_MAX_KEM_SHARED_SECRET_SIZE
+    };
 
 bitflags! {
     #[derive(Default)]
@@ -1662,7 +1677,7 @@ macro_rules! create_sensitive_datatype {
 }
 
 create_sensitive_datatype!(Name: SpdmDigestStruct, Size: SPDM_MAX_HASH_SIZE);
-create_sensitive_datatype!(Name: SpdmDheFinalKeyStruct, Size: SPDM_MAX_DHE_KEY_SIZE);
+create_sensitive_datatype!(Name: SpdmSharedSecretFinalKeyStruct, Size: SPDM_MAX_SHARED_SECRET_SIZE);
 create_sensitive_datatype!(Name: SpdmHandshakeSecretStruct, Size: SPDM_MAX_HASH_SIZE);
 create_sensitive_datatype!(
     Name: SpdmDirectionHandshakeSecretStruct,
@@ -1694,7 +1709,7 @@ pub enum SpdmMajorSecret<'a> {
 #[derive(Debug, Clone)]
 pub enum SpdmHkdfInputKeyingMaterial<'a> {
     SpdmZeroFilled(&'a SpdmZeroFilledStruct),
-    SpdmDheFinalKey(&'a SpdmDheFinalKeyStruct),
+    SpdmSharedSecretFinalKey(&'a SpdmSharedSecretFinalKeyStruct),
     SpdmHandshakeSecret(&'a SpdmHandshakeSecretStruct),
     SpdmDirectionHandshakeSecret(&'a SpdmDirectionHandshakeSecretStruct),
     SpdmFinishedKey(&'a SpdmFinishedKeyStruct),
@@ -1707,7 +1722,7 @@ impl AsRef<[u8]> for SpdmHkdfInputKeyingMaterial<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             SpdmHkdfInputKeyingMaterial::SpdmZeroFilled(inner) => inner.as_ref(),
-            SpdmHkdfInputKeyingMaterial::SpdmDheFinalKey(inner) => inner.as_ref(),
+            SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(inner) => inner.as_ref(),
             SpdmHkdfInputKeyingMaterial::SpdmHandshakeSecret(inner) => inner.as_ref(),
             SpdmHkdfInputKeyingMaterial::SpdmDirectionHandshakeSecret(inner) => inner.as_ref(),
             SpdmHkdfInputKeyingMaterial::SpdmDigest(inner) => inner.as_ref(),
@@ -1722,7 +1737,7 @@ impl SpdmHkdfInputKeyingMaterial<'_> {
     pub fn get_data_size(&self) -> u16 {
         match self {
             SpdmHkdfInputKeyingMaterial::SpdmZeroFilled(inner) => inner.data_size,
-            SpdmHkdfInputKeyingMaterial::SpdmDheFinalKey(inner) => inner.data_size,
+            SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(inner) => inner.data_size,
             SpdmHkdfInputKeyingMaterial::SpdmHandshakeSecret(inner) => inner.data_size,
             SpdmHkdfInputKeyingMaterial::SpdmDirectionHandshakeSecret(inner) => inner.data_size,
             SpdmHkdfInputKeyingMaterial::SpdmDigest(inner) => inner.data_size,
@@ -1982,7 +1997,7 @@ impl SpdmHkdfPseudoRandomKey {
                 SpdmHkdfInputKeyingMaterial::SpdmZeroFilled(inner) => prk.data
                     [..inner.data_size as usize]
                     .copy_from_slice(&inner.data[..inner.data_size as usize]),
-                SpdmHkdfInputKeyingMaterial::SpdmDheFinalKey(inner) => prk.data
+                SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(inner) => prk.data
                     [..inner.data_size as usize]
                     .copy_from_slice(&inner.data[..inner.data_size as usize]),
                 SpdmHkdfInputKeyingMaterial::SpdmHandshakeSecret(inner) => prk.data

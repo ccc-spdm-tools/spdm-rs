@@ -224,16 +224,16 @@ fn handshake_secret_hkdf_expand_impl(
         &SALT_0[0..base_hash_algo.get_size() as usize]
     };
 
-    let mut psk_key: SpdmDheFinalKeyStruct = SpdmDheFinalKeyStruct {
+    let mut psk_key: SpdmSharedSecretFinalKeyStruct = SpdmSharedSecretFinalKeyStruct {
         data_size: b"TestPskData\0".len() as u16,
-        data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+        data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
     };
     psk_key.data[0..(psk_key.data_size as usize)].copy_from_slice(b"TestPskData\0");
 
     let hs_sec = crypto::hkdf::hkdf_extract(
         base_hash_algo,
         salt0,
-        &SpdmHkdfInputKeyingMaterial::SpdmDheFinalKey(&psk_key),
+        &SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(&psk_key),
     )?;
     crypto::hkdf::hkdf_expand(base_hash_algo, &hs_sec, info, base_hash_algo.get_size())
 }
@@ -250,9 +250,9 @@ fn master_secret_hkdf_expand_impl(
         &SALT_0[0..base_hash_algo.get_size() as usize]
     };
 
-    let mut psk_key: SpdmDheFinalKeyStruct = SpdmDheFinalKeyStruct {
+    let mut psk_key: SpdmSharedSecretFinalKeyStruct = SpdmSharedSecretFinalKeyStruct {
         data_size: b"TestPskData\0".len() as u16,
-        data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+        data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
     };
     psk_key.data[0..(psk_key.data_size as usize)].copy_from_slice(b"TestPskData\0");
 
@@ -269,7 +269,7 @@ fn master_secret_hkdf_expand_impl(
     let hs_sec = crypto::hkdf::hkdf_extract(
         base_hash_algo,
         salt0,
-        &SpdmHkdfInputKeyingMaterial::SpdmDheFinalKey(&psk_key),
+        &SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(&psk_key),
     )?;
     let salt_1 =
         crypto::hkdf::hkdf_expand(base_hash_algo, &hs_sec, bin_str0, base_hash_algo.get_size())?;

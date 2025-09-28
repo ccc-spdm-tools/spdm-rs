@@ -102,11 +102,12 @@ fn test_case0_send_receive_spdm_finish() {
             crypto::hash::hash_ctx_init(responder.common.negotiate_info.base_hash_sel).unwrap(),
         );
 
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = responder.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = responder.common.session[0]
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = responder.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
@@ -178,11 +179,12 @@ fn test_case0_send_receive_spdm_finish() {
             crypto::hash::hash_ctx_init(requester.common.negotiate_info.base_hash_sel).unwrap(),
         );
 
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = requester.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = requester.common.session[0]
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = requester.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
@@ -271,12 +273,13 @@ fn test_case1_send_receive_spdm_finish() {
             crypto::hash::hash_ctx_init(responder.common.negotiate_info.base_hash_sel).unwrap(),
         );
 
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             // different dhe secret will cause finish fail
             data_size: 48,
-            data: Box::new([1; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([1; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = responder.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = responder.common.session[0]
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = responder.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {
@@ -335,11 +338,12 @@ fn test_case1_send_receive_spdm_finish() {
             crypto::hash::hash_ctx_init(requester.common.negotiate_info.base_hash_sel).unwrap(),
         );
 
-        let dhe_secret = SpdmDheFinalKeyStruct {
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
             data_size: 48,
-            data: Box::new([0; SPDM_MAX_DHE_KEY_SIZE]),
+            data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
         };
-        let _ = requester.common.session[0].set_dhe_secret(SpdmVersion::SpdmVersion12, dhe_secret);
+        let _ = requester.common.session[0]
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret);
         let _ = requester.common.session[0].generate_handshake_secret(
             SpdmVersion::SpdmVersion12,
             &SpdmDigestStruct {

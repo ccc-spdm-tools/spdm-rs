@@ -14,7 +14,7 @@ use mbedtls::rng::RngCallback;
 use mbedtls_sys::types::raw_types::{c_int, c_uchar, c_void};
 use mbedtls_sys::types::size_t;
 use spdmlib::crypto::{SpdmDhe, SpdmDheKeyExchange};
-use spdmlib::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmDheFinalKeyStruct};
+use spdmlib::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmSharedSecretFinalKeyStruct};
 pub static DEFAULT: SpdmDhe = SpdmDhe {
     generate_key_pair_cb: generate_key_pair,
 };
@@ -50,8 +50,8 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP256 {
     fn compute_final_key(
         mut self: Box<Self>,
         peer_pub_key: &SpdmDheExchangeStruct,
-    ) -> Option<SpdmDheFinalKeyStruct> {
-        let mut final_key = SpdmDheFinalKeyStruct::default();
+    ) -> Option<SpdmSharedSecretFinalKeyStruct> {
+        let mut final_key = SpdmSharedSecretFinalKeyStruct::default();
         let mut rng = RdRand;
         let secp256r1 = EcGroup::new(EcGroupId::SecP256R1).ok()?;
         let mut peer = Vec::new();
@@ -89,8 +89,8 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP384 {
     fn compute_final_key(
         mut self: Box<Self>,
         peer_pub_key: &SpdmDheExchangeStruct,
-    ) -> Option<SpdmDheFinalKeyStruct> {
-        let mut final_key = SpdmDheFinalKeyStruct::default();
+    ) -> Option<SpdmSharedSecretFinalKeyStruct> {
+        let mut final_key = SpdmSharedSecretFinalKeyStruct::default();
         let mut rng = RdRand;
         let secp384r1 = EcGroup::new(EcGroupId::SecP384R1).ok()?;
         let mut peer = Vec::new();
