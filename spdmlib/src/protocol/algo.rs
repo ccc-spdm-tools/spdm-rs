@@ -540,7 +540,7 @@ impl SpdmDheAlgo {
         }
         *self = SpdmDheAlgo::empty();
     }
-    pub fn get_size(&self) -> u16 {
+    pub fn get_key_size(&self) -> u16 {
         match *self {
             SpdmDheAlgo::SECP_256_R1 => SECP_256_R1_KEY_SIZE as u16,
             SpdmDheAlgo::SECP_384_R1 => SECP_384_R1_KEY_SIZE as u16,
@@ -2471,13 +2471,13 @@ mod tests {
     #[should_panic(expected = "invalid DheAlgo")]
     fn test_case1_spdm_dhe_algo() {
         let mut value = SpdmDheAlgo::SECP_256_R1;
-        assert_eq!(value.get_size(), SECP_256_R1_KEY_SIZE as u16);
+        assert_eq!(value.get_key_size(), SECP_256_R1_KEY_SIZE as u16);
 
         value = SpdmDheAlgo::SECP_384_R1;
-        assert_eq!(value.get_size(), SECP_384_R1_KEY_SIZE as u16);
+        assert_eq!(value.get_key_size(), SECP_384_R1_KEY_SIZE as u16);
 
         value = SpdmDheAlgo::empty();
-        value.get_size();
+        value.get_key_size();
     }
     #[test]
     #[should_panic(expected = "invalid AeadAlgo")]

@@ -192,20 +192,20 @@ impl SpdmContext {
         self.negotiate_info.base_asym_sel.get_size()
     }
     pub fn get_dhe_key_size(&self) -> u16 {
-        self.negotiate_info.dhe_sel.get_size()
+        self.negotiate_info.dhe_sel.get_key_size()
     }
     pub fn get_req_key_exchange_size(&self) -> u16 {
         if self.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
             self.negotiate_info.kem_sel.get_encap_key_size()
         } else {
-            self.negotiate_info.dhe_sel.get_size()
+            self.negotiate_info.dhe_sel.get_key_size()
         }
     }
     pub fn get_rsp_key_exchange_size(&self) -> u16 {
         if self.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
             self.negotiate_info.kem_sel.get_cipher_text_size()
         } else {
-            self.negotiate_info.dhe_sel.get_size()
+            self.negotiate_info.dhe_sel.get_key_size()
         }
     }
 
