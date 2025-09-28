@@ -68,6 +68,21 @@ pub const MLKEM_512_CIPHER_TEXT_SIZE: usize = 768;
 pub const MLKEM_768_CIPHER_TEXT_SIZE: usize = 1088;
 pub const MLKEM_1024_CIPHER_TEXT_SIZE: usize = 1568;
 
+pub const SPDM_MAX_KEM_ENCAP_KEY_SIZE: usize = MLKEM_1024_ENCAP_KEY_SIZE;
+pub const SPDM_MAX_KEM_CIPHER_TEXT_SIZE: usize = MLKEM_1024_CIPHER_TEXT_SIZE;
+pub const SPDM_MAX_REQ_KEY_EXCHANGE_SIZE: usize =
+    if SPDM_MAX_DHE_KEY_SIZE > SPDM_MAX_KEM_ENCAP_KEY_SIZE {
+        SPDM_MAX_DHE_KEY_SIZE
+    } else {
+        SPDM_MAX_KEM_ENCAP_KEY_SIZE
+    };
+pub const SPDM_MAX_RSP_KEY_EXCHANGE_SIZE: usize =
+    if SPDM_MAX_DHE_KEY_SIZE > SPDM_MAX_KEM_CIPHER_TEXT_SIZE {
+        SPDM_MAX_DHE_KEY_SIZE
+    } else {
+        SPDM_MAX_KEM_CIPHER_TEXT_SIZE
+    };
+
 pub const MLKEM_512_SHARED_SECRET_SIZE: usize = 32;
 pub const MLKEM_768_SHARED_SECRET_SIZE: usize = 32;
 pub const MLKEM_1024_SHARED_SECRET_SIZE: usize = 32;
@@ -1544,6 +1559,100 @@ impl From<BytesMut> for SpdmDheExchangeStruct {
         let mut data = [0u8; SPDM_MAX_DHE_KEY_SIZE];
         data[0..value.as_ref().len()].copy_from_slice(value.as_ref());
         Self { data_size, data }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SpdmReqExchangeStruct {
+    pub data_size: u16,
+    pub data: [u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE],
+}
+impl Default for SpdmReqExchangeStruct {
+    fn default() -> SpdmReqExchangeStruct {
+        SpdmReqExchangeStruct {
+            data_size: 0,
+            data: [0u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE],
+        }
+    }
+}
+
+impl AsRef<[u8]> for SpdmReqExchangeStruct {
+    fn as_ref(&self) -> &[u8] {
+        &self.data[0..(self.data_size as usize)]
+    }
+}
+
+impl From<BytesMut> for SpdmReqExchangeStruct {
+    fn from(value: BytesMut) -> Self {
+        assert!(value.as_ref().len() <= SPDM_MAX_REQ_KEY_EXCHANGE_SIZE);
+        let data_size = value.as_ref().len() as u16;
+        let mut data = [0u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE];
+        data[0..value.as_ref().len()].copy_from_slice(value.as_ref());
+        Self { data_size, data }
+    }
+}
+
+impl SpdmReqExchangeStruct {
+    pub fn from_dhe(dhe: SpdmDheExchangeStruct) -> Self {
+        assert!(dhe.data_size <= SPDM_MAX_REQ_KEY_EXCHANGE_SIZE as u16);
+        let data_size = dhe.data_size;
+        let mut data = [0u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE];
+        data[..(dhe.data_size as usize)].copy_from_slice(&dhe.data[..(dhe.data_size as usize)]);
+        Self { data_size, data }
+    }
+    pub fn to_dhe(self) -> SpdmDheExchangeStruct {
+        assert!(self.data_size <= SPDM_MAX_DHE_KEY_SIZE as u16);
+        let data_size = self.data_size;
+        let mut data = [0u8; SPDM_MAX_DHE_KEY_SIZE];
+        data[..(self.data_size as usize)].copy_from_slice(&self.data[..(self.data_size as usize)]);
+        SpdmDheExchangeStruct { data_size, data }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SpdmRspExchangeStruct {
+    pub data_size: u16,
+    pub data: [u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE],
+}
+impl Default for SpdmRspExchangeStruct {
+    fn default() -> SpdmRspExchangeStruct {
+        SpdmRspExchangeStruct {
+            data_size: 0,
+            data: [0u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE],
+        }
+    }
+}
+
+impl AsRef<[u8]> for SpdmRspExchangeStruct {
+    fn as_ref(&self) -> &[u8] {
+        &self.data[0..(self.data_size as usize)]
+    }
+}
+
+impl From<BytesMut> for SpdmRspExchangeStruct {
+    fn from(value: BytesMut) -> Self {
+        assert!(value.as_ref().len() <= SPDM_MAX_RSP_KEY_EXCHANGE_SIZE);
+        let data_size = value.as_ref().len() as u16;
+        let mut data = [0u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE];
+        data[0..value.as_ref().len()].copy_from_slice(value.as_ref());
+        Self { data_size, data }
+    }
+}
+
+impl SpdmRspExchangeStruct {
+    pub fn from_dhe(dhe: SpdmDheExchangeStruct) -> Self {
+        assert!(dhe.data_size <= SPDM_MAX_RSP_KEY_EXCHANGE_SIZE as u16);
+        let data_size = dhe.data_size;
+        let mut data = [0u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE];
+        data[..(dhe.data_size as usize)].copy_from_slice(&dhe.data[..(dhe.data_size as usize)]);
+        Self { data_size, data }
+    }
+    pub fn to_dhe(self) -> SpdmDheExchangeStruct {
+        assert!(self.data_size <= SPDM_MAX_DHE_KEY_SIZE as u16);
+        let data_size = self.data_size;
+        let mut data = [0u8; SPDM_MAX_DHE_KEY_SIZE];
+        data[..(self.data_size as usize)].copy_from_slice(&self.data[..(self.data_size as usize)]);
+        SpdmDheExchangeStruct { data_size, data }
     }
 }
 

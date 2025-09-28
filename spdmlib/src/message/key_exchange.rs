@@ -7,9 +7,9 @@ use crate::common::opaque::SpdmOpaqueStruct;
 use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
-    SpdmDheExchangeStruct, SpdmDigestStruct, SpdmMeasurementSummaryHashType, SpdmRandomStruct,
-    SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmSignatureStruct,
-    SPDM_MAX_SLOT_NUMBER,
+    SpdmDigestStruct, SpdmMeasurementSummaryHashType, SpdmRandomStruct, SpdmReqExchangeStruct,
+    SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmRspExchangeStruct,
+    SpdmSignatureStruct, SPDM_MAX_SLOT_NUMBER,
 };
 use codec::{Codec, Reader, Writer};
 
@@ -27,7 +27,7 @@ pub struct SpdmKeyExchangeRequestPayload {
     pub req_session_id: u16,
     pub session_policy: u8,
     pub random: SpdmRandomStruct,
-    pub exchange: SpdmDheExchangeStruct,
+    pub exchange: SpdmReqExchangeStruct,
     pub opaque: SpdmOpaqueStruct,
 }
 
@@ -127,7 +127,7 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
         u8::read(r)?;
 
         let random = SpdmRandomStruct::read(r)?;
-        let exchange = SpdmDheExchangeStruct::spdm_read(context, r)?;
+        let exchange = SpdmReqExchangeStruct::spdm_read(context, r)?;
         let opaque = SpdmOpaqueStruct::spdm_read(context, r)?;
 
         Some(SpdmKeyExchangeRequestPayload {
@@ -173,7 +173,7 @@ pub struct SpdmKeyExchangeResponsePayload {
     pub mut_auth_req: SpdmKeyExchangeMutAuthAttributes,
     pub req_slot_id: u8,
     pub random: SpdmRandomStruct,
-    pub exchange: SpdmDheExchangeStruct,
+    pub exchange: SpdmRspExchangeStruct,
     pub measurement_summary_hash: SpdmDigestStruct,
     pub opaque: SpdmOpaqueStruct,
     pub signature: SpdmSignatureStruct,
@@ -253,7 +253,7 @@ impl SpdmCodec for SpdmKeyExchangeResponsePayload {
         }
 
         let random = SpdmRandomStruct::read(r)?;
-        let exchange = SpdmDheExchangeStruct::spdm_read(context, r)?;
+        let exchange = SpdmRspExchangeStruct::spdm_read(context, r)?;
         let measurement_summary_hash = if context.runtime_info.need_measurement_summary_hash {
             SpdmDigestStruct::spdm_read(context, r)?
         } else {
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn test_case0_spdm_key_exchange_request_payload() {
         let u8_slice =
-            &mut [0u8; 6 + SPDM_RANDOM_SIZE + SPDM_MAX_DHE_KEY_SIZE + 2 + MAX_SPDM_OPAQUE_SIZE];
+            &mut [0u8; 6 + SPDM_RANDOM_SIZE + SECP_384_R1_KEY_SIZE + 2 + MAX_SPDM_OPAQUE_SIZE];
         let mut writer = Writer::init(u8_slice);
         let value = SpdmKeyExchangeRequestPayload {
             measurement_summary_hash_type:
@@ -333,9 +333,9 @@ mod tests {
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
-            exchange: SpdmDheExchangeStruct {
-                data_size: SPDM_MAX_DHE_KEY_SIZE as u16,
-                data: [100u8; SPDM_MAX_DHE_KEY_SIZE],
+            exchange: SpdmReqExchangeStruct {
+                data_size: SECP_384_R1_KEY_SIZE as u16,
+                data: [100u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE],
             },
             opaque: SpdmOpaqueStruct {
                 data_size: MAX_SPDM_OPAQUE_SIZE as u16,
@@ -352,7 +352,7 @@ mod tests {
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
         assert_eq!(
-            6 + SPDM_RANDOM_SIZE + SPDM_MAX_DHE_KEY_SIZE + 2 + MAX_SPDM_OPAQUE_SIZE,
+            6 + SPDM_RANDOM_SIZE + SECP_384_R1_KEY_SIZE + 2 + MAX_SPDM_OPAQUE_SIZE,
             reader.left()
         );
         let exchange_request_payload =
@@ -369,9 +369,9 @@ mod tests {
         }
         assert_eq!(
             exchange_request_payload.exchange.data_size,
-            ECDSA_ECC_NIST_P384_KEY_SIZE as u16
+            SECP_384_R1_KEY_SIZE as u16
         );
-        for i in 0..ECDSA_ECC_NIST_P384_KEY_SIZE {
+        for i in 0..SECP_384_R1_KEY_SIZE {
             assert_eq!(exchange_request_payload.exchange.data[i], 100);
         }
         assert_eq!(
@@ -387,7 +387,7 @@ mod tests {
     fn test_case0_spdm_key_exchange_response_payload() {
         let u8_slice = &mut [0u8; 6
             + SPDM_RANDOM_SIZE
-            + SPDM_MAX_DHE_KEY_SIZE
+            + SECP_384_R1_KEY_SIZE
             + SPDM_MAX_HASH_SIZE
             + 2
             + MAX_SPDM_OPAQUE_SIZE
@@ -402,9 +402,9 @@ mod tests {
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
-            exchange: SpdmDheExchangeStruct {
-                data_size: SPDM_MAX_DHE_KEY_SIZE as u16,
-                data: [0xa5u8; SPDM_MAX_DHE_KEY_SIZE],
+            exchange: SpdmRspExchangeStruct {
+                data_size: SECP_384_R1_KEY_SIZE as u16,
+                data: [0xa5u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE],
             },
             measurement_summary_hash: SpdmDigestStruct {
                 data_size: SPDM_MAX_HASH_SIZE as u16,
@@ -435,7 +435,7 @@ mod tests {
         let mut reader = Reader::init(u8_slice);
         assert_eq!(
             6 + SPDM_RANDOM_SIZE
-                + SPDM_MAX_DHE_KEY_SIZE
+                + SECP_384_R1_KEY_SIZE
                 + SPDM_MAX_HASH_SIZE
                 + 2
                 + MAX_SPDM_OPAQUE_SIZE
@@ -459,9 +459,9 @@ mod tests {
 
         assert_eq!(
             exchange_request_payload.exchange.data_size,
-            ECDSA_ECC_NIST_P384_KEY_SIZE as u16
+            SECP_384_R1_KEY_SIZE as u16
         );
-        for i in 0..ECDSA_ECC_NIST_P384_KEY_SIZE {
+        for i in 0..SECP_384_R1_KEY_SIZE {
             assert_eq!(exchange_request_payload.exchange.data[i], 0xa5);
         }
 
@@ -503,7 +503,7 @@ mod tests {
     fn test_case1_spdm_key_exchange_response_payload() {
         let u8_slice = &mut [0u8; 6
             + SPDM_RANDOM_SIZE
-            + SPDM_MAX_DHE_KEY_SIZE
+            + SECP_384_R1_KEY_SIZE
             + 2
             + MAX_SPDM_OPAQUE_SIZE
             + SPDM_MAX_ASYM_KEY_SIZE
@@ -517,9 +517,9 @@ mod tests {
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
-            exchange: SpdmDheExchangeStruct {
-                data_size: SPDM_MAX_DHE_KEY_SIZE as u16,
-                data: [0xa5u8; SPDM_MAX_DHE_KEY_SIZE],
+            exchange: SpdmRspExchangeStruct {
+                data_size: SECP_384_R1_KEY_SIZE as u16,
+                data: [0xa5u8; SPDM_MAX_RSP_KEY_EXCHANGE_SIZE],
             },
             measurement_summary_hash: SpdmDigestStruct::default(),
             opaque: SpdmOpaqueStruct {
@@ -547,7 +547,7 @@ mod tests {
         let mut reader = Reader::init(u8_slice);
         assert_eq!(
             6 + SPDM_RANDOM_SIZE
-                + SPDM_MAX_DHE_KEY_SIZE
+                + SECP_384_R1_KEY_SIZE
                 + 2
                 + MAX_SPDM_OPAQUE_SIZE
                 + SPDM_MAX_ASYM_KEY_SIZE
@@ -570,9 +570,9 @@ mod tests {
 
         assert_eq!(
             exchange_request_payload.exchange.data_size,
-            ECDSA_ECC_NIST_P384_KEY_SIZE as u16
+            SECP_384_R1_KEY_SIZE as u16
         );
-        for i in 0..ECDSA_ECC_NIST_P384_KEY_SIZE {
+        for i in 0..SECP_384_R1_KEY_SIZE {
             assert_eq!(exchange_request_payload.exchange.data[i], 0xa5);
         }
 

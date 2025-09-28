@@ -194,6 +194,20 @@ impl SpdmContext {
     pub fn get_dhe_key_size(&self) -> u16 {
         self.negotiate_info.dhe_sel.get_size()
     }
+    pub fn get_req_key_exchange_size(&self) -> u16 {
+        if self.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
+            self.negotiate_info.kem_sel.get_encap_key_size()
+        } else {
+            self.negotiate_info.dhe_sel.get_size()
+        }
+    }
+    pub fn get_rsp_key_exchange_size(&self) -> u16 {
+        if self.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
+            self.negotiate_info.kem_sel.get_cipher_text_size()
+        } else {
+            self.negotiate_info.dhe_sel.get_size()
+        }
+    }
 
     pub fn reset_runtime_info(&mut self) {
         self.runtime_info = SpdmRuntimeInfo::default();
@@ -1472,7 +1486,8 @@ pub const MAX_MANAGED_BUFFER_M_SIZE: usize = 47
     + SPDM_MAX_ASYM_KEY_SIZE
     + MAX_SPDM_OPAQUE_SIZE;
 pub const MAX_MANAGED_BUFFER_K_SIZE: usize = 84
-    + SPDM_MAX_DHE_KEY_SIZE * 2
+    + SPDM_MAX_REQ_KEY_EXCHANGE_SIZE
+    + SPDM_MAX_RSP_KEY_EXCHANGE_SIZE
     + SPDM_MAX_HASH_SIZE * 2
     + SPDM_MAX_ASYM_KEY_SIZE
     + MAX_SPDM_OPAQUE_SIZE * 2;

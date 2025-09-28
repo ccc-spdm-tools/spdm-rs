@@ -72,7 +72,7 @@ fn test_case0_handle_spdm_key_exchange() {
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
-            exchange: SpdmDheExchangeStruct::from(public_key),
+            exchange: SpdmReqExchangeStruct::from_dhe(SpdmDheExchangeStruct::from(public_key)),
             opaque: SpdmOpaqueStruct::from_sm_supported_ver_list_opaque(
                 &mut context.common,
                 &SMSupportedVerListOpaque {
@@ -169,7 +169,7 @@ fn test_case1_handle_spdm_key_exchange() {
             random: SpdmRandomStruct {
                 data: [100u8; SPDM_RANDOM_SIZE],
             },
-            exchange: SpdmDheExchangeStruct::from(public_key),
+            exchange: SpdmReqExchangeStruct::from_dhe(SpdmDheExchangeStruct::from(public_key)),
             opaque: SpdmOpaqueStruct::from_sm_supported_ver_list_opaque(
                 &mut context.common,
                 &SMSupportedVerListOpaque {
