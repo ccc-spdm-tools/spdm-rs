@@ -382,7 +382,7 @@ impl RequesterContext {
 
         crate::secret::asym_sign::sign(
             self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.negotiate_info.req_asym_sel.to_base(),
             transcript_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)
@@ -422,7 +422,7 @@ impl RequesterContext {
 
         let signature = crate::secret::asym_sign::sign(
             self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.negotiate_info.req_asym_sel.to_base(),
             transcript_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
@@ -439,7 +439,7 @@ impl RequesterContext {
 
         crate::crypto::asym_verify::verify(
             self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.negotiate_info.req_asym_sel.to_base(),
             peer_cert,
             transcript_sign.as_ref(),
             &signature,

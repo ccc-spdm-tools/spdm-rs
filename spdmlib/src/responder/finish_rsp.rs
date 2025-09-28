@@ -423,7 +423,7 @@ impl ResponderContext {
 
         crypto::asym_verify::verify(
             self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.negotiate_info.req_asym_sel.to_base(),
             peer_cert,
             transcript_sign.as_ref(),
             signature,
@@ -472,7 +472,7 @@ impl ResponderContext {
 
         let res = crypto::asym_verify::verify(
             self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.base_asym_sel,
+            self.common.negotiate_info.req_asym_sel.to_base(),
             peer_cert,
             transcript_hash_sign.as_ref(),
             signature,
