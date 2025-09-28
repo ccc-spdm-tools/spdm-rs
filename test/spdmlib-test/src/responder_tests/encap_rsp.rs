@@ -331,7 +331,7 @@ fn write_spdm_get_digest_response(
     context: &mut ResponderContext,
     writer: &mut Writer,
 ) -> SpdmResult {
-    let digest_size = context.common.negotiate_info.base_hash_sel.get_size();
+    let digest_size = context.common.get_hash_size();
     let slot_mask = 1;
 
     let response = SpdmMessage {

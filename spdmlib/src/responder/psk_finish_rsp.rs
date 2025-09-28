@@ -76,7 +76,7 @@ impl ResponderContext {
         let read_used = reader.used();
 
         // verify HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.get_hash_size() as usize;
 
         let temp_used = read_used - base_hash_size;
 

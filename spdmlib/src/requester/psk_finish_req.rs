@@ -96,7 +96,7 @@ impl RequesterContext {
             },
             payload: SpdmMessagePayload::SpdmPskFinishRequest(SpdmPskFinishRequestPayload {
                 verify_data: SpdmDigestStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.get_hash_size(),
                     data: Box::new([0xcc; SPDM_MAX_HASH_SIZE]),
                 },
                 opaque,
@@ -105,7 +105,7 @@ impl RequesterContext {
         let send_used = request.spdm_encode(&mut self.common, &mut writer)?;
 
         // generate HMAC with finished_key
-        let base_hash_size = self.common.negotiate_info.base_hash_sel.get_size() as usize;
+        let base_hash_size = self.common.get_hash_size() as usize;
         let temp_used = send_used - base_hash_size;
 
         self.common

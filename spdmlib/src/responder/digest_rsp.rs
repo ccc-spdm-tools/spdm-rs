@@ -94,7 +94,7 @@ impl ResponderContext {
             Some(_session_id) => {}
         }
 
-        let digest_size = self.common.negotiate_info.base_hash_sel.get_size();
+        let digest_size = self.common.get_hash_size();
 
         let mut slot_mask = 0u8;
         for slot_id in 0..SPDM_MAX_SLOT_NUMBER {

@@ -694,8 +694,7 @@ fn test_case1_send_receive_spdm_measurement() {
         let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0 as usize]
             .as_ref()
             .unwrap()
-            .data[(4usize
-            + requester.common.negotiate_info.base_hash_sel.get_size() as usize)
+            .data[(4usize + requester.common.get_hash_size() as usize)
             ..(requester.common.peer_info.peer_cert_chain[0 as usize]
                 .as_ref()
                 .unwrap()
@@ -935,8 +934,7 @@ fn test_case3_send_receive_spdm_measurement() {
                 let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0 as usize]
                     .as_ref()
                     .unwrap()
-                    .data[(4usize
-                    + requester.common.negotiate_info.base_hash_sel.get_size() as usize)
+                    .data[(4usize + requester.common.get_hash_size() as usize)
                     ..(requester.common.peer_info.peer_cert_chain[0 as usize]
                         .as_ref()
                         .unwrap()

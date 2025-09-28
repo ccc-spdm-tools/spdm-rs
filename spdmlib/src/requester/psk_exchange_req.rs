@@ -113,7 +113,7 @@ impl RequesterContext {
                 req_session_id: half_session_id,
                 psk_hint: psk_hint.clone(),
                 psk_context: SpdmPskContextStruct {
-                    data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                    data_size: self.common.get_hash_size(),
                     data: psk_context,
                 },
                 opaque,
@@ -206,8 +206,7 @@ impl RequesterContext {
                             session.runtime_info.req_cert_hash = None;
 
                             // create transcript
-                            let base_hash_size =
-                                self.common.negotiate_info.base_hash_sel.get_size() as usize;
+                            let base_hash_size = self.common.get_hash_size() as usize;
                             let temp_receive_used = receive_used - base_hash_size;
 
                             self.common.append_message_k(session_id, send_buffer)?;

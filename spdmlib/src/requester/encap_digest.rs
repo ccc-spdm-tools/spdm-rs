@@ -111,7 +111,7 @@ impl RequesterContext {
                 slot_mask,
                 digests: gen_array_clone(
                     SpdmDigestStruct {
-                        data_size: self.common.negotiate_info.base_hash_sel.get_size(),
+                        data_size: self.common.get_hash_size(),
                         data: Box::new([0xffu8; SPDM_MAX_HASH_SIZE]),
                     },
                     SPDM_MAX_SLOT_NUMBER,
