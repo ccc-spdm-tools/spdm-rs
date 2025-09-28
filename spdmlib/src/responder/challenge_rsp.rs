@@ -212,8 +212,8 @@ impl ResponderContext {
         let used = writer.used();
 
         // generate signature
-        let base_asym_size = self.common.get_asym_sig_size() as usize;
-        let temp_used = used - base_asym_size;
+        let signature_size = self.common.get_asym_sig_size() as usize;
+        let temp_used = used - signature_size;
 
         if self
             .common
@@ -237,7 +237,7 @@ impl ResponderContext {
         }
         let signature = signature.unwrap();
         // patch the message before send
-        writer.mut_used_slice()[(used - base_asym_size)..used].copy_from_slice(signature.as_ref());
+        writer.mut_used_slice()[(used - signature_size)..used].copy_from_slice(signature.as_ref());
 
         self.common.reset_message_b();
         self.common.reset_message_c();
