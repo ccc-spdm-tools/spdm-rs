@@ -836,6 +836,16 @@ impl Codec for SpdmReqAsymAlgo {
     }
 }
 
+impl SpdmReqAsymAlgo {
+    pub fn to_base(&self) -> SpdmBaseAsymAlgo {
+        SpdmBaseAsymAlgo::from_bits(self.bits() as u32).unwrap_or(SpdmBaseAsymAlgo::empty())
+    }
+
+    pub fn from_base(base: SpdmBaseAsymAlgo) -> Self {
+        SpdmReqAsymAlgo::from_bits(base.bits() as u16).unwrap_or(SpdmReqAsymAlgo::empty())
+    }
+}
+
 bitflags! {
     #[derive(Default)]
     pub struct SpdmPqcReqAsymAlgo: u16 {
@@ -900,6 +910,16 @@ impl Codec for SpdmPqcReqAsymAlgo {
         let bits = u16::read(r)?;
 
         SpdmPqcReqAsymAlgo::from_bits(bits & SpdmPqcReqAsymAlgo::VALID_MASK.bits)
+    }
+}
+
+impl SpdmPqcReqAsymAlgo {
+    pub fn to_base(&self) -> SpdmPqcAsymAlgo {
+        SpdmPqcAsymAlgo::from_bits(self.bits() as u32).unwrap_or(SpdmPqcAsymAlgo::empty())
+    }
+
+    pub fn from_base(base: SpdmPqcAsymAlgo) -> Self {
+        SpdmPqcReqAsymAlgo::from_bits(base.bits() as u16).unwrap_or(SpdmPqcReqAsymAlgo::empty())
     }
 }
 
