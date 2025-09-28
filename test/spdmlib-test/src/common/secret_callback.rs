@@ -313,7 +313,7 @@ fn sign_ecdsa_asym_algo(
     let signature = key_pair.sign(&rng, data).unwrap();
     let signature = signature.as_ref();
 
-    let mut full_signature: [u8; SPDM_MAX_ASYM_KEY_SIZE] = [0u8; SPDM_MAX_ASYM_KEY_SIZE];
+    let mut full_signature: [u8; SPDM_MAX_ASYM_SIG_SIZE] = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
     full_signature[..signature.len()].copy_from_slice(signature);
 
     Some(SpdmSignatureStruct {
@@ -331,13 +331,13 @@ fn fake_asym_sign(
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256) => {
             Some(SpdmSignatureStruct {
                 data_size: 64,
-                data: [0x5a; SPDM_MAX_ASYM_KEY_SIZE],
+                data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
             })
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
             Some(SpdmSignatureStruct {
                 data_size: 96,
-                data: [0x5a; SPDM_MAX_ASYM_KEY_SIZE],
+                data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
             })
         }
         _ => {

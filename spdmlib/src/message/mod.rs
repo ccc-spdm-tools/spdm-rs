@@ -1031,14 +1031,14 @@ mod tests {
                     slot_mask: 100,
                     challenge_auth_attribute: SpdmChallengeAuthAttribute::BASIC_MUT_AUTH_REQ,
                     cert_chain_hash: SpdmDigestStruct {
-                        data_size: SPDM_MAX_HASH_SIZE as u16,
+                        data_size: SHA512_DIGEST_SIZE as u16,
                         data: Box::new([0xAAu8; SPDM_MAX_HASH_SIZE]),
                     },
                     nonce: SpdmNonceStruct {
                         data: [100u8; SPDM_NONCE_SIZE],
                     },
                     measurement_summary_hash: SpdmDigestStruct {
-                        data_size: SPDM_MAX_HASH_SIZE as u16,
+                        data_size: SHA512_DIGEST_SIZE as u16,
                         data: Box::new([0x55u8; SPDM_MAX_HASH_SIZE]),
                     },
                     opaque: SpdmOpaqueStruct {
@@ -1049,8 +1049,8 @@ mod tests {
                         data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
                     },
                     signature: SpdmSignatureStruct {
-                        data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
-                        data: [0x55u8; SPDM_MAX_ASYM_KEY_SIZE],
+                        data_size: RSASSA_4096_SIG_SIZE as u16,
+                        data: [0x55u8; SPDM_MAX_ASYM_SIG_SIZE],
                     },
                 },
             ),
@@ -1079,7 +1079,7 @@ mod tests {
                 SHA512_DIGEST_SIZE as u16
             );
             assert_eq!(payload.opaque.data_size, MAX_SPDM_OPAQUE_SIZE as u16);
-            assert_eq!(payload.signature.data_size, RSASSA_4096_KEY_SIZE as u16);
+            assert_eq!(payload.signature.data_size, RSASSA_4096_SIG_SIZE as u16);
 
             for i in 0..SHA512_DIGEST_SIZE {
                 assert_eq!(payload.cert_chain_hash.data[i], 0xAAu8);
@@ -1096,7 +1096,7 @@ mod tests {
             for i in 0..SPDM_CHALLENGE_CONTEXT_SIZE {
                 assert_eq!(payload.requester_context.data[i], 100u8);
             }
-            for i in 0..RSASSA_4096_KEY_SIZE {
+            for i in 0..RSASSA_4096_SIG_SIZE {
                 assert_eq!(payload.signature.data[i], 0x55u8);
             }
         }
@@ -1196,8 +1196,8 @@ mod tests {
                         data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
                     },
                     signature: SpdmSignatureStruct {
-                        data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
-                        data: [100u8; SPDM_MAX_ASYM_KEY_SIZE],
+                        data_size: RSASSA_4096_SIG_SIZE as u16,
+                        data: [100u8; SPDM_MAX_ASYM_SIG_SIZE],
                     },
                     measurement_operation:
                         SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
@@ -1235,8 +1235,8 @@ mod tests {
             for i in 0..SPDM_MEASUREMENTS_CONTEXT_SIZE {
                 assert_eq!(payload.requester_context.data[i], 100);
             }
-            assert_eq!(payload.signature.data_size, RSASSA_4096_KEY_SIZE as u16);
-            for i in 0..RSASSA_4096_KEY_SIZE {
+            assert_eq!(payload.signature.data_size, RSASSA_4096_SIG_SIZE as u16);
+            for i in 0..RSASSA_4096_SIG_SIZE {
                 assert_eq!(payload.signature.data[i], 100);
             }
         }
@@ -1305,11 +1305,11 @@ mod tests {
                 finish_request_attributes: SpdmFinishRequestAttributes::SIGNATURE_INCLUDED,
                 req_slot_id: 4,
                 signature: SpdmSignatureStruct {
-                    data_size: SPDM_MAX_ASYM_KEY_SIZE as u16,
-                    data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
+                    data_size: RSASSA_4096_SIG_SIZE as u16,
+                    data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
                 },
                 verify_data: SpdmDigestStruct {
-                    data_size: SPDM_MAX_HASH_SIZE as u16,
+                    data_size: SHA512_DIGEST_SIZE as u16,
                     data: Box::new([0x5au8; SPDM_MAX_HASH_SIZE]),
                 },
                 opaque: SpdmOpaqueStruct {
@@ -1332,8 +1332,8 @@ mod tests {
                 SpdmFinishRequestAttributes::SIGNATURE_INCLUDED
             );
             assert_eq!(payload.req_slot_id, 4);
-            assert_eq!(payload.signature.data_size, RSASSA_4096_KEY_SIZE as u16);
-            for i in 0..RSASSA_4096_KEY_SIZE {
+            assert_eq!(payload.signature.data_size, RSASSA_4096_SIG_SIZE as u16);
+            for i in 0..RSASSA_4096_SIG_SIZE {
                 assert_eq!(payload.signature.data[i], 0xa5u8);
             }
             assert_eq!(payload.verify_data.data_size, SHA512_DIGEST_SIZE as u16);
@@ -1351,7 +1351,7 @@ mod tests {
             },
             payload: SpdmMessagePayload::SpdmFinishResponse(SpdmFinishResponsePayload {
                 verify_data: SpdmDigestStruct {
-                    data_size: SPDM_MAX_HASH_SIZE as u16,
+                    data_size: SHA512_DIGEST_SIZE as u16,
                     data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
                 },
                 opaque: SpdmOpaqueStruct {

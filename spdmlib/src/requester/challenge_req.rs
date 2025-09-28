@@ -125,7 +125,7 @@ impl RequesterContext {
 
                             // verify signature
                             let base_asym_size =
-                                self.common.negotiate_info.base_asym_sel.get_size() as usize;
+                                self.common.negotiate_info.base_asym_sel.get_sig_size() as usize;
                             let temp_used = used - base_asym_size;
 
                             self.common.append_message_c(send_buffer)?;

@@ -123,7 +123,7 @@ fn test_case0_handle_spdm_challenge() {
                 + SPDM_MAX_HASH_SIZE
                 + 2
                 + MAX_SPDM_OPAQUE_SIZE
-                + SPDM_MAX_ASYM_KEY_SIZE];
+                + SPDM_MAX_ASYM_SIG_SIZE];
             for (i, data) in data.iter().enumerate() {
                 u8_slice[i] = *data;
             }
@@ -276,7 +276,7 @@ fn test_case1_handle_spdm_challenge() {
         secure: 0,
     };
 
-    let sig_len = config_info.base_asym_algo.get_size() as usize;
+    let sig_len = config_info.base_asym_algo.get_sig_size() as usize;
     let challenge_auth_msg = TestSpdmMessage {
         message: protocol::Message::CHALLENGE_AUTH(protocol::challenge::CHALLENGE_AUTH {
             SPDMVersion: 0x12,

@@ -297,7 +297,7 @@ impl RequesterContext {
 
                             // create transcript
                             let base_asym_size =
-                                self.common.negotiate_info.base_asym_sel.get_size() as usize;
+                                self.common.negotiate_info.base_asym_sel.get_sig_size() as usize;
                             let base_hash_size =
                                 self.common.negotiate_info.base_hash_sel.get_size() as usize;
                             let temp_receive_used = if in_clear_text {

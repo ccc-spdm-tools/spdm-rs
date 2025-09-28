@@ -141,7 +141,7 @@ impl RequesterContext {
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         if !session.get_mut_auth_requested().is_empty() {
             finish_request_attributes = SpdmFinishRequestAttributes::SIGNATURE_INCLUDED;
-            signature.data_size = self.common.negotiate_info.req_asym_sel.get_size();
+            signature.data_size = self.common.negotiate_info.req_asym_sel.get_sig_size();
             is_mut_auth = true;
         }
 

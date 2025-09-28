@@ -83,7 +83,7 @@ fn test_case0_handle_spdm_finish() {
             req_slot_id: 0,
             signature: SpdmSignatureStruct {
                 data_size: 512,
-                data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
+                data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
             },
             verify_data: SpdmDigestStruct {
                 data_size: 48,
@@ -172,7 +172,7 @@ fn test_case1_handle_spdm_finish() {
         req_slot_id: 0,
         signature: SpdmSignatureStruct {
             data_size: 96,
-            data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
         },
         verify_data: SpdmDigestStruct {
             data_size: 48,
@@ -261,7 +261,7 @@ fn test_case2_handle_spdm_finish() {
         req_slot_id: 0,
         signature: SpdmSignatureStruct {
             data_size: 96,
-            data: [0xa5u8; SPDM_MAX_ASYM_KEY_SIZE],
+            data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
         },
         verify_data: SpdmDigestStruct {
             data_size: 48,
