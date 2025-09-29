@@ -11,6 +11,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_handle_encap_response_digest(data: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let (config_info, provision_info) = rsp_create_info();
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));

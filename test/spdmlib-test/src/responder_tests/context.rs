@@ -23,6 +23,7 @@ fn test_case0_send_secured_message() {
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport = FakeSpdmDeviceIoReceve::new(&shared_buffer);
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let mut context = responder::ResponderContext::new(
         &mut socket_io_transport,
@@ -71,6 +72,7 @@ fn test_case1_send_secured_message() {
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport = FakeSpdmDeviceIoReceve::new(&shared_buffer);
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     let mut context = responder::ResponderContext::new(
         &mut socket_io_transport,
         pcidoe_transport_encap,
@@ -113,6 +115,7 @@ fn test_case0_receive_message() {
 
     let socket_io_transport = FakeSpdmDeviceIoReceve::new(&shared_buffer);
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     let mut context = responder::ResponderContext::new(
         &mut socket_io_transport,
         pcidoe_transport_encap,
@@ -183,6 +186,7 @@ fn test_case0_dispatch_secured_message() {
     );
 
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
 
     let rsp_session_id = 0xFFFEu16;

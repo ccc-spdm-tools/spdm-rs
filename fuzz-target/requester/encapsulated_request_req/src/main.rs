@@ -12,6 +12,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_session_based_mutual_authenticate(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
     // TCD:
     // - id: 0

@@ -6,7 +6,7 @@
 
 use crate::common::crypto_callback::FAKE_RAND;
 use crate::common::device_io::{self, FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
+use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::{create_info, ResponderRunner, TestCase, TestSpdmMessage};
 use codec::{Codec, Reader, Writer};
@@ -35,6 +35,7 @@ fn test_case0_handle_spdm_challenge() {
         ))));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
         crypto::rand::register(FAKE_RAND.clone());
 

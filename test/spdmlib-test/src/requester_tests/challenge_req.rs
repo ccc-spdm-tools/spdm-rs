@@ -8,7 +8,7 @@ extern crate alloc;
 use {
     crate::common::crypto_callback::FAKE_RAND,
     crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
-    crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE,
+    crate::common::secret_callback::*,
     crate::common::transport::PciDoeTransportEncap,
     crate::common::util::{create_info, get_rsp_cert_chain_buff},
     alloc::sync::Arc,
@@ -34,6 +34,7 @@ fn test_case0_send_receive_spdm_challenge() {
     let pcidoe_transport_encap = Arc::new(Mutex::new(pcidoe_transport_encap));
 
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::rand::register(FAKE_RAND.clone());
 
     let mut responder = responder::ResponderContext::new(

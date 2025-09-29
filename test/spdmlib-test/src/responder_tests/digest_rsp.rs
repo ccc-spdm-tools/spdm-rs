@@ -16,7 +16,7 @@ extern crate alloc;
 #[cfg(feature = "hashed-transcript-data")]
 use {
     crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer},
-    crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE,
+    crate::common::secret_callback::*,
     crate::common::transport::PciDoeTransportEncap,
     alloc::sync::Arc,
     codec::{Codec, Writer},
@@ -40,6 +40,7 @@ fn test_case0_handle_spdm_digest() {
         ))));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
         let mut context = responder::ResponderContext::new(
             socket_io_transport,

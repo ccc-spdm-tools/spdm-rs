@@ -4,7 +4,7 @@
 
 use crate::common::crypto_callback::FAKE_HMAC;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
+use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 use codec::{Codec, Reader, Writer};
@@ -300,6 +300,7 @@ fn setup_test_context_and_session(
         ResponderContext::new(device_io, transport_encap, config_info, provision_info);
 
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
     context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;

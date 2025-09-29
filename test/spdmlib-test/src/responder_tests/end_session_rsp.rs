@@ -27,6 +27,7 @@ fn test_case0_handle_spdm_end_session() {
             shared_buffer,
         ))));
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         let mut context = responder::ResponderContext::new(
             socket_io_transport,
             pcidoe_transport_encap,

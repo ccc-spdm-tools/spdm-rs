@@ -32,6 +32,7 @@ fn test_case0_start_session() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
         secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
 
@@ -119,6 +120,7 @@ fn test_case0_get_next_half_session() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
         secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
 
@@ -236,6 +238,7 @@ fn test_case0_receive_secured_message() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
         let mut responder = responder::ResponderContext::new(
             device_io_responder,

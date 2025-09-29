@@ -16,6 +16,7 @@ async fn fuzz_send_receive_spdm_digest(fuzzdata: Arc<Vec<u8>>) {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let mut device_io_requester = fake_device_io::FakeSpdmDeviceIo::new(Arc::new(shared_buffer));
     device_io_requester.set_rx(&fuzzdata);

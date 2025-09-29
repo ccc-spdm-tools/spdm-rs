@@ -13,6 +13,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_send_receive_spdm_end_session(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
 
     let (req_config_info, req_provision_info) = req_create_info();

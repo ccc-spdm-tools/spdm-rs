@@ -38,7 +38,7 @@ use mctp_transport::MctpTransportEncap;
 use pcidoe_transport::{
     PciDoeDataObjectType, PciDoeMessageHeader, PciDoeTransportEncap, PciDoeVendorId,
 };
-use spdm_emu::crypto_callback::SECRET_ASYM_IMPL_INSTANCE;
+use spdm_emu::crypto_callback::{SECRET_ASYM_IMPL_INSTANCE, SECRET_PQC_ASYM_IMPL_INSTANCE};
 use spdm_emu::socket_io_transport::SocketIoTransport;
 use spdm_emu::spdm_emu::*;
 use spdm_emu::{secret_impl_sample::*, EMU_STACK_SIZE};
@@ -376,6 +376,7 @@ async fn handle_message(
     };
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     init_watchdog();
     let mut context = responder::ResponderContext::new(
         socket_io_transport,

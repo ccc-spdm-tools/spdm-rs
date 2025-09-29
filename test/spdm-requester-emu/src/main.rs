@@ -23,7 +23,7 @@ use simple_logger::SimpleLogger;
 
 #[cfg(not(feature = "is_sync"))]
 use spdm_emu::async_runtime::block_on;
-use spdm_emu::crypto_callback::SECRET_ASYM_IMPL_INSTANCE;
+use spdm_emu::crypto_callback::{SECRET_ASYM_IMPL_INSTANCE, SECRET_PQC_ASYM_IMPL_INSTANCE};
 use spdm_emu::secret_impl_sample::SECRET_PSK_IMPL_INSTANCE;
 use spdm_emu::EMU_STACK_SIZE;
 use spdmlib::common;
@@ -197,6 +197,7 @@ async fn test_spdm(
 
     let provision_info = if cfg!(feature = "mut-auth") {
         spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         let mut my_cert_chain_data = SpdmCertChainData {
             ..Default::default()
         };
@@ -701,6 +702,7 @@ async fn test_idekm_tdisp(
 
     let provision_info = if cfg!(feature = "mut-auth") {
         spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         let mut my_cert_chain_data = SpdmCertChainData {
             ..Default::default()
         };

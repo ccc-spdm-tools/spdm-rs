@@ -35,6 +35,7 @@ fn test_case0_send_receive_spdm_certificate() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
         let mut responder = responder::ResponderContext::new(
             device_io_responder,

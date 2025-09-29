@@ -26,6 +26,7 @@ fn test_case0_handle_spdm_key_exchange() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         crypto::hmac::register(FAKE_HMAC.clone());
 
         let shared_buffer = SharedBuffer::new();
@@ -123,6 +124,7 @@ fn test_case1_handle_spdm_key_exchange() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         crypto::hmac::register(FAKE_HMAC.clone());
 
         let shared_buffer = SharedBuffer::new();

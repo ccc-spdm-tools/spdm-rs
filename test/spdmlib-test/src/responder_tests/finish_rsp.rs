@@ -35,6 +35,7 @@ fn test_case0_handle_spdm_finish() {
     );
 
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
     context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
@@ -123,6 +124,7 @@ fn test_case1_handle_spdm_finish() {
     );
 
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
     context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
@@ -212,6 +214,7 @@ fn test_case2_handle_spdm_finish() {
     );
 
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
     context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;

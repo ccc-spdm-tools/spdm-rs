@@ -24,6 +24,7 @@ fn test_case0_send_spdm_error() {
         shared_buffer,
     ))));
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     let future = async move {
         let mut context = responder::ResponderContext::new(
             socket_io_transport,

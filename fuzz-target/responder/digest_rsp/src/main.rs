@@ -12,6 +12,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_handle_spdm_digest(data: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     // TCD:
     // - id: 0
     // - title: 'Fuzz SPDM handle digest request'

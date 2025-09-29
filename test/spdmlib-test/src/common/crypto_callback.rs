@@ -190,7 +190,8 @@ fn fake_verify_cert_chain(_cert_chain: &[u8]) -> SpdmResult {
 // Make sure this is the first test case running by `cargo test`
 fn test_0_crypto_init() {
     use super::secret_callback::{
-        FAKE_SECRET_ASYM_IMPL_INSTANCE, SECRET_MEASUREMENT_IMPL_INSTANCE,
+        FAKE_SECRET_ASYM_IMPL_INSTANCE, FAKE_SECRET_PQC_ASYM_IMPL_INSTANCE,
+        SECRET_MEASUREMENT_IMPL_INSTANCE,
     };
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
     spdmlib::crypto::asym_verify::register(FAKE_ASYM_VERIFY.clone());
@@ -198,5 +199,6 @@ fn test_0_crypto_init() {
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
     spdmlib::crypto::rand::register(FAKE_RAND.clone());
     spdmlib::secret::asym_sign::register(FAKE_SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(FAKE_SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
 }
