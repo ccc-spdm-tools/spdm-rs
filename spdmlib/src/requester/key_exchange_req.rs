@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-extern crate alloc;
-use alloc::boxed::Box;
 use core::ops::DerefMut;
 
 use crate::common::session::SpdmSession;
@@ -20,6 +18,7 @@ use crate::protocol::*;
 use crate::requester::*;
 
 use crate::crypto;
+use crate::crypto::SpdmReqExchangeContext;
 
 use crate::error::SpdmResult;
 use crate::message::*;
@@ -86,7 +85,7 @@ impl RequesterContext {
         buf: &mut [u8],
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
-    ) -> SpdmResult<(Box<dyn crypto::SpdmDheKeyExchange + Send>, usize)> {
+    ) -> SpdmResult<(SpdmReqExchangeContext, usize)> {
         let mut writer = Writer::init(buf);
 
         let session_policy = self.common.config_info.session_policy;
@@ -106,10 +105,24 @@ impl RequesterContext {
         let mut random = [0u8; SPDM_RANDOM_SIZE];
         crypto::rand::get_random(&mut random)?;
 
-        let (dhe_exchange, dhe_key_exchange_context) =
-            crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel)
-                .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-        let exchange = SpdmReqExchangeStruct::from_dhe(dhe_exchange);
+        let (exchange, key_exchange_context) =
+            if self.common.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
+                let (kem_exchange, kem_key_exchange_context) =
+                    crypto::kem_decap::generate_key_pair(self.common.negotiate_info.kem_sel)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                (
+                    SpdmReqExchangeStruct::from_kem(kem_exchange),
+                    SpdmReqExchangeContext::SpdmReqExchangeContextKem(kem_key_exchange_context),
+                )
+            } else {
+                let (dhe_exchange, dhe_key_exchange_context) =
+                    crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                (
+                    SpdmReqExchangeStruct::from_dhe(dhe_exchange),
+                    SpdmReqExchangeContext::SpdmReqExchangeContextDhe(dhe_key_exchange_context),
+                )
+            };
 
         debug!("!!! exchange data : {:02x?}\n", exchange);
 
@@ -147,7 +160,7 @@ impl RequesterContext {
             }),
         };
         request.spdm_encode(&mut self.common, &mut writer)?;
-        Ok((dhe_key_exchange_context, writer.used()))
+        Ok((key_exchange_context, writer.used()))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -158,7 +171,7 @@ impl RequesterContext {
         send_buffer: &[u8],
         receive_buffer: &[u8],
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
-        dhe_key_exchange_context: Box<dyn crypto::SpdmDheKeyExchange>,
+        key_exchange_context: SpdmReqExchangeContext,
         target_session_id: &mut Option<u32>,
     ) -> SpdmResult {
         self.common.runtime_info.need_measurement_summary_hash = (measurement_summary_hash_type
@@ -198,11 +211,34 @@ impl RequesterContext {
                                 &key_exchange_rsp.exchange
                             );
 
-                            let dhe_exchange = key_exchange_rsp.exchange.to_dhe();
-                            let final_key: SpdmSharedSecretFinalKeyStruct =
+                            let final_key: SpdmSharedSecretFinalKeyStruct = if self
+                                .common
+                                .negotiate_info
+                                .kem_sel
+                                != SpdmKemAlgo::empty()
+                            {
+                                let kem_exchange = key_exchange_rsp.exchange.to_kem();
+                                let kem_key_exchange_context = match key_exchange_context {
+                                    SpdmReqExchangeContext::SpdmReqExchangeContextDhe(_) => {
+                                        return Err(SPDM_STATUS_CRYPTO_ERROR);
+                                    }
+                                    SpdmReqExchangeContext::SpdmReqExchangeContextKem(ctx) => ctx,
+                                };
+                                kem_key_exchange_context
+                                    .decap_key(&kem_exchange)
+                                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                            } else {
+                                let dhe_exchange = key_exchange_rsp.exchange.to_dhe();
+                                let dhe_key_exchange_context = match key_exchange_context {
+                                    SpdmReqExchangeContext::SpdmReqExchangeContextKem(_) => {
+                                        return Err(SPDM_STATUS_CRYPTO_ERROR);
+                                    }
+                                    SpdmReqExchangeContext::SpdmReqExchangeContextDhe(ctx) => ctx,
+                                };
                                 dhe_key_exchange_context
                                     .compute_final_key(&dhe_exchange)
-                                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                            };
 
                             debug!("!!! final_key : {:02x?}\n", final_key.as_ref());
 
