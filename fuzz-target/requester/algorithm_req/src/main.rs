@@ -12,8 +12,6 @@ async fn fuzz_send_receive_spdm_algorithm(fuzzdata: Arc<Vec<u8>>) {
 
     let shared_buffer = SharedBuffer::new();
 
-    let pcidoe_transport_encap = &mut PciDoeTransportEncap {};
-
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
     spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
