@@ -5,7 +5,8 @@
 use crate::protocol::{
     SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDigestStruct, SpdmHkdfOutputKeyingMaterial,
     SpdmMeasurementHashAlgo, SpdmMeasurementRecordStructure, SpdmMeasurementSpecification,
-    SpdmMeasurementSummaryHashType, SpdmPskHintStruct, SpdmSignatureStruct, SpdmVersion,
+    SpdmMeasurementSummaryHashType, SpdmPqcAsymAlgo, SpdmPskHintStruct, SpdmSignatureStruct,
+    SpdmVersion,
 };
 
 type SpdmMeasurementCollectionCbType = fn(
@@ -55,6 +56,15 @@ pub struct SpdmSecretAsymSign {
     pub sign_cb: fn(
         base_hash_algo: SpdmBaseHashAlgo,
         base_asym_algo: SpdmBaseAsymAlgo,
+        data: &[u8],
+    ) -> Option<SpdmSignatureStruct>,
+}
+
+#[derive(Clone)]
+pub struct SpdmSecretPqcAsymSign {
+    pub sign_cb: fn(
+        base_hash_algo: SpdmBaseHashAlgo,
+        pqc_asym_algo: SpdmPqcAsymAlgo,
         data: &[u8],
     ) -> Option<SpdmSignatureStruct>,
 }
