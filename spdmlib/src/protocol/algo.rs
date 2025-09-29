@@ -1591,6 +1591,66 @@ impl From<BytesMut> for SpdmDheExchangeStruct {
 }
 
 #[derive(Debug, Clone)]
+pub struct SpdmKemEncapKeyStruct {
+    pub data_size: u16,
+    pub data: [u8; SPDM_MAX_KEM_ENCAP_KEY_SIZE],
+}
+impl Default for SpdmKemEncapKeyStruct {
+    fn default() -> SpdmKemEncapKeyStruct {
+        SpdmKemEncapKeyStruct {
+            data_size: 0,
+            data: [0u8; SPDM_MAX_KEM_ENCAP_KEY_SIZE],
+        }
+    }
+}
+
+impl AsRef<[u8]> for SpdmKemEncapKeyStruct {
+    fn as_ref(&self) -> &[u8] {
+        &self.data[0..(self.data_size as usize)]
+    }
+}
+
+impl From<BytesMut> for SpdmKemEncapKeyStruct {
+    fn from(value: BytesMut) -> Self {
+        assert!(value.as_ref().len() <= SPDM_MAX_KEM_ENCAP_KEY_SIZE);
+        let data_size = value.as_ref().len() as u16;
+        let mut data = [0u8; SPDM_MAX_KEM_ENCAP_KEY_SIZE];
+        data[0..value.as_ref().len()].copy_from_slice(value.as_ref());
+        Self { data_size, data }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SpdmKemCipherTextStruct {
+    pub data_size: u16,
+    pub data: [u8; SPDM_MAX_KEM_CIPHER_TEXT_SIZE],
+}
+impl Default for SpdmKemCipherTextStruct {
+    fn default() -> SpdmKemCipherTextStruct {
+        SpdmKemCipherTextStruct {
+            data_size: 0,
+            data: [0u8; SPDM_MAX_KEM_CIPHER_TEXT_SIZE],
+        }
+    }
+}
+
+impl AsRef<[u8]> for SpdmKemCipherTextStruct {
+    fn as_ref(&self) -> &[u8] {
+        &self.data[0..(self.data_size as usize)]
+    }
+}
+
+impl From<BytesMut> for SpdmKemCipherTextStruct {
+    fn from(value: BytesMut) -> Self {
+        assert!(value.as_ref().len() <= SPDM_MAX_KEM_CIPHER_TEXT_SIZE);
+        let data_size = value.as_ref().len() as u16;
+        let mut data = [0u8; SPDM_MAX_KEM_CIPHER_TEXT_SIZE];
+        data[0..value.as_ref().len()].copy_from_slice(value.as_ref());
+        Self { data_size, data }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct SpdmReqExchangeStruct {
     pub data_size: u16,
     pub data: [u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE],
@@ -1634,6 +1694,20 @@ impl SpdmReqExchangeStruct {
         let mut data = [0u8; SPDM_MAX_DHE_KEY_SIZE];
         data[..(self.data_size as usize)].copy_from_slice(&self.data[..(self.data_size as usize)]);
         SpdmDheExchangeStruct { data_size, data }
+    }
+    pub fn from_kem(kem: SpdmKemEncapKeyStruct) -> Self {
+        assert!(kem.data_size <= SPDM_MAX_REQ_KEY_EXCHANGE_SIZE as u16);
+        let data_size = kem.data_size;
+        let mut data = [0u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE];
+        data[..(kem.data_size as usize)].copy_from_slice(&kem.data[..(kem.data_size as usize)]);
+        Self { data_size, data }
+    }
+    pub fn to_kem(self) -> SpdmKemEncapKeyStruct {
+        assert!(self.data_size <= SPDM_MAX_KEM_ENCAP_KEY_SIZE as u16);
+        let data_size = self.data_size;
+        let mut data = [0u8; SPDM_MAX_KEM_ENCAP_KEY_SIZE];
+        data[..(self.data_size as usize)].copy_from_slice(&self.data[..(self.data_size as usize)]);
+        SpdmKemEncapKeyStruct { data_size, data }
     }
 }
 
@@ -1681,6 +1755,20 @@ impl SpdmRspExchangeStruct {
         let mut data = [0u8; SPDM_MAX_DHE_KEY_SIZE];
         data[..(self.data_size as usize)].copy_from_slice(&self.data[..(self.data_size as usize)]);
         SpdmDheExchangeStruct { data_size, data }
+    }
+    pub fn from_kem(kem: SpdmKemCipherTextStruct) -> Self {
+        assert!(kem.data_size <= SPDM_MAX_REQ_KEY_EXCHANGE_SIZE as u16);
+        let data_size = kem.data_size;
+        let mut data = [0u8; SPDM_MAX_REQ_KEY_EXCHANGE_SIZE];
+        data[..(kem.data_size as usize)].copy_from_slice(&kem.data[..(kem.data_size as usize)]);
+        Self { data_size, data }
+    }
+    pub fn to_kem(self) -> SpdmKemCipherTextStruct {
+        assert!(self.data_size <= SPDM_MAX_KEM_CIPHER_TEXT_SIZE as u16);
+        let data_size = self.data_size;
+        let mut data = [0u8; SPDM_MAX_KEM_CIPHER_TEXT_SIZE];
+        data[..(self.data_size as usize)].copy_from_slice(&self.data[..(self.data_size as usize)]);
+        SpdmKemCipherTextStruct { data_size, data }
     }
 }
 

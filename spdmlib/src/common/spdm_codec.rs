@@ -7,11 +7,12 @@ use crate::config;
 use crate::error::{SpdmResult, SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
     SpdmDheExchangeStruct, SpdmDigestStruct, SpdmDmtfMeasurementRepresentation,
-    SpdmDmtfMeasurementStructure, SpdmDmtfMeasurementType, SpdmMeasurementBlockStructure,
-    SpdmMeasurementHashAlgo, SpdmMeasurementRecordStructure, SpdmMeasurementSpecification,
-    SpdmReqExchangeStruct, SpdmRspExchangeStruct, SpdmSignatureStruct, SPDM_MAX_ASYM_SIG_SIZE,
-    SPDM_MAX_DHE_KEY_SIZE, SPDM_MAX_HASH_SIZE, SPDM_MAX_REQ_KEY_EXCHANGE_SIZE,
-    SPDM_MAX_RSP_KEY_EXCHANGE_SIZE,
+    SpdmDmtfMeasurementStructure, SpdmDmtfMeasurementType, SpdmKemCipherTextStruct,
+    SpdmKemEncapKeyStruct, SpdmMeasurementBlockStructure, SpdmMeasurementHashAlgo,
+    SpdmMeasurementRecordStructure, SpdmMeasurementSpecification, SpdmReqExchangeStruct,
+    SpdmRspExchangeStruct, SpdmSignatureStruct, SPDM_MAX_ASYM_SIG_SIZE, SPDM_MAX_DHE_KEY_SIZE,
+    SPDM_MAX_HASH_SIZE, SPDM_MAX_KEM_CIPHER_TEXT_SIZE, SPDM_MAX_KEM_ENCAP_KEY_SIZE,
+    SPDM_MAX_REQ_KEY_EXCHANGE_SIZE, SPDM_MAX_RSP_KEY_EXCHANGE_SIZE,
 };
 use codec::{u24, Codec, Reader, Writer};
 use core::fmt::Debug;
@@ -177,6 +178,48 @@ impl SpdmCodec for SpdmDheExchangeStruct {
             *d = u8::read(r)?;
         }
         Some(SpdmDheExchangeStruct { data_size, data })
+    }
+}
+
+impl SpdmCodec for SpdmKemEncapKeyStruct {
+    fn spdm_encode(
+        &self,
+        _context: &mut SpdmContext,
+        bytes: &mut Writer,
+    ) -> Result<usize, SpdmStatus> {
+        for d in self.data.iter().take(self.data_size as usize) {
+            d.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
+        Ok(self.data_size as usize)
+    }
+    fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<SpdmKemEncapKeyStruct> {
+        let data_size = context.negotiate_info.kem_sel.get_encap_key_size();
+        let mut data = [0u8; SPDM_MAX_KEM_ENCAP_KEY_SIZE];
+        for d in data.iter_mut().take(data_size as usize) {
+            *d = u8::read(r)?;
+        }
+        Some(SpdmKemEncapKeyStruct { data_size, data })
+    }
+}
+
+impl SpdmCodec for SpdmKemCipherTextStruct {
+    fn spdm_encode(
+        &self,
+        _context: &mut SpdmContext,
+        bytes: &mut Writer,
+    ) -> Result<usize, SpdmStatus> {
+        for d in self.data.iter().take(self.data_size as usize) {
+            d.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
+        Ok(self.data_size as usize)
+    }
+    fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<SpdmKemCipherTextStruct> {
+        let data_size = context.negotiate_info.kem_sel.get_cipher_text_size();
+        let mut data = [0u8; SPDM_MAX_KEM_CIPHER_TEXT_SIZE];
+        for d in data.iter_mut().take(data_size as usize) {
+            *d = u8::read(r)?;
+        }
+        Some(SpdmKemCipherTextStruct { data_size, data })
     }
 }
 

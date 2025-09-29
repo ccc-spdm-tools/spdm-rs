@@ -10,8 +10,8 @@ use alloc::boxed::Box;
 use crate::protocol::{
     SpdmAeadAlgo, SpdmAeadIvStruct, SpdmAeadKeyStruct, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
     SpdmDheAlgo, SpdmDheExchangeStruct, SpdmDigestStruct, SpdmHkdfInputKeyingMaterial,
-    SpdmHkdfOutputKeyingMaterial, SpdmHkdfPseudoRandomKey, SpdmPqcAsymAlgo,
-    SpdmSharedSecretFinalKeyStruct, SpdmSignatureStruct,
+    SpdmHkdfOutputKeyingMaterial, SpdmHkdfPseudoRandomKey, SpdmKemAlgo, SpdmKemCipherTextStruct,
+    SpdmKemEncapKeyStruct, SpdmPqcAsymAlgo, SpdmSharedSecretFinalKeyStruct, SpdmSignatureStruct,
 };
 
 #[cfg(not(feature = "hashed-transcript-data"))]
@@ -130,6 +130,41 @@ pub trait SpdmDheKeyExchange {
         self: Box<Self>,
         peer_pub_key: &SpdmDheExchangeStruct,
     ) -> Option<SpdmSharedSecretFinalKeyStruct>;
+}
+
+type KemGenerateKeyPairCb = fn(
+    kem_algo: SpdmKemAlgo,
+) -> Option<(
+    SpdmKemEncapKeyStruct,
+    Box<dyn SpdmKemEncapKeyExchange + Send>,
+)>;
+
+#[derive(Clone)]
+pub struct SpdmKemDecap {
+    pub generate_key_pair_cb: KemGenerateKeyPairCb,
+}
+
+type NewKeyCb = fn(
+    kem_algo: SpdmKemAlgo,
+    kem_encap_key: &SpdmKemEncapKeyStruct,
+) -> Option<Box<dyn SpdmKemCipherTextExchange + Send>>;
+
+#[derive(Clone)]
+pub struct SpdmKemEncap {
+    pub new_key_cb: NewKeyCb,
+}
+
+pub trait SpdmKemEncapKeyExchange {
+    fn decap_key(
+        self: Box<Self>,
+        kem_cipher_text: &SpdmKemCipherTextStruct,
+    ) -> Option<SpdmSharedSecretFinalKeyStruct>;
+}
+
+pub trait SpdmKemCipherTextExchange {
+    fn encap_key(
+        self: Box<Self>,
+    ) -> Option<(SpdmKemCipherTextStruct, SpdmSharedSecretFinalKeyStruct)>;
 }
 
 #[derive(Clone)]
