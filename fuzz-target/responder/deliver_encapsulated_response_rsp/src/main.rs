@@ -11,6 +11,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_handle_deliver_encapsulated_reponse(data: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::crypto::cert_operation::register(FAKE_CERT_OPERATION.clone());
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
     // TCD:

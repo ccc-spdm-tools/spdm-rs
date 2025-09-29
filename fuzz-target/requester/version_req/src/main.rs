@@ -7,7 +7,7 @@ use fuzzlib::{
     spdmlib::protocol::MAX_SPDM_VERSION_COUNT,
     spdmlib::{protocol::SpdmVersion, requester::RequesterContext},
     time::SPDM_TIME_IMPL,
-    Mutex, PciDoeTransportEncap, SharedBuffer, SECRET_ASYM_IMPL_INSTANCE,
+    Mutex, PciDoeTransportEncap, SharedBuffer, *,
 };
 
 #[allow(unused)]
@@ -89,6 +89,7 @@ fn main() {
         .unwrap();
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::time::register(SPDM_TIME_IMPL.clone());
 
     #[cfg(not(feature = "fuzz"))]

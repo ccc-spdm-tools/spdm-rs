@@ -34,6 +34,7 @@ fn test_case0_send_receive_spdm_digest() {
         let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
         let mut responder = responder::ResponderContext::new(
             device_io_responder,
@@ -112,6 +113,7 @@ fn test_case0_send_receive_spdm_digest() {
 #[cfg(feature = "hashed-transcript-data")]
 fn issue_other_request_before_vca_negotiated() {
     secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     // issue GET_DIGESTS
     executor::add_task(async {
         let (rsp_config_info, rsp_provision_info) = create_info();

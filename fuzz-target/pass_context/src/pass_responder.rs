@@ -16,6 +16,7 @@ pub async fn pass_rsp_handle_spdm_version() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -51,6 +52,7 @@ pub async fn pass_rsp_handle_spdm_capability() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -87,6 +89,7 @@ pub async fn pass_rsp_handle_spdm_algorithm() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -125,6 +128,7 @@ pub async fn pass_rsp_handle_spdm_digest() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -168,6 +172,7 @@ pub async fn pass_rsp_handle_spdm_certificate() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -213,6 +218,7 @@ pub async fn pass_rsp_handle_spdm_challenge() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -265,6 +271,7 @@ pub async fn pass_rsp_handle_spdm_measurement() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -321,6 +328,7 @@ pub async fn pass_rsp_handle_spdm_key_exchange() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =
@@ -392,6 +400,7 @@ pub async fn pass_rsp_handle_spdm_psk_exchange() {
     > = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport: Arc<Mutex<(dyn fuzzlib::SpdmDeviceIo + Send + Sync + 'static)>> =

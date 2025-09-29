@@ -25,6 +25,7 @@ async fn run_spdm(spdm: Vec<i32>) {
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
 
     let responder = responder::ResponderContext::new(
         device_io_responder,

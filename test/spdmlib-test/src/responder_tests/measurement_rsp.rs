@@ -41,6 +41,7 @@ fn test_case0_handle_spdm_measurement() {
         );
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
 
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
@@ -150,6 +151,7 @@ fn test_case1_handle_spdm_measurement() {
         );
 
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
 
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
-use crate::common::secret_callback::SECRET_ASYM_IMPL_INSTANCE;
+use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 use crate::common::util::create_info;
 #[cfg(not(feature = "chunk-cap"))]
@@ -28,6 +28,7 @@ fn test_case0_handle_spdm_capability() {
             shared_buffer,
         ))));
         secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
         let mut context = responder::ResponderContext::new(
             socket_io_transport,
             pcidoe_transport_encap,

@@ -10,6 +10,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_send_receive_spdm_psk_exchange(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+    spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
     spdmlib::secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
     spdmlib::crypto::hkdf::register(FAKE_HKDF.clone());
