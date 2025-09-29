@@ -16,6 +16,7 @@ use alloc::sync::Arc;
 
 async fn fuzz_send_receive_spdm_measurement(fuzzdata: Arc<Vec<u8>>) {
     spdmlib::crypto::asym_verify::register(FAKE_ASYM_VERIFY.clone());
+    spdmlib::crypto::pqc_asym_verify::register(FAKE_PQC_ASYM_VERIFY.clone());
     // TCD:
     // - id: 0
     // - title: 'Fuzz SPDM handle measurement response'
