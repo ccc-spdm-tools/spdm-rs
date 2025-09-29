@@ -194,6 +194,7 @@ fn test_0_crypto_init() {
     };
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
     spdmlib::crypto::asym_verify::register(FAKE_ASYM_VERIFY.clone());
+    spdmlib::crypto::pqc_asym_verify::register(FAKE_PQC_ASYM_VERIFY.clone());
     spdmlib::crypto::aead::register(FAKE_AEAD.clone());
     spdmlib::crypto::rand::register(FAKE_RAND.clone());
     spdmlib::secret::asym_sign::register(FAKE_SECRET_ASYM_IMPL_INSTANCE.clone());

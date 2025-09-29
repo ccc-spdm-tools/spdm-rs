@@ -588,10 +588,11 @@ pub struct ResponderRunner;
 impl ResponderRunner {
     pub fn run(case: TestCase, cb: fn(secure: u8, bufer: &[u8]) -> VecDeque<u8>) -> bool {
         use super::secret_callback::FAKE_SECRET_ASYM_IMPL_INSTANCE;
-        use crate::common::crypto_callback::{FAKE_AEAD, FAKE_ASYM_VERIFY, FAKE_RAND};
+        use crate::common::crypto_callback::{FAKE_AEAD, FAKE_ASYM_VERIFY, FAKE_PQC_ASYM_VERIFY, FAKE_RAND};
         spdmlib::crypto::aead::register(FAKE_AEAD.clone());
         spdmlib::crypto::rand::register(FAKE_RAND.clone());
         spdmlib::crypto::asym_verify::register(FAKE_ASYM_VERIFY.clone());
+        spdmlib::crypto::pqc_asym_verify::register(FAKE_PQC_ASYM_VERIFY.clone());
         spdmlib::secret::asym_sign::register(FAKE_SECRET_ASYM_IMPL_INSTANCE.clone());
 
         let mut output = Arc::new(Mutex::new(VecDeque::<u8>::new()));

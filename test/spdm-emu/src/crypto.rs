@@ -10,6 +10,10 @@ pub fn crypto_mbedtls_register_handles() {
         spdmlib_crypto_mbedtls::asym_verify_impl::DEFAULT.clone(),
     );
 
+    spdmlib::crypto::pqc_asym_verify::register(
+        spdmlib_crypto_mbedtls::pqc_asym_verify_impl::DEFAULT.clone(),
+    );
+
     spdmlib::crypto::cert_operation::register(
         spdmlib_crypto_mbedtls::cert_operation_impl::DEFAULT.clone(),
     );
