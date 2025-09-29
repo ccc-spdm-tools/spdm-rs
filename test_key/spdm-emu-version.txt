@@ -1,3 +1,3 @@
 https://github.com/DMTF/spdm-emu/
 
-githash:74b155b4989de5ef8d3869a68acb384ef651c661
+githash:74f02f3e5e2c6efdc6969d34909b584f930d6076
