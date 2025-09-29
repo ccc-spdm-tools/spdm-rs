@@ -232,24 +232,49 @@ impl ResponderContext {
             .runtime_info
             .set_local_used_cert_chain_slot_id(key_exchange_req.slot_id);
 
-        let (dhe_exchange, dhe_key_exchange_context) =
-            if let Some(kp) = crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel) {
-                kp
-            } else {
-                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
-                return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
-            };
-        let exchange = SpdmRspExchangeStruct::from_dhe(dhe_exchange);
-
-        debug!("!!! exchange data : {:02x?}\n", exchange);
-
         debug!(
             "!!! exchange data (peer) : {:02x?}\n",
             &key_exchange_req.exchange
         );
 
-        let dhe_exchange = key_exchange_req.exchange.to_dhe();
-        let final_key = dhe_key_exchange_context.compute_final_key(&dhe_exchange);
+        let (final_key, exchange) = if self.common.negotiate_info.kem_sel != SpdmKemAlgo::empty() {
+            let peer_kem_encap_key = key_exchange_req.exchange.to_kem();
+            let kem_key_exchange_context =
+                crypto::kem_encap::new_key(self.common.negotiate_info.kem_sel, &peer_kem_encap_key);
+            if kem_key_exchange_context.is_none() {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+            }
+            let kem_key_exchange_context = kem_key_exchange_context.unwrap();
+
+            let (my_kem_cipher_text, my_final_key) =
+                if let Some(kp) = kem_key_exchange_context.encap_key() {
+                    kp
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                    return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+                };
+            (
+                Some(my_final_key),
+                SpdmRspExchangeStruct::from_kem(my_kem_cipher_text),
+            )
+        } else {
+            let (my_dhe_exchange, dhe_key_exchange_context) = if let Some(kp) =
+                crypto::dhe::generate_key_pair(self.common.negotiate_info.dhe_sel)
+            {
+                kp
+            } else {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
+            };
+            let peer_dhe_exchange = key_exchange_req.exchange.to_dhe();
+            (
+                dhe_key_exchange_context.compute_final_key(&peer_dhe_exchange),
+                SpdmRspExchangeStruct::from_dhe(my_dhe_exchange),
+            )
+        };
+
+        debug!("!!! exchange data : {:02x?}\n", exchange);
 
         if final_key.is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
