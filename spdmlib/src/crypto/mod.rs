@@ -15,7 +15,7 @@ mod spdm_ring;
 
 pub use crypto_callbacks::{
     SpdmAead, SpdmAsymVerify, SpdmCertOperation, SpdmCryptoRandom, SpdmDhe, SpdmDheKeyExchange,
-    SpdmHash, SpdmHkdf, SpdmHmac,
+    SpdmHash, SpdmHkdf, SpdmHmac, SpdmPqcAsymVerify,
 };
 
 #[cfg(feature = "hashed-transcript-data")]
@@ -27,6 +27,7 @@ static CRYPTO_HASH: OnceCell<SpdmHash> = OnceCell::uninit();
 static CRYPTO_HMAC: OnceCell<SpdmHmac> = OnceCell::uninit();
 static CRYPTO_AEAD: OnceCell<SpdmAead> = OnceCell::uninit();
 static CRYPTO_ASYM_VERIFY: OnceCell<SpdmAsymVerify> = OnceCell::uninit();
+static CRYPTO_PQC_ASYM_VERIFY: OnceCell<SpdmPqcAsymVerify> = OnceCell::uninit();
 static CRYPTO_DHE: OnceCell<SpdmDhe> = OnceCell::uninit();
 static CRYPTO_CERT_OPERATION: OnceCell<SpdmCertOperation> = OnceCell::uninit();
 static CRYPTO_HKDF: OnceCell<SpdmHkdf> = OnceCell::uninit();
@@ -221,6 +222,42 @@ pub mod asym_verify {
     }
 }
 
+pub mod pqc_asym_verify {
+    use super::CRYPTO_PQC_ASYM_VERIFY;
+    use crate::crypto::SpdmPqcAsymVerify;
+    use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
+    use crate::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+
+    #[cfg(not(any(feature = "spdm-ring")))]
+    use super::crypto_null::pqc_asym_verify_impl::DEFAULT;
+
+    #[cfg(feature = "spdm-ring")]
+    use super::spdm_ring::pqc_asym_verify_impl::DEFAULT;
+
+    pub fn register(context: SpdmPqcAsymVerify) -> bool {
+        CRYPTO_PQC_ASYM_VERIFY.try_get_or_init(|| context).is_ok()
+    }
+
+    pub fn verify(
+        base_hash_algo: SpdmBaseHashAlgo,
+        pqc_asym_algo: SpdmPqcAsymAlgo,
+        public_cert_der: &[u8],
+        data: &[u8],
+        signature: &SpdmSignatureStruct,
+    ) -> SpdmResult {
+        (CRYPTO_PQC_ASYM_VERIFY
+            .try_get_or_init(|| DEFAULT.clone())
+            .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
+            .verify_cb)(
+            base_hash_algo,
+            pqc_asym_algo,
+            public_cert_der,
+            data,
+            signature,
+        )
+    }
+}
+
 pub mod dhe {
     extern crate alloc;
     use alloc::boxed::Box;
@@ -392,6 +429,37 @@ pub mod rand {
 }
 #[cfg(feature = "fips")]
 pub mod fips;
+
+// Add this import at the top of the file (after other use statements)
+use crate::error::SpdmResult;
+use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+
+pub fn spdm_asym_verify(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    pqc_asym_algo: SpdmPqcAsymAlgo,
+    public_cert_der: &[u8],
+    data: &[u8],
+    signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    if pqc_asym_algo != SpdmPqcAsymAlgo::empty() {
+        self::pqc_asym_verify::verify(
+            base_hash_algo,
+            pqc_asym_algo,
+            public_cert_der,
+            data,
+            signature,
+        )
+    } else {
+        self::asym_verify::verify(
+            base_hash_algo,
+            base_asym_algo,
+            public_cert_der,
+            data,
+            signature,
+        )
+    }
+}
 
 #[cfg(test)]
 mod crypto_tests;

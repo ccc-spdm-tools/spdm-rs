@@ -10,8 +10,8 @@ use alloc::boxed::Box;
 use crate::protocol::{
     SpdmAeadAlgo, SpdmAeadIvStruct, SpdmAeadKeyStruct, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
     SpdmDheAlgo, SpdmDheExchangeStruct, SpdmDigestStruct, SpdmHkdfInputKeyingMaterial,
-    SpdmHkdfOutputKeyingMaterial, SpdmHkdfPseudoRandomKey, SpdmSharedSecretFinalKeyStruct,
-    SpdmSignatureStruct,
+    SpdmHkdfOutputKeyingMaterial, SpdmHkdfPseudoRandomKey, SpdmPqcAsymAlgo,
+    SpdmSharedSecretFinalKeyStruct, SpdmSignatureStruct,
 };
 
 #[cfg(not(feature = "hashed-transcript-data"))]
@@ -75,6 +75,17 @@ pub struct SpdmAsymVerify {
     pub verify_cb: fn(
         base_hash_algo: SpdmBaseHashAlgo,
         base_asym_algo: SpdmBaseAsymAlgo,
+        public_cert_der: &[u8],
+        data: &[u8],
+        signature: &SpdmSignatureStruct,
+    ) -> SpdmResult,
+}
+
+#[derive(Clone)]
+pub struct SpdmPqcAsymVerify {
+    pub verify_cb: fn(
+        base_hash_algo: SpdmBaseHashAlgo,
+        pqc_asym_algo: SpdmPqcAsymAlgo,
         public_cert_der: &[u8],
         data: &[u8],
         signature: &SpdmSignatureStruct,
