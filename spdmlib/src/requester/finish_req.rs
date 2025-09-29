@@ -437,9 +437,10 @@ impl RequesterContext {
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                 .data_size as usize)];
 
-        crate::crypto::asym_verify::verify(
+        crate::crypto::spdm_asym_verify(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
+            self.common.negotiate_info.pqc_req_asym_sel.to_base(),
             peer_cert,
             transcript_sign.as_ref(),
             &signature,

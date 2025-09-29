@@ -700,9 +700,10 @@ fn test_case1_send_receive_spdm_measurement() {
                 .unwrap()
                 .data_size as usize)];
 
-        let result = crypto::asym_verify::verify(
+        let result = crypto::spdm_asym_verify(
             requester.common.negotiate_info.base_hash_sel,
             requester.common.negotiate_info.base_asym_sel,
+            requester.common.negotiate_info.pqc_asym_sel,
             cert_chain_data,
             message_l1l2.as_ref(),
             &spdm_signature_struct,
@@ -940,9 +941,10 @@ fn test_case3_send_receive_spdm_measurement() {
                         .unwrap()
                         .data_size as usize)];
 
-                let result = crypto::asym_verify::verify(
+                let result = crypto::spdm_asym_verify(
                     requester.common.negotiate_info.base_hash_sel,
                     requester.common.negotiate_info.base_asym_sel,
+                    requester.common.negotiate_info.pqc_asym_sel,
                     cert_chain_data,
                     message_l1l2.as_ref(),
                     &spdm_signature_struct,
