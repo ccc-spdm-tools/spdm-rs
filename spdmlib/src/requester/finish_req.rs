@@ -380,9 +380,10 @@ impl RequesterContext {
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         }
 
-        crate::secret::asym_sign::sign(
+        crate::secret::spdm_asym_sign(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
+            self.common.negotiate_info.pqc_req_asym_sel.to_base(),
             transcript_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)
@@ -420,9 +421,10 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
 
-        let signature = crate::secret::asym_sign::sign(
+        let signature = crate::secret::spdm_asym_sign(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
+            self.common.negotiate_info.pqc_req_asym_sel.to_base(),
             transcript_sign.as_ref(),
         )
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
