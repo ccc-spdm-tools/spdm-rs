@@ -421,33 +421,12 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
 
-        let signature = crate::secret::spdm_asym_sign(
+        crate::secret::spdm_asym_sign(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
             self.common.negotiate_info.pqc_req_asym_sel.to_base(),
             transcript_sign.as_ref(),
         )
-        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-
-        let peer_slot_id = self.common.runtime_info.get_local_used_cert_chain_slot_id();
-        let peer_cert = &self.common.provision_info.my_cert_chain[peer_slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
-
-        crate::crypto::spdm_asym_verify(
-            self.common.negotiate_info.base_hash_sel,
-            self.common.negotiate_info.req_asym_sel.to_base(),
-            self.common.negotiate_info.pqc_req_asym_sel.to_base(),
-            peer_cert,
-            transcript_sign.as_ref(),
-            &signature,
-        )?;
-
-        Ok(signature)
+        .ok_or(SPDM_STATUS_CRYPTO_ERROR)
     }
 }
