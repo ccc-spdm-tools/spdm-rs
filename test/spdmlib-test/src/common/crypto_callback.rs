@@ -4,7 +4,7 @@
 
 use spdmlib::crypto::SpdmCertOperation;
 use spdmlib::crypto::SpdmCryptoRandom;
-use spdmlib::crypto::{SpdmAead, SpdmAsymVerify, SpdmHkdf, SpdmHmac};
+use spdmlib::crypto::{SpdmAead, SpdmAsymVerify, SpdmHkdf, SpdmHmac, SpdmPqcAsymVerify};
 use spdmlib::error::{SpdmResult, SPDM_STATUS_VERIF_FAIL};
 use spdmlib::protocol::*;
 
@@ -24,6 +24,10 @@ pub static FAKE_RAND: SpdmCryptoRandom = SpdmCryptoRandom {
 
 pub static FAKE_ASYM_VERIFY: SpdmAsymVerify = SpdmAsymVerify {
     verify_cb: fake_asym_verify,
+};
+
+pub static FAKE_PQC_ASYM_VERIFY: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
+    verify_cb: fake_pqc_asym_verify,
 };
 
 pub static FAKE_HKDF: SpdmHkdf = SpdmHkdf {
@@ -109,6 +113,16 @@ fn get_random(data: &mut [u8]) -> SpdmResult<usize> {
 fn fake_asym_verify(
     _base_hash_algo: SpdmBaseHashAlgo,
     _base_asym_algo: SpdmBaseAsymAlgo,
+    _public_cert_der: &[u8],
+    _data: &[u8],
+    _signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    Ok(())
+}
+
+fn fake_pqc_asym_verify(
+    _base_hash_algo: SpdmBaseHashAlgo,
+    _pqc_asym_algo: SpdmPqcAsymAlgo,
     _public_cert_der: &[u8],
     _data: &[u8],
     _signature: &SpdmSignatureStruct,
