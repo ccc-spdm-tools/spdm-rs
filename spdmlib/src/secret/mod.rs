@@ -4,11 +4,14 @@
 mod secret_callback;
 
 use conquer_once::spin::OnceCell;
-pub use secret_callback::{SpdmSecretAsymSign, SpdmSecretMeasurement, SpdmSecretPsk};
+pub use secret_callback::{
+    SpdmSecretAsymSign, SpdmSecretMeasurement, SpdmSecretPqcAsymSign, SpdmSecretPsk,
+};
 
 static SECRET_MEASUREMENT_INSTANCE: OnceCell<SpdmSecretMeasurement> = OnceCell::uninit();
 static SECRET_PSK_INSTANCE: OnceCell<SpdmSecretPsk> = OnceCell::uninit();
 static SECRET_ASYM_INSTANCE: OnceCell<SpdmSecretAsymSign> = OnceCell::uninit();
+static SECRET_PQC_ASYM_INSTANCE: OnceCell<SpdmSecretPqcAsymSign> = OnceCell::uninit();
 
 pub mod measurement {
     use super::{SpdmSecretMeasurement, SECRET_MEASUREMENT_INSTANCE};
@@ -162,5 +165,48 @@ pub mod asym_sign {
             .try_get_or_init(|| DEFAULT.clone())
             .ok()?
             .sign_cb)(base_hash_algo, base_asym_algo, data)
+    }
+}
+
+pub mod pqc_asym_sign {
+    use super::SECRET_PQC_ASYM_INSTANCE;
+    use crate::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+    use crate::secret::SpdmSecretPqcAsymSign;
+
+    pub fn register(context: SpdmSecretPqcAsymSign) -> bool {
+        SECRET_PQC_ASYM_INSTANCE.try_init_once(|| context).is_ok()
+    }
+
+    static DEFAULT: SpdmSecretPqcAsymSign = SpdmSecretPqcAsymSign {
+        sign_cb: |_base_hash_algo: SpdmBaseHashAlgo,
+                  _pqc_asym_algo: SpdmPqcAsymAlgo,
+                  _data: &[u8]|
+         -> Option<SpdmSignatureStruct> { unimplemented!() },
+    };
+
+    pub fn sign(
+        base_hash_algo: SpdmBaseHashAlgo,
+        pqc_asym_algo: SpdmPqcAsymAlgo,
+        data: &[u8],
+    ) -> Option<SpdmSignatureStruct> {
+        (SECRET_PQC_ASYM_INSTANCE
+            .try_get_or_init(|| DEFAULT.clone())
+            .ok()?
+            .sign_cb)(base_hash_algo, pqc_asym_algo, data)
+    }
+}
+
+use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+
+pub fn spdm_asym_sign(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    pqc_asym_algo: SpdmPqcAsymAlgo,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    if pqc_asym_algo != SpdmPqcAsymAlgo::empty() {
+        pqc_asym_sign::sign(base_hash_algo, pqc_asym_algo, data)
+    } else {
+        asym_sign::sign(base_hash_algo, base_asym_algo, data)
     }
 }

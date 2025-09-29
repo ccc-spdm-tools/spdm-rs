@@ -4,16 +4,20 @@
 
 use std::path::PathBuf;
 
-use spdmlib::secret::SpdmSecretAsymSign;
+use spdmlib::secret::{SpdmSecretAsymSign, SpdmSecretPqcAsymSign};
 
 use spdmlib::protocol::{
-    SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct, RSAPSS_2048_SIG_SIZE,
+    SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct, RSAPSS_2048_SIG_SIZE,
     RSAPSS_3072_SIG_SIZE, RSAPSS_4096_SIG_SIZE, RSASSA_2048_SIG_SIZE, RSASSA_3072_SIG_SIZE,
     RSASSA_4096_SIG_SIZE, SPDM_MAX_ASYM_SIG_SIZE,
 };
 
 pub static SECRET_ASYM_IMPL_INSTANCE: SpdmSecretAsymSign =
     SpdmSecretAsymSign { sign_cb: asym_sign };
+
+pub static SECRET_PQC_ASYM_IMPL_INSTANCE: SpdmSecretPqcAsymSign = SpdmSecretPqcAsymSign {
+    sign_cb: pqc_asym_sign,
+};
 
 fn asym_sign(
     base_hash_algo: SpdmBaseHashAlgo,
@@ -168,6 +172,14 @@ fn sign_rsa_asym_algo(
         data_size: key_len as u16,
         data: full_sign,
     })
+}
+
+fn pqc_asym_sign(
+    _base_hash_algo: SpdmBaseHashAlgo,
+    _pqc_asym_algo: SpdmPqcAsymAlgo,
+    _data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    unimplemented!()
 }
 
 fn get_test_key_directory() -> PathBuf {

@@ -12,7 +12,9 @@ use spdmlib::crypto;
 use spdmlib::crypto::hash;
 use spdmlib::message::*;
 use spdmlib::protocol::*;
-use spdmlib::secret::{SpdmSecretAsymSign, SpdmSecretMeasurement, SpdmSecretPsk};
+use spdmlib::secret::{
+    SpdmSecretAsymSign, SpdmSecretMeasurement, SpdmSecretPqcAsymSign, SpdmSecretPsk,
+};
 
 pub static SECRET_MEASUREMENT_IMPL_INSTANCE: SpdmSecretMeasurement = SpdmSecretMeasurement {
     measurement_collection_cb: measurement_collection_impl,
@@ -28,6 +30,13 @@ pub static SECRET_ASYM_IMPL_INSTANCE: SpdmSecretAsymSign =
     SpdmSecretAsymSign { sign_cb: asym_sign };
 pub static FAKE_SECRET_ASYM_IMPL_INSTANCE: SpdmSecretAsymSign = SpdmSecretAsymSign {
     sign_cb: fake_asym_sign,
+};
+
+pub static SECRET_PQC_ASYM_IMPL_INSTANCE: SpdmSecretPqcAsymSign = SpdmSecretPqcAsymSign {
+    sign_cb: pqc_asym_sign,
+};
+pub static FAKE_SECRET_PQC_ASYM_IMPL_INSTANCE: SpdmSecretPqcAsymSign = SpdmSecretPqcAsymSign {
+    sign_cb: fake_pqc_asym_sign,
 };
 
 #[allow(clippy::field_reassign_with_default)]
@@ -322,6 +331,14 @@ fn sign_ecdsa_asym_algo(
     })
 }
 
+fn pqc_asym_sign(
+    _base_hash_algo: SpdmBaseHashAlgo,
+    _pqc_asym_algo: SpdmPqcAsymAlgo,
+    _data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    unimplemented!()
+}
+
 fn fake_asym_sign(
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
@@ -330,16 +347,40 @@ fn fake_asym_sign(
     match (base_hash_algo, base_asym_algo) {
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256) => {
             Some(SpdmSignatureStruct {
-                data_size: 64,
+                data_size: ECDSA_ECC_NIST_P256_SIG_SIZE as u16,
                 data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
             })
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
             Some(SpdmSignatureStruct {
-                data_size: 96,
+                data_size: ECDSA_ECC_NIST_P384_SIG_SIZE as u16,
                 data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
             })
         }
+        _ => {
+            panic!();
+        }
+    }
+}
+
+fn fake_pqc_asym_sign(
+    base_hash_algo: SpdmBaseHashAlgo,
+    pqc_asym_algo: SpdmPqcAsymAlgo,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    match pqc_asym_algo {
+        SpdmPqcAsymAlgo::ALG_MLDSA_44 => Some(SpdmSignatureStruct {
+            data_size: MLDSA_44_SIG_SIZE as u16,
+            data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
+        }),
+        SpdmPqcAsymAlgo::ALG_MLDSA_65 => Some(SpdmSignatureStruct {
+            data_size: MLDSA_65_SIG_SIZE as u16,
+            data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
+        }),
+        SpdmPqcAsymAlgo::ALG_MLDSA_87 => Some(SpdmSignatureStruct {
+            data_size: MLDSA_87_SIG_SIZE as u16,
+            data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
+        }),
         _ => {
             panic!();
         }
