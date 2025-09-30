@@ -20,6 +20,10 @@ pub fn crypto_mbedtls_register_handles() {
 
     spdmlib::crypto::dhe::register(spdmlib_crypto_mbedtls::dhe_impl::DEFAULT.clone());
 
+    spdmlib::crypto::kem_decap::register(spdmlib_crypto_mbedtls::kem_impl::DEFAULT_DECAP.clone());
+
+    spdmlib::crypto::kem_encap::register(spdmlib_crypto_mbedtls::kem_impl::DEFAULT_ENCAP.clone());
+
     spdmlib::crypto::hash::register(spdmlib_crypto_mbedtls::hash_impl::DEFAULT.clone());
 
     spdmlib::crypto::hkdf::register(spdmlib_crypto_mbedtls::hkdf_impl::DEFAULT.clone());
