@@ -1098,6 +1098,7 @@ impl Codec for SpdmAlgStruct {
 }
 
 pub const SPDM_MAX_SLOT_NUMBER: usize = 8;
+pub const SLOT_ID_USE_PROVISIONED_PUB_KEY: u8 = 0xFF;
 
 enum_builder! {
     @U8

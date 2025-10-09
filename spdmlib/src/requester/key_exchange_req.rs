@@ -32,7 +32,7 @@ impl RequesterContext {
     ) -> SpdmResult<u32> {
         info!("send spdm key exchange\n");
 
-        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
+        if slot_id != SLOT_ID_USE_PROVISIONED_PUB_KEY && slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
@@ -276,9 +276,14 @@ impl RequesterContext {
                             *target_session_id = Some(session_id);
                             let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
                             let message_a = self.common.runtime_info.message_a.clone();
-                            let cert_chain_hash =
-                                self.common.get_certchain_hash_peer(false, slot_id as usize);
-                            if cert_chain_hash.is_none() {
+                            let cert_chain_hash = if slot_id != SLOT_ID_USE_PROVISIONED_PUB_KEY {
+                                self.common.get_certchain_hash_peer(false, slot_id as usize)
+                            } else {
+                                None
+                            };
+                            if slot_id != SLOT_ID_USE_PROVISIONED_PUB_KEY
+                                && cert_chain_hash.is_none()
+                            {
                                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                             }
 
@@ -497,20 +502,23 @@ impl RequesterContext {
 
         debug!("message_hash - {:02x?}", transcript_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-            error!("peer_cert_chain is not populated!\n");
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
+        let cert_chain_data = if slot_id != SLOT_ID_USE_PROVISIONED_PUB_KEY {
+            if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                error!("peer_cert_chain is not populated!\n");
+                return Err(SPDM_STATUS_INVALID_PARAMETER);
+            }
 
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+            &self.common.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
-
+                .data[(4usize + self.common.get_hash_size() as usize)
+                ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data_size as usize)]
+        } else {
+            &[]
+        };
         let mut message_sign = ManagedBuffer12Sign::default();
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_sign.reset_message();
@@ -555,19 +563,23 @@ impl RequesterContext {
         // we just print message hash for debug purpose
         debug!("message_hash - {:02x?}", message_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-            error!("peer_cert_chain is not populated!\n");
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
-
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let cert_chain_data = if slot_id == SLOT_ID_USE_PROVISIONED_PUB_KEY {
+            &[]
+        } else {
+            if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                error!("peer_cert_chain is not populated!\n");
+                return Err(SPDM_STATUS_INVALID_PARAMETER);
+            };
+            &self.common.peer_info.peer_cert_chain[slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
+                .data[(4usize
+                + self.common.negotiate_info.base_hash_sel.get_size() as usize)
+                ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data_size as usize)]
+        };
 
         let mut message = self.common.calc_req_transcript_data(
             false,
