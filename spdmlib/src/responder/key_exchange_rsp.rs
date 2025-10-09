@@ -414,15 +414,14 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
-        let used = writer.used();
 
         // generate signature
         let signature_size = self.common.get_asym_sig_size() as usize;
         let base_hash_size = self.common.get_hash_size() as usize;
-        let temp_used = if in_clear_text {
-            used - signature_size
+        let mut temp_used = if in_clear_text {
+            writer.used() - signature_size
         } else {
-            used - signature_size - base_hash_size
+            writer.used() - signature_size - base_hash_size
         };
 
         if self
@@ -473,6 +472,11 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
+
+        // patch the signature before send
+        writer.mut_used_slice()[temp_used..(temp_used + signature_size)]
+            .copy_from_slice(signature.as_ref());
+        temp_used += signature_size;
 
         let session = if let Some(session) = self.common.get_immutable_session_via_id(session_id) {
             session
@@ -572,11 +576,9 @@ impl ResponderContext {
                 );
             }
 
-            // patch the message before send
-            writer.mut_used_slice()
-                [(used - base_hash_size - signature_size)..(used - base_hash_size)]
-                .copy_from_slice(signature.as_ref());
-            writer.mut_used_slice()[(used - base_hash_size)..used].copy_from_slice(hmac.as_ref());
+            // patch the hmac before send
+            writer.mut_used_slice()[temp_used..(temp_used + base_hash_size)]
+                .copy_from_slice(hmac.as_ref());
         }
 
         let heartbeat_period = self.common.config_info.heartbeat_period;
