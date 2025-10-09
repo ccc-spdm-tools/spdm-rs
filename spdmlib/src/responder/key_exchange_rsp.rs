@@ -213,14 +213,16 @@ impl ResponderContext {
 
         let key_exchange_req = key_exchange_req.unwrap();
         let slot_id = key_exchange_req.slot_id as usize;
-        if slot_id >= SPDM_MAX_SLOT_NUMBER {
+        if slot_id != SLOT_ID_USE_PROVISIONED_PUB_KEY as usize && slot_id >= SPDM_MAX_SLOT_NUMBER {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_MSG_FIELD),
                 Some(writer.used_slice()),
             );
         }
-        if self.common.provision_info.my_cert_chain[slot_id].is_none() {
+        if slot_id < SPDM_MAX_SLOT_NUMBER
+            && self.common.provision_info.my_cert_chain[slot_id].is_none()
+        {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -314,8 +316,12 @@ impl ResponderContext {
 
         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
         let message_a = self.common.runtime_info.message_a.clone();
-        let cert_chain_hash = self.common.get_certchain_hash_local(false, slot_id);
-        if cert_chain_hash.is_none() {
+        let cert_chain_hash = if slot_id < SPDM_MAX_SLOT_NUMBER {
+            self.common.get_certchain_hash_local(false, slot_id)
+        } else {
+            None
+        };
+        if slot_id < SPDM_MAX_SLOT_NUMBER && cert_chain_hash.is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_MSG_FIELD),

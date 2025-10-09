@@ -811,7 +811,7 @@ impl SpdmContext {
             .append_message(self.runtime_info.message_a.as_ref())
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         debug!("message_a - {:02x?}", self.runtime_info.message_a.as_ref());
-        if !use_psk {
+        if !use_psk && slot_id != SLOT_ID_USE_PROVISIONED_PUB_KEY {
             if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
                 error!("my_cert_chain is not populated!\n");
                 return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
