@@ -68,9 +68,12 @@ impl ResponderContext {
             &vendor_id,
             vendor_defined_request_handler,
         );
-        if let Err(e) = rsp_payload {
-            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
-            return (Err(e), Some(writer.used_slice()));
+        if let Err(_e) = rsp_payload {
+            return self.respond_to_vendor_defined_request_ex(
+                bytes,
+                writer,
+                vendor_defined_request_handler_ex,
+            );
         }
 
         let rsp_payload = rsp_payload.unwrap();
@@ -113,5 +116,17 @@ impl ResponderContext {
         ) -> SpdmResult<VendorDefinedRspPayloadStruct>,
     {
         verdor_defined_func(vendor_id_struct, req)
+    }
+
+    pub fn respond_to_vendor_defined_request_ex<'a, F>(
+        &mut self,
+        bytes: &[u8],
+        writer: &'a mut Writer,
+        verdor_defined_func_ex: F,
+    ) -> (SpdmResult, Option<&'a [u8]>)
+    where
+        F: Fn(&mut ResponderContext, &[u8], &'a mut Writer) -> (SpdmResult, Option<&'a [u8]>),
+    {
+        verdor_defined_func_ex(self, bytes, writer)
     }
 }
