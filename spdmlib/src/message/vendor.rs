@@ -9,6 +9,7 @@ use crate::error::{
     SpdmResult, SpdmStatus, SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_INVALID_STATE_LOCAL,
 };
 use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion};
+use crate::responder::ResponderContext;
 use codec::{enum_builder, Codec, Reader, Writer};
 use conquer_once::spin::OnceCell;
 use zeroize::ZeroizeOnDrop;
@@ -456,7 +457,7 @@ static VENDOR_DEFNIED_DEFAULT: VendorDefinedStruct = VendorDefinedStruct {
          _vendor_defined_req_payload_struct: &VendorDefinedReqPayloadStruct|
          -> SpdmResult<VendorDefinedRspPayloadStruct> {
             log::info!("not implement vendor defined struct!!!\n");
-            unimplemented!()
+            Err(SPDM_STATUS_INVALID_STATE_LOCAL)
         },
     vdm_handle: 0,
 };
@@ -477,5 +478,42 @@ pub fn vendor_defined_request_handler(
         )
     } else {
         Err(SPDM_STATUS_INVALID_STATE_LOCAL)
+    }
+}
+
+#[derive(Clone, Copy)]
+#[allow(clippy::type_complexity)]
+pub struct VendorDefinedStructEx {
+    pub vendor_defined_request_handler_ex:
+        for<'a> fn(&mut ResponderContext, &[u8], &'a mut Writer) -> (SpdmResult, Option<&'a [u8]>),
+    pub vdm_handle: usize, // interpreted/managed by User
+}
+
+static VENDOR_DEFNIED_EX: OnceCell<VendorDefinedStructEx> = OnceCell::uninit();
+
+static VENDOR_DEFNIED_DEFAULT_EX: VendorDefinedStructEx = VendorDefinedStructEx {
+    vendor_defined_request_handler_ex: |_responder_context: &mut ResponderContext,
+                                        _bytes: &[u8],
+                                        _writer: &mut Writer|
+     -> (SpdmResult, Option<&[u8]>) {
+        log::info!("not implement vendor defined struct!!!\n");
+        unimplemented!()
+    },
+    vdm_handle: 0,
+};
+
+pub fn register_vendor_defined_struct_ex(context: VendorDefinedStructEx) -> bool {
+    VENDOR_DEFNIED_EX.try_init_once(|| context).is_ok()
+}
+
+pub fn vendor_defined_request_handler_ex<'a>(
+    responder_context: &mut ResponderContext,
+    bytes: &[u8],
+    writer: &'a mut Writer,
+) -> (SpdmResult, Option<&'a [u8]>) {
+    if let Ok(vds) = VENDOR_DEFNIED_EX.try_get_or_init(|| VENDOR_DEFNIED_DEFAULT_EX) {
+        (vds.vendor_defined_request_handler_ex)(responder_context, bytes, writer)
+    } else {
+        (Err(SPDM_STATUS_INVALID_STATE_LOCAL), None)
     }
 }
