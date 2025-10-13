@@ -7,6 +7,8 @@ pub mod opaque;
 pub mod session;
 pub mod spdm_codec;
 
+#[cfg(feature = "mut-auth")]
+use crate::message::SpdmKeyExchangeMutAuthAttributes;
 use crate::message::SpdmRequestResponseCode;
 use crate::{crypto, protocol::*};
 use spin::Mutex;
@@ -2853,6 +2855,7 @@ impl Codec for SpdmPeerInfo {
 #[cfg(feature = "mut-auth")]
 #[derive(Default, Debug, Eq, PartialEq)]
 pub struct SpdmEncapContext {
+    pub mut_auth_requested: SpdmKeyExchangeMutAuthAttributes,
     pub req_slot_id: u8,
     pub request_id: u8,
     pub encap_cert_size: u32,
@@ -2862,6 +2865,7 @@ pub struct SpdmEncapContext {
 impl Codec for SpdmEncapContext {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let mut size = 0;
+        size += self.mut_auth_requested.encode(writer)?;
         size += self.req_slot_id.encode(writer)?;
         size += self.request_id.encode(writer)?;
         size += self.encap_cert_size.encode(writer)?;
@@ -2870,6 +2874,7 @@ impl Codec for SpdmEncapContext {
 
     fn read(reader: &mut Reader) -> Option<Self> {
         Some(Self {
+            mut_auth_requested: SpdmKeyExchangeMutAuthAttributes::read(reader)?,
             req_slot_id: u8::read(reader)?,
             request_id: u8::read(reader)?,
             encap_cert_size: u32::read(reader)?,

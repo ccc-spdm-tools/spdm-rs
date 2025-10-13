@@ -314,6 +314,30 @@ impl RequesterContext {
                                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                 }
                                 if key_exchange_rsp.mut_auth_req
+                                    == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
+                                {
+                                    if self
+                                        .common
+                                        .negotiate_info
+                                        .req_capabilities_sel
+                                        .contains(SpdmRequestCapabilityFlags::CERT_CAP)
+                                        && key_exchange_rsp.req_slot_id
+                                            >= SPDM_MAX_SLOT_NUMBER as u8
+                                    {
+                                        return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                    }
+                                    if self
+                                        .common
+                                        .negotiate_info
+                                        .req_capabilities_sel
+                                        .contains(SpdmRequestCapabilityFlags::PUB_KEY_ID_CAP)
+                                        && key_exchange_rsp.req_slot_id
+                                            != SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP
+                                    {
+                                        return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                                    }
+                                }
+                                if key_exchange_rsp.mut_auth_req
                                     == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_ENCAP_REQUEST
                                     && key_exchange_rsp.req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8
                                 {
