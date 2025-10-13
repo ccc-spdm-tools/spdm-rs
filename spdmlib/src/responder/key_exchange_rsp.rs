@@ -318,6 +318,34 @@ impl ResponderContext {
 
         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
         let message_a = self.common.runtime_info.message_a.clone();
+
+        #[cfg(feature = "mut-auth")]
+        let mut_auth_req = match self.common.encap_context.mut_auth_requested {
+            SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ => {
+                SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
+            }
+            _ => SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_GET_DIGESTS,
+        };
+        #[cfg(feature = "mut-auth")]
+        let req_slot_id = if mut_auth_req == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ {
+            if self.common.encap_context.req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8
+                && self.common.encap_context.req_slot_id != SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP
+            {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                return (
+                    Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                    Some(writer.used_slice()),
+                );
+            }
+            self.common.encap_context.req_slot_id
+        } else {
+            0
+        };
+        #[cfg(not(feature = "mut-auth"))]
+        let mut_auth_req = SpdmKeyExchangeMutAuthAttributes::empty();
+        #[cfg(not(feature = "mut-auth"))]
+        let req_slot_id = 0;
+
         let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE as usize {
             if let Some(my_pub_key) = self.common.provision_info.my_pub_key {
                 crypto::hash::hash_all(
@@ -351,11 +379,6 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
-
-        #[cfg(feature = "mut-auth")]
-        let mut_auth_req = SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ_WITH_GET_DIGESTS;
-        #[cfg(not(feature = "mut-auth"))]
-        let mut_auth_req = SpdmKeyExchangeMutAuthAttributes::empty();
 
         let session = session.unwrap();
         let session_id = ((rsp_session_id as u32) << 16) + key_exchange_req.req_session_id as u32;
@@ -409,7 +432,7 @@ impl ResponderContext {
                 heartbeat_period: self.common.config_info.heartbeat_period,
                 rsp_session_id,
                 mut_auth_req,
-                req_slot_id: 0x0,
+                req_slot_id,
                 random: SpdmRandomStruct { data: random },
                 exchange,
                 measurement_summary_hash,

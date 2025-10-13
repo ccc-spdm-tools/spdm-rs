@@ -83,8 +83,17 @@ impl RequesterContext {
                         .req_capabilities_sel
                         .contains(SpdmRequestCapabilityFlags::MUT_AUTH_CAP)
                 {
-                    self.session_based_mutual_authenticate(session_id).await?;
-                    Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
+                    let session = self
+                        .common
+                        .get_session_via_id(session_id)
+                        .ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
+                    let mut_auth_requested = session.get_mut_auth_requested();
+                    if mut_auth_requested == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ {
+                        Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
+                    } else {
+                        self.session_based_mutual_authenticate(session_id).await?;
+                        Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
+                    }
                 } else {
                     None
                 }
