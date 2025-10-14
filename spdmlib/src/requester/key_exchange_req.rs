@@ -386,6 +386,7 @@ impl RequesterContext {
                                 .common
                                 .get_session_via_id(session_id)
                                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+                            session.set_th1(th1.clone());
                             session.generate_handshake_secret(spdm_version_sel, &th1)?;
 
                             if !in_clear_text {
