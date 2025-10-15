@@ -557,6 +557,10 @@ impl SpdmContext {
     }
 
     pub fn append_message_k(&mut self, session_id: u32, new_message: &[u8]) -> SpdmResult {
+        let vdm_transcript = self
+            .runtime_info
+            .vdm_message_transcript_before_key_exchange
+            .clone();
         let session = self
             .get_session_via_id(session_id)
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
@@ -582,7 +586,12 @@ impl SpdmContext {
                     session.runtime_info.digest_context_th.as_mut().unwrap(),
                     session.runtime_info.message_a.as_ref(),
                 )?;
-                if session.runtime_info.rsp_cert_hash.is_some() {
+                if let Some(vdm_transcript) = vdm_transcript {
+                    crypto::hash::hash_ctx_update(
+                        session.runtime_info.digest_context_th.as_mut().unwrap(),
+                        &vdm_transcript.1[..vdm_transcript.0],
+                    )?;
+                } else if session.runtime_info.rsp_cert_hash.is_some() {
                     crypto::hash::hash_ctx_update(
                         session.runtime_info.digest_context_th.as_mut().unwrap(),
                         session
@@ -650,50 +659,64 @@ impl SpdmContext {
         }
 
         if !session.runtime_info.message_f_initialized {
-            let mut_cert_digest = if !session.get_use_psk()
-                && !session.get_mut_auth_requested().is_empty()
-            {
-                if is_requester {
-                    let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
-                    if let Some(cert_chain) = &self.provision_info.my_cert_chain[slot_id as usize] {
-                        Some(
-                            crypto::hash::hash_all(
-                                self.negotiate_info.base_hash_sel,
-                                &cert_chain.data[..cert_chain.data_size as usize],
-                            )
-                            .ok_or(SPDM_STATUS_CRYPTO_ERROR)?,
-                        )
-                    } else {
-                        return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
-                    }
+            if !session.get_use_psk() && !session.get_mut_auth_requested().is_empty() {
+                let vdm_transcript = self
+                    .runtime_info
+                    .vdm_message_transcript_before_finish
+                    .clone();
+
+                if let Some(vdm_transcript) = vdm_transcript {
+                    let session = self
+                        .get_session_via_id(session_id)
+                        .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+                    crypto::hash::hash_ctx_update(
+                        session.runtime_info.digest_context_th.as_mut().unwrap(),
+                        &vdm_transcript.1[..vdm_transcript.0],
+                    )?;
                 } else {
-                    let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
-                    if let Some(cert_chain) = &self.peer_info.peer_cert_chain[slot_id as usize] {
-                        Some(
-                            crypto::hash::hash_all(
-                                self.negotiate_info.base_hash_sel,
-                                cert_chain.as_ref(),
+                    let mut_cert_digest = if is_requester {
+                        let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
+                        if let Some(cert_chain) =
+                            &self.provision_info.my_cert_chain[slot_id as usize]
+                        {
+                            Some(
+                                crypto::hash::hash_all(
+                                    self.negotiate_info.base_hash_sel,
+                                    &cert_chain.data[..cert_chain.data_size as usize],
+                                )
+                                .ok_or(SPDM_STATUS_CRYPTO_ERROR)?,
                             )
-                            .ok_or(SPDM_STATUS_CRYPTO_ERROR)?,
-                        )
+                        } else {
+                            return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+                        }
                     } else {
-                        return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+                        let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
+                        if let Some(cert_chain) = &self.peer_info.peer_cert_chain[slot_id as usize]
+                        {
+                            Some(
+                                crypto::hash::hash_all(
+                                    self.negotiate_info.base_hash_sel,
+                                    cert_chain.as_ref(),
+                                )
+                                .ok_or(SPDM_STATUS_CRYPTO_ERROR)?,
+                            )
+                        } else {
+                            return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+                        }
+                    };
+                    if let Some(mut_cert_digest) = mut_cert_digest {
+                        let session = self
+                            .get_session_via_id(session_id)
+                            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+
+                        crypto::hash::hash_ctx_update(
+                            session.runtime_info.digest_context_th.as_mut().unwrap(),
+                            &mut_cert_digest.data[..mut_cert_digest.data_size as usize],
+                        )?;
                     }
                 }
-            } else {
-                None
             };
 
-            if let Some(mut_cert_digest) = mut_cert_digest {
-                let session = self
-                    .get_session_via_id(session_id)
-                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
-
-                crypto::hash::hash_ctx_update(
-                    session.runtime_info.digest_context_th.as_mut().unwrap(),
-                    &mut_cert_digest.data[..mut_cert_digest.data_size as usize],
-                )?;
-            }
             let session = self
                 .get_session_via_id(session_id)
                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
@@ -723,7 +746,7 @@ impl SpdmContext {
         }
     }
 
-    #[cfg(not(feature = "hashed-transcript-data"))]
+    //    #[cfg(not(feature = "hashed-transcript-data"))]
     pub fn calc_req_transcript_data(
         &self,
         use_psk: bool,
@@ -739,25 +762,35 @@ impl SpdmContext {
         debug!("message_a - {:02x?}", self.runtime_info.message_a.as_ref());
 
         if !use_psk {
-            if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-                error!("peer_cert_chain is not populated!\n");
-                return Err(SPDM_STATUS_INVALID_PARAMETER);
-            }
+            let vdm_transcript = self
+                .runtime_info
+                .vdm_message_transcript_before_key_exchange
+                .clone();
+            if let Some(vdm_transcript) = vdm_transcript {
+                message
+                    .append_message(&vdm_transcript.1[..vdm_transcript.0])
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+            } else {
+                if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                    error!("peer_cert_chain is not populated!\n");
+                    return Err(SPDM_STATUS_INVALID_PARAMETER);
+                }
 
-            let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data[..(self.peer_info.peer_cert_chain[slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
-            let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-            message
-                .append_message(cert_chain_hash.as_ref())
-                .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-            debug!("cert_chain_data - {:02x?}", cert_chain_data);
+                let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data[..(self.peer_info.peer_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data_size as usize)];
+                let cert_chain_hash =
+                    crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                message
+                    .append_message(cert_chain_hash.as_ref())
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+                debug!("cert_chain_data - {:02x?}", cert_chain_data);
+            }
         }
         message
             .append_message(message_k.as_ref())
@@ -765,26 +798,36 @@ impl SpdmContext {
         debug!("message_k - {:02x?}", message_k.as_ref());
 
         if !use_psk && is_mut_auth {
-            let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
-            if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
-                error!("mut cert_chain is not populated!\n");
-                return Err(SPDM_STATUS_INVALID_PARAMETER);
-            }
+            let vdm_transcript = self
+                .runtime_info
+                .vdm_message_transcript_before_finish
+                .clone();
+            if let Some(vdm_transcript) = vdm_transcript {
+                message
+                    .append_message(&vdm_transcript.1[..vdm_transcript.0])
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+            } else {
+                let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
+                if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
+                    error!("mut cert_chain is not populated!\n");
+                    return Err(SPDM_STATUS_INVALID_PARAMETER);
+                }
 
-            let cert_chain_data = &self.provision_info.my_cert_chain[slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data[..(self.provision_info.my_cert_chain[slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
-            let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-            message
-                .append_message(cert_chain_hash.as_ref())
-                .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-            debug!("my_cert_chain_data - {:02x?}", cert_chain_data);
+                let cert_chain_data = &self.provision_info.my_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data[..(self.provision_info.my_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data_size as usize)];
+                let cert_chain_hash =
+                    crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                message
+                    .append_message(cert_chain_hash.as_ref())
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+                debug!("my_cert_chain_data - {:02x?}", cert_chain_data);
+            }
         }
 
         if let Some(message_f) = message_f {
@@ -797,7 +840,7 @@ impl SpdmContext {
         Ok(message)
     }
 
-    #[cfg(not(feature = "hashed-transcript-data"))]
+    //    #[cfg(not(feature = "hashed-transcript-data"))]
     pub fn calc_rsp_transcript_data(
         &self,
         use_psk: bool,
@@ -812,23 +855,33 @@ impl SpdmContext {
             .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         debug!("message_a - {:02x?}", self.runtime_info.message_a.as_ref());
         if !use_psk {
-            if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
-                error!("my_cert_chain is not populated!\n");
-                return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+            let vdm_transcript = self
+                .runtime_info
+                .vdm_message_transcript_before_key_exchange
+                .clone();
+            if let Some(vdm_transcript) = vdm_transcript {
+                message
+                    .append_message(&vdm_transcript.1[..vdm_transcript.0])
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+            } else {
+                if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
+                    error!("my_cert_chain is not populated!\n");
+                    return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+                }
+
+                let my_cert_chain_data = self.provision_info.my_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+                let cert_chain_data = my_cert_chain_data.as_ref();
+                let cert_chain_hash =
+                    crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+
+                message
+                    .append_message(cert_chain_hash.as_ref())
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+                debug!("cert_chain_data - {:02x?}", cert_chain_data);
             }
-
-            let my_cert_chain_data = self.provision_info.my_cert_chain[slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
-            let cert_chain_data = my_cert_chain_data.as_ref();
-            let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-
-            message
-                .append_message(cert_chain_hash.as_ref())
-                .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-            debug!("cert_chain_data - {:02x?}", cert_chain_data);
         }
         message
             .append_message(message_k.as_ref())
@@ -836,23 +889,33 @@ impl SpdmContext {
         debug!("message_k - {:02x?}", message_k.as_ref());
 
         if !use_psk && is_mut_auth {
-            let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
-            if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-                error!("peer_cert_chain is not populated!\n");
-                return Err(SPDM_STATUS_INVALID_PARAMETER);
-            }
+            let vdm_transcript = self
+                .runtime_info
+                .vdm_message_transcript_before_finish
+                .clone();
+            if let Some(vdm_transcript) = vdm_transcript {
+                message
+                    .append_message(&vdm_transcript.1[..vdm_transcript.0])
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+            } else {
+                let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
+                if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                    error!("peer_cert_chain is not populated!\n");
+                    return Err(SPDM_STATUS_INVALID_PARAMETER);
+                }
 
-            let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
-                .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .as_ref();
-            let cert_chain_hash =
-                crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-            message
-                .append_message(cert_chain_hash.as_ref())
-                .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-            debug!("peer_cert_chain_data - {:02x?}", cert_chain_data);
+                let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .as_ref();
+                let cert_chain_hash =
+                    crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                message
+                    .append_message(cert_chain_hash.as_ref())
+                    .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+                debug!("peer_cert_chain_data - {:02x?}", cert_chain_data);
+            }
         }
 
         if let Some(message_f) = message_f {
@@ -1510,6 +1573,8 @@ pub const MAX_MANAGED_BUFFER_TH_SIZE: usize = MAX_MANAGED_BUFFER_A_SIZE
     + SPDM_MAX_HASH_SIZE
     + MAX_MANAGED_BUFFER_F_SIZE;
 
+pub const MAX_MANAGED_BUFFER_VDM_MESSAGE_TRANSCRIPT_SIZE: usize = 128;
+
 pub const SPDM_VERSION_1_X_SIGNING_PREFIX_CONTEXT_SIZE: usize =
     SPDM_VERSION_SIGNING_PREFIX_LENGTH * SPDM_VERSION_SIGNING_PREFIX_NUMBER;
 pub const SPDM_VERSION_1_X_SIGN_CONTEXT_SIZE: usize = 36;
@@ -2028,6 +2093,60 @@ impl Codec for ManagedBuffer12Sign {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ManagedVdmBuffer(usize, [u8; MAX_MANAGED_BUFFER_VDM_MESSAGE_TRANSCRIPT_SIZE]);
+
+impl ManagedVdmBuffer {
+    pub fn append_message(&mut self, bytes: &[u8]) -> Option<usize> {
+        let used = self.0;
+        let mut writer = Writer::init(&mut self.1[used..]);
+        let write_len = writer.extend_from_slice(bytes)?;
+        self.0 = used + write_len;
+        Some(writer.used())
+    }
+    pub fn reset_message(&mut self) {
+        self.0 = 0;
+    }
+}
+
+impl AsRef<[u8]> for ManagedVdmBuffer {
+    fn as_ref(&self) -> &[u8] {
+        &self.1[0..self.0]
+    }
+}
+
+impl Default for ManagedVdmBuffer {
+    fn default() -> Self {
+        ManagedVdmBuffer(
+            0usize,
+            [0u8; MAX_MANAGED_BUFFER_VDM_MESSAGE_TRANSCRIPT_SIZE],
+        )
+    }
+}
+
+impl Codec for ManagedVdmBuffer {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += (self.0 as u64).encode(writer)?;
+        size += writer
+            .extend_from_slice(&self.1[..self.0])
+            .ok_or(codec::EncodeErr)?;
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let data_size = u64::read(reader)? as usize;
+        if data_size > MAX_MANAGED_BUFFER_VDM_MESSAGE_TRANSCRIPT_SIZE {
+            return None;
+        }
+        let mut data = [0u8; MAX_MANAGED_BUFFER_VDM_MESSAGE_TRANSCRIPT_SIZE];
+        for byte in data.iter_mut().take(data_size) {
+            *byte = u8::read(reader)?;
+        }
+        Some(ManagedVdmBuffer(data_size, data))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum SpdmMeasurementContentChanged {
     NotSupported,
@@ -2092,7 +2211,9 @@ pub struct SpdmRuntimeInfo {
     pub message_c: ManagedBufferC,
     pub message_m: ManagedBufferM,
     pub content_changed: SpdmMeasurementContentChanged, // used by responder, set when content changed and spdm version is 1.2.
-                                                        // used by requester, consume when measurement response report content changed.
+    // used by requester, consume when measurement response report content changed.
+    pub vdm_message_transcript_before_key_exchange: Option<ManagedVdmBuffer>, // for transcript that to be appended before key exchange to replace hash of cert chain
+    pub vdm_message_transcript_before_finish: Option<ManagedVdmBuffer>, // for transcript that to be appended before finish to replace hash of cert chain
 }
 
 #[cfg(feature = "hashed-transcript-data")]
@@ -2108,7 +2229,9 @@ pub struct SpdmRuntimeInfo {
     pub digest_context_m1m2: Option<SpdmHashCtx>, // for M1/M2
     pub digest_context_l1l2: Option<SpdmHashCtx>, // for out of session get measurement/measurement
     pub content_changed: SpdmMeasurementContentChanged, // used by responder, set when content changed and spdm version is 1.2.
-                                                        // used by requester, consume when measurement response report content changed.
+    // used by requester, consume when measurement response report content changed.
+    pub vdm_message_transcript_before_key_exchange: Option<ManagedVdmBuffer>, // for transcript that to be appended before key exchange to replace hash of cert chain
+    pub vdm_message_transcript_before_finish: Option<ManagedVdmBuffer>, // for transcript that to be appended before finish to replace hash of cert chain
 }
 
 impl SpdmRuntimeInfo {
@@ -2169,6 +2292,14 @@ impl Codec for SpdmRuntimeInfo {
         size += self.message_c.encode(writer)?;
         size += self.message_m.encode(writer)?;
         size += self.content_changed.encode(writer)?;
+        size += match &self.vdm_message_transcript_before_key_exchange {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        size += match &self.vdm_message_transcript_before_finish {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
         Ok(size)
     }
 
@@ -2191,6 +2322,22 @@ impl Codec for SpdmRuntimeInfo {
             message_c: ManagedBufferC::read(reader)?,
             message_m: ManagedBufferM::read(reader)?,
             content_changed: SpdmMeasurementContentChanged::read(reader)?,
+            vdm_message_transcript_before_key_exchange: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(ManagedVdmBuffer::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            vdm_message_transcript_before_finish: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(ManagedVdmBuffer::read(reader)?)
+                } else {
+                    None
+                }
+            },
         })
     }
 }
@@ -2224,6 +2371,14 @@ impl Codec for SpdmRuntimeInfo {
             None => 0u8.encode(writer)?,
         };
         size += self.content_changed.encode(writer)?;
+        size += match &self.vdm_message_transcript_before_key_exchange {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        size += match &self.vdm_message_transcript_before_finish {
+            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
         Ok(size)
     }
 
@@ -2259,6 +2414,22 @@ impl Codec for SpdmRuntimeInfo {
                 }
             },
             content_changed: SpdmMeasurementContentChanged::read(reader)?,
+            vdm_message_transcript_before_key_exchange: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(ManagedVdmBuffer::read(reader)?)
+                } else {
+                    None
+                }
+            },
+            vdm_message_transcript_before_finish: {
+                let present = u8::read(reader)?;
+                if present != 0 {
+                    Some(ManagedVdmBuffer::read(reader)?)
+                } else {
+                    None
+                }
+            },
         })
     }
 }
