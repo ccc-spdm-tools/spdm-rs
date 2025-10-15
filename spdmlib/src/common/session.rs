@@ -213,6 +213,7 @@ pub struct SpdmSessionRuntimeInfo {
     pub message_k: ManagedBufferK,
     pub message_f: ManagedBufferF,
     pub message_m: ManagedBufferM,
+    pub vdm_message_transcript_before_finish: Option<ManagedVdmBuffer>, // for transcript that to be appended before finish to replace hash of cert chain
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
@@ -225,6 +226,7 @@ pub struct SpdmSessionRuntimeInfo {
     pub req_cert_hash: Option<SpdmDigestStruct>,
     pub digest_context_th: Option<SpdmHashCtx>,
     pub digest_context_l1l2: Option<SpdmHashCtx>,
+    pub vdm_message_transcript_before_finish: Option<ManagedVdmBuffer>, // for transcript that to be appended before finish to replace hash of cert chain
 }
 
 #[cfg(not(feature = "hashed-transcript-data"))]
@@ -262,6 +264,15 @@ impl Codec for SpdmSessionRuntimeInfo {
         size += self.message_k.encode(writer)?;
         size += self.message_f.encode(writer)?;
         size += self.message_m.encode(writer)?;
+        match &self.vdm_message_transcript_before_finish {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         Ok(size)
     }
 
@@ -285,6 +296,11 @@ impl Codec for SpdmSessionRuntimeInfo {
         let message_k = ManagedBufferK::read(reader)?;
         let message_f = ManagedBufferF::read(reader)?;
         let message_m = ManagedBufferM::read(reader)?;
+        let vdm_message_transcript_before_finish = if u8::read(reader)? != 0 {
+            Some(ManagedVdmBuffer::read(reader)?)
+        } else {
+            None
+        };
         Some(Self {
             psk_hint,
             message_a,
@@ -293,6 +309,7 @@ impl Codec for SpdmSessionRuntimeInfo {
             message_k,
             message_f,
             message_m,
+            vdm_message_transcript_before_finish,
         })
     }
 }
@@ -348,6 +365,15 @@ impl Codec for SpdmSessionRuntimeInfo {
                 size += 0u8.encode(writer)?;
             }
         }
+        match &self.vdm_message_transcript_before_finish {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
+        }
         Ok(size)
     }
 
@@ -379,6 +405,11 @@ impl Codec for SpdmSessionRuntimeInfo {
         } else {
             None
         };
+        let vdm_message_transcript_before_finish = if u8::read(reader)? != 0 {
+            Some(ManagedVdmBuffer::read(reader)?)
+        } else {
+            None
+        };
         Some(Self {
             psk_hint,
             message_a,
@@ -387,6 +418,7 @@ impl Codec for SpdmSessionRuntimeInfo {
             req_cert_hash,
             digest_context_th,
             digest_context_l1l2,
+            vdm_message_transcript_before_finish,
         })
     }
 }

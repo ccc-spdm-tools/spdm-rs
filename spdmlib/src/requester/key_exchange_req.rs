@@ -575,6 +575,7 @@ impl RequesterContext {
             false,
             &session.runtime_info.message_k,
             None,
+            None,
         )?;
 
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {

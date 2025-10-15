@@ -557,10 +557,12 @@ impl SpdmContext {
     }
 
     pub fn append_message_k(&mut self, session_id: u32, new_message: &[u8]) -> SpdmResult {
+        #[cfg(feature = "hashed-transcript-data")]
         let vdm_transcript = self
             .runtime_info
             .vdm_message_transcript_before_key_exchange
             .clone();
+
         let session = self
             .get_session_via_id(session_id)
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
@@ -660,7 +662,7 @@ impl SpdmContext {
 
         if !session.runtime_info.message_f_initialized {
             if !session.get_use_psk() && !session.get_mut_auth_requested().is_empty() {
-                let vdm_transcript = self
+                let vdm_transcript = session
                     .runtime_info
                     .vdm_message_transcript_before_finish
                     .clone();
@@ -746,7 +748,7 @@ impl SpdmContext {
         }
     }
 
-    //    #[cfg(not(feature = "hashed-transcript-data"))]
+    #[cfg(not(feature = "hashed-transcript-data"))]
     pub fn calc_req_transcript_data(
         &self,
         use_psk: bool,
@@ -754,6 +756,7 @@ impl SpdmContext {
         is_mut_auth: bool,
         message_k: &ManagedBufferK,
         message_f: Option<&ManagedBufferF>,
+        vdm_transcript_before_finish: Option<&ManagedVdmBuffer>,
     ) -> SpdmResult<ManagedBufferTH> {
         let mut message = ManagedBufferTH::default();
         message
@@ -798,11 +801,7 @@ impl SpdmContext {
         debug!("message_k - {:02x?}", message_k.as_ref());
 
         if !use_psk && is_mut_auth {
-            let vdm_transcript = self
-                .runtime_info
-                .vdm_message_transcript_before_finish
-                .clone();
-            if let Some(vdm_transcript) = vdm_transcript {
+            if let Some(vdm_transcript) = vdm_transcript_before_finish {
                 message
                     .append_message(&vdm_transcript.1[..vdm_transcript.0])
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -840,7 +839,7 @@ impl SpdmContext {
         Ok(message)
     }
 
-    //    #[cfg(not(feature = "hashed-transcript-data"))]
+    #[cfg(not(feature = "hashed-transcript-data"))]
     pub fn calc_rsp_transcript_data(
         &self,
         use_psk: bool,
@@ -848,6 +847,7 @@ impl SpdmContext {
         is_mut_auth: bool,
         message_k: &ManagedBufferK,
         message_f: Option<&ManagedBufferF>,
+        vdm_transcript_before_finish: Option<&ManagedVdmBuffer>,
     ) -> SpdmResult<ManagedBufferTH> {
         let mut message = ManagedBufferTH::default();
         message
@@ -889,11 +889,7 @@ impl SpdmContext {
         debug!("message_k - {:02x?}", message_k.as_ref());
 
         if !use_psk && is_mut_auth {
-            let vdm_transcript = self
-                .runtime_info
-                .vdm_message_transcript_before_finish
-                .clone();
-            if let Some(vdm_transcript) = vdm_transcript {
+            if let Some(vdm_transcript) = vdm_transcript_before_finish {
                 message
                     .append_message(&vdm_transcript.1[..vdm_transcript.0])
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
@@ -938,8 +934,16 @@ impl SpdmContext {
     ) -> SpdmResult<SpdmDigestStruct> {
         let message_k = &session.runtime_info.message_k;
         let message_f = Some(&session.runtime_info.message_f);
-        let message =
-            self.calc_req_transcript_data(use_psk, slot_id, is_mut_auth, message_k, message_f)?;
+        let vdm_transcript_before_finish =
+            &session.runtime_info.vdm_message_transcript_before_finish;
+        let message = self.calc_req_transcript_data(
+            use_psk,
+            slot_id,
+            is_mut_auth,
+            message_k,
+            message_f,
+            vdm_transcript_before_finish.as_ref(),
+        )?;
 
         let transcript_hash =
             crypto::hash::hash_all(self.negotiate_info.base_hash_sel, message.as_ref())
@@ -957,8 +961,16 @@ impl SpdmContext {
     ) -> SpdmResult<SpdmDigestStruct> {
         let message_k = &session.runtime_info.message_k;
         let message_f = Some(&session.runtime_info.message_f);
-        let message =
-            self.calc_rsp_transcript_data(use_psk, slot_id, is_mut_auth, message_k, message_f)?;
+        let vdm_transcript_before_finish =
+            &session.runtime_info.vdm_message_transcript_before_finish;
+        let message = self.calc_rsp_transcript_data(
+            use_psk,
+            slot_id,
+            is_mut_auth,
+            message_k,
+            message_f,
+            vdm_transcript_before_finish.as_ref(),
+        )?;
 
         let transcript_hash =
             crypto::hash::hash_all(self.negotiate_info.base_hash_sel, message.as_ref())
@@ -2213,7 +2225,6 @@ pub struct SpdmRuntimeInfo {
     pub content_changed: SpdmMeasurementContentChanged, // used by responder, set when content changed and spdm version is 1.2.
     // used by requester, consume when measurement response report content changed.
     pub vdm_message_transcript_before_key_exchange: Option<ManagedVdmBuffer>, // for transcript that to be appended before key exchange to replace hash of cert chain
-    pub vdm_message_transcript_before_finish: Option<ManagedVdmBuffer>, // for transcript that to be appended before finish to replace hash of cert chain
 }
 
 #[cfg(feature = "hashed-transcript-data")]
@@ -2231,7 +2242,6 @@ pub struct SpdmRuntimeInfo {
     pub content_changed: SpdmMeasurementContentChanged, // used by responder, set when content changed and spdm version is 1.2.
     // used by requester, consume when measurement response report content changed.
     pub vdm_message_transcript_before_key_exchange: Option<ManagedVdmBuffer>, // for transcript that to be appended before key exchange to replace hash of cert chain
-    pub vdm_message_transcript_before_finish: Option<ManagedVdmBuffer>, // for transcript that to be appended before finish to replace hash of cert chain
 }
 
 impl SpdmRuntimeInfo {
@@ -2296,10 +2306,6 @@ impl Codec for SpdmRuntimeInfo {
             Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
             None => 0u8.encode(writer)?,
         };
-        size += match &self.vdm_message_transcript_before_finish {
-            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
-            None => 0u8.encode(writer)?,
-        };
         Ok(size)
     }
 
@@ -2323,14 +2329,6 @@ impl Codec for SpdmRuntimeInfo {
             message_m: ManagedBufferM::read(reader)?,
             content_changed: SpdmMeasurementContentChanged::read(reader)?,
             vdm_message_transcript_before_key_exchange: {
-                let present = u8::read(reader)?;
-                if present != 0 {
-                    Some(ManagedVdmBuffer::read(reader)?)
-                } else {
-                    None
-                }
-            },
-            vdm_message_transcript_before_finish: {
                 let present = u8::read(reader)?;
                 if present != 0 {
                     Some(ManagedVdmBuffer::read(reader)?)
@@ -2375,10 +2373,6 @@ impl Codec for SpdmRuntimeInfo {
             Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
             None => 0u8.encode(writer)?,
         };
-        size += match &self.vdm_message_transcript_before_finish {
-            Some(ctx) => 1u8.encode(writer)? + ctx.encode(writer)?,
-            None => 0u8.encode(writer)?,
-        };
         Ok(size)
     }
 
@@ -2415,14 +2409,6 @@ impl Codec for SpdmRuntimeInfo {
             },
             content_changed: SpdmMeasurementContentChanged::read(reader)?,
             vdm_message_transcript_before_key_exchange: {
-                let present = u8::read(reader)?;
-                if present != 0 {
-                    Some(ManagedVdmBuffer::read(reader)?)
-                } else {
-                    None
-                }
-            },
-            vdm_message_transcript_before_finish: {
                 let present = u8::read(reader)?;
                 if present != 0 {
                     Some(ManagedVdmBuffer::read(reader)?)
