@@ -397,6 +397,8 @@ fn test_spdm_provision_info_codec() {
         my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
         my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
         peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+        my_pub_key: None,
+        peer_pub_key: None,
         local_supported_slot_mask: 0xFF,
         local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
@@ -467,6 +469,8 @@ fn test_spdm_provision_info_codec_with_populated_data() {
             // Leave rest as None to stay within buffer limits
             arr
         },
+        my_pub_key: None,
+        peer_pub_key: None,
         local_supported_slot_mask: 0x03, // Only first two slots
         local_key_pair_id: [Some(1), Some(2), None, None, None, None, None, None],
         local_cert_info: [
@@ -569,6 +573,8 @@ fn test_spdm_provision_info_codec_edge_cases() {
         my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
         my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
         peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+        my_pub_key: None,
+        peer_pub_key: None,
         local_supported_slot_mask: 0xFF,
         local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
@@ -1173,6 +1179,8 @@ fn test_large_struct_memory_boundaries() {
         my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
         my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
         peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+        my_pub_key: None,
+        peer_pub_key: None,
         local_supported_slot_mask: 0xFF,
         local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],

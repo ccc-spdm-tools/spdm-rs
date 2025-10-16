@@ -678,7 +678,17 @@ impl SpdmContext {
                 } else {
                     let mut_cert_digest = if is_requester {
                         let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
-                        if let Some(cert_chain) =
+                        if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+                            let my_pub_key = self
+                                .provision_info
+                                .my_pub_key
+                                .as_ref()
+                                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+                            crypto::hash::hash_all(
+                                self.negotiate_info.base_hash_sel,
+                                my_pub_key.data[..my_pub_key.data_size as usize].as_ref(),
+                            )
+                        } else if let Some(cert_chain) =
                             &self.provision_info.my_cert_chain[slot_id as usize]
                         {
                             Some(
@@ -693,7 +703,18 @@ impl SpdmContext {
                         }
                     } else {
                         let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
-                        if let Some(cert_chain) = &self.peer_info.peer_cert_chain[slot_id as usize]
+                        if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+                            let peer_pub_key = self
+                                .provision_info
+                                .peer_pub_key
+                                .as_ref()
+                                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+                            crypto::hash::hash_all(
+                                self.negotiate_info.base_hash_sel,
+                                peer_pub_key.data[..peer_pub_key.data_size as usize].as_ref(),
+                            )
+                        } else if let Some(cert_chain) =
+                            &self.peer_info.peer_cert_chain[slot_id as usize]
                         {
                             Some(
                                 crypto::hash::hash_all(
@@ -710,7 +731,6 @@ impl SpdmContext {
                         let session = self
                             .get_session_via_id(session_id)
                             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
-
                         crypto::hash::hash_ctx_update(
                             session.runtime_info.digest_context_th.as_mut().unwrap(),
                             &mut_cert_digest.data[..mut_cert_digest.data_size as usize],
@@ -774,25 +794,39 @@ impl SpdmContext {
                     .append_message(&vdm_transcript.1[..vdm_transcript.0])
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             } else {
-                if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-                    error!("peer_cert_chain is not populated!\n");
-                    return Err(SPDM_STATUS_INVALID_PARAMETER);
-                }
+                let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE {
+                    if self.provision_info.peer_pub_key.is_none() {
+                        error!("peer_pub_key is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
 
-                let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
-                    .as_ref()
-                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                    .data[..(self.peer_info.peer_cert_chain[slot_id as usize]
-                    .as_ref()
-                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                    .data_size as usize)];
-                let cert_chain_hash =
+                    let pub_key = self.provision_info.peer_pub_key.as_ref().unwrap();
+                    crypto::hash::hash_all(
+                        self.negotiate_info.base_hash_sel,
+                        pub_key.data[..pub_key.data_size as usize].as_ref(),
+                    )
+                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                } else {
+                    if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                        error!("peer_cert_chain is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
+
+                    let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
+                        .as_ref()
+                        .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                        .data[..(self.peer_info.peer_cert_chain
+                        [slot_id as usize]
+                        .as_ref()
+                        .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                        .data_size as usize)];
+                    debug!("cert_chain_data - {:02x?}", cert_chain_data);
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                };
                 message
                     .append_message(cert_chain_hash.as_ref())
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-                debug!("cert_chain_data - {:02x?}", cert_chain_data);
             }
         }
         message
@@ -807,25 +841,39 @@ impl SpdmContext {
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             } else {
                 let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
-                if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
-                    error!("mut cert_chain is not populated!\n");
-                    return Err(SPDM_STATUS_INVALID_PARAMETER);
-                }
+                let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+                    if self.provision_info.my_pub_key.is_none() {
+                        error!("my_pub_key is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
 
-                let cert_chain_data = &self.provision_info.my_cert_chain[slot_id as usize]
-                    .as_ref()
-                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                    .data[..(self.provision_info.my_cert_chain[slot_id as usize]
-                    .as_ref()
-                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                    .data_size as usize)];
-                let cert_chain_hash =
+                    let pub_key = self.provision_info.my_pub_key.as_ref().unwrap();
+                    crypto::hash::hash_all(
+                        self.negotiate_info.base_hash_sel,
+                        pub_key.data[..pub_key.data_size as usize].as_ref(),
+                    )
+                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                } else {
+                    if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
+                        error!("mut cert_chain is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
+
+                    let cert_chain_data = &self.provision_info.my_cert_chain[slot_id as usize]
+                        .as_ref()
+                        .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                        .data[..(self.provision_info.my_cert_chain
+                        [slot_id as usize]
+                        .as_ref()
+                        .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                        .data_size as usize)];
+                    debug!("my_cert_chain_data - {:02x?}", cert_chain_data);
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                };
                 message
                     .append_message(cert_chain_hash.as_ref())
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-                debug!("my_cert_chain_data - {:02x?}", cert_chain_data);
             }
         }
 
@@ -864,23 +912,36 @@ impl SpdmContext {
                     .append_message(&vdm_transcript.1[..vdm_transcript.0])
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             } else {
-                if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
-                    error!("my_cert_chain is not populated!\n");
-                    return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
-                }
+                let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE {
+                    if self.provision_info.my_pub_key.is_none() {
+                        error!("my_pub_key is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
 
-                let my_cert_chain_data = self.provision_info.my_cert_chain[slot_id as usize]
-                    .as_ref()
-                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
-                let cert_chain_data = my_cert_chain_data.as_ref();
-                let cert_chain_hash =
+                    let pub_key = self.provision_info.my_pub_key.as_ref().unwrap();
+                    crypto::hash::hash_all(
+                        self.negotiate_info.base_hash_sel,
+                        pub_key.data[..pub_key.data_size as usize].as_ref(),
+                    )
+                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                } else {
+                    if self.provision_info.my_cert_chain[slot_id as usize].is_none() {
+                        error!("my_cert_chain is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+                    }
+
+                    let my_cert_chain_data = self.provision_info.my_cert_chain[slot_id as usize]
+                        .as_ref()
+                        .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+                    let cert_chain_data = my_cert_chain_data.as_ref();
+                    debug!("cert_chain_data - {:02x?}", cert_chain_data);
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                };
 
                 message
                     .append_message(cert_chain_hash.as_ref())
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-                debug!("cert_chain_data - {:02x?}", cert_chain_data);
             }
         }
         message
@@ -895,22 +956,35 @@ impl SpdmContext {
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             } else {
                 let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
-                if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-                    error!("peer_cert_chain is not populated!\n");
-                    return Err(SPDM_STATUS_INVALID_PARAMETER);
-                }
+                let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+                    if self.provision_info.peer_pub_key.is_none() {
+                        error!("peer_pub_key is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
 
-                let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
-                    .as_ref()
-                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                    .as_ref();
-                let cert_chain_hash =
+                    let pub_key = self.provision_info.peer_pub_key.as_ref().unwrap();
+                    crypto::hash::hash_all(
+                        self.negotiate_info.base_hash_sel,
+                        pub_key.data[..pub_key.data_size as usize].as_ref(),
+                    )
+                    .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                } else {
+                    if self.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                        error!("peer_cert_chain is not populated!\n");
+                        return Err(SPDM_STATUS_INVALID_PARAMETER);
+                    }
+
+                    let cert_chain_data = &self.peer_info.peer_cert_chain[slot_id as usize]
+                        .as_ref()
+                        .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                        .as_ref();
+                    debug!("peer_cert_chain_data - {:02x?}", cert_chain_data);
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, cert_chain_data)
-                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
+                };
                 message
                     .append_message(cert_chain_hash.as_ref())
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
-                debug!("peer_cert_chain_data - {:02x?}", cert_chain_data);
             }
         }
 
@@ -2425,6 +2499,8 @@ pub struct SpdmProvisionInfo {
     pub my_cert_chain_data: [Option<SpdmCertChainData>; SPDM_MAX_SLOT_NUMBER],
     pub my_cert_chain: [Option<SpdmCertChainBuffer>; SPDM_MAX_SLOT_NUMBER],
     pub peer_root_cert_data: [Option<SpdmCertChainData>; MAX_ROOT_CERT_SUPPORT],
+    pub my_pub_key: Option<SpdmCertChainData>,
+    pub peer_pub_key: Option<SpdmCertChainData>,
     pub local_supported_slot_mask: u8,
     pub local_key_pair_id: [Option<u8>; SPDM_MAX_SLOT_NUMBER],
     pub local_cert_info: [Option<SpdmCertificateModelType>; SPDM_MAX_SLOT_NUMBER],
@@ -2462,6 +2538,20 @@ impl Codec for SpdmProvisionInfo {
         }
         size += bitmap.encode(writer)?;
         for val in self.peer_root_cert_data.iter().flatten() {
+            size += val.encode(writer)?;
+        }
+        let is_my_pub_key_present = if self.my_pub_key.is_some() { 1u8 } else { 0u8 };
+        size += is_my_pub_key_present.encode(writer)?;
+        if let Some(val) = &self.my_pub_key {
+            size += val.encode(writer)?;
+        }
+        let is_peer_pub_key_present = if self.peer_pub_key.is_some() {
+            1u8
+        } else {
+            0u8
+        };
+        size += is_peer_pub_key_present.encode(writer)?;
+        if let Some(val) = &self.peer_pub_key {
             size += val.encode(writer)?;
         }
         size += self.local_supported_slot_mask.encode(writer)?;
@@ -2538,6 +2628,18 @@ impl Codec for SpdmProvisionInfo {
                 *slot = None;
             }
         }
+        let is_my_pub_key_present = u8::read(reader)?;
+        let my_pub_key = if is_my_pub_key_present != 0 {
+            Some(SpdmCertChainData::read(reader)?)
+        } else {
+            None
+        };
+        let is_peer_pub_key_present = u8::read(reader)?;
+        let peer_pub_key = if is_peer_pub_key_present != 0 {
+            Some(SpdmCertChainData::read(reader)?)
+        } else {
+            None
+        };
         let local_supported_slot_mask = u8::read(reader)?;
         let mut local_key_pair_id = [None; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
@@ -2582,6 +2684,8 @@ impl Codec for SpdmProvisionInfo {
             my_cert_chain_data,
             my_cert_chain,
             peer_root_cert_data,
+            my_pub_key,
+            peer_pub_key,
             local_supported_slot_mask,
             local_key_pair_id,
             local_cert_info,
@@ -2596,6 +2700,8 @@ impl Default for SpdmProvisionInfo {
             my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
             my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
             peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+            my_pub_key: None,
+            peer_pub_key: None,
             local_supported_slot_mask: 0xff,
             local_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
             local_cert_info: [None; SPDM_MAX_SLOT_NUMBER],

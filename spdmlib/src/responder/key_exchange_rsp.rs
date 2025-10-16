@@ -212,15 +212,19 @@ impl ResponderContext {
         }
 
         let key_exchange_req = key_exchange_req.unwrap();
+
         let slot_id = key_exchange_req.slot_id as usize;
-        if slot_id >= SPDM_MAX_SLOT_NUMBER {
+        if slot_id >= SPDM_MAX_SLOT_NUMBER && slot_id != SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE as usize
+        {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_MSG_FIELD),
                 Some(writer.used_slice()),
             );
-        }
-        if self.common.provision_info.my_cert_chain[slot_id].is_none() {
+        };
+        if slot_id < SPDM_MAX_SLOT_NUMBER
+            && self.common.provision_info.my_cert_chain[slot_id].is_none()
+        {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -230,7 +234,7 @@ impl ResponderContext {
 
         self.common
             .runtime_info
-            .set_local_used_cert_chain_slot_id(key_exchange_req.slot_id);
+            .set_local_used_cert_chain_slot_id(slot_id as u8);
 
         debug!(
             "!!! exchange data (peer) : {:02x?}\n",
@@ -314,7 +318,22 @@ impl ResponderContext {
 
         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
         let message_a = self.common.runtime_info.message_a.clone();
-        let cert_chain_hash = self.common.get_certchain_hash_local(false, slot_id);
+        let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE as usize {
+            if let Some(my_pub_key) = self.common.provision_info.my_pub_key {
+                crypto::hash::hash_all(
+                    self.common.negotiate_info.base_hash_sel,
+                    my_pub_key.data[..my_pub_key.data_size as usize].as_ref(),
+                )
+            } else {
+                error!("responder public key not provisioned!\n");
+                None
+            }
+        } else if slot_id < SPDM_MAX_SLOT_NUMBER {
+            self.common.get_certchain_hash_local(false, slot_id)
+        } else {
+            error!("invalid requested slot!\n");
+            None
+        };
         if cert_chain_hash.is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (

@@ -139,6 +139,8 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         ],
         my_cert_chain: [None, None, None, None, None, None, None, None],
         peer_root_cert_data: peer_root_cert_data_list,
+        my_pub_key: None,
+        peer_pub_key: None,
         local_supported_slot_mask: 0xff,
         local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
         local_cert_info: [
@@ -315,6 +317,8 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             ],
             my_cert_chain: [None, None, None, None, None, None, None, None],
             peer_root_cert_data: peer_root_cert_data_list,
+            my_pub_key: None,
+            peer_pub_key: None,
             local_supported_slot_mask: 0xff,
             local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
             local_cert_info: [
@@ -470,6 +474,8 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         ],
         my_cert_chain: [None, None, None, None, None, None, None, None],
         peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+        my_pub_key: None,
+        peer_pub_key: None,
         local_supported_slot_mask: 0xff,
         local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
         local_cert_info: [

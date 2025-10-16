@@ -52,10 +52,14 @@ impl RequesterContext {
         info!("in_clear_text {:?}\n", in_clear_text);
 
         let req_slot_id = if let Some(req_slot_id) = req_slot_id {
-            if req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
+            if req_slot_id != SPDM_PUB_KEY_SLOT_ID_FINISH
+                && req_slot_id >= SPDM_MAX_SLOT_NUMBER as u8
+            {
                 return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
             }
-            if self.common.provision_info.my_cert_chain[req_slot_id as usize].is_none() {
+            if req_slot_id < SPDM_MAX_SLOT_NUMBER as u8
+                && self.common.provision_info.my_cert_chain[req_slot_id as usize].is_none()
+            {
                 return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
             }
             req_slot_id

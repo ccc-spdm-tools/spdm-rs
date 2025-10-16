@@ -397,14 +397,24 @@ impl ResponderContext {
                 .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
 
         let peer_slot_id = self.common.runtime_info.get_peer_used_cert_chain_slot_id();
-        let peer_cert = &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+        let peer_cert = if peer_slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+            let peer_pub_key = self
+                .common
+                .provision_info
+                .peer_pub_key
+                .as_ref()
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            &peer_pub_key.data[..peer_pub_key.data_size as usize]
+        } else {
+            &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
+                .data[(4usize + self.common.get_hash_size() as usize)
+                ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data_size as usize)]
+        };
         let mut transcript_sign = ManagedBuffer12Sign::default();
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
@@ -443,15 +453,24 @@ impl ResponderContext {
                 .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
 
         let peer_slot_id = self.common.runtime_info.get_peer_used_cert_chain_slot_id();
-        let peer_cert = &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+        let peer_cert = if peer_slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+            let peer_pub_key = self
+                .common
+                .provision_info
+                .peer_pub_key
+                .as_ref()
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            &peer_pub_key.data[..peer_pub_key.data_size as usize]
+        } else {
+            &self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
                 .as_ref()
                 .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
-
+                .data[(4usize + self.common.get_hash_size() as usize)
+                ..(self.common.peer_info.peer_cert_chain[peer_slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .data_size as usize)]
+        };
         let mut transcript_hash_sign = ManagedBuffer12Sign::default();
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_hash_sign.reset_message();
