@@ -468,6 +468,7 @@ impl ResponderContext {
                         Some(writer.used_slice()),
                     );
                 };
+                session.set_th2(th2.clone());
                 if session
                     .generate_data_secret(spdm_version_sel, &th2)
                     .is_err()

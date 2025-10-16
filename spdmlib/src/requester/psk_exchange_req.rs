@@ -318,6 +318,7 @@ impl RequesterContext {
                                     .common
                                     .get_session_via_id(session_id)
                                     .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+                                session.set_th2(th2.clone());
                                 session.generate_data_secret(spdm_version_sel, &th2)?;
                                 session.set_session_state(
                                     crate::common::session::SpdmSessionState::SpdmSessionEstablished,
