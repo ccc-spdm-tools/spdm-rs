@@ -89,7 +89,17 @@ impl RequesterContext {
                         .ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
                     let mut_auth_requested = session.get_mut_auth_requested();
                     if mut_auth_requested == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ {
-                        Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
+                        if self.common.runtime_info.get_local_used_cert_chain_slot_id()
+                            < SPDM_MAX_SLOT_NUMBER as u8
+                        {
+                            Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
+                        } else if self.common.runtime_info.get_local_used_cert_chain_slot_id()
+                            == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP
+                        {
+                            Some(SPDM_PUB_KEY_SLOT_ID_FINISH)
+                        } else {
+                            None
+                        }
                     } else {
                         self.session_based_mutual_authenticate(session_id).await?;
                         Some(self.common.runtime_info.get_local_used_cert_chain_slot_id())
