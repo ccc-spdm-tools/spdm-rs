@@ -408,6 +408,7 @@ pub struct SpdmSession {
     pub runtime_info: SpdmSessionRuntimeInfo,
     key_schedule: SpdmKeySchedule,
     th1: SpdmDigestStruct,
+    th2: SpdmDigestStruct,
     slot_id: u8,
     pub heartbeat_period: u8, // valid only when HEARTBEAT cap set
     pub secure_spdm_version_sel: SecuredMessageVersion,
@@ -437,6 +438,7 @@ impl Codec for SpdmSession {
         size += self.runtime_info.encode(writer)?;
         size += self.key_schedule.encode(writer)?;
         size += self.th1.encode(writer)?;
+        size += self.th2.encode(writer)?;
         size += self.slot_id.encode(writer)?;
         size += self.heartbeat_period.encode(writer)?;
         size += self.secure_spdm_version_sel.encode(writer)?;
@@ -460,6 +462,7 @@ impl Codec for SpdmSession {
             runtime_info: SpdmSessionRuntimeInfo::read(reader)?,
             key_schedule: SpdmKeySchedule::read(reader)?,
             th1: SpdmDigestStruct::read(reader)?,
+            th2: SpdmDigestStruct::read(reader)?,
             slot_id: u8::read(reader)?,
             heartbeat_period: u8::read(reader)?,
             secure_spdm_version_sel: SecuredMessageVersion::read(reader)?,
@@ -484,6 +487,7 @@ impl SpdmSession {
             runtime_info: SpdmSessionRuntimeInfo::default(),
             key_schedule: SpdmKeySchedule::new(),
             th1: SpdmDigestStruct::default(),
+            th2: SpdmDigestStruct::default(),
             slot_id: 0,
             heartbeat_period: 0,
             secure_spdm_version_sel: SecuredMessageVersion::default(),
@@ -576,6 +580,14 @@ impl SpdmSession {
 
     pub fn get_th1(&self) -> SpdmDigestStruct {
         self.th1.clone()
+    }
+
+    pub fn set_th2(&mut self, th2: SpdmDigestStruct) {
+        self.th2 = th2;
+    }
+
+    pub fn get_th2(&self) -> SpdmDigestStruct {
+        self.th2.clone()
     }
 
     pub fn set_shared_secret(

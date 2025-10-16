@@ -377,6 +377,7 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         };
+        session.set_th2(th2.clone());
         if let Err(e) = session.generate_data_secret(spdm_version_sel, &th2) {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             (Err(e), Some(writer.used_slice()))
