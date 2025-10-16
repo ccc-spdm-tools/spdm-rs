@@ -341,6 +341,12 @@ impl ResponderContext {
         } else {
             0
         };
+        #[cfg(feature = "mut-auth")]
+        if mut_auth_req == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ {
+            self.common
+                .runtime_info
+                .set_peer_used_cert_chain_slot_id(self.common.encap_context.req_slot_id);
+        }
         #[cfg(not(feature = "mut-auth"))]
         let mut_auth_req = SpdmKeyExchangeMutAuthAttributes::empty();
         #[cfg(not(feature = "mut-auth"))]
