@@ -357,6 +357,7 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         };
+        session.set_th1(th1.clone());
         if let Err(e) = session.generate_handshake_secret(spdm_version_sel, &th1) {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(e), Some(writer.used_slice()));
