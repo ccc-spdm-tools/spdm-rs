@@ -238,7 +238,18 @@ impl SpdmContext {
 
         #[cfg(feature = "mut-auth")]
         {
-            self.encap_context = SpdmEncapContext::default();
+            self.encap_context = if self.encap_context.mut_auth_requested
+                == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
+            {
+                SpdmEncapContext {
+                    mut_auth_requested: SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ,
+                    req_slot_id: self.encap_context.req_slot_id,
+                    request_id: 0,
+                    encap_cert_size: 0,
+                }
+            } else {
+                SpdmEncapContext::default()
+            };
         }
 
         #[cfg(feature = "mandatory-mut-auth")]
