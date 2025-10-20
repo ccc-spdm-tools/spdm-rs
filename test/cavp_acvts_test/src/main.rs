@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use serde_json::Value;
+use spdmlib::protocol::SpdmDer;
 use std::collections::BTreeMap;
 use std::io::{self, Read};
 
@@ -362,7 +363,7 @@ fn ecdsa_verify(
     let ret = asym_verify::verify(
         hash_algo,
         asym_algo,
-        certificate.as_slice(),
+        SpdmDer::SpdmDerCertChain(certificate.as_slice()),
         data.as_slice(),
         &signature,
     );

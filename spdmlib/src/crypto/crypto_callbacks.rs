@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::error::SpdmResult;
+use crate::{error::SpdmResult, protocol::SpdmDer};
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -75,7 +75,7 @@ pub struct SpdmAsymVerify {
     pub verify_cb: fn(
         base_hash_algo: SpdmBaseHashAlgo,
         base_asym_algo: SpdmBaseAsymAlgo,
-        public_cert_der: &[u8],
+        der: SpdmDer,
         data: &[u8],
         signature: &SpdmSignatureStruct,
     ) -> SpdmResult,

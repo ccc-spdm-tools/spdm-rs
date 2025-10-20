@@ -196,7 +196,7 @@ pub mod asym_verify {
     use super::CRYPTO_ASYM_VERIFY;
     use crate::crypto::SpdmAsymVerify;
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
-    use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
+    use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
 
     #[cfg(not(any(feature = "spdm-ring")))]
     use super::crypto_null::asym_verify_impl::DEFAULT;
@@ -211,20 +211,14 @@ pub mod asym_verify {
     pub fn verify(
         base_hash_algo: SpdmBaseHashAlgo,
         base_asym_algo: SpdmBaseAsymAlgo,
-        public_cert_der: &[u8],
+        der: SpdmDer,
         data: &[u8],
         signature: &SpdmSignatureStruct,
     ) -> SpdmResult {
         (CRYPTO_ASYM_VERIFY
             .try_get_or_init(|| DEFAULT.clone())
             .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
-            .verify_cb)(
-            base_hash_algo,
-            base_asym_algo,
-            public_cert_der,
-            data,
-            signature,
-        )
+            .verify_cb)(base_hash_algo, base_asym_algo, der, data, signature)
     }
 }
 
@@ -497,33 +491,32 @@ pub mod rand {
 pub mod fips;
 
 // Add this import at the top of the file (after other use statements)
-use crate::error::SpdmResult;
-use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+use crate::error::{SpdmResult, SPDM_STATUS_UNSUPPORTED_CAP};
+use crate::protocol::{
+    SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmPqcAsymAlgo, SpdmSignatureStruct,
+};
 
 pub fn spdm_asym_verify(
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
     pqc_asym_algo: SpdmPqcAsymAlgo,
-    public_cert_der: &[u8],
+    der: SpdmDer,
     data: &[u8],
     signature: &SpdmSignatureStruct,
 ) -> SpdmResult {
     if pqc_asym_algo != SpdmPqcAsymAlgo::empty() {
-        self::pqc_asym_verify::verify(
-            base_hash_algo,
-            pqc_asym_algo,
-            public_cert_der,
-            data,
-            signature,
-        )
+        match der {
+            SpdmDer::SpdmDerCertChain(public_cert_der) => self::pqc_asym_verify::verify(
+                base_hash_algo,
+                pqc_asym_algo,
+                public_cert_der,
+                data,
+                signature,
+            ),
+            SpdmDer::SpdmDerPubKeyRfc7250(_) => Err(SPDM_STATUS_UNSUPPORTED_CAP),
+        }
     } else {
-        self::asym_verify::verify(
-            base_hash_algo,
-            base_asym_algo,
-            public_cert_der,
-            data,
-            signature,
-        )
+        self::asym_verify::verify(base_hash_algo, base_asym_algo, der, data, signature)
     }
 }
 

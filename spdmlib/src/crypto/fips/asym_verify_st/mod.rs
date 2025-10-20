@@ -12,7 +12,7 @@ use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
 use ring::signature::RsaPublicKeyComponents;
 
 use crate::crypto::asym_verify;
-use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
+use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
 
 use crate::crypto::fips::cavs_vectors::ecdsa_p256_sha256_sig_ver;
 use crate::crypto::fips::cavs_vectors::ecdsa_p256_sha384_sig_ver;
@@ -138,7 +138,14 @@ fn ecdsa_verify(
     sig.data[0..r.len()].copy_from_slice(r);
     sig.data[r.len()..r.len() + s.len()].copy_from_slice(s);
 
-    asym_verify::verify(hash_algo, asym_algo, certificate.as_slice(), msg, &sig).is_ok()
+    asym_verify::verify(
+        hash_algo,
+        asym_algo,
+        SpdmDer::SpdmDerCertChain(cert_chain_data),
+        msg,
+        &sig,
+    )
+    .is_ok()
 }
 
 pub fn run_self_tests() -> SpdmResult {

@@ -4,7 +4,7 @@
 
 use crate::crypto::SpdmAsymVerify;
 use crate::error::SpdmResult;
-use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
+use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
 
 pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
     verify_cb: asym_verify,
@@ -13,7 +13,7 @@ pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
 fn asym_verify(
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
-    public_cert_der: &[u8],
+    der: SpdmDer,
     data: &[u8],
     signature: &SpdmSignatureStruct,
 ) -> SpdmResult {
