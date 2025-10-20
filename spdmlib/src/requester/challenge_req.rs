@@ -220,7 +220,7 @@ impl RequesterContext {
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
-            cert_chain_data,
+            SpdmDer::SpdmDerCertChain(cert_chain_data),
             message_sign.as_ref(),
             signature,
         )
@@ -286,7 +286,7 @@ impl RequesterContext {
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
-            cert_chain_data,
+            SpdmDer::SpdmDerCertChain(cert_chain_data),
             message_m1m2.as_ref(),
             signature,
         )

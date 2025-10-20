@@ -1406,6 +1406,11 @@ impl Codec for SpdmCertChainBuffer {
     }
 }
 
+pub enum SpdmDer<'a> {
+    SpdmDerCertChain(&'a [u8]),
+    SpdmDerPubKeyRfc7250(&'a [u8]),
+}
+
 enum_builder! {
     @U8
     EnumName: SpdmDmtfMeasurementType;

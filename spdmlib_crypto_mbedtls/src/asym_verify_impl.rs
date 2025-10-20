@@ -5,7 +5,7 @@
 use mbedtls::{hash, x509::Certificate};
 use spdmlib::crypto::SpdmAsymVerify;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_VERIF_FAIL};
-use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
+use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
 
 pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
     verify_cb: asym_verify,
@@ -14,13 +14,18 @@ pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
 fn asym_verify(
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
-    public_cert_der: &[u8],
+    der: SpdmDer,
     data: &[u8],
     signature: &SpdmSignatureStruct,
 ) -> SpdmResult {
     if signature.data_size != base_asym_algo.get_sig_size() {
         return Err(SPDM_STATUS_INVALID_PARAMETER);
     }
+
+    let public_cert_der = match der {
+        SpdmDer::SpdmDerCertChain(cert_chain) => cert_chain,
+        SpdmDer::SpdmDerPubKeyRfc7250(_) => return Err(SPDM_STATUS_INVALID_PARAMETER),
+    };
 
     let hash_algo = match base_hash_algo {
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Ok(hash::Type::Sha256),
