@@ -432,11 +432,17 @@ impl ResponderContext {
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         }
 
+        let peer_cert_der = if peer_slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+            SpdmDer::SpdmDerPubKeyRfc7250(peer_cert)
+        } else {
+            SpdmDer::SpdmDerCertChain(peer_cert)
+        };
+
         crypto::spdm_asym_verify(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
             self.common.negotiate_info.pqc_req_asym_sel.to_base(),
-            SpdmDer::SpdmDerCertChain(peer_cert),
+            peer_cert_der,
             transcript_sign.as_ref(),
             signature,
         )
@@ -491,11 +497,17 @@ impl ResponderContext {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
 
+        let peer_cert_der = if peer_slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
+            SpdmDer::SpdmDerPubKeyRfc7250(peer_cert)
+        } else {
+            SpdmDer::SpdmDerCertChain(peer_cert)
+        };
+
         let res = crypto::spdm_asym_verify(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
             self.common.negotiate_info.pqc_req_asym_sel.to_base(),
-            SpdmDer::SpdmDerCertChain(peer_cert),
+            peer_cert_der,
             transcript_hash_sign.as_ref(),
             signature,
         );
