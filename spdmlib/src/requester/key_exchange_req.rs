@@ -586,11 +586,17 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
 
+        let der = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE {
+            SpdmDer::SpdmDerPubKeyRfc7250(cert_chain_data)
+        } else {
+            SpdmDer::SpdmDerCertChain(cert_chain_data)
+        };
+
         crypto::spdm_asym_verify(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
-            SpdmDer::SpdmDerCertChain(cert_chain_data),
+            der,
             message_sign.as_ref(),
             signature,
         )
@@ -659,11 +665,17 @@ impl RequesterContext {
                 .ok_or(SPDM_STATUS_BUFFER_FULL)?;
         }
 
+        let der = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE {
+            SpdmDer::SpdmDerPubKeyRfc7250(cert_chain_data)
+        } else {
+            SpdmDer::SpdmDerCertChain(cert_chain_data)
+        };
+
         crypto::spdm_asym_verify(
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
-            SpdmDer::SpdmDerCertChain(cert_chain_data),
+            der,
             message.as_ref(),
             signature,
         )
