@@ -4,6 +4,7 @@
 
 use std::path::PathBuf;
 
+use spdmlib::common::SpdmContext;
 use spdmlib::secret::{SpdmSecretAsymSign, SpdmSecretPqcAsymSign};
 
 use spdmlib::protocol::{
@@ -20,6 +21,7 @@ pub static SECRET_PQC_ASYM_IMPL_INSTANCE: SpdmSecretPqcAsymSign = SpdmSecretPqcA
 };
 
 fn asym_sign(
+    _spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
     data: &[u8],
@@ -175,6 +177,7 @@ fn sign_rsa_asym_algo(
 }
 
 fn pqc_asym_sign(
+    _spdm_context: &SpdmContext,
     _base_hash_algo: SpdmBaseHashAlgo,
     _pqc_asym_algo: SpdmPqcAsymAlgo,
     _data: &[u8],

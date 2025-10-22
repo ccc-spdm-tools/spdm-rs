@@ -362,6 +362,7 @@ impl ResponderContext {
         }
 
         crate::secret::spdm_asym_sign(
+            &self.common,
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
@@ -428,6 +429,7 @@ impl ResponderContext {
         }
 
         crate::secret::spdm_asym_sign(
+            &self.common,
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
