@@ -386,6 +386,7 @@ impl RequesterContext {
         }
 
         crate::secret::spdm_asym_sign(
+            &self.common,
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
             self.common.negotiate_info.pqc_req_asym_sel.to_base(),
@@ -427,6 +428,7 @@ impl RequesterContext {
         }
 
         crate::secret::spdm_asym_sign(
+            &self.common,
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.req_asym_sel.to_base(),
             self.common.negotiate_info.pqc_req_asym_sel.to_base(),

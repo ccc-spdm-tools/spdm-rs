@@ -7,6 +7,7 @@
 use crate::common::util::get_test_key_directory;
 use codec::{u24, Codec, Writer};
 use spdmlib::common::key_schedule::SpdmKeySchedule;
+use spdmlib::common::SpdmContext;
 use spdmlib::config;
 use spdmlib::crypto;
 use spdmlib::crypto::hash;
@@ -287,6 +288,7 @@ fn master_secret_hkdf_expand_impl(
 }
 
 fn asym_sign(
+    spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
     data: &[u8],
@@ -332,6 +334,7 @@ fn sign_ecdsa_asym_algo(
 }
 
 fn pqc_asym_sign(
+    _spdm_context: &SpdmContext,
     _base_hash_algo: SpdmBaseHashAlgo,
     _pqc_asym_algo: SpdmPqcAsymAlgo,
     _data: &[u8],
@@ -340,6 +343,7 @@ fn pqc_asym_sign(
 }
 
 fn fake_asym_sign(
+    spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
     data: &[u8],
@@ -364,6 +368,7 @@ fn fake_asym_sign(
 }
 
 fn fake_pqc_asym_sign(
+    spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
     pqc_asym_algo: SpdmPqcAsymAlgo,
     data: &[u8],

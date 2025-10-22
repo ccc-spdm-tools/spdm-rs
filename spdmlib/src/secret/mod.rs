@@ -142,6 +142,7 @@ pub mod psk {
 
 pub mod asym_sign {
     use super::SECRET_ASYM_INSTANCE;
+    use crate::common::SpdmContext;
     use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmSignatureStruct};
     use crate::secret::SpdmSecretAsymSign;
 
@@ -150,13 +151,15 @@ pub mod asym_sign {
     }
 
     static DEFAULT: SpdmSecretAsymSign = SpdmSecretAsymSign {
-        sign_cb: |_base_hash_algo: SpdmBaseHashAlgo,
+        sign_cb: |_spdm_context: &SpdmContext,
+                  _base_hash_algo: SpdmBaseHashAlgo,
                   _base_asym_algo: SpdmBaseAsymAlgo,
                   _data: &[u8]|
          -> Option<SpdmSignatureStruct> { unimplemented!() },
     };
 
     pub fn sign(
+        spdm_context: &SpdmContext,
         base_hash_algo: SpdmBaseHashAlgo,
         base_asym_algo: SpdmBaseAsymAlgo,
         data: &[u8],
@@ -164,12 +167,13 @@ pub mod asym_sign {
         (SECRET_ASYM_INSTANCE
             .try_get_or_init(|| DEFAULT.clone())
             .ok()?
-            .sign_cb)(base_hash_algo, base_asym_algo, data)
+            .sign_cb)(spdm_context, base_hash_algo, base_asym_algo, data)
     }
 }
 
 pub mod pqc_asym_sign {
     use super::SECRET_PQC_ASYM_INSTANCE;
+    use crate::common::SpdmContext;
     use crate::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
     use crate::secret::SpdmSecretPqcAsymSign;
 
@@ -178,13 +182,15 @@ pub mod pqc_asym_sign {
     }
 
     static DEFAULT: SpdmSecretPqcAsymSign = SpdmSecretPqcAsymSign {
-        sign_cb: |_base_hash_algo: SpdmBaseHashAlgo,
+        sign_cb: |_spdm_context: &SpdmContext,
+                  _base_hash_algo: SpdmBaseHashAlgo,
                   _pqc_asym_algo: SpdmPqcAsymAlgo,
                   _data: &[u8]|
          -> Option<SpdmSignatureStruct> { unimplemented!() },
     };
 
     pub fn sign(
+        spdm_context: &SpdmContext,
         base_hash_algo: SpdmBaseHashAlgo,
         pqc_asym_algo: SpdmPqcAsymAlgo,
         data: &[u8],
@@ -192,21 +198,25 @@ pub mod pqc_asym_sign {
         (SECRET_PQC_ASYM_INSTANCE
             .try_get_or_init(|| DEFAULT.clone())
             .ok()?
-            .sign_cb)(base_hash_algo, pqc_asym_algo, data)
+            .sign_cb)(spdm_context, base_hash_algo, pqc_asym_algo, data)
     }
 }
 
-use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+use crate::{
+    common::SpdmContext,
+    protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct},
+};
 
 pub fn spdm_asym_sign(
+    spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
     pqc_asym_algo: SpdmPqcAsymAlgo,
     data: &[u8],
 ) -> Option<SpdmSignatureStruct> {
     if pqc_asym_algo != SpdmPqcAsymAlgo::empty() {
-        pqc_asym_sign::sign(base_hash_algo, pqc_asym_algo, data)
+        pqc_asym_sign::sign(spdm_context, base_hash_algo, pqc_asym_algo, data)
     } else {
-        asym_sign::sign(base_hash_algo, base_asym_algo, data)
+        asym_sign::sign(spdm_context, base_hash_algo, base_asym_algo, data)
     }
 }

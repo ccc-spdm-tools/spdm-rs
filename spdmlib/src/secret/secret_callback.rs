@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::protocol::{
-    SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDigestStruct, SpdmHkdfOutputKeyingMaterial,
-    SpdmMeasurementHashAlgo, SpdmMeasurementRecordStructure, SpdmMeasurementSpecification,
-    SpdmMeasurementSummaryHashType, SpdmPqcAsymAlgo, SpdmPskHintStruct, SpdmSignatureStruct,
-    SpdmVersion,
+use crate::{
+    common::SpdmContext,
+    protocol::{
+        SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDigestStruct, SpdmHkdfOutputKeyingMaterial,
+        SpdmMeasurementHashAlgo, SpdmMeasurementRecordStructure, SpdmMeasurementSpecification,
+        SpdmMeasurementSummaryHashType, SpdmPqcAsymAlgo, SpdmPskHintStruct, SpdmSignatureStruct,
+        SpdmVersion,
+    },
 };
 
 type SpdmMeasurementCollectionCbType = fn(
@@ -54,6 +57,7 @@ pub struct SpdmSecretPsk {
 #[derive(Clone)]
 pub struct SpdmSecretAsymSign {
     pub sign_cb: fn(
+        spdm_context: &SpdmContext,
         base_hash_algo: SpdmBaseHashAlgo,
         base_asym_algo: SpdmBaseAsymAlgo,
         data: &[u8],
@@ -63,6 +67,7 @@ pub struct SpdmSecretAsymSign {
 #[derive(Clone)]
 pub struct SpdmSecretPqcAsymSign {
     pub sign_cb: fn(
+        spdm_context: &SpdmContext,
         base_hash_algo: SpdmBaseHashAlgo,
         pqc_asym_algo: SpdmPqcAsymAlgo,
         data: &[u8],
