@@ -1,6 +1,3 @@
 [submodule "external/ring"]
 	path = external/ring
 	url = https://github.com/briansmith/ring.git
-[submodule "external/webpki"]
-	path = external/webpki
-	url = https://github.com/briansmith/webpki.git
