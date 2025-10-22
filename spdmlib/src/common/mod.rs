@@ -131,6 +131,8 @@ pub trait SpdmTransportEncap {
     fn get_max_random_count(&mut self) -> u16;
 }
 
+pub const SPDM_CONTEXT_APP_DATA_BUFFER_SIZE: usize = 1024;
+
 pub struct SpdmContext {
     pub device_io: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>>,
     pub transport_encap: Arc<Mutex<dyn SpdmTransportEncap + Send + Sync>>,
@@ -147,6 +149,8 @@ pub struct SpdmContext {
 
     #[cfg(feature = "mandatory-mut-auth")]
     pub mut_auth_done: bool,
+
+    pub app_context_data_buffer: [u8; SPDM_CONTEXT_APP_DATA_BUFFER_SIZE],
 
     #[cfg(feature = "chunk-cap")]
     pub chunk_context: SpdmChunkContext,
@@ -177,6 +181,7 @@ impl SpdmContext {
             encap_context: SpdmEncapContext::default(),
             #[cfg(feature = "mandatory-mut-auth")]
             mut_auth_done: false,
+            app_context_data_buffer: [0u8; SPDM_CONTEXT_APP_DATA_BUFFER_SIZE],
             session: gen_array(config::MAX_SPDM_SESSION_COUNT),
             #[cfg(feature = "chunk-cap")]
             chunk_context: SpdmChunkContext::default(),
