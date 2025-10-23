@@ -185,7 +185,7 @@ impl RequesterContext {
             .get_immutable_session_via_id(session_id)
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         if !session.get_mut_auth_requested().is_empty() {
-            signature = self.generate_finish_req_signature(session.get_slot_id(), session)?;
+            signature = self.generate_finish_req_signature(req_slot_id, session)?;
             // patch the signature
             buf[4 + opaque_total_size..4 + opaque_total_size + signature.data_size as usize]
                 .copy_from_slice(signature.as_ref());
