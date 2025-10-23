@@ -221,12 +221,7 @@ impl RequesterContext {
                                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             // generate the handshake secret (including finished_key) before verify HMAC
-                            let th1 = self.common.calc_req_transcript_hash(
-                                true,
-                                INVALID_SLOT,
-                                false,
-                                session,
-                            )?;
+                            let th1 = self.common.calc_req_transcript_hash(true, false, session)?;
                             debug!("!!! th1 : {:02x?}\n", th1.as_ref());
 
                             let session = self
@@ -242,12 +237,8 @@ impl RequesterContext {
                                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                             // verify HMAC with finished_key
-                            let transcript_hash = self.common.calc_req_transcript_hash(
-                                true,
-                                INVALID_SLOT,
-                                false,
-                                session,
-                            )?;
+                            let transcript_hash =
+                                self.common.calc_req_transcript_hash(true, false, session)?;
 
                             let session = self
                                 .common
@@ -305,12 +296,8 @@ impl RequesterContext {
                                 .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT);
                             if psk_without_context {
                                 // generate the data secret directly to skip PSK_FINISH
-                                let th2 = self.common.calc_req_transcript_hash(
-                                    true,
-                                    INVALID_SLOT,
-                                    false,
-                                    session,
-                                )?;
+                                let th2 =
+                                    self.common.calc_req_transcript_hash(true, false, session)?;
 
                                 debug!("!!! th2 : {:02x?}\n", th2.as_ref());
 

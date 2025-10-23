@@ -115,9 +115,7 @@ impl RequesterContext {
             .common
             .get_immutable_session_via_id(session_id)
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
-        let transcript_hash =
-            self.common
-                .calc_req_transcript_hash(true, INVALID_SLOT, false, session)?;
+        let transcript_hash = self.common.calc_req_transcript_hash(true, false, session)?;
 
         let session = self
             .common
@@ -164,12 +162,7 @@ impl RequesterContext {
                                 .get_immutable_session_via_id(session_id)
                                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
-                            let th2 = self.common.calc_req_transcript_hash(
-                                true,
-                                INVALID_SLOT,
-                                false,
-                                session,
-                            )?;
+                            let th2 = self.common.calc_req_transcript_hash(true, false, session)?;
 
                             debug!("!!! th2 : {:02x?}\n", th2.as_ref());
 

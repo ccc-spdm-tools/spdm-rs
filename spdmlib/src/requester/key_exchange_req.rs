@@ -45,6 +45,10 @@ impl RequesterContext {
         self.common
             .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestKeyExchange, None);
 
+        self.common
+            .runtime_info
+            .set_peer_used_cert_chain_slot_id(slot_id);
+
         let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let (key_exchange_context, send_used) = self.encode_spdm_key_exchange(
             req_session_id,
@@ -424,7 +428,7 @@ impl RequesterContext {
                             // generate the handshake secret (including finished_key) before verify HMAC
                             let th1 = self
                                 .common
-                                .calc_req_transcript_hash(false, slot_id, false, session)?;
+                                .calc_req_transcript_hash(false, false, session)?;
                             debug!("!!! th1 : {:02x?}\n", th1.as_ref());
 
                             let session = self
@@ -443,7 +447,7 @@ impl RequesterContext {
                                 // verify HMAC with finished_key
                                 let transcript_hash = self
                                     .common
-                                    .calc_req_transcript_hash(false, slot_id, false, session)?;
+                                    .calc_req_transcript_hash(false, false, session)?;
 
                                 let session = self
                                     .common
@@ -539,7 +543,7 @@ impl RequesterContext {
     ) -> SpdmResult {
         let transcript_hash = self
             .common
-            .calc_req_transcript_hash(false, slot_id, false, session)?;
+            .calc_req_transcript_hash(false, false, session)?;
 
         debug!("message_hash - {:02x?}", transcript_hash.as_ref());
 
@@ -611,7 +615,7 @@ impl RequesterContext {
     ) -> SpdmResult {
         let message_hash = self
             .common
-            .calc_req_transcript_hash(false, slot_id, false, session)?;
+            .calc_req_transcript_hash(false, false, session)?;
         // we dont need create message hash for verify
         // we just print message hash for debug purpose
         debug!("message_hash - {:02x?}", message_hash.as_ref());
@@ -642,7 +646,6 @@ impl RequesterContext {
 
         let mut message = self.common.calc_req_transcript_data(
             false,
-            slot_id,
             false,
             &session.runtime_info.message_k,
             None,

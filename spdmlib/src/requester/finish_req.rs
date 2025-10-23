@@ -116,11 +116,7 @@ impl RequesterContext {
             return Err(res.err().unwrap());
         }
         let receive_used = res.unwrap();
-        let res = self.handle_spdm_finish_response(
-            session_id,
-            req_slot_id,
-            &receive_buffer[..receive_used],
-        );
+        let res = self.handle_spdm_finish_response(session_id, &receive_buffer[..receive_used]);
         if res.is_err() {
             if let Some(session) = self.common.get_session_via_id(session_id) {
                 session.teardown();
@@ -206,9 +202,9 @@ impl RequesterContext {
             .get_immutable_session_via_id(session_id)
             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
-        let transcript_hash =
-            self.common
-                .calc_req_transcript_hash(false, req_slot_id, is_mut_auth, session)?;
+        let transcript_hash = self
+            .common
+            .calc_req_transcript_hash(false, is_mut_auth, session)?;
 
         let session = self
             .common
@@ -228,7 +224,6 @@ impl RequesterContext {
     pub fn handle_spdm_finish_response(
         &mut self,
         session_id: u32,
-        req_slot_id: u8,
         receive_buffer: &[u8],
     ) -> SpdmResult {
         let in_clear_text = self
@@ -277,7 +272,6 @@ impl RequesterContext {
 
                             let transcript_hash = self.common.calc_req_transcript_hash(
                                 false,
-                                req_slot_id,
                                 is_mut_auth,
                                 session,
                             )?;
@@ -314,12 +308,9 @@ impl RequesterContext {
                             .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
 
                         // generate the data secret
-                        let th2 = self.common.calc_req_transcript_hash(
-                            false,
-                            req_slot_id,
-                            is_mut_auth,
-                            session,
-                        )?;
+                        let th2 =
+                            self.common
+                                .calc_req_transcript_hash(false, is_mut_auth, session)?;
 
                         debug!("!!! th2 : {:02x?}\n", th2.as_ref());
                         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
@@ -361,12 +352,10 @@ impl RequesterContext {
     #[cfg(not(feature = "hashed-transcript-data"))]
     fn generate_finish_req_signature(
         &self,
-        slot_id: u8,
+        _slot_id: u8,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmSignatureStruct> {
-        let transcript_data_hash = self
-            .common
-            .calc_req_transcript_hash(false, slot_id, true, session)?;
+        let transcript_data_hash = self.common.calc_req_transcript_hash(false, true, session)?;
 
         let mut transcript_sign = ManagedBuffer12Sign::default();
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
@@ -401,9 +390,7 @@ impl RequesterContext {
         _slot_id: u8,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmSignatureStruct> {
-        let transcript_hash =
-            self.common
-                .calc_req_transcript_hash(false, INVALID_SLOT, true, session)?;
+        let transcript_hash = self.common.calc_req_transcript_hash(false, true, session)?;
 
         debug!("transcript_hash - {:02x?}", transcript_hash.as_ref());
 

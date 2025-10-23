@@ -537,9 +537,7 @@ impl ResponderContext {
         };
 
         // generate the handshake secret (including finished_key) before generate HMAC
-        let th1 = self
-            .common
-            .calc_rsp_transcript_hash(false, slot_id as u8, false, session);
+        let th1 = self.common.calc_rsp_transcript_hash(false, false, session);
         if th1.is_err() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -575,9 +573,7 @@ impl ResponderContext {
                 };
 
             // generate HMAC with finished_key
-            let transcript_hash =
-                self.common
-                    .calc_rsp_transcript_hash(false, slot_id as u8, false, session);
+            let transcript_hash = self.common.calc_rsp_transcript_hash(false, false, session);
             if transcript_hash.is_err() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -670,12 +666,12 @@ impl ResponderContext {
     #[cfg(feature = "hashed-transcript-data")]
     pub fn generate_key_exchange_rsp_signature(
         &self,
-        slot_id: u8,
+        _slot_id: u8,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmSignatureStruct> {
         let transcript_hash = self
             .common
-            .calc_rsp_transcript_hash(false, slot_id, false, session)?;
+            .calc_rsp_transcript_hash(false, false, session)?;
 
         debug!("message_hash - {:02x?}", transcript_hash.as_ref());
 
@@ -712,19 +708,18 @@ impl ResponderContext {
     #[cfg(not(feature = "hashed-transcript-data"))]
     pub fn generate_key_exchange_rsp_signature(
         &self,
-        slot_id: u8,
+        _slot_id: u8,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmSignatureStruct> {
         let message_hash = self
             .common
-            .calc_rsp_transcript_hash(false, slot_id, false, session)?;
+            .calc_rsp_transcript_hash(false, false, session)?;
         // we dont need create message hash for verify
         // we just print message hash for debug purpose
         debug!("message_hash - {:02x?}", message_hash.as_ref());
 
         let mut message = self.common.calc_rsp_transcript_data(
             false,
-            slot_id,
             false,
             &session.runtime_info.message_k,
             None,

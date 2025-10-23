@@ -8,7 +8,6 @@ use crate::common::SecuredMessageVersion;
 use crate::common::SpdmCodec;
 use crate::common::SpdmConnectionState;
 use crate::common::SpdmTransportEncap;
-use crate::common::INVALID_SLOT;
 use crate::crypto;
 use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_CRYPTO_ERROR;
@@ -338,9 +337,7 @@ impl ResponderContext {
         };
 
         // create session - generate the handshake secret (including finished_key)
-        let th1 = self
-            .common
-            .calc_rsp_transcript_hash(true, INVALID_SLOT, false, session);
+        let th1 = self.common.calc_rsp_transcript_hash(true, false, session);
         if th1.is_err() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -373,9 +370,7 @@ impl ResponderContext {
             );
         };
         // generate HMAC with finished_key
-        let transcript_hash =
-            self.common
-                .calc_rsp_transcript_hash(true, INVALID_SLOT, false, session);
+        let transcript_hash = self.common.calc_rsp_transcript_hash(true, false, session);
         if transcript_hash.is_err() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -448,9 +443,7 @@ impl ResponderContext {
 
         if psk_without_context {
             // generate the data secret directly to skip PSK_FINISH
-            let th2 = self
-                .common
-                .calc_rsp_transcript_hash(true, 0, false, session);
+            let th2 = self.common.calc_rsp_transcript_hash(true, false, session);
             if th2.is_err() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
