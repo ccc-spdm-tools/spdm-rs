@@ -441,7 +441,6 @@ pub struct SpdmSession {
     key_schedule: SpdmKeySchedule,
     th1: SpdmDigestStruct,
     th2: SpdmDigestStruct,
-    slot_id: u8,
     pub heartbeat_period: u8, // valid only when HEARTBEAT cap set
     pub secure_spdm_version_sel: SecuredMessageVersion,
 }
@@ -471,7 +470,6 @@ impl Codec for SpdmSession {
         size += self.key_schedule.encode(writer)?;
         size += self.th1.encode(writer)?;
         size += self.th2.encode(writer)?;
-        size += self.slot_id.encode(writer)?;
         size += self.heartbeat_period.encode(writer)?;
         size += self.secure_spdm_version_sel.encode(writer)?;
         Ok(size)
@@ -495,7 +493,6 @@ impl Codec for SpdmSession {
             key_schedule: SpdmKeySchedule::read(reader)?,
             th1: SpdmDigestStruct::read(reader)?,
             th2: SpdmDigestStruct::read(reader)?,
-            slot_id: u8::read(reader)?,
             heartbeat_period: u8::read(reader)?,
             secure_spdm_version_sel: SecuredMessageVersion::read(reader)?,
         })
@@ -520,7 +517,6 @@ impl SpdmSession {
             key_schedule: SpdmKeySchedule::new(),
             th1: SpdmDigestStruct::default(),
             th2: SpdmDigestStruct::default(),
-            slot_id: 0,
             heartbeat_period: 0,
             secure_spdm_version_sel: SecuredMessageVersion::default(),
             mut_auth_requested: SpdmKeyExchangeMutAuthAttributes::default(),
@@ -596,14 +592,6 @@ impl SpdmSession {
 
     pub fn get_use_psk(&self) -> bool {
         self.use_psk
-    }
-
-    pub fn set_slot_id(&mut self, slot_id: u8) {
-        self.slot_id = slot_id;
-    }
-
-    pub fn get_slot_id(&self) -> u8 {
-        self.slot_id
     }
 
     pub fn set_th1(&mut self, th1: SpdmDigestStruct) {

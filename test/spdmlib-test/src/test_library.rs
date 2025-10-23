@@ -700,7 +700,6 @@ fn test_case2_spdm_context_export_import_with_sessions() {
     if let Some(session) = original_context.get_session_via_id(0) {
         session.setup(0x12345678).unwrap();
         session.set_use_psk(false);
-        session.set_slot_id(1);
         session.heartbeat_period = 30;
         session
             .runtime_info
@@ -807,7 +806,6 @@ fn test_case2_spdm_context_export_import_with_sessions() {
     if let (Some(imp_sess), Some(orig_sess)) = (imported_session, original_session) {
         assert_eq!(imp_sess.get_session_id(), orig_sess.get_session_id());
         assert_eq!(imp_sess.get_use_psk(), orig_sess.get_use_psk());
-        assert_eq!(imp_sess.get_slot_id(), orig_sess.get_slot_id());
         assert_eq!(imp_sess.heartbeat_period, orig_sess.heartbeat_period);
         assert_eq!(
             imp_sess.runtime_info.message_a.as_ref(),

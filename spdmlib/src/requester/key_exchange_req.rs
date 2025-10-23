@@ -360,11 +360,7 @@ impl RequesterContext {
                             session.setup(session_id)?;
 
                             session.set_use_psk(false);
-                            if key_exchange_rsp.mut_auth_req
-                                == SpdmKeyExchangeMutAuthAttributes::MUT_AUTH_REQ
-                            {
-                                session.set_slot_id(slot_id);
-                            }
+
                             session.set_mut_auth_requested(key_exchange_rsp.mut_auth_req);
 
                             session.set_crypto_param(
