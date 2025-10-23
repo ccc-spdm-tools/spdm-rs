@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::SpdmCodec;
-use crate::common::INVALID_SLOT;
 use crate::common::{SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
 use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_CRYPTO_ERROR;
@@ -124,9 +123,7 @@ impl ResponderContext {
                     );
                 };
 
-            let transcript_hash =
-                self.common
-                    .calc_rsp_transcript_hash(true, INVALID_SLOT, false, session);
+            let transcript_hash = self.common.calc_rsp_transcript_hash(true, false, session);
             if transcript_hash.is_err() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -216,9 +213,7 @@ impl ResponderContext {
             );
         };
         // generate the data secret
-        let th2 = self
-            .common
-            .calc_rsp_transcript_hash(true, 0, false, session);
+        let th2 = self.common.calc_rsp_transcript_hash(true, false, session);
         if th2.is_err() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));

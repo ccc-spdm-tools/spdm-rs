@@ -72,9 +72,6 @@ use core::any::Any;
 /// https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.1.0.pdf
 pub const ST1: usize = 1_000_000;
 
-/// used as parameter to be slot_id when use_psk is true
-pub const INVALID_SLOT: u8 = 0xFF;
-
 /// used to as the first next_half_session_id
 pub const INITIAL_SESSION_ID: u16 = 0xFFFD;
 pub const INVALID_HALF_SESSION_ID: u16 = 0x0;
@@ -790,7 +787,6 @@ impl SpdmContext {
     pub fn calc_req_transcript_data(
         &self,
         use_psk: bool,
-        slot_id: u8,
         is_mut_auth: bool,
         message_k: &ManagedBufferK,
         message_f: Option<&ManagedBufferF>,
@@ -812,6 +808,7 @@ impl SpdmContext {
                     .append_message(&vdm_transcript.1[..vdm_transcript.0])
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             } else {
+                let slot_id = self.runtime_info.get_peer_used_cert_chain_slot_id();
                 let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE {
                     if self.provision_info.peer_pub_key.is_none() {
                         error!("peer_pub_key is not populated!\n");
@@ -909,7 +906,6 @@ impl SpdmContext {
     pub fn calc_rsp_transcript_data(
         &self,
         use_psk: bool,
-        slot_id: u8,
         is_mut_auth: bool,
         message_k: &ManagedBufferK,
         message_f: Option<&ManagedBufferF>,
@@ -930,6 +926,7 @@ impl SpdmContext {
                     .append_message(&vdm_transcript.1[..vdm_transcript.0])
                     .ok_or(SPDM_STATUS_BUFFER_FULL)?;
             } else {
+                let slot_id = self.runtime_info.get_local_used_cert_chain_slot_id();
                 let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE {
                     if self.provision_info.my_pub_key.is_none() {
                         error!("my_pub_key is not populated!\n");
@@ -1020,7 +1017,6 @@ impl SpdmContext {
     pub fn calc_req_transcript_hash(
         &self,
         use_psk: bool,
-        slot_id: u8,
         is_mut_auth: bool,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmDigestStruct> {
@@ -1030,7 +1026,6 @@ impl SpdmContext {
             &session.runtime_info.vdm_message_transcript_before_finish;
         let message = self.calc_req_transcript_data(
             use_psk,
-            slot_id,
             is_mut_auth,
             message_k,
             message_f,
@@ -1047,7 +1042,6 @@ impl SpdmContext {
     pub fn calc_rsp_transcript_hash(
         &self,
         use_psk: bool,
-        slot_id: u8,
         is_mut_auth: bool,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmDigestStruct> {
@@ -1057,7 +1051,6 @@ impl SpdmContext {
             &session.runtime_info.vdm_message_transcript_before_finish;
         let message = self.calc_rsp_transcript_data(
             use_psk,
-            slot_id,
             is_mut_auth,
             message_k,
             message_f,
@@ -1074,7 +1067,6 @@ impl SpdmContext {
     pub fn calc_req_transcript_hash(
         &self,
         _use_psk: bool,
-        _slot_id: u8,
         _is_mut_auth: bool,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmDigestStruct> {
@@ -1094,7 +1086,6 @@ impl SpdmContext {
     pub fn calc_rsp_transcript_hash(
         &self,
         _use_psk: bool,
-        _slot_id: u8,
         _is_mut_auth: bool,
         session: &SpdmSession,
     ) -> SpdmResult<SpdmDigestStruct> {

@@ -194,11 +194,9 @@ impl ResponderContext {
                     );
                 };
 
-            let slot_id = session.get_slot_id();
-
-            let transcript_hash =
-                self.common
-                    .calc_rsp_transcript_hash(false, slot_id, is_mut_auth, session);
+            let transcript_hash = self
+                .common
+                .calc_rsp_transcript_hash(false, is_mut_auth, session);
             if transcript_hash.is_err() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -301,11 +299,9 @@ impl ResponderContext {
                     );
                 };
 
-            let slot_id = session.get_slot_id();
-
-            let transcript_hash =
-                self.common
-                    .calc_rsp_transcript_hash(false, slot_id, is_mut_auth, session);
+            let transcript_hash = self
+                .common
+                .calc_rsp_transcript_hash(false, is_mut_auth, session);
             if transcript_hash.is_err() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
                 return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
@@ -356,10 +352,10 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         };
-        let slot_id = session.get_slot_id();
+
         let th2 = self
             .common
-            .calc_rsp_transcript_hash(false, slot_id, is_mut_auth, session);
+            .calc_rsp_transcript_hash(false, is_mut_auth, session);
 
         if th2.is_err() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
@@ -392,9 +388,7 @@ impl ResponderContext {
         signature: &SpdmSignatureStruct,
         session: &SpdmSession,
     ) -> SpdmResult {
-        let transcript_data_hash =
-            self.common
-                .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
+        let transcript_data_hash = self.common.calc_rsp_transcript_hash(false, true, session)?;
 
         let peer_slot_id = self.common.runtime_info.get_peer_used_cert_chain_slot_id();
         let peer_cert = if peer_slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
@@ -454,9 +448,7 @@ impl ResponderContext {
         signature: &SpdmSignatureStruct,
         session: &SpdmSession,
     ) -> SpdmResult {
-        let transcript_hash =
-            self.common
-                .calc_rsp_transcript_hash(false, session.get_slot_id(), true, session)?;
+        let transcript_hash = self.common.calc_rsp_transcript_hash(false, true, session)?;
 
         let peer_slot_id = self.common.runtime_info.get_peer_used_cert_chain_slot_id();
         let peer_cert = if peer_slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP {
