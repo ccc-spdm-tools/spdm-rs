@@ -37,23 +37,15 @@ jobs:
         uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
         with:
           profile: minimal
-          toolchain: nightly-2024-07-19
+          toolchain: nightly
           override: true
           components: rust-src, rustfmt, clippy, llvm-tools-preview
-      - name: Checkout sources
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          submodules: recursive
-
-      - name: Check code
-        run: |
-          ./sh_script/build.sh -c
 
       - name: Install AFL (Linux)
         uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
         with:
           command: install
-          args: --force --version 0.12.17 afl
+          args: --force cargo-afl
         if: runner.os == 'Linux'
 
       - name: Install Cargo-Fuzz (Linux)
