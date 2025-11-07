@@ -2,7 +2,7 @@
 
 ## Threat Model and Crypto Usage
 
-1. <B>spdm_secret</B> is to handle <B>persistent secret</B>. (Device Specific)
+1. <B>spdmlib::secret</B> is to handle <B>persistent secret</B>. (Device Specific)
 
 It can access the device private key and sign the message. It can access the PSK and HMAC the message. It can collect the device measurement.
 
@@ -14,7 +14,7 @@ Internal Input: Data to be signed. Data to be HMACed.
 
 Threat: Information disclosure (including side channel), Elevation of privilege, Tampering with data.
 
-2. <B>spdm_session_secret</B> is to handle <B>ephemeral secret</B>. (Crypto engine specific)
+2. <B>spdmlib::common::session</B> is to handle <B>ephemeral secret</B>. (Crypto engine specific)
 
 It can generate DH secret and derive the session key. (The keys can be imported and exported as an option.) It can handle key update. It can encrypt and decrypt the message.
 
@@ -26,7 +26,7 @@ Internal Input: Plain message to be encrypted. Internal SPDM session context.
 
 Threat: Information disclosure (including side channel), Elevation of privilege, Tampering with data, Denial of service.
 
-3. <B>spdm_crypto</B> is to handle <B>no secret</B> operation.
+3. <B>sdmlib::crypto</B> is to handle <B>no secret</B> operation.
 
 API: Verify the signature. Hash data. Generate random number.
 
