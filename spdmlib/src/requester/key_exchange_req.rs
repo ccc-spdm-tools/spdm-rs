@@ -211,7 +211,6 @@ impl RequesterContext {
                             &mut self.common,
                             &mut reader,
                         );
-                        let receive_used = reader.used();
                         if let Some(key_exchange_rsp) = key_exchange_rsp {
                             debug!("!!! key_exchange rsp : {:02x?}\n", key_exchange_rsp);
                             debug!(
@@ -378,18 +377,50 @@ impl RequesterContext {
 
                             // create transcript
                             let signature_size = self.common.get_asym_sig_size() as usize;
-                            let base_hash_size = self.common.get_hash_size() as usize;
-                            let temp_receive_used = if in_clear_text {
-                                receive_used - signature_size
+                            let hmac_size = if in_clear_text {
+                                0 // no verify_data in clear text
                             } else {
-                                receive_used - signature_size - base_hash_size
+                                self.common.get_hash_size() as usize
                             };
 
+                            // Calculate the fixed-size portion of the SPDM key exchange response
+                            let spdm_key_exchange_response_size = 2 + // SpdmMessageHeader
+                                1 + // param1 (heartbeat_period)
+                                1 + // param2 (reserved)
+                                2 + // rsp_session_id
+                                1 + // mut_auth_req
+                                1 + // req_slot_id
+                                SPDM_RANDOM_SIZE; // random
+
+                            let rsp_key_exchange_size =
+                                self.common.get_rsp_key_exchange_size() as usize;
+                            let measurement_summary_hash_size =
+                                if self.common.runtime_info.need_measurement_summary_hash {
+                                    self.common.get_hash_size() as usize
+                                } else {
+                                    0
+                                };
+                            let opaque_length = key_exchange_rsp.opaque.data_size as usize;
+
+                            let spdm_response_size = spdm_key_exchange_response_size +
+                                rsp_key_exchange_size +
+                                measurement_summary_hash_size +
+                                2 +  // sizeof(uint16_t) for opaque length field
+                                opaque_length +
+                                signature_size +
+                                hmac_size;
+
+                            let transcript_size = spdm_response_size - signature_size - hmac_size;
+
+                            if receive_buffer.len() < transcript_size {
+                                error!("Insufficient message data: received {} bytes but need {} bytes for transcript",
+                                       receive_buffer.len(), transcript_size);
+                                return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                            }
+
                             self.common.append_message_k(session_id, send_buffer)?;
-                            self.common.append_message_k(
-                                session_id,
-                                &receive_buffer[..temp_receive_used],
-                            )?;
+                            self.common
+                                .append_message_k(session_id, &receive_buffer[..transcript_size])?;
 
                             let session = self
                                 .common
