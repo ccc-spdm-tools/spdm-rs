@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::SpdmCodec;
-use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
+use crate::error::{SpdmResult, StatusCode, StatusSeverity};
 use crate::message::*;
 use crate::responder::*;
 
@@ -16,8 +16,18 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        let (_, rsp_slice) = self.write_spdm_vendor_defined_response(session_id, bytes, writer);
-        (Ok(()), rsp_slice)
+        let (spdm_status, rsp_slice) =
+            self.write_spdm_vendor_defined_response(session_id, bytes, writer);
+
+        // Propagate the error upward if it is VDM defined error, otherwise convert to Ok.
+        let result = spdm_status.or_else(|e| {
+            if e.severity == StatusSeverity::ERROR && matches!(e.status_code, StatusCode::VDM(_)) {
+                Err(e)
+            } else {
+                Ok(())
+            }
+        });
+        (result, rsp_slice)
     }
 
     pub fn write_spdm_vendor_defined_response<'a>(

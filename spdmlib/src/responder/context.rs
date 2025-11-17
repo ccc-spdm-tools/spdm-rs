@@ -3,15 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use super::app_message_handler::dispatch_secured_app_message_cb;
-#[allow(unused_imports)]
+#[cfg(feature = "chunk-cap")]
 use crate::common::{self, SpdmCodec};
 use crate::common::{session::SpdmSessionState, SpdmDeviceIo, SpdmTransportEncap};
 use crate::common::{SpdmConnectionState, ST1};
 use crate::config::{self, MAX_SPDM_MSG_SIZE, RECEIVER_BUFFER_SIZE};
-use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL, SPDM_STATUS_UNSUPPORTED_CAP};
-#[allow(unused_imports)]
-use crate::error::{SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_STATE_PEER};
-
+use crate::error::*;
 use crate::message::*;
 use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags};
 use crate::watchdog::{reset_watchdog, start_watchdog};
@@ -19,7 +16,7 @@ use codec::{Codec, Reader, Writer};
 extern crate alloc;
 use core::ops::DerefMut;
 
-#[allow(unused_imports)]
+#[cfg(feature = "chunk-cap")]
 use crate::protocol::SpdmVersion;
 
 use alloc::sync::Arc;
@@ -808,8 +805,16 @@ impl ResponderContext {
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
         }
 
-        // Error Response contained in rsp_slice, remap error to Ok(()) for dispatcher.
-        (Ok(()), rsp_slice)
+        // Propagate the error upward if it is VDM defined error, otherwise remap to Ok.
+        let result = result.or_else(|e| {
+            if e.severity == StatusSeverity::ERROR && matches!(e.status_code, StatusCode::VDM(_)) {
+                Err(e)
+            } else {
+                Ok(())
+            }
+        });
+
+        (result, rsp_slice)
     }
 
     #[cfg(feature = "chunk-cap")]
@@ -964,7 +969,7 @@ impl ResponderContext {
                 );
             }
 
-            let response_to_large_request_size = if chunk_send_request
+            let (response_status, response_to_large_request_size) = if chunk_send_request
                 .chunk_sender_attributes
                 .contains(SpdmChunkSenderAttributes::LAST_CHUNK)
             {
@@ -1021,13 +1026,13 @@ impl ResponderContext {
                         self.common.chunk_context.chunk_message_data[..send_buffer.len()]
                             .copy_from_slice(send_buffer);
                         self.common.chunk_context.transferred_size = send_buffer.len();
-                        send_buffer.len()
+                        (status, send_buffer.len())
                     }
                 } else {
                     return (status, None);
                 }
             } else {
-                0
+                (Ok(()), 0)
             };
 
             let response = SpdmMessage {
@@ -1053,7 +1058,7 @@ impl ResponderContext {
                 );
             }
 
-            (Ok(()), Some(writer.used_slice()))
+            (response_status, Some(writer.used_slice()))
         } else {
             error!("!!! chunk_send : invalid chunk send request !!!\n");
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
