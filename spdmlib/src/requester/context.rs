@@ -2,21 +2,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-#[allow(unused_imports)]
+#[cfg(feature = "chunk-cap")]
 use crate::common::SpdmCodec;
 use crate::common::{self, SpdmDeviceIo, SpdmTransportEncap};
 use crate::common::{ManagedBufferA, ST1};
 use crate::config;
-use crate::error::{SpdmResult, SPDM_STATUS_RECEIVE_FAIL, SPDM_STATUS_SEND_FAIL};
-#[allow(unused_imports)]
-use crate::error::{
-    SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_MSG_SIZE,
-};
-#[allow(unused_imports)]
+use crate::error::*;
+#[cfg(any(feature = "chunk-cap", feature = "mut-auth"))]
 use crate::message::*;
 use crate::protocol::*;
 
-#[allow(unused_imports)]
+#[cfg(feature = "chunk-cap")]
 use codec::{Codec, Reader, Writer};
 use spin::Mutex;
 extern crate alloc;

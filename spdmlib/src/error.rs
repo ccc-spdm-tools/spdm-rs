@@ -246,6 +246,23 @@ impl Default for StatusCodeRNG {
 
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct StatusCodeVdmError {
+    pub vdm_error_code: u16,
+}
+
+impl TryFrom<u16> for StatusCodeVdmError {
+    type Error = ();
+
+    fn try_from(value: u16) -> core::result::Result<Self, Self::Error> {
+        Ok(Self {
+            vdm_error_code: value,
+        })
+    }
+}
+
+#[allow(dead_code)]
+#[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StatusCode {
     SUCCESS,
@@ -255,6 +272,7 @@ pub enum StatusCode {
     TRANSPORT(StatusCodeTransport),
     MEAS_COLLECT(StatusCodeMeasCollect),
     RNG(StatusCodeRNG),
+    VDM(StatusCodeVdmError),
 }
 
 impl Default for StatusCode {
@@ -279,6 +297,7 @@ impl TryFrom<u24> for StatusCode {
                 code,
             )?)),
             6 => Ok(StatusCode::RNG(StatusCodeRNG::try_from(code)?)),
+            7 => Ok(StatusCode::VDM(StatusCodeVdmError::try_from(code)?)),
             _ => Err(()),
         }
     }
@@ -296,6 +315,7 @@ impl TryInto<u24> for StatusCode {
             StatusCode::TRANSPORT(t) => Ok(u24::new((4 << 16) as u32 + (t as u16) as u32)),
             StatusCode::MEAS_COLLECT(m) => Ok(u24::new((5 << 16) as u32 + (m as u16) as u32)),
             StatusCode::RNG(r) => Ok(u24::new((6 << 16) as u32 + (r as u16) as u32)),
+            StatusCode::VDM(v) => Ok(u24::new((7 << 16) as u32 + (v.vdm_error_code) as u32)),
         }
     }
 }
@@ -642,5 +662,18 @@ pub const SPDM_STATUS_LOW_ENTROPY: SpdmStatus = spdm_return_status!(
     StatusSeverity::ERROR,
     StatusCode::RNG(StatusCodeRNG::LOW_ENTROPY)
 );
+
+#[macro_export]
+macro_rules! SPDM_STATUS_VDM_DEFINED_ERROR {
+    ($vdm_error_code:expr) => {
+        SpdmStatus {
+            severity: StatusSeverity::ERROR,
+            status_code: StatusCode::VDM(StatusCodeVdmError {
+                vdm_error_code: $vdm_error_code,
+            }),
+            error_data: None,
+        };
+    };
+}
 
 pub type SpdmResult<T = ()> = core::result::Result<T, SpdmStatus>;
