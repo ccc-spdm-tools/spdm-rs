@@ -42,7 +42,7 @@ impl ResponderContext {
             }
         }
 
-        (Ok(()), rsp_slice)
+        (result, rsp_slice)
     }
 
     pub fn write_spdm_psk_exchange_response<'a>(

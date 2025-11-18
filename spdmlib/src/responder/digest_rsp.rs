@@ -23,8 +23,7 @@ impl ResponderContext {
         session_id: Option<u32>,
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        let (_, rsp_slice) = self.write_spdm_digest_response(session_id, bytes, writer);
-        (Ok(()), rsp_slice)
+        self.write_spdm_digest_response(session_id, bytes, writer)
     }
 
     fn write_spdm_digest_response<'a>(

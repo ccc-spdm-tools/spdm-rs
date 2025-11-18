@@ -805,15 +805,6 @@ impl ResponderContext {
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
         }
 
-        // Propagate the error upward if it is VDM defined error, otherwise remap to Ok.
-        let result = result.or_else(|e| {
-            if e.severity == StatusSeverity::ERROR && matches!(e.status_code, StatusCode::VDM(_)) {
-                Err(e)
-            } else {
-                Ok(())
-            }
-        });
-
         (result, rsp_slice)
     }
 
@@ -1085,8 +1076,7 @@ impl ResponderContext {
             self.common.chunk_context.chunk_message_data.fill(0);
         }
 
-        // Error Response contained in rsp_slice, remap error to Ok(()) for dispatcher.
-        (Ok(()), rsp_slice)
+        (result, rsp_slice)
     }
 
     #[cfg(feature = "chunk-cap")]

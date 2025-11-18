@@ -27,18 +27,14 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        if self
-            .encap_check_version_cap_state(
-                SpdmRequestResponseCode::SpdmRequestGetEncapsulatedRequest.get_u8(),
-                writer,
-            )
-            .is_err()
-        {
-            (Ok(()), Some(writer.used_slice()))
-        } else {
-            let (_, rsp_slice) = self.write_encap_request_response(bytes, writer);
-            (Ok(()), rsp_slice)
+        let result = self.encap_check_version_cap_state(
+            SpdmRequestResponseCode::SpdmRequestGetEncapsulatedRequest.get_u8(),
+            writer,
+        );
+        if result.is_err() {
+            return (result, Some(writer.used_slice()));
         }
+        self.write_encap_request_response(bytes, writer)
     }
 
     fn write_encap_request_response<'a>(
