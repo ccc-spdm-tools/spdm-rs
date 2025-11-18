@@ -34,7 +34,7 @@ impl ResponderContext {
             }
         }
 
-        (Ok(()), rsp_slice)
+        (result, rsp_slice)
     }
 
     // Return true on success, false otherwise.

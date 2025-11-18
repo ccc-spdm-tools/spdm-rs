@@ -33,8 +33,7 @@ impl ResponderContext {
             stop_watchdog(session_id);
         }
 
-        let (_, rsp_slice) = self.write_spdm_end_session_response(session_id, bytes, writer);
-        (Ok(()), rsp_slice)
+        self.write_spdm_end_session_response(session_id, bytes, writer)
     }
 
     pub fn write_spdm_end_session_response<'a>(

@@ -40,8 +40,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        let (_, rsp_slice) = self.write_error_response(error_code, bytes, writer);
-        (Ok(()), rsp_slice)
+        self.write_error_response(error_code, bytes, writer)
     }
 
     pub fn write_error_response<'a>(

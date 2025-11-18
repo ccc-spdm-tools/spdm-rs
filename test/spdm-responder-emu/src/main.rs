@@ -18,7 +18,7 @@ use spdm_emu::async_runtime::block_on;
 use spdm_emu::watchdog_impl_sample::init_watchdog;
 use spdmlib::common::SecuredMessageVersion;
 use spdmlib::config::{MAX_ROOT_CERT_SUPPORT, RECEIVER_BUFFER_SIZE};
-use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD};
+use spdmlib::error::*;
 use spdmlib::message::{
     VendorDefinedReqPayloadStruct, VendorDefinedRspPayloadStruct, VendorDefinedStruct,
     VendorIDStruct,
@@ -393,7 +393,16 @@ async fn handle_message(
         match res {
             Ok(spdm_result) => match spdm_result {
                 Ok(_) => continue,
-                Err(status) => panic!("process_message failed with {:?}", status),
+                Err(spdm_status) => {
+                    // exit loop if invalid state of responder is detected
+                    if spdm_status == SPDM_STATUS_INVALID_STATE_LOCAL
+                        || spdm_status == SPDM_STATUS_MEAS_INTERNAL_ERROR
+                    {
+                        println!("responder context invalid state, exit loop");
+                        return 0;
+                    }
+                    continue;
+                }
             },
             Err(used) => {
                 return used; // not spdm cmd, let caller to handle the received buffer

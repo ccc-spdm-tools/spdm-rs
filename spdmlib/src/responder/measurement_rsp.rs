@@ -40,7 +40,7 @@ impl ResponderContext {
             }
         }
 
-        (Ok(()), rsp_slice)
+        (status, rsp_slice)
     }
 
     pub fn write_spdm_measurement_response<'a>(

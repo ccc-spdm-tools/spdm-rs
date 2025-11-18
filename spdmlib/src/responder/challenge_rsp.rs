@@ -26,8 +26,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        let (_, rsp_slice) = self.write_spdm_challenge_response(bytes, writer);
-        (Ok(()), rsp_slice)
+        self.write_spdm_challenge_response(bytes, writer)
     }
 
     pub fn write_spdm_challenge_response<'a>(

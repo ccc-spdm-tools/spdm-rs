@@ -16,8 +16,7 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        let (_, rsp_slice) = self.write_spdm_key_update_response(session_id, bytes, writer);
-        (Ok(()), rsp_slice)
+        self.write_spdm_key_update_response(session_id, bytes, writer)
     }
 
     pub fn write_spdm_key_update_response<'a>(
