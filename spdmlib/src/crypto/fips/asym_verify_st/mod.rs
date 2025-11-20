@@ -141,7 +141,7 @@ fn ecdsa_verify(
     asym_verify::verify(
         hash_algo,
         asym_algo,
-        SpdmDer::SpdmDerCertChain(cert_chain_data),
+        SpdmDer::SpdmDerCertChain(certificate.as_slice()),
         msg,
         &sig,
     )
