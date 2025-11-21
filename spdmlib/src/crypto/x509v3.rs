@@ -414,6 +414,18 @@ fn get_key_usage_value(data: &[u8]) -> SpdmResult<(bool, u8)> {
                     return Err(SPDM_STATUS_VERIF_FAIL);
                 }
 
+                // Check for optional critical boolean field
+                if data[index] == ASN1_TAG_BOOLEAN {
+                    if index + 1 >= len {
+                        return Err(SPDM_STATUS_VERIF_FAIL);
+                    }
+                    let (bool_length, bool_consumed) = check_length(&data[index + 1..])?;
+                    index += 1 + bool_consumed + bool_length;
+                    if index >= len {
+                        return Err(SPDM_STATUS_VERIF_FAIL);
+                    }
+                }
+
                 if data[index] == ASN1_TAG_EXTN_VALUE {
                     if index + 1 >= len {
                         return Err(SPDM_STATUS_VERIF_FAIL);
