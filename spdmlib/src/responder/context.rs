@@ -976,19 +976,17 @@ impl ResponderContext {
                 }
 
                 let request = self.common.chunk_context.chunk_message_data;
-                let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
-                let mut response_writer = Writer::init(&mut response_buffer);
 
                 let (status, send_buffer) = if let Some(session_id) = session_id {
                     self.dispatch_secured_message(
                         session_id,
                         &request[..self.common.chunk_context.transferred_size],
-                        &mut response_writer,
+                        writer,
                     )
                 } else {
                     self.dispatch_message(
                         &request[..self.common.chunk_context.transferred_size],
-                        &mut response_writer,
+                        writer,
                     )
                 };
 
@@ -1025,6 +1023,9 @@ impl ResponderContext {
             } else {
                 (Ok(()), 0)
             };
+
+            // Writer may be used to generate response to large request in last chunk send
+            writer.clear();
 
             let response = SpdmMessage {
                 header: SpdmMessageHeader {
