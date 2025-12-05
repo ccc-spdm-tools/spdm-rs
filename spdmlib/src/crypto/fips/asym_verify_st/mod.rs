@@ -133,8 +133,10 @@ fn ecdsa_verify(
         _ => return false,
     };
 
-    let mut sig = SpdmSignatureStruct::default();
-    sig.data_size = (r.len() + s.len()) as u16;
+    let mut sig = SpdmSignatureStruct {
+        data_size: (r.len() + s.len()) as u16,
+        ..Default::default()
+    };
     sig.data[0..r.len()].copy_from_slice(r);
     sig.data[r.len()..r.len() + s.len()].copy_from_slice(s);
 
@@ -163,7 +165,7 @@ pub fn run_self_tests() -> SpdmResult {
                 _ => continue,
             };
 
-            let ret = public_key.verify(params, &cv.msg, &cv.sig);
+            let ret = public_key.verify(params, cv.msg, cv.sig);
             match (cv.res, ret.is_ok()) {
                 // Expecting positive result but got an error
                 ("P", false) |
@@ -183,11 +185,11 @@ pub fn run_self_tests() -> SpdmResult {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                 SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                 ecdsa_256_cert_template.to_vec(),
-                &cv.msg,
-                &cv.qx,
-                &cv.qy,
-                &cv.r,
-                &cv.s,
+                cv.msg,
+                cv.qx,
+                cv.qy,
+                cv.r,
+                cv.s,
             );
             // Expecting positive result but got an error
             if cv.res == "P (0 )" {
@@ -209,11 +211,11 @@ pub fn run_self_tests() -> SpdmResult {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                 SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                 ecdsa_256_cert_template.to_vec(),
-                &cv.msg,
-                &cv.qx,
-                &cv.qy,
-                &cv.r,
-                &cv.s,
+                cv.msg,
+                cv.qx,
+                cv.qy,
+                cv.r,
+                cv.s,
             );
             // Expecting positive result but got an error
             if cv.res == "P (0 )" {
@@ -235,11 +237,11 @@ pub fn run_self_tests() -> SpdmResult {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                 ecdsa_384_cert_template.to_vec(),
-                &cv.msg,
-                &cv.qx,
-                &cv.qy,
-                &cv.r,
-                &cv.s,
+                cv.msg,
+                cv.qx,
+                cv.qy,
+                cv.r,
+                cv.s,
             );
             // Expecting positive result but got an error
             if cv.res == "P (0 )" {
@@ -261,11 +263,11 @@ pub fn run_self_tests() -> SpdmResult {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                 ecdsa_384_cert_template.to_vec(),
-                &cv.msg,
-                &cv.qx,
-                &cv.qy,
-                &cv.r,
-                &cv.s,
+                cv.msg,
+                cv.qx,
+                cv.qy,
+                cv.r,
+                cv.s,
             );
             // Expecting positive result but got an error
             if cv.res == "P (0 )" {
