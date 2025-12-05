@@ -1776,6 +1776,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "spdmlib-fips-test"
+version = "0.1.0"
+dependencies = [
+ "spdmlib",
+]
+
+[[package]]
 name = "spdmlib-test"
 version = "0.1.0"
 dependencies = [
