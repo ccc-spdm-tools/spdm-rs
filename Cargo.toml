@@ -20,6 +20,7 @@ members = [
     "test/spdm-requester-emu",
     "test/spdm-responder-emu",
     "test/spdmlib-test",
+    "test/spdmlib-fips-test",
 
     "fuzz-target/responder/version_rsp",
     "fuzz-target/responder/capability_rsp",
