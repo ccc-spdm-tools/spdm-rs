@@ -34,7 +34,7 @@ check() {
     cargo check
     cargo fmt --all -- --check
     cargo clippy -- -D warnings
-    
+
     if [ "${RUNNER_OS:-Linux}" == "Linux" ]; then
     pushd spdmlib_crypto_mbedtls
     cargo check
@@ -49,16 +49,16 @@ build() {
     pushd spdmlib
     echo "Building spdm-rs..."
     cargo build
-    
+
     echo "Building spdm-rs with no-default-features..."
     echo_command cargo build --release --no-default-features
-    
+
     echo "Building spdm-rs with spdm-ring feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring
 
     echo "Building spdm-rs with spdm-ring,is_sync feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,is_sync
-    
+
     echo "Building spdm-rs with spdm-ring,hashed-transcript-data feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data
 
@@ -71,34 +71,40 @@ build() {
     echo "Building spdm-rs with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
     echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data,mut-auth,is_sync
 
+    echo "Building spdm-rs with spdm-ring,hashed-transcript-data,mut-auth,is_sync,fips feature..."
+    echo_command cargo build --release --no-default-features --features=spdm-ring,hashed-transcript-data,mut-auth,is_sync
+
     if [ -z "$RUSTFLAGS" ]; then
         echo "Building spdm-rs in no std with no-default-features..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features
-    
+
         echo "Building spdm-rs in no std with spdm-ring feature..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring"
-    
+
         echo "Building spdm-rs in no std with spdm-ring,is_sync feature..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,is_sync"
 
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data feature..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data"
-    
+
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,is_sync feature..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,is_sync"
 
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth feature..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth"
-    
+
         echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth,is_sync feature..."
         echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth,is_sync"
+
+        echo "Building spdm-rs in no std with spdm-ring,hashed-transcript-data,mut-auth,is_sync,fips feature..."
+        echo_command cargo build --target ${TARGET_OPTION} --release --no-default-features --features="spdm-ring,hashed-transcript-data,mut-auth,is_sync,fips"
     fi
 
     popd
-    
+
     echo "Building spdm-requester-emu..."
     echo_command cargo build -p spdm-requester-emu
-    
+
     echo "Building spdm-responder-emu..."
     echo_command cargo build -p spdm-responder-emu
 }
@@ -121,7 +127,7 @@ run_with_spdm_emu() {
     sleep 5
     echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_FEATURES"
     cleanup
-    
+
     echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_FEATURES" &
     sleep 20
     pushd test_key
@@ -139,7 +145,7 @@ run_with_spdm_emu_mut_auth() {
     sleep 5
     echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_MUTAUTH_FEATURES"
     cleanup
-    
+
     echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_MUTAUTH_FEATURES" &
     sleep 20
     pushd test_key
@@ -164,6 +170,11 @@ run_basic_test() {
     echo_command cargo test --no-default-features --features "spdmlib/std,spdmlib/spdm-ring,spdm-emu/is_sync,spdmlib/is_sync,maybe-async/is_sync,idekm/is_sync,tdisp/is_sync,mctp_transport/is_sync,pcidoe_transport/is_sync,spdm-requester-emu/is_sync,spdm-responder-emu/is_sync" -- --test-threads=1
     echo "Running basic tests finished..."
 
+    echo "Running basic FIPS self-test..."
+    pushd test/spdmlib-fips-test
+    echo_command cargo test --features=fips -- --test-threads=1
+    popd
+
     echo "Running spdmlib-test..."
     pushd test/spdmlib-test
     echo_command cargo test -- --test-threads=1
@@ -178,6 +189,7 @@ run_basic_test() {
     echo_command cargo test --no-default-features --features "chunk-cap" -- --test-threads=1
     popd
     echo_command export SPDM_CONFIG="etc/config.json"
+
 }
 
 run_rust_spdm_emu() {
