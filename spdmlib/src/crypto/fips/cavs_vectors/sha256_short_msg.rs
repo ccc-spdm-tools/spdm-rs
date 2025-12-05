@@ -14,7 +14,7 @@ pub struct CavsVector<'a> {
 }
 
 pub fn get_cavs_vectors() -> [CavsVector<'static>; 65] {
-    let cavs_vectors = [
+    [
         CavsVector {
             // TODO: Here originally there was a 0x00 which makes the vector is 1 bytes ize but shall be 0. It resulted with mismatch
             msg: &[],
@@ -760,6 +760,5 @@ pub fn get_cavs_vectors() -> [CavsVector<'static>; 65] {
                 0x59, 0xdf, 0xc1, 0xaa,
             ],
         },
-    ];
-    return cavs_vectors;
+    ]
 }

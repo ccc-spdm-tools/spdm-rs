@@ -25,10 +25,9 @@ pub struct CavsVector<'a> {{
 }}
 
 pub fn get_cavs_vectors() -> [CavsVector<'static>; {cavs_vectors_count}] {{
-    let cavs_vectors = [
+    [
 {cavs_vectors_code}
-    ];
-    return cavs_vectors;
+    ]
 }}
 """
 
