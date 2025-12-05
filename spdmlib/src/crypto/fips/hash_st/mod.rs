@@ -18,7 +18,7 @@ pub fn run_self_tests() -> SpdmResult {
     {
         let cavs_vectors = sha256_short_msg::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
-            let res = hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_256, &cv.msg).unwrap();
+            let res = hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_256, cv.msg).unwrap();
 
             if res.as_ref() != cv.md {
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
@@ -30,7 +30,7 @@ pub fn run_self_tests() -> SpdmResult {
     {
         let cavs_vectors = sha384_short_msg::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
-            let res = hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_384, &cv.msg).unwrap();
+            let res = hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_384, cv.msg).unwrap();
 
             if res.as_ref() != cv.md {
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);

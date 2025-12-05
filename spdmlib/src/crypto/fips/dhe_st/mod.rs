@@ -22,11 +22,11 @@ pub fn run_self_tests() -> SpdmResult {
         for cv in cavs_vectors.iter() {
             let mut qe_cavs = Vec::with_capacity(1 + cv.qe_cavs_x.len() + cv.qe_cavs_y.len());
             qe_cavs.push(0x04);
-            qe_cavs.extend_from_slice(&cv.qe_cavs_x);
-            qe_cavs.extend_from_slice(&cv.qe_cavs_y);
+            qe_cavs.extend_from_slice(cv.qe_cavs_x);
+            qe_cavs.extend_from_slice(cv.qe_cavs_y);
 
             let res;
-            if let Ok(my_private) = EphemeralPrivateKey::from_bytes_for_test(&ECDH_P256, &cv.de_iut)
+            if let Ok(my_private) = EphemeralPrivateKey::from_bytes_for_test(&ECDH_P256, cv.de_iut)
             {
                 let peer_public = UnparsedPublicKey::new(&ECDH_P256, &qe_cavs);
                 if let Ok(shared_secret) =
@@ -34,7 +34,7 @@ pub fn run_self_tests() -> SpdmResult {
                         key_material.to_vec()
                     })
                 {
-                    res = &shared_secret[..] == &cv.z[..];
+                    res = shared_secret[..] == cv.z[..];
                 } else {
                     res = false;
                 }
@@ -53,11 +53,11 @@ pub fn run_self_tests() -> SpdmResult {
         for cv in cavs_vectors.iter() {
             let mut qe_cavs = Vec::with_capacity(1 + cv.qe_cavs_x.len() + cv.qe_cavs_y.len());
             qe_cavs.push(0x04);
-            qe_cavs.extend_from_slice(&cv.qe_cavs_x);
-            qe_cavs.extend_from_slice(&cv.qe_cavs_y);
+            qe_cavs.extend_from_slice(cv.qe_cavs_x);
+            qe_cavs.extend_from_slice(cv.qe_cavs_y);
 
             let res;
-            if let Ok(my_private) = EphemeralPrivateKey::from_bytes_for_test(&ECDH_P384, &cv.de_iut)
+            if let Ok(my_private) = EphemeralPrivateKey::from_bytes_for_test(&ECDH_P384, cv.de_iut)
             {
                 let peer_public = UnparsedPublicKey::new(&ECDH_P384, &qe_cavs);
                 if let Ok(shared_secret) =
@@ -65,7 +65,7 @@ pub fn run_self_tests() -> SpdmResult {
                         key_material.to_vec()
                     })
                 {
-                    res = &shared_secret[..] == &cv.z[..];
+                    res = shared_secret[..] == cv.z[..];
                 } else {
                     res = false;
                 }
