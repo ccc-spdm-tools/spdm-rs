@@ -18,7 +18,7 @@ pub struct CavsVector<'a> {
 }
 
 pub fn get_cavs_vectors() -> [CavsVector<'static>; 90] {
-    let cavs_vectors = [
+    [
         CavsVector {
             hash: "SHA1",
             e: &[0xed, 0xc8, 0xa7],
@@ -6950,6 +6950,5 @@ pub fn get_cavs_vectors() -> [CavsVector<'static>; 90] {
                 0x72, 0xdb, 0x54, 0xa5, 0xc4, 0xad,
             ],
         },
-    ];
-    return cavs_vectors;
+    ]
 }

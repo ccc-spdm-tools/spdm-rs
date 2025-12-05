@@ -15,7 +15,7 @@ pub struct CavsVector<'a> {
 }
 
 pub fn get_cavs_vectors() -> [CavsVector<'static>; 75] {
-    let cavs_vectors = [
+    [
         CavsVector {
             key: &[
                 0x97, 0x79, 0xd9, 0x12, 0x06, 0x42, 0x79, 0x7f, 0x17, 0x47, 0x02, 0x5d, 0x5b, 0x22,
@@ -1936,6 +1936,5 @@ pub fn get_cavs_vectors() -> [CavsVector<'static>; 75] {
                 0x42, 0x52, 0x80, 0x1b,
             ],
         },
-    ];
-    return cavs_vectors;
+    ]
 }
