@@ -197,6 +197,11 @@ run_fuzz_target() {
     fi
 }
 
+TARGET_OPTION=x86_64-unknown-none
+PREBUILD_ARGS="-t ${TARGET_OPTION}"
+
+./sh_script/pre-build.sh ${PREBUILD_ARGS}
+
 if [ ! "${build_only}" ]; then
     if [[ $fuzz_target_name ]]; then
         run_fuzz_target "$fuzz_target_name"
