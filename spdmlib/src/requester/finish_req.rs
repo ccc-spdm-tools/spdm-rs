@@ -76,8 +76,11 @@ impl RequesterContext {
             Some(session_id),
         );
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = self.encode_spdm_finish(session_id, req_slot_id, &mut send_buffer);
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+        let res = self.encode_spdm_finish(session_id, req_slot_id, &mut send_buffer[..]);
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
@@ -101,11 +104,15 @@ impl RequesterContext {
             return res;
         }
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receiver_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receiver_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let res = if in_clear_text {
-            self.receive_message(None, &mut receive_buffer, false).await
+            self.receive_message(None, &mut receive_buffer[..], false)
+                .await
         } else {
-            self.receive_message(Some(session_id), &mut receive_buffer, false)
+            self.receive_message(Some(session_id), &mut receive_buffer[..], false)
                 .await
         };
         if res.is_err() {

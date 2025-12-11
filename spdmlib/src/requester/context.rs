@@ -21,6 +21,8 @@ use core::ops::DerefMut;
 
 pub struct RequesterContext {
     pub common: common::SpdmContext,
+    pub send_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
+    pub receive_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
 }
 
 impl RequesterContext {
@@ -37,6 +39,8 @@ impl RequesterContext {
                 config_info,
                 provision_info,
             ),
+            send_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
+            receive_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
         }
     }
 
@@ -165,7 +169,7 @@ impl RequesterContext {
                         self.common.chunk_req_handle.overflowing_add(1).0;
                     self.common.chunk_context.chunk_seq_num = 0;
                     self.common.chunk_context.chunk_message_size = send_buffer.len();
-                    self.common.chunk_context.chunk_message_data[..send_buffer.len()]
+                    self.common.chunk_context.chunk_msg_data_mut()?[..send_buffer.len()]
                         .copy_from_slice(send_buffer);
                     self.common.chunk_context.transferred_size = 0;
                     self.common.chunk_context.chunk_status =
@@ -174,7 +178,7 @@ impl RequesterContext {
                     if let Err(e) = result {
                         self.common.chunk_context.chunk_seq_num = 0;
                         self.common.chunk_context.chunk_message_size = 0;
-                        self.common.chunk_context.chunk_message_data.fill(0);
+                        self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
                         self.common.chunk_context.transferred_size = 0;
                         self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
                         Err(e)
@@ -257,10 +261,10 @@ impl RequesterContext {
         {
             let response_size = self.common.chunk_context.transferred_size;
             receive_buffer[..response_size]
-                .copy_from_slice(&self.common.chunk_context.chunk_message_data[..response_size]);
+                .copy_from_slice(&self.common.chunk_context.chunk_msg_data_mut()?[..response_size]);
             self.common.chunk_context.chunk_seq_num = 0;
             self.common.chunk_context.chunk_message_size = 0;
-            self.common.chunk_context.chunk_message_data.fill(0);
+            self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
             self.common.chunk_context.transferred_size = 0;
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
             Ok(response_size)
@@ -308,7 +312,7 @@ impl RequesterContext {
                                     self.common.chunk_rsp_handle = handle; // The handle of large response
                                     self.common.chunk_context.chunk_seq_num = 0;
                                     self.common.chunk_context.chunk_message_size = 0;
-                                    self.common.chunk_context.chunk_message_data.fill(0);
+                                    self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::ChunkGetAndResponse;
@@ -320,7 +324,7 @@ impl RequesterContext {
                                         self.common.chunk_rsp_handle = 0;
                                         self.common.chunk_context.chunk_seq_num = 0;
                                         self.common.chunk_context.chunk_message_size = 0;
-                                        self.common.chunk_context.chunk_message_data.fill(0);
+                                        self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
                                         self.common.chunk_context.transferred_size = 0;
                                         self.common.chunk_context.chunk_status =
                                             common::SpdmChunkStatus::Idle;
@@ -328,14 +332,14 @@ impl RequesterContext {
                                     }
                                     let message_len = self.common.chunk_context.transferred_size;
                                     receive_buffer[..message_len].copy_from_slice(
-                                        &self.common.chunk_context.chunk_message_data
+                                        &self.common.chunk_context.chunk_msg_data_mut()?
                                             [..message_len],
                                     );
 
                                     self.common.chunk_rsp_handle = 0;
                                     self.common.chunk_context.chunk_seq_num = 0;
                                     self.common.chunk_context.chunk_message_size = 0;
-                                    self.common.chunk_context.chunk_message_data.fill(0);
+                                    self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::Idle;
@@ -710,8 +714,10 @@ impl RequesterContext {
                                 .chunk_receiver_attributes
                                 .contains(SpdmChunkReceiverAttributes::EARLY_ERROR_DETECTED)
                             {
+                                let chunk_msg_data =
+                                    self.common.chunk_context.chunk_msg_data_mut()?;
                                 let mut reader = Reader::init(
-                                    &self.common.chunk_context.chunk_message_data
+                                    &chunk_msg_data
                                         [..chunk_send_ack.response_to_large_request_size],
                                 );
                                 return match SpdmMessageHeader::read(&mut reader) {
@@ -778,7 +784,7 @@ impl RequesterContext {
                                     error!("!!! chunk send ack : received large response error with unexpected size !!!\n");
                                     return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                                 }
-                                self.common.chunk_context.chunk_message_data[..len]
+                                self.common.chunk_context.chunk_msg_data_mut()?[..len]
                                     .copy_from_slice(&receive_buffer[..len]);
                                 self.common.chunk_context.chunk_message_size = len;
                                 self.common.chunk_context.transferred_size = len;

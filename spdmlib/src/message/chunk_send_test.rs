@@ -7,6 +7,8 @@ use crate::common::{SpdmCodec, SpdmConfigInfo, SpdmContext, SpdmProvisionInfo};
 use byteorder::{ByteOrder, LittleEndian};
 use testlib::{create_spdm_context, DeviceIO, TransportEncap};
 extern crate alloc;
+use alloc::sync::Arc;
+use spin::Mutex;
 
 #[test]
 fn test_chunk_send_struct() {
@@ -18,7 +20,8 @@ fn test_chunk_send_struct() {
     let writer = &mut Writer::init(u8_slice);
 
     context.chunk_context.chunk_message_size = 0x100;
-    context.chunk_context.chunk_message_data = [0u8; config::MAX_SPDM_MSG_SIZE];
+    context.chunk_context.chunk_message_data =
+        Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE]));
     context.chunk_context.transferred_size = 0;
     assert!(context.chunk_context.chunk_message_size <= config::MAX_SPDM_MSG_SIZE);
     let chunk_size = config::SPDM_SENDER_DATA_TRANSFER_SIZE
@@ -73,7 +76,7 @@ fn test_chunk_send_ack_struct() {
     let writer = &mut Writer::init(u8_slice);
 
     context.chunk_context.chunk_message_size = 36;
-    context.chunk_context.chunk_message_data[..36].copy_from_slice(&[0u8; 36]);
+    context.chunk_context.chunk_msg_data_mut().unwrap()[..36].copy_from_slice(&[0u8; 36]);
 
     let request = SpdmChunkSendAckResponsePayload {
         chunk_receiver_attributes: SpdmChunkReceiverAttributes::default(),
@@ -100,5 +103,8 @@ fn test_chunk_send_ack_struct() {
     assert_eq!(read_request.chunk_seq_num, 0);
     assert_eq!(read_request.response_to_large_request_size, 36);
     assert_eq!(context.chunk_context.chunk_message_size, 36);
-    assert_eq!(context.chunk_context.chunk_message_data[..36], [0u8; 36]);
+    assert_eq!(
+        context.chunk_context.chunk_msg_data_mut().unwrap()[..36],
+        [0u8; 36]
+    );
 }

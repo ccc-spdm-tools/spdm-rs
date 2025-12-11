@@ -62,11 +62,12 @@ impl SpdmCodec for SpdmChunkSendRequestPayload {
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Large Message Size
         }
 
-        let data_slice =
-            &context.chunk_context.chunk_message_data[context.chunk_context.transferred_size
-                ..context.chunk_context.transferred_size + self.chunk_size as usize];
-        cnt += bytes.extend_from_slice(data_slice).unwrap(); // SPDM Chunk Data
-
+        cnt += {
+            let data_slice =
+                &context.chunk_context.chunk_msg_data_mut()?[context.chunk_context.transferred_size
+                    ..context.chunk_context.transferred_size + self.chunk_size as usize];
+            bytes.extend_from_slice(data_slice).unwrap()
+        }; // SPDM Chunk Data
         context.chunk_context.transferred_size += self.chunk_size as usize;
 
         Ok(cnt)
@@ -109,7 +110,8 @@ impl SpdmCodec for SpdmChunkSendRequestPayload {
         }
 
         let data_slice = r.take(chunk_size as usize)?;
-        context.chunk_context.chunk_message_data[context.chunk_context.transferred_size
+        let mut chunk_message_data = context.chunk_context.chunk_message_data.try_lock()?;
+        chunk_message_data[context.chunk_context.transferred_size
             ..context.chunk_context.transferred_size + chunk_size as usize]
             .copy_from_slice(data_slice);
         context.chunk_context.transferred_size += chunk_size as usize;
@@ -181,7 +183,7 @@ impl SpdmCodec for SpdmChunkSendAckResponsePayload {
         if self.response_to_large_request_size > 0 {
             cnt += bytes
                 .extend_from_slice(
-                    &context.chunk_context.chunk_message_data
+                    &context.chunk_context.chunk_msg_data_mut()?
                         [..self.response_to_large_request_size],
                 )
                 .unwrap(); // Response to Large Request
@@ -209,7 +211,7 @@ impl SpdmCodec for SpdmChunkSendAckResponsePayload {
             if remaining > 0 && remaining <= config::MAX_SPDM_MSG_SIZE {
                 response_to_large_request_size = remaining;
                 context.chunk_context.chunk_message_size = remaining;
-                context.chunk_context.chunk_message_data[..remaining]
+                context.chunk_context.chunk_message_data.try_lock()?[..remaining]
                     .copy_from_slice(r.take(remaining)?);
                 context.chunk_context.transferred_size = remaining;
             } else {

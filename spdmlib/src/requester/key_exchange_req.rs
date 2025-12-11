@@ -49,10 +49,13 @@ impl RequesterContext {
             .runtime_info
             .set_peer_used_cert_chain_slot_id(slot_id);
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let (key_exchange_context, send_used) = self.encode_spdm_key_exchange(
             req_session_id,
-            &mut send_buffer,
+            &mut send_buffer[..],
             slot_id,
             measurement_summary_hash_type,
         )?;
@@ -60,9 +63,12 @@ impl RequesterContext {
             .await?;
 
         // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let receive_used = self
-            .receive_message(None, &mut receive_buffer, false)
+            .receive_message(None, &mut receive_buffer[..], false)
             .await?;
 
         let mut target_session_id = None;

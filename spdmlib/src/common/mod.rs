@@ -17,6 +17,8 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::{convert::TryFrom, ops::DerefMut};
+#[cfg(feature = "chunk-cap")]
+use spin::MutexGuard;
 
 pub use opaque::*;
 pub use spdm_codec::SpdmCodec;
@@ -2909,7 +2911,7 @@ pub struct SpdmChunkContext {
     pub chunk_status: SpdmChunkStatus,
     pub chunk_seq_num: u32,
     pub chunk_message_size: usize,
-    pub chunk_message_data: [u8; config::MAX_SPDM_MSG_SIZE],
+    pub chunk_message_data: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
     pub transferred_size: usize,
 }
 
@@ -2920,8 +2922,20 @@ impl Default for SpdmChunkContext {
             chunk_status: SpdmChunkStatus::Idle,
             chunk_seq_num: 0,
             chunk_message_size: 0,
-            chunk_message_data: [0u8; config::MAX_SPDM_MSG_SIZE],
+            chunk_message_data: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
             transferred_size: 0,
         }
+    }
+}
+
+#[cfg(feature = "chunk-cap")]
+impl SpdmChunkContext {
+    /// Try to get a mutable guard, returning a SPDM_STATUS_INVALID_STATE_LOCAL error if unavailable.
+    pub fn chunk_msg_data_mut(
+        &self,
+    ) -> SpdmResult<MutexGuard<'_, [u8; config::MAX_SPDM_MSG_SIZE]>> {
+        self.chunk_message_data
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 }
