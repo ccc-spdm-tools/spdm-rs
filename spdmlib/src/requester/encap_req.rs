@@ -6,10 +6,9 @@ use codec::{Codec, Reader, Writer};
 
 use crate::{
     common::SpdmCodec,
-    config,
     error::{
         SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_MSG_SIZE,
-        SPDM_STATUS_UNSUPPORTED_CAP,
+        SPDM_STATUS_INVALID_STATE_LOCAL, SPDM_STATUS_UNSUPPORTED_CAP,
     },
     message::{
         SpdmDeliverEncapsulatedResponsePayload, SpdmEncapsulatedRequestPayload,
@@ -101,11 +100,14 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn receive_encapsulated_request(&mut self, session_id: u32) -> SpdmResult {
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let _ = self
-            .receive_message(Some(session_id), &mut receive_buffer, false)
+            .receive_message(Some(session_id), &mut receive_buffer[..], false)
             .await?;
-        let mut reader = Reader::init(&receive_buffer);
+        let mut reader = Reader::init(&receive_buffer[..]);
 
         let header = SpdmMessageHeader::read(&mut reader).ok_or(SPDM_STATUS_INVALID_MSG_SIZE)?;
 
@@ -129,11 +131,14 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn receive_encapsulated_response_ack(&mut self, session_id: u32) -> SpdmResult<bool> {
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let size = self
-            .receive_message(Some(session_id), &mut receive_buffer, false)
+            .receive_message(Some(session_id), &mut receive_buffer[..], false)
             .await?;
-        let mut reader = Reader::init(&receive_buffer);
+        let mut reader = Reader::init(&receive_buffer[..]);
 
         let header = SpdmMessageHeader::read(&mut reader).ok_or(SPDM_STATUS_INVALID_MSG_SIZE)?;
 
@@ -191,8 +196,12 @@ impl RequesterContext {
         encap_request: &[u8],
     ) -> SpdmResult {
         let mut reader = Reader::init(encap_request);
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let mut writer = Writer::init(&mut send_buffer);
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+
+        let mut writer = Writer::init(&mut send_buffer[..]);
 
         let message = SpdmMessage {
             header: SpdmMessageHeader {

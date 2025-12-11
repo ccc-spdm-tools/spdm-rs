@@ -21,6 +21,8 @@ use core::ops::DerefMut;
 
 pub struct RequesterContext {
     pub common: common::SpdmContext,
+    pub send_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
+    pub receive_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
 }
 
 impl RequesterContext {
@@ -37,6 +39,8 @@ impl RequesterContext {
                 config_info,
                 provision_info,
             ),
+            send_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
+            receive_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
         }
     }
 

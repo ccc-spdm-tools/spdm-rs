@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::error::{SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD};
+use crate::error::{
+    SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
+    SPDM_STATUS_INVALID_STATE_LOCAL,
+};
 use crate::message::*;
 use crate::protocol::{SpdmVersion, SPDM_MAX_SLOT_NUMBER};
 use crate::requester::*;
@@ -17,15 +20,21 @@ impl RequesterContext {
             session_id,
         );
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_digest(&mut send_buffer)?;
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+        let send_used = self.encode_spdm_digest(&mut send_buffer[..])?;
 
         self.send_message(session_id, &send_buffer[..send_used], false)
             .await?;
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let used = self
-            .receive_message(session_id, &mut receive_buffer, false)
+            .receive_message(session_id, &mut receive_buffer[..], false)
             .await?;
 
         self.handle_spdm_digest_response(
