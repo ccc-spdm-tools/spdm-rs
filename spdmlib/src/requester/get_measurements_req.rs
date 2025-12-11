@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::crypto;
-#[cfg(feature = "hashed-transcript-data")]
-use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::{
     SpdmResult, SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_CRYPTO_ERROR, SPDM_STATUS_ERROR_PEER,
-    SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_NOT_READY_PEER,
-    SPDM_STATUS_VERIF_FAIL,
+    SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_LOCAL,
+    SPDM_STATUS_NOT_READY_PEER, SPDM_STATUS_VERIF_FAIL,
 };
 use crate::message::*;
 use crate::protocol::*;
@@ -84,22 +82,28 @@ impl RequesterContext {
 
         let requester_context = requester_context_struct.unwrap_or_default();
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let send_used = self.encode_spdm_measurement_record(
             measurement_attributes,
             measurement_operation,
             spdm_nonce_struct,
             slot_id,
             &requester_context,
-            &mut send_buffer,
+            &mut send_buffer[..],
         )?;
         self.send_message(session_id, &send_buffer[..send_used], false)
             .await?;
 
         // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let used = self
-            .receive_message(session_id, &mut receive_buffer, true)
+            .receive_message(session_id, &mut receive_buffer[..], true)
             .await?;
 
         self.handle_spdm_measurement_record_response(
