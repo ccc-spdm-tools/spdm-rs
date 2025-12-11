@@ -82,7 +82,7 @@ impl ResponderContext {
                 self.common.chunk_rsp_handle = self.common.chunk_rsp_handle.overflowing_add(1).0;
                 self.common.chunk_context.chunk_seq_num = 0;
                 self.common.chunk_context.chunk_message_size = send_buffer.len();
-                self.common.chunk_context.chunk_message_data[..send_buffer.len()]
+                self.common.chunk_context.chunk_msg_data_mut()?[..send_buffer.len()]
                     .copy_from_slice(send_buffer);
                 self.common.chunk_context.transferred_size = 0;
                 self.common.chunk_context.chunk_status =
@@ -133,10 +133,10 @@ impl ResponderContext {
             if self.common.chunk_context.transferred_size
                 == self.common.chunk_context.chunk_message_size
             {
-                opcode = self.common.chunk_context.chunk_message_data[1];
+                opcode = self.common.chunk_context.chunk_msg_data_mut()?[1];
                 self.common.chunk_context.chunk_seq_num = 0;
                 self.common.chunk_context.chunk_message_size = 0;
-                self.common.chunk_context.chunk_message_data.fill(0);
+                self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
                 self.common.chunk_context.transferred_size = 0;
                 self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
             }
@@ -145,10 +145,10 @@ impl ResponderContext {
             && self.common.chunk_context.transferred_size
                 == self.common.chunk_context.chunk_message_size
         {
-            opcode = self.common.chunk_context.chunk_message_data[1];
+            opcode = self.common.chunk_context.chunk_msg_data_mut()?[1];
             self.common.chunk_context.chunk_seq_num = 0;
             self.common.chunk_context.chunk_message_size = 0;
-            self.common.chunk_context.chunk_message_data.fill(0);
+            self.common.chunk_context.chunk_msg_data_mut()?.fill(0);
             self.common.chunk_context.transferred_size = 0;
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
         }
@@ -343,7 +343,8 @@ impl ResponderContext {
                                                 self.common.chunk_context.chunk_message_size = 0;
                                                 self.common
                                                     .chunk_context
-                                                    .chunk_message_data
+                                                    .chunk_msg_data_mut()
+                                                    .map_err(|_| 0_usize)?
                                                     .fill(0);
                                                 self.common.chunk_context.transferred_size = 0;
                                                 self.common.chunk_context.chunk_status =
@@ -363,7 +364,8 @@ impl ResponderContext {
                                                 self.common.chunk_context.chunk_message_size = 0;
                                                 self.common
                                                     .chunk_context
-                                                    .chunk_message_data
+                                                    .chunk_msg_data_mut()
+                                                    .map_err(|_| 0_usize)?
                                                     .fill(0);
                                                 self.common.chunk_context.transferred_size = 0;
                                                 self.common.chunk_context.chunk_status =
@@ -429,7 +431,11 @@ impl ResponderContext {
                                     self.common.chunk_req_handle = 0;
                                     self.common.chunk_context.chunk_seq_num = 0;
                                     self.common.chunk_context.chunk_message_size = 0;
-                                    self.common.chunk_context.chunk_message_data.fill(0);
+                                    self.common
+                                        .chunk_context
+                                        .chunk_msg_data_mut()
+                                        .map_err(|_| 0_usize)?
+                                        .fill(0);
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::Idle;
@@ -443,7 +449,11 @@ impl ResponderContext {
                                         self.common.chunk_rsp_handle.overflowing_add(1).0;
                                     self.common.chunk_context.chunk_seq_num = 0;
                                     self.common.chunk_context.chunk_message_size = 0;
-                                    self.common.chunk_context.chunk_message_data.fill(0);
+                                    self.common
+                                        .chunk_context
+                                        .chunk_msg_data_mut()
+                                        .map_err(|_| 0_usize)?
+                                        .fill(0);
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::Idle;
@@ -803,7 +813,9 @@ impl ResponderContext {
             self.common.chunk_req_handle = 0;
             self.common.chunk_context.chunk_seq_num = 0;
             self.common.chunk_context.chunk_message_size = 0;
-            self.common.chunk_context.chunk_message_data.fill(0);
+            if let Ok(mut chunk_msg_data) = self.common.chunk_context.chunk_msg_data_mut() {
+                chunk_msg_data.fill(0);
+            }
             self.common.chunk_context.transferred_size = 0;
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
         }
@@ -978,19 +990,31 @@ impl ResponderContext {
                     );
                 }
 
-                let request = self.common.chunk_context.chunk_message_data;
-
-                let (status, send_buffer) = if let Some(session_id) = session_id {
-                    self.dispatch_secured_message(
-                        session_id,
-                        &request[..self.common.chunk_context.transferred_size],
-                        writer,
-                    )
-                } else {
-                    self.dispatch_message(
-                        &request[..self.common.chunk_context.transferred_size],
-                        writer,
-                    )
+                let (status, send_buffer) = {
+                    let large_request_arc = self.common.chunk_context.chunk_message_data.clone();
+                    let large_request = match large_request_arc.try_lock() {
+                        Some(large_request) => large_request,
+                        None => {
+                            error!("!!! chunk_send : get large request failed !!!\n");
+                            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+                            return (
+                                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                                Some(writer.used_slice()),
+                            );
+                        }
+                    };
+                    if let Some(session_id) = session_id {
+                        self.dispatch_secured_message(
+                            session_id,
+                            &large_request[..self.common.chunk_context.transferred_size],
+                            writer,
+                        )
+                    } else {
+                        self.dispatch_message(
+                            &large_request[..self.common.chunk_context.transferred_size],
+                            writer,
+                        )
+                    }
                 };
 
                 if let Some(send_buffer) = send_buffer {
@@ -1005,8 +1029,25 @@ impl ResponderContext {
                             self.common.chunk_rsp_handle.overflowing_add(1).0;
                         self.common.chunk_context.chunk_seq_num = 0;
                         self.common.chunk_context.chunk_message_size = send_buffer.len();
-                        self.common.chunk_context.chunk_message_data[..send_buffer.len()]
-                            .copy_from_slice(send_buffer);
+                        let chunk_message_data_arc =
+                            self.common.chunk_context.chunk_message_data.clone();
+                        match chunk_message_data_arc.try_lock() {
+                            Some(mut chunk_msg_data) => {
+                                chunk_msg_data[..send_buffer.len()].copy_from_slice(send_buffer);
+                            }
+                            None => {
+                                error!("!!! chunk_send : get chunk message data failed !!!\n");
+                                self.write_spdm_error(
+                                    SpdmErrorCode::SpdmErrorUnspecified,
+                                    0,
+                                    writer,
+                                );
+                                return (
+                                    Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                                    Some(writer.used_slice()),
+                                );
+                            }
+                        }
                         self.common.chunk_context.transferred_size = 0;
                         self.common.chunk_context.chunk_status =
                             common::SpdmChunkStatus::ChunkGetAndResponse;
@@ -1015,8 +1056,25 @@ impl ResponderContext {
                         return (Ok(()), Some(writer.used_slice()));
                     } else {
                         self.common.chunk_context.chunk_message_size = send_buffer.len();
-                        self.common.chunk_context.chunk_message_data[..send_buffer.len()]
-                            .copy_from_slice(send_buffer);
+                        let chunk_message_data_arc =
+                            self.common.chunk_context.chunk_message_data.clone();
+                        match chunk_message_data_arc.try_lock() {
+                            Some(mut chunk_msg_data) => {
+                                chunk_msg_data[..send_buffer.len()].copy_from_slice(send_buffer);
+                            }
+                            None => {
+                                error!("!!! chunk_send : get chunk message data failed !!!\n");
+                                self.write_spdm_error(
+                                    SpdmErrorCode::SpdmErrorUnspecified,
+                                    0,
+                                    writer,
+                                );
+                                return (
+                                    Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                                    Some(writer.used_slice()),
+                                );
+                            }
+                        }
                         self.common.chunk_context.transferred_size = send_buffer.len();
                         (status, send_buffer.len())
                     }
@@ -1077,7 +1135,9 @@ impl ResponderContext {
             self.common.chunk_context.chunk_seq_num = 0;
             self.common.chunk_context.chunk_message_size = 0;
             self.common.chunk_context.transferred_size = 0;
-            self.common.chunk_context.chunk_message_data.fill(0);
+            if let Ok(mut chunk_msg_data) = self.common.chunk_context.chunk_msg_data_mut() {
+                chunk_msg_data.fill(0);
+            }
         }
 
         (result, rsp_slice)

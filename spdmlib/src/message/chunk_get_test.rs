@@ -7,6 +7,8 @@ use crate::common::{SpdmCodec, SpdmConfigInfo, SpdmContext, SpdmProvisionInfo};
 use byteorder::{ByteOrder, LittleEndian};
 use testlib::{create_spdm_context, DeviceIO, TransportEncap};
 extern crate alloc;
+use alloc::sync::Arc;
+use spin::Mutex;
 
 #[test]
 fn test_chunk_get_and_response_struct() {
@@ -31,7 +33,8 @@ fn test_chunk_get_and_response_struct() {
     assert_eq!(read_request.chunk_seq_num, 1);
 
     context.chunk_context.chunk_message_size = 0x100;
-    context.chunk_context.chunk_message_data = [0u8; config::MAX_SPDM_MSG_SIZE];
+    context.chunk_context.chunk_message_data =
+        Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE]));
     context.chunk_context.transferred_size = 0;
     assert!(context.chunk_context.chunk_message_size <= config::MAX_SPDM_MSG_SIZE);
     let chunk_size = config::SPDM_SENDER_DATA_TRANSFER_SIZE
