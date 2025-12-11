@@ -386,10 +386,7 @@ async fn handle_message(
         provision_info,
     );
     loop {
-        let mut raw_packet = raw_packet.lock();
-        let raw_packet = raw_packet.deref_mut();
-        raw_packet.zeroize();
-        let res = context.process_message(false, 0, raw_packet).await;
+        let res = context.process_message(false, 0).await;
         match res {
             Ok(spdm_result) => match spdm_result {
                 Ok(_) => continue,
@@ -405,6 +402,10 @@ async fn handle_message(
                 }
             },
             Err(used) => {
+                let mut raw_packet = raw_packet.lock();
+                let raw_packet = raw_packet.deref_mut();
+                raw_packet.zeroize();
+                raw_packet[..used].copy_from_slice(&context.receive_buffer.lock()[..used]);
                 return used; // not spdm cmd, let caller to handle the received buffer
             }
         }

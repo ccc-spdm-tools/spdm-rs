@@ -7,7 +7,7 @@ use super::app_message_handler::dispatch_secured_app_message_cb;
 use crate::common::{self, SpdmCodec};
 use crate::common::{session::SpdmSessionState, SpdmDeviceIo, SpdmTransportEncap};
 use crate::common::{SpdmConnectionState, ST1};
-use crate::config::{self, RECEIVER_BUFFER_SIZE};
+use crate::config;
 use crate::error::*;
 use crate::message::*;
 use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags};
@@ -25,6 +25,7 @@ use spin::Mutex;
 pub struct ResponderContext {
     pub common: crate::common::SpdmContext,
     pub send_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
+    pub receive_buffer: Arc<Mutex<[u8; config::RECEIVER_BUFFER_SIZE]>>,
 }
 
 impl ResponderContext {
@@ -42,6 +43,7 @@ impl ResponderContext {
                 provision_info,
             ),
             send_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
+            receive_buffer: Arc::new(Mutex::new([0u8; config::RECEIVER_BUFFER_SIZE])),
         }
     }
 
@@ -269,16 +271,20 @@ impl ResponderContext {
         &mut self,
         crypto_request: bool,
         app_handle: usize, // interpreted/managed by User
-        raw_packet: &mut [u8; RECEIVER_BUFFER_SIZE],
     ) -> Result<SpdmResult, usize> {
         let response_buffer_arc = self.send_buffer.clone();
         let mut response_buffer = response_buffer_arc.try_lock().ok_or(0_usize)?;
         let mut writer = Writer::init(&mut response_buffer[..]);
+        let req_buffer_arc = self.receive_buffer.clone();
+        let mut request_buffer = req_buffer_arc.try_lock().ok_or(0_usize)?;
 
-        match self.receive_message(raw_packet, crypto_request).await {
+        match self
+            .receive_message(&mut request_buffer[..], crypto_request)
+            .await
+        {
             Ok((used, secured_message)) => {
                 if secured_message {
-                    let mut read = Reader::init(&raw_packet[0..used]);
+                    let mut read = Reader::init(&request_buffer[0..used]);
                     let session_id = u32::read(&mut read).ok_or(used)?;
 
                     let spdm_session = self.common.get_session_via_id(session_id).ok_or(used)?;
@@ -286,7 +292,7 @@ impl ResponderContext {
                     let mut app_buffer = [0u8; config::RECEIVER_BUFFER_SIZE];
 
                     let decode_size = spdm_session.decode_spdm_secured_message(
-                        &raw_packet[..used],
+                        &request_buffer[..used],
                         &mut app_buffer,
                         true,
                     );
@@ -418,7 +424,7 @@ impl ResponderContext {
                     // other requests, it will return error.
                     #[cfg(feature = "chunk-cap")]
                     {
-                        let mut reader = Reader::init(&raw_packet[0..used]);
+                        let mut reader = Reader::init(&request_buffer[0..used]);
                         match SpdmMessageHeader::read(&mut reader) {
                             Some(message_header) => {
                                 if self.common.chunk_context.chunk_status
@@ -455,7 +461,7 @@ impl ResponderContext {
                         }
                     }
                     let (status, send_buffer) =
-                        self.dispatch_message(&raw_packet[0..used], &mut writer);
+                        self.dispatch_message(&request_buffer[0..used], &mut writer);
                     if let Some(send_buffer) = send_buffer {
                         if let Err(err) = self.send_message(None, send_buffer, false).await {
                             Ok(Err(err))
