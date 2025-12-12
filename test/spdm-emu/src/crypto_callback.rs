@@ -101,16 +101,23 @@ fn sign_ecdsa_asym_algo(
     // or  openssl.exe ecparam -name prime256v1 -genkey -out private.der -outform der
     // openssl.exe pkcs8 -in private.der -inform DER -topk8 -nocrypt -outform DER > private.p8
 
-    let crate_dir = get_test_key_directory();
-    println!("crate dir: {:?}", crate_dir.as_os_str().to_str());
-    let key_file_path = if algorithm == &ring::signature::ECDSA_P256_SHA256_FIXED_SIGNING {
-        crate_dir.join("test_key/ecp256/end_responder.key.p8")
-    } else if algorithm == &ring::signature::ECDSA_P384_SHA384_FIXED_SIGNING {
-        crate_dir.join("test_key/ecp384/end_responder.key.p8")
+    // Check for environment variable first
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDM_RSP_EMU_PRIVATE_KEY_PATH") {
+        println!("Loading private key from env: {}", env_key_path);
+        PathBuf::from(env_key_path)
     } else {
-        panic!("not support")
+        let crate_dir = get_test_key_directory();
+        println!("crate dir: {:?}", crate_dir.as_os_str().to_str());
+        if algorithm == &ring::signature::ECDSA_P256_SHA256_FIXED_SIGNING {
+            crate_dir.join("test_key/ecp256/end_responder.key.p8")
+        } else if algorithm == &ring::signature::ECDSA_P384_SHA384_FIXED_SIGNING {
+            crate_dir.join("test_key/ecp384/end_responder.key.p8")
+        } else {
+            panic!("not support")
+        }
     };
-    let der_file = std::fs::read(key_file_path).expect("unable to read key der!");
+    let der_file = std::fs::read(&key_file_path)
+        .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
     let key_bytes = der_file.as_slice();
     let rng = ring::rand::SystemRandom::new();
     let key_pair: ring::signature::EcdsaKeyPair =
@@ -136,24 +143,32 @@ fn sign_rsa_asym_algo(
     data: &[u8],
 ) -> Option<SpdmSignatureStruct> {
     // openssl.exe genpkey -algorithm rsa -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -outform DER > private.der
-    let crate_dir = get_test_key_directory();
 
-    #[allow(unreachable_patterns)]
-    let key_file_path = match key_len {
-        RSASSA_2048_SIG_SIZE | RSAPSS_2048_SIG_SIZE => {
-            crate_dir.join("test_key/rsa2048/end_responder.key.der")
-        }
-        RSASSA_3072_SIG_SIZE | RSAPSS_3072_SIG_SIZE => {
-            crate_dir.join("test_key/rsa3072/end_responder.key.der")
-        }
-        RSASSA_4096_SIG_SIZE | RSAPSS_4096_SIG_SIZE => {
-            crate_dir.join("test_key/rsa3072/end_responder.key.der")
-        }
-        _ => {
-            panic!("RSA key len not supported")
+    // Check for environment variable first
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDM_RSP_EMU_PRIVATE_KEY_PATH") {
+        println!("Loading private key from env: {}", env_key_path);
+        PathBuf::from(env_key_path)
+    } else {
+        let crate_dir = get_test_key_directory();
+
+        #[allow(unreachable_patterns)]
+        match key_len {
+            RSASSA_2048_SIG_SIZE | RSAPSS_2048_SIG_SIZE => {
+                crate_dir.join("test_key/rsa2048/end_responder.key.der")
+            }
+            RSASSA_3072_SIG_SIZE | RSAPSS_3072_SIG_SIZE => {
+                crate_dir.join("test_key/rsa3072/end_responder.key.der")
+            }
+            RSASSA_4096_SIG_SIZE | RSAPSS_4096_SIG_SIZE => {
+                crate_dir.join("test_key/rsa3072/end_responder.key.der")
+            }
+            _ => {
+                panic!("RSA key len not supported")
+            }
         }
     };
-    let der_file = std::fs::read(key_file_path).expect("unable to read key der!");
+    let der_file = std::fs::read(&key_file_path)
+        .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
     let key_bytes = der_file.as_slice();
 
     let key_pair: ring::signature::RsaKeyPair =
