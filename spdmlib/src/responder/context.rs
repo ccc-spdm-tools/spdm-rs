@@ -7,7 +7,7 @@ use super::app_message_handler::dispatch_secured_app_message_cb;
 use crate::common::{self, SpdmCodec};
 use crate::common::{session::SpdmSessionState, SpdmDeviceIo, SpdmTransportEncap};
 use crate::common::{SpdmConnectionState, ST1};
-use crate::config::{self, MAX_SPDM_MSG_SIZE, RECEIVER_BUFFER_SIZE};
+use crate::config::{self, RECEIVER_BUFFER_SIZE};
 use crate::error::*;
 use crate::message::*;
 use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags};
@@ -24,6 +24,8 @@ use spin::Mutex;
 
 pub struct ResponderContext {
     pub common: crate::common::SpdmContext,
+    pub send_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
+    pub receive_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
 }
 
 impl ResponderContext {
@@ -40,6 +42,8 @@ impl ResponderContext {
                 config_info,
                 provision_info,
             ),
+            send_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
+            receive_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
         }
     }
 
@@ -269,8 +273,9 @@ impl ResponderContext {
         app_handle: usize, // interpreted/managed by User
         raw_packet: &mut [u8; RECEIVER_BUFFER_SIZE],
     ) -> Result<SpdmResult, usize> {
-        let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
-        let mut writer = Writer::init(&mut response_buffer);
+        let response_buffer_arc = self.send_buffer.clone();
+        let mut response_buffer = response_buffer_arc.try_lock().ok_or(0_usize)?;
+        let mut writer = Writer::init(&mut response_buffer[..]);
 
         match self.receive_message(raw_packet, crypto_request).await {
             Ok((used, secured_message)) => {
@@ -975,17 +980,22 @@ impl ResponderContext {
                     );
                 }
 
-                let request = self.common.chunk_context.chunk_message_data;
+                let receive_buffer_arc = self.receive_buffer.clone();
+                let mut receive_buffer = receive_buffer_arc.lock();
+                receive_buffer[..self.common.chunk_context.transferred_size].copy_from_slice(
+                    &self.common.chunk_context.chunk_message_data
+                        [..self.common.chunk_context.transferred_size],
+                );
 
                 let (status, send_buffer) = if let Some(session_id) = session_id {
                     self.dispatch_secured_message(
                         session_id,
-                        &request[..self.common.chunk_context.transferred_size],
+                        &receive_buffer[..self.common.chunk_context.transferred_size],
                         writer,
                     )
                 } else {
                     self.dispatch_message(
-                        &request[..self.common.chunk_context.transferred_size],
+                        &receive_buffer[..self.common.chunk_context.transferred_size],
                         writer,
                     )
                 };
