@@ -92,13 +92,7 @@ impl SpdmDeviceIo for FakeSpdmDeviceIo {
             device_io.send(buffer).await;
         }
 
-        let mut raw_packet = [0u8; RECEIVER_BUFFER_SIZE];
-
-        if responder
-            .process_message(false, 0, &mut raw_packet)
-            .await
-            .is_err()
-        {
+        if responder.process_message(false, 0).await.is_err() {
             return Err(SPDM_STATUS_ERROR_PEER);
         }
         Ok(())

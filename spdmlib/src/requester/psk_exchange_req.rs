@@ -34,22 +34,28 @@ impl RequesterContext {
         self.common
             .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestPskExchange, None);
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let half_session_id = self.common.get_next_half_session_id(true)?;
         let send_used = self.encode_spdm_psk_exchange(
             half_session_id,
             measurement_summary_hash_type,
             &psk_hint,
-            &mut send_buffer,
+            &mut send_buffer[..],
         )?;
 
         self.send_message(None, &send_buffer[..send_used], false)
             .await?;
 
         // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let receive_used = self
-            .receive_message(None, &mut receive_buffer, false)
+            .receive_message(None, &mut receive_buffer[..], false)
             .await?;
 
         let mut target_session_id = None;

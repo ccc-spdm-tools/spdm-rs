@@ -4,7 +4,7 @@
 
 use crate::error::{
     SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER,
+    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_LOCAL,
 };
 use crate::message::*;
 use crate::requester::*;
@@ -24,8 +24,12 @@ impl RequesterContext {
             Some(session_id),
         );
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self.encode_spdm_key_update_op(key_update_operation, tag, &mut send_buffer)?;
+        let send_buffer_arc = self.send_buffer.clone();
+        let mut send_buffer = send_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
+        let used =
+            self.encode_spdm_key_update_op(key_update_operation, tag, &mut send_buffer[..])?;
         self.send_message(Some(session_id), &send_buffer[..used], false)
             .await?;
 
@@ -40,9 +44,12 @@ impl RequesterContext {
             || key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         let update_responder = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         session.create_data_secret_update(spdm_version_sel, update_requester, update_responder)?;
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let receive_buffer_arc = self.receive_buffer.clone();
+        let mut receive_buffer = receive_buffer_arc
+            .try_lock()
+            .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
         let used = self
-            .receive_message(Some(session_id), &mut receive_buffer, false)
+            .receive_message(Some(session_id), &mut receive_buffer[..], false)
             .await?;
 
         self.handle_spdm_key_update_op_response(

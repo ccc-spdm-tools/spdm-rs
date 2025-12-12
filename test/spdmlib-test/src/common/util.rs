@@ -619,9 +619,8 @@ impl ResponderRunner {
                 config_info,
                 provision_info,
             );
-            let raw_packet = &mut [0u8; spdmlib::config::RECEIVER_BUFFER_SIZE];
             loop {
-                let result = context.process_message(false, 0, raw_packet).await;
+                let result = context.process_message(false, 0).await;
                 match result {
                     Err(nread) => {
                         if nread == 0 {
