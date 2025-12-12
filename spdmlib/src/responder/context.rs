@@ -25,6 +25,7 @@ use spin::Mutex;
 pub struct ResponderContext {
     pub common: crate::common::SpdmContext,
     pub send_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
+    pub receive_buffer: Arc<Mutex<[u8; config::MAX_SPDM_MSG_SIZE]>>,
 }
 
 impl ResponderContext {
@@ -42,6 +43,7 @@ impl ResponderContext {
                 provision_info,
             ),
             send_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
+            receive_buffer: Arc::new(Mutex::new([0u8; config::MAX_SPDM_MSG_SIZE])),
         }
     }
 
@@ -978,17 +980,22 @@ impl ResponderContext {
                     );
                 }
 
-                let request = self.common.chunk_context.chunk_message_data;
+                let receive_buffer_arc = self.receive_buffer.clone();
+                let mut receive_buffer = receive_buffer_arc.lock();
+                receive_buffer[..self.common.chunk_context.transferred_size].copy_from_slice(
+                    &self.common.chunk_context.chunk_message_data
+                        [..self.common.chunk_context.transferred_size],
+                );
 
                 let (status, send_buffer) = if let Some(session_id) = session_id {
                     self.dispatch_secured_message(
                         session_id,
-                        &request[..self.common.chunk_context.transferred_size],
+                        &receive_buffer[..self.common.chunk_context.transferred_size],
                         writer,
                     )
                 } else {
                     self.dispatch_message(
-                        &request[..self.common.chunk_context.transferred_size],
+                        &receive_buffer[..self.common.chunk_context.transferred_size],
                         writer,
                     )
                 };
