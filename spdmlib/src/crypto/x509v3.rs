@@ -174,10 +174,17 @@ fn check_tbs_certificate(
     let (find_key_usage, key_usage_value) = get_key_usage_value(extension_data)?;
     // The digitalSignature bit SHOULD asserted when subject public key is used for verifying digital signatures
     // in an entity authentication service, a data origin authentication service, and/or an integrity service.
-    let check_extensions_success = !(find_key_usage
-        && (RFC_5280_KEY_USAGE_DIGITAL_SIGNATURE_BIT & key_usage_value
-            != RFC_5280_KEY_USAGE_DIGITAL_SIGNATURE_BIT));
-    // when key usage digitalSignature bit unset, it SHOULD return false.
+    // However, this requirement only applies to LEAF certificates. CA certificates should have keyCertSign instead.
+    let check_extensions_success = if is_leaf_cert {
+        // For leaf certificates: require digitalSignature bit if KeyUsage extension is present
+        !(find_key_usage
+            && (RFC_5280_KEY_USAGE_DIGITAL_SIGNATURE_BIT & key_usage_value
+                != RFC_5280_KEY_USAGE_DIGITAL_SIGNATURE_BIT))
+    } else {
+        // For CA certificates: don't enforce digitalSignature requirement
+        // CA certificates typically have keyCertSign and cRLSign instead
+        true
+    };
 
     //extensions            EXTENSIONS,
     let check_extn_spdm_success = check_extensions_spdm_oid(extension_data, is_leaf_cert)?;
