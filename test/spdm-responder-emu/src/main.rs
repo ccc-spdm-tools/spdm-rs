@@ -325,40 +325,55 @@ async fn handle_message(
         ..Default::default()
     };
 
-    let ca_file_path = if USE_ECDSA {
-        "test_key/ecp384/ca.cert.der"
-    } else {
-        "test_key/rsa3072/ca.cert.der"
-    };
-    let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
-    let inter_file_path = if USE_ECDSA {
-        "test_key/ecp384/inter.cert.der"
-    } else {
-        "test_key/rsa3072/inter.cert.der"
-    };
-    let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
-    let leaf_file_path = if USE_ECDSA {
-        "test_key/ecp384/end_responder.cert.der"
-    } else {
-        "test_key/rsa3072/end_responder.cert.der"
-    };
-    let leaf_cert = std::fs::read(leaf_file_path).expect("unable to read leaf cert!");
+    // Check for environment variable or use default cert chain path
+    let cert_chain_path = std::env::var("SPDM_RSP_EMU_CERT_CHAIN_PATH").ok();
 
-    let ca_len = ca_cert.len();
-    let inter_len = inter_cert.len();
-    let leaf_len = leaf_cert.len();
-    println!(
-        "total cert size - {:?} = {:?} + {:?} + {:?}",
-        ca_len + inter_len + leaf_len,
-        ca_len,
-        inter_len,
-        leaf_len
-    );
-    my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
-    my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
-    my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
-    my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
-        .copy_from_slice(leaf_cert.as_ref());
+    if let Some(chain_path) = cert_chain_path {
+        // Load pre-assembled cert chain from single DER file
+        println!("Loading certificate chain from: {}", chain_path);
+        let cert_chain = std::fs::read(&chain_path)
+            .unwrap_or_else(|e| panic!("Unable to read cert chain from {}: {}", chain_path, e));
+        let chain_len = cert_chain.len();
+        println!("Loaded certificate chain size: {:?}", chain_len);
+        my_cert_chain_data.data_size = chain_len as u32;
+        my_cert_chain_data.data[0..chain_len].copy_from_slice(&cert_chain);
+    } else {
+        // Use default individual cert files
+        let ca_file_path = if USE_ECDSA {
+            "test_key/ecp384/ca.cert.der"
+        } else {
+            "test_key/rsa3072/ca.cert.der"
+        };
+        let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
+        let inter_file_path = if USE_ECDSA {
+            "test_key/ecp384/inter.cert.der"
+        } else {
+            "test_key/rsa3072/inter.cert.der"
+        };
+        let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
+        let leaf_file_path = if USE_ECDSA {
+            "test_key/ecp384/end_responder.cert.der"
+        } else {
+            "test_key/rsa3072/end_responder.cert.der"
+        };
+        let leaf_cert = std::fs::read(leaf_file_path).expect("unable to read leaf cert!");
+
+        let ca_len = ca_cert.len();
+        let inter_len = inter_cert.len();
+        let leaf_len = leaf_cert.len();
+        println!(
+            "total cert size - {:?} = {:?} + {:?} + {:?}",
+            ca_len + inter_len + leaf_len,
+            ca_len,
+            inter_len,
+            leaf_len
+        );
+        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
+        my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
+        my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
+        my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
+            .copy_from_slice(leaf_cert.as_ref());
+    }
 
     let provision_info = common::SpdmProvisionInfo {
         my_cert_chain_data: [
