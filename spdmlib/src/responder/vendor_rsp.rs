@@ -16,9 +16,19 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
-        self.write_spdm_vendor_defined_response(session_id, bytes, writer)
+        if VENDOR_DEFNIED_EX.try_get().is_ok() {
+            self.respond_to_vendor_defined_request_ex(
+                session_id,
+                bytes,
+                writer.mut_left_slice(),
+                vendor_defined_request_handler_ex,
+            )
+        } else {
+            self.write_spdm_vendor_defined_response(session_id, bytes, writer)
+        }
     }
 
+    #[inline(never)] // prevent inlining to reduce stack usage if not used
     pub fn write_spdm_vendor_defined_response<'a>(
         &mut self,
         session_id: Option<u32>,
@@ -67,13 +77,9 @@ impl ResponderContext {
             &vendor_id,
             vendor_defined_request_handler,
         );
-        if let Err(_e) = rsp_payload {
-            return self.respond_to_vendor_defined_request_ex(
-                session_id,
-                bytes,
-                writer.mut_left_slice(),
-                vendor_defined_request_handler_ex,
-            );
+        if let Err(e) = rsp_payload {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (Err(e), Some(writer.used_slice()));
         }
 
         let rsp_payload = rsp_payload.unwrap();

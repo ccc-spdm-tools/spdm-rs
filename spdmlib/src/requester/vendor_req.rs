@@ -92,4 +92,60 @@ impl RequesterContext {
             None => Err(SPDM_STATUS_INVALID_MSG_FIELD),
         }
     }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_spdm_vendor_defined_request_ex<'a>(
+        &mut self,
+        session_id: Option<u32>,
+        req_bytes: &[u8],
+        rsp_bytes: &'a mut [u8],
+    ) -> SpdmResult<&'a [u8]> {
+        info!("send vendor defined request\n");
+
+        self.common.reset_buffer_via_request_code(
+            SpdmRequestResponseCode::SpdmRequestVendorDefinedRequest,
+            session_id,
+        );
+
+        self.send_message(session_id, req_bytes, false).await?;
+
+        //receive
+        let receive_used = self.receive_message(session_id, rsp_bytes, false).await?;
+
+        self.handle_spdm_vendor_defined_respond_ex(session_id, &rsp_bytes[..receive_used])
+    }
+
+    pub fn handle_spdm_vendor_defined_respond_ex<'a>(
+        &mut self,
+        session_id: Option<u32>,
+        receive_buffer: &'a [u8],
+    ) -> SpdmResult<&'a [u8]> {
+        let mut reader = Reader::init(receive_buffer);
+        match SpdmMessageHeader::read(&mut reader) {
+            Some(message_header) => {
+                if message_header.version != self.common.negotiate_info.spdm_version_sel {
+                    return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                }
+                match message_header.request_response_code {
+                    SpdmRequestResponseCode::SpdmResponseVendorDefinedResponse => {
+                        Ok(receive_buffer)
+                    }
+                    SpdmRequestResponseCode::SpdmResponseError => {
+                        let status = self.spdm_handle_error_response_main(
+                            session_id,
+                            receive_buffer,
+                            SpdmRequestResponseCode::SpdmRequestVendorDefinedRequest,
+                            SpdmRequestResponseCode::SpdmResponseVendorDefinedResponse,
+                        );
+                        match status {
+                            Err(status) => Err(status),
+                            Ok(()) => Err(SPDM_STATUS_ERROR_PEER),
+                        }
+                    }
+                    _ => Err(SPDM_STATUS_ERROR_PEER),
+                }
+            }
+            None => Err(SPDM_STATUS_INVALID_MSG_FIELD),
+        }
+    }
 }

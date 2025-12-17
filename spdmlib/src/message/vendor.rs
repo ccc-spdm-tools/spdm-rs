@@ -495,7 +495,7 @@ pub struct VendorDefinedStructEx {
     pub vdm_handle: usize, // interpreted/managed by User
 }
 
-static VENDOR_DEFNIED_EX: OnceCell<VendorDefinedStructEx> = OnceCell::uninit();
+pub static VENDOR_DEFNIED_EX: OnceCell<VendorDefinedStructEx> = OnceCell::uninit();
 
 static VENDOR_DEFNIED_DEFAULT_EX: VendorDefinedStructEx = VendorDefinedStructEx {
     vendor_defined_request_handler_ex: |responder_context: &mut ResponderContext,
