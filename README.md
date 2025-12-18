@@ -191,6 +191,17 @@ cargo run -p spdm-requester-emu --no-default-features --features "spdm-mbedtls,h
 
 NOTE: In order to run the emu without hashed-transcript-data, please change `max_cert_chain_data_size` in `spdmlib/etc/config.json` from `4096` to `3500`.
 
+### Run the responder emulator using the certificate chain and private key specified in environment variables
+
+Open command window and run:
+
+```bash
+export SPDM_RSP_EMU_CERT_CHAIN_PATH=/path/to/cert_bundle.der
+export SPDM_RSP_EMU_PRIVATE_KEY_PATH=/path/to/device.key.p8
+
+cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
+```
+
 ### Cross test with [spdm_emu](https://github.com/DMTF/spdm-emu)
 Open one command windows in workspace and run:
 
