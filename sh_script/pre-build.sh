@@ -33,8 +33,18 @@ patch-ring() {
     popd
 }
 
+patch-webpki() {
+  # apply the patch set for webpki
+  pushd external/webpki
+  git reset --hard v/0.103.6 # version set to 0.103.6
+  git clean -xdf
+  git apply ../patches/webpki/0001-src-x509.rs-add-skip-unsupported-critical-extensions-check.patch
+  popd
+}
+
 format-patch() {
     patch-ring
+    patch-webpki
 }
 
 process_args "$@"
