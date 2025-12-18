@@ -22,6 +22,26 @@ pub const MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE: usize = config::MAX_SPDM_MSG_SIZ
 
 pub const MAX_SPDM_VENDOR_DEFINED_VENDOR_ID_LEN: usize = 0xFF;
 
+bitflags! {
+    #[derive(Default)]
+    pub struct SpdmVdmFlags: u8 {
+        const USE_LARGE_PAYLOAD = 0b1000_0000;
+        const VALID_MASK = Self::USE_LARGE_PAYLOAD.bits;
+    }
+}
+
+impl Codec for SpdmVdmFlags {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.bits().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<SpdmVdmFlags> {
+        let bits = u8::read(r)?;
+
+        SpdmVdmFlags::from_bits(bits & SpdmVdmFlags::VALID_MASK.bits)
+    }
+}
+
 enum_builder! {
     @U16
     EnumName: RegistryOrStandardsBodyID;
@@ -295,7 +315,11 @@ impl SpdmCodec for SpdmVendorDefinedRequestPayload {
                 .req_capabilities_sel
                 .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP);
         let mut cnt = 0usize;
-        let param1 = if large_payload { 0x80u8 } else { 0u8 };
+        let param1 = if large_payload {
+            SpdmVdmFlags::USE_LARGE_PAYLOAD
+        } else {
+            SpdmVdmFlags::default()
+        };
         cnt += param1.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
         cnt += self
@@ -324,9 +348,9 @@ impl SpdmCodec for SpdmVendorDefinedRequestPayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmVendorDefinedRequestPayload> {
-        let param1 = u8::read(r)?; // param1
+        let param1 = SpdmVdmFlags::read(r)?; // param1
         u8::read(r)?; // param2
-        let large_payload = (param1 & 0x80) != 0;
+        let large_payload = param1.contains(SpdmVdmFlags::USE_LARGE_PAYLOAD);
         if large_payload
             && !(context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
                 && context
@@ -379,7 +403,11 @@ impl SpdmCodec for SpdmVendorDefinedResponsePayload {
                 .req_capabilities_sel
                 .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP);
         let mut cnt = 0usize;
-        let param1 = if large_payload { 0x80u8 } else { 0u8 };
+        let param1 = if large_payload {
+            SpdmVdmFlags::USE_LARGE_PAYLOAD
+        } else {
+            SpdmVdmFlags::default()
+        };
         cnt += param1.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
         cnt += self
@@ -408,9 +436,9 @@ impl SpdmCodec for SpdmVendorDefinedResponsePayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmVendorDefinedResponsePayload> {
-        let param1 = u8::read(r)?; // param1
+        let param1 = SpdmVdmFlags::read(r)?; // param1
         u8::read(r)?; // param2
-        let large_payload = (param1 & 0x80) != 0;
+        let large_payload = param1.contains(SpdmVdmFlags::USE_LARGE_PAYLOAD);
         if large_payload
             && !(context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
                 && context
