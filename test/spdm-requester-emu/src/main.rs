@@ -1340,7 +1340,7 @@ async fn test_idekm_tdisp(
     .await
     .unwrap();
     assert_eq!(tdi_state, TdiState::CONFIG_UNLOCKED);
-    println!("Successful Get Tdisp State: {:X?}!", tdi_state);
+    println!("Successful Get Tdisp State: {tdi_state:X?}!");
 
     let flags = LockInterfaceFlag::NO_FW_UPDATE;
     let default_stream_id = 0;
@@ -1362,10 +1362,7 @@ async fn test_idekm_tdisp(
     .await
     .unwrap();
     assert!(tdisp_error_code.is_none());
-    println!(
-        "Successful Lock Interface, start_interface_nonce: {:X?}!",
-        start_interface_nonce
-    );
+    println!("Successful Lock Interface, start_interface_nonce: {start_interface_nonce:X?}!");
 
     pci_tdisp_req_get_device_interface_state(
         &mut context,
@@ -1376,7 +1373,7 @@ async fn test_idekm_tdisp(
     .await
     .unwrap();
     assert_eq!(tdi_state, TdiState::CONFIG_LOCKED);
-    println!("Successful Get Tdisp State: {:X?}!", tdi_state);
+    println!("Successful Get Tdisp State: {tdi_state:X?}!");
 
     let mut report = [0u8; MAX_DEVICE_REPORT_BUFFER];
     let mut report_size = 0usize;
@@ -1392,10 +1389,7 @@ async fn test_idekm_tdisp(
     .unwrap();
     assert!(tdisp_error_code.is_none());
     let tdi_report = TdiReportStructure::read_bytes(&report).unwrap();
-    println!(
-        "Successful Get Interface Report, tdi_report: {:X?}!",
-        tdi_report
-    );
+    println!("Successful Get Interface Report, tdi_report: {tdi_report:X?}!");
 
     pci_tdisp_req_start_interface_request(
         &mut context,
@@ -1418,7 +1412,7 @@ async fn test_idekm_tdisp(
     .await
     .unwrap();
     assert_eq!(tdi_state, TdiState::RUN);
-    println!("Successful Get Tdisp State: {:X?}!", tdi_state);
+    println!("Successful Get Tdisp State: {tdi_state:X?}!");
 
     pci_tdisp_req_stop_interface_request(&mut context, session_id, interface_id)
         .await
@@ -1434,7 +1428,7 @@ async fn test_idekm_tdisp(
     .await
     .unwrap();
     assert_eq!(tdi_state, TdiState::CONFIG_UNLOCKED);
-    println!("Successful Get Tdisp State: {:X?}!", tdi_state);
+    println!("Successful Get Tdisp State: {tdi_state:X?}!");
 
     // end spdm session
     context.end_session(session_id).await.unwrap();

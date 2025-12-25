@@ -103,7 +103,7 @@ fn sign_ecdsa_asym_algo(
 
     // Check for environment variable first
     let key_file_path = if let Ok(env_key_path) = std::env::var("SPDM_RSP_EMU_PRIVATE_KEY_PATH") {
-        println!("Loading private key from env: {}", env_key_path);
+        println!("Loading private key from env: {env_key_path}");
         PathBuf::from(env_key_path)
     } else {
         let crate_dir = get_test_key_directory();
@@ -146,7 +146,7 @@ fn sign_rsa_asym_algo(
 
     // Check for environment variable first
     let key_file_path = if let Ok(env_key_path) = std::env::var("SPDM_RSP_EMU_PRIVATE_KEY_PATH") {
-        println!("Loading private key from env: {}", env_key_path);
+        println!("Loading private key from env: {env_key_path}");
         PathBuf::from(env_key_path)
     } else {
         let crate_dir = get_test_key_directory();

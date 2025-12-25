@@ -330,11 +330,11 @@ async fn handle_message(
 
     if let Some(chain_path) = cert_chain_path {
         // Load pre-assembled cert chain from single DER file
-        println!("Loading certificate chain from: {}", chain_path);
+        println!("Loading certificate chain from: {chain_path}");
         let cert_chain = std::fs::read(&chain_path)
             .unwrap_or_else(|e| panic!("Unable to read cert chain from {}: {}", chain_path, e));
         let chain_len = cert_chain.len();
-        println!("Loaded certificate chain size: {:?}", chain_len);
+        println!("Loaded certificate chain size: {chain_len:?}");
         my_cert_chain_data.data_size = chain_len as u32;
         my_cert_chain_data.data[0..chain_len].copy_from_slice(&cert_chain);
     } else {

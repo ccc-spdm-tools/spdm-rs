@@ -246,6 +246,6 @@ fn main() {
     // Re-run the build script if the files at the given paths or envs have changed.
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../Cargo.lock");
-    println!("cargo:rerun-if-changed={}", SPDM_CONFIG_JSON_DEFAULT_PATH);
-    println!("cargo:rerun-if-env-changed={}", SPDM_CONFIG_ENV);
+    println!("cargo:rerun-if-changed={SPDM_CONFIG_JSON_DEFAULT_PATH}");
+    println!("cargo:rerun-if-env-changed={SPDM_CONFIG_ENV}");
 }
