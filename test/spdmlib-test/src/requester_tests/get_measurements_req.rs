@@ -82,7 +82,9 @@ fn test_case0_send_receive_spdm_measurement() {
         responder.common.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u32,
-                data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                data: Box::new(
+                    [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                ),
             }),
             None,
             None,
@@ -551,7 +553,9 @@ fn test_case1_send_receive_spdm_measurement() {
         responder.common.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u32,
-                data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                data: Box::new(
+                    [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                ),
             }),
             None,
             None,
@@ -780,7 +784,9 @@ fn test_case3_send_receive_spdm_measurement() {
         responder.common.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u32,
-                data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                data: Box::new(
+                    [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                ),
             }),
             None,
             None,
