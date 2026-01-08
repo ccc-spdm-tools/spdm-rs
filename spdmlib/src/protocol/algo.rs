@@ -1280,17 +1280,17 @@ impl From<BytesMut> for SpdmSignatureStruct {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SpdmCertChainData {
     pub data_size: u32,
-    pub data: [u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+    pub data: Box<[u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]>,
 }
 
 impl Default for SpdmCertChainData {
     fn default() -> Self {
         SpdmCertChainData {
             data_size: 0u32,
-            data: [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            data: Box::new([0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]),
         }
     }
 }
@@ -1315,7 +1315,7 @@ impl Codec for SpdmCertChainData {
         if data_size > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32 {
             return None;
         }
-        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        let mut data = Box::new([0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]);
         for d in data.iter_mut() {
             *d = u8::read(reader)?;
         }
@@ -1323,17 +1323,17 @@ impl Codec for SpdmCertChainData {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SpdmCertChainBuffer {
     pub data_size: u32,
-    pub data: [u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+    pub data: Box<[u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]>,
 }
 
 impl Default for SpdmCertChainBuffer {
     fn default() -> Self {
         SpdmCertChainBuffer {
             data_size: 0u32,
-            data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            data: Box::new([0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]),
         }
     }
 }
@@ -1398,7 +1398,8 @@ impl Codec for SpdmCertChainBuffer {
         if data_size > (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u32 {
             return None;
         }
-        let mut data = [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        let mut data =
+            Box::new([0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]);
         for d in data.iter_mut().take(data_size as usize) {
             *d = u8::read(r)?;
         }

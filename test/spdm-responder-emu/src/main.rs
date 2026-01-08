@@ -386,7 +386,16 @@ async fn handle_message(
             None,
             None,
         ],
-        my_cert_chain: [None, None, None, None, None, None, None, None],
+        my_cert_chain: [
+            Some(SpdmCertChainBuffer::default()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
         peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
         ..Default::default()
     };
