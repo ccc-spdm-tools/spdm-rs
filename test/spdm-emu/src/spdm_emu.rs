@@ -25,6 +25,16 @@ pub const SOCKET_SPDM_COMMAND_STOP: u32 = 0xFFFE;
 pub const SOCKET_SPDM_COMMAND_UNKOWN: u32 = 0xFFFF;
 pub const SOCKET_SPDM_COMMAND_TEST: u32 = 0xDEAD;
 
+/// Check if ECDSA should be used for responder emulator
+/// based on runtime environment variable
+/// SPDM_RSP_EMU_USE_ECDSA=false -> uses RSA
+/// SPDM_RSP_EMU_USE_ECDSA=true or unset -> uses ECDSA (default)
+pub fn rsp_emu_use_ecdsa() -> bool {
+    std::env::var("SPDM_RSP_EMU_USE_ECDSA")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(true)
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
     pub command: u32,
