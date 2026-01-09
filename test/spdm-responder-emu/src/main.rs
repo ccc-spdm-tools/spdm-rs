@@ -295,7 +295,7 @@ async fn handle_message(
         rsp_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
         measurement_hash_algo: SpdmMeasurementHashAlgo::TPM_ALG_SHA_384,
-        base_asym_algo: if USE_ECDSA {
+        base_asym_algo: if use_ecdsa() {
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         } else {
             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
@@ -303,7 +303,7 @@ async fn handle_message(
         base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         dhe_algo: SpdmDheAlgo::SECP_384_R1,
         aead_algo: SpdmAeadAlgo::AES_256_GCM,
-        req_asym_algo: if USE_ECDSA {
+        req_asym_algo: if req_use_ecdsa() {
             SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         } else {
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
@@ -339,19 +339,19 @@ async fn handle_message(
         my_cert_chain_data.data[0..chain_len].copy_from_slice(&cert_chain);
     } else {
         // Use default individual cert files
-        let ca_file_path = if USE_ECDSA {
+        let ca_file_path = if use_ecdsa() {
             "test_key/ecp384/ca.cert.der"
         } else {
             "test_key/rsa3072/ca.cert.der"
         };
         let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
-        let inter_file_path = if USE_ECDSA {
+        let inter_file_path = if use_ecdsa() {
             "test_key/ecp384/inter.cert.der"
         } else {
             "test_key/rsa3072/inter.cert.der"
         };
         let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
-        let leaf_file_path = if USE_ECDSA {
+        let leaf_file_path = if use_ecdsa() {
             "test_key/ecp384/end_responder.cert.der"
         } else {
             "test_key/rsa3072/end_responder.cert.der"

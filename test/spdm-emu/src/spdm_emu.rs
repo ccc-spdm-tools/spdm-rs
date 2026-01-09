@@ -15,7 +15,14 @@ use spdmlib::config;
 
 pub const SOCKET_HEADER_LEN: usize = 12;
 pub const USE_PCIDOE: bool = true; // align with DMTF spdm_emu
+
+/// Default for base_asym_algo (BaseAsymAlgo - responder signing algorithm).
+/// Override at runtime with SPDMRS_USE_ECDSA env variable.
 pub const USE_ECDSA: bool = true;
+
+/// Default for req_asym_algo (ReqBaseAsymAlg - requester signing algorithm).
+/// Override at runtime with SPDMRS_REQ_USE_ECDSA env variable.
+pub const REQ_USE_ECDSA: bool = true;
 
 pub const SOCKET_TRANSPORT_TYPE_MCTP: u32 = 0x01;
 pub const SOCKET_TRANSPORT_TYPE_PCI_DOE: u32 = 0x02;
@@ -24,6 +31,24 @@ pub const SOCKET_SPDM_COMMAND_NORMAL: u32 = 0x0001;
 pub const SOCKET_SPDM_COMMAND_STOP: u32 = 0xFFFE;
 pub const SOCKET_SPDM_COMMAND_UNKOWN: u32 = 0xFFFF;
 pub const SOCKET_SPDM_COMMAND_TEST: u32 = 0xDEAD;
+
+/// Check if ECDSA should be used for base_asym_algo (BaseAsymAlgo).
+/// SPDMRS_USE_ECDSA=false or 0 -> uses RSA
+/// SPDMRS_USE_ECDSA=true or unset -> uses ECDSA (default)
+pub fn use_ecdsa() -> bool {
+    std::env::var("SPDMRS_USE_ECDSA")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(USE_ECDSA)
+}
+
+/// Check if ECDSA should be used for req_asym_algo (ReqBaseAsymAlg).
+/// SPDMRS_REQ_USE_ECDSA=false or 0 -> uses RSA
+/// SPDMRS_REQ_USE_ECDSA=true or unset -> uses ECDSA (default)
+pub fn req_use_ecdsa() -> bool {
+    std::env::var("SPDMRS_REQ_USE_ECDSA")
+        .map(|v| v != "false" && v != "0")
+        .unwrap_or(REQ_USE_ECDSA)
+}
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
