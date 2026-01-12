@@ -1440,10 +1440,10 @@ async fn test_idekm_tdisp(
     context.end_session(session_id).await.unwrap();
 }
 
-// A new logger enables the user to choose log level by setting a `SPDM_LOG` environment variable.
+// A new logger enables the user to choose log level by setting a `SPDMRS_LOG` environment variable.
 // Use the `Trace` level by default.
 fn new_logger_from_env() -> SimpleLogger {
-    let level = match std::env::var("SPDM_LOG") {
+    let level = match std::env::var("SPDMRS_LOG") {
         Ok(x) => match x.to_lowercase().as_str() {
             "trace" => LevelFilter::Trace,
             "debug" => LevelFilter::Debug,
