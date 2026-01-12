@@ -326,7 +326,7 @@ async fn handle_message(
     };
 
     // Check for environment variable or use default cert chain path
-    let cert_chain_path = std::env::var("SPDM_RSP_EMU_CERT_CHAIN_PATH").ok();
+    let cert_chain_path = std::env::var("SPDMRS_RSP_EMU_CERT_CHAIN_PATH").ok();
 
     if let Some(chain_path) = cert_chain_path {
         // Load pre-assembled cert chain from single DER file

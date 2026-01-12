@@ -102,7 +102,7 @@ fn sign_ecdsa_asym_algo(
     // openssl.exe pkcs8 -in private.der -inform DER -topk8 -nocrypt -outform DER > private.p8
 
     // Check for environment variable first
-    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDM_RSP_EMU_PRIVATE_KEY_PATH") {
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDMRS_RSP_EMU_PRIVATE_KEY_PATH") {
         println!("Loading private key from env: {}", env_key_path);
         PathBuf::from(env_key_path)
     } else {
@@ -145,7 +145,7 @@ fn sign_rsa_asym_algo(
     // openssl.exe genpkey -algorithm rsa -pkeyopt rsa_keygen_bits:2048 -pkeyopt rsa_keygen_pubexp:65537 -outform DER > private.der
 
     // Check for environment variable first
-    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDM_RSP_EMU_PRIVATE_KEY_PATH") {
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDMRS_RSP_EMU_PRIVATE_KEY_PATH") {
         println!("Loading private key from env: {}", env_key_path);
         PathBuf::from(env_key_path)
     } else {
