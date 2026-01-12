@@ -196,8 +196,8 @@ NOTE: In order to run the emu without hashed-transcript-data, please change `max
 Open command window and run:
 
 ```bash
-export SPDM_RSP_EMU_CERT_CHAIN_PATH=/path/to/cert_bundle.der
-export SPDM_RSP_EMU_PRIVATE_KEY_PATH=/path/to/device.key.p8
+export SPDMRS_RSP_EMU_CERT_CHAIN_PATH=/path/to/cert_bundle.der
+export SPDMRS_RSP_EMU_PRIVATE_KEY_PATH=/path/to/device.key.p8
 
 cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
 ```
