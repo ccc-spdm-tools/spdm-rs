@@ -30,7 +30,7 @@ use log::LevelFilter;
 use simple_logger::SimpleLogger;
 
 pub fn new_logger_from_env() -> SimpleLogger {
-    let level = match std::env::var("SPDM_LOG") {
+    let level = match std::env::var("SPDMRS_LOG") {
         Ok(x) => match x.to_lowercase().as_str() {
             "trace" => LevelFilter::Trace,
             "debug" => LevelFilter::Debug,
