@@ -202,6 +202,11 @@ export SPDMRS_RSP_EMU_PRIVATE_KEY_PATH=/path/to/device.key.p8
 cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
 ```
 
+If RSA is used instead of ECDSA, following environment variable should be set before running spdm-responder-emu:
+```bash
+export SPDM_RSP_EMU_USE_ECDSA=false
+```
+
 ### Cross test with [spdm_emu](https://github.com/DMTF/spdm-emu)
 Open one command windows in workspace and run:
 
