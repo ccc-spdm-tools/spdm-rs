@@ -101,6 +101,14 @@ pub enum GettingMeasurementsSubstate {
     MeasuringResume = 2, // Resuming from receive phase (request already sent)
 }
 
+/// Substate for VENDOR_DEFINED_REQUEST command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VendorSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
 /// Common state tracking for SPDM command checkpointing
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,6 +124,7 @@ pub enum SpdmCommandState {
     InitializingConnection(InitConnectionSubstate),
     GettingCertificate(GettingCertificateSubstate),
     GettingMeasurements(GettingMeasurementsSubstate),
+    VendorRequesting(VendorSubstate),
 }
 
 impl SpdmCommandState {
@@ -132,6 +141,7 @@ impl SpdmCommandState {
             SpdmCommandState::InitializingConnection(substate) => 0x80 | (*substate as u8),
             SpdmCommandState::GettingCertificate(substate) => 0x90 | (*substate as u8),
             SpdmCommandState::GettingMeasurements(substate) => 0xA0 | (*substate as u8),
+            SpdmCommandState::VendorRequesting(substate) => 0xB0 | (*substate as u8),
         }
     }
 
@@ -216,6 +226,9 @@ impl SpdmCommandState {
             0xA2 => Some(SpdmCommandState::GettingMeasurements(
                 GettingMeasurementsSubstate::MeasuringResume,
             )),
+            0xB0 => Some(SpdmCommandState::VendorRequesting(VendorSubstate::Init)),
+            0xB1 => Some(SpdmCommandState::VendorRequesting(VendorSubstate::Send)),
+            0xB2 => Some(SpdmCommandState::VendorRequesting(VendorSubstate::Receive)),
             _ => None,
         }
     }
@@ -237,6 +250,12 @@ pub struct CommandExecutionState {
     pub command_state: SpdmCommandState,
     pub send_buffer: Arc<Mutex<([u8; config::MAX_SPDM_MSG_SIZE], usize)>>,
     pub state_data: u64,
+}
+
+impl Default for CommandExecutionState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CommandExecutionState {
@@ -278,8 +297,8 @@ impl Codec for CommandExecutionState {
         }
 
         let mut buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        for i in 0..buffer_size {
-            buffer[i] = u8::read(r)?;
+        for item in buffer.iter_mut().take(buffer_size) {
+            *item = u8::read(r)?;
         }
 
         let state_data = u64::read(r)?;
