@@ -23,6 +23,8 @@ impl RequesterContext {
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
         psk_hint: Option<&SpdmPskHintStruct>,
     ) -> SpdmResult<u32> {
+        use crate::requester::context::{PskExchangingSubstate, SpdmCommandState};
+
         info!("send spdm psk exchange\n");
 
         let psk_hint = if let Some(hint) = psk_hint {
@@ -31,46 +33,100 @@ impl RequesterContext {
             SpdmPskHintStruct::default()
         };
 
-        self.common
-            .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestPskExchange, None);
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::PskExchanging(PskExchangingSubstate::Init);
+        }
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let half_session_id = self.common.get_next_half_session_id(true)?;
-        let send_used = self.encode_spdm_psk_exchange(
-            half_session_id,
-            measurement_summary_hash_type,
-            &psk_hint,
-            &mut send_buffer,
-        )?;
+        let mut half_session_id;
 
-        self.send_message(None, &send_buffer[..send_used], false)
-            .await?;
+        if self.exec_state.command_state
+            == SpdmCommandState::PskExchanging(PskExchangingSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestPskExchange,
+                None,
+            );
 
-        // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let receive_used = self
-            .receive_message(None, &mut receive_buffer, false)
-            .await?;
+            half_session_id = self.common.get_next_half_session_id(true)?;
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let send_used = self.encode_spdm_psk_exchange(
+                half_session_id,
+                measurement_summary_hash_type,
+                &psk_hint,
+                &mut send_buffer,
+            )?;
 
-        let mut target_session_id = None;
-        if let Err(e) = self.handle_spdm_psk_exchange_response(
-            half_session_id,
-            measurement_summary_hash_type,
-            &psk_hint,
-            &send_buffer[..send_used],
-            &receive_buffer[..receive_used],
-            &mut target_session_id,
-        ) {
-            if let Some(session_id) = target_session_id {
-                if let Some(session) = self.common.get_session_via_id(session_id) {
-                    session.teardown();
-                }
+            {
+                let mut guard = self.exec_state.send_buffer.lock();
+                guard.0[..send_used].copy_from_slice(&send_buffer[..send_used]);
+                guard.1 = send_used;
             }
 
-            Err(e)
-        } else {
-            Ok(target_session_id.unwrap())
+            // Store parameters: half_session_id (16 bits), measurement_summary_hash_type (8 bits)
+            self.exec_state.state_data =
+                (half_session_id as u64) | ((measurement_summary_hash_type.get_u8() as u64) << 16);
+
+            self.exec_state.command_state =
+                SpdmCommandState::PskExchanging(PskExchangingSubstate::Send);
         }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::PskExchanging(PskExchangingSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::PskExchanging(PskExchangingSubstate::Receive);
+            self.send_message(None, &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::PskExchanging(PskExchangingSubstate::Receive)
+        {
+            // Retrieve stored parameters
+            half_session_id = (self.exec_state.state_data & 0xFFFF) as u16;
+            let measurement_summary_hash_type =
+                match ((self.exec_state.state_data >> 16) & 0xFF) as u8 {
+                    0x0 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                    0x1 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
+                    0xFF => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
+                    _ => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                };
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let receive_used = self
+                .receive_message(None, &mut receive_buffer, false)
+                .await?;
+
+            let mut target_session_id = None;
+            let result = self.handle_spdm_psk_exchange_response(
+                half_session_id,
+                measurement_summary_hash_type,
+                &psk_hint,
+                &send_data[..send_len],
+                &receive_buffer[..receive_used],
+                &mut target_session_id,
+            );
+
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            if let Err(e) = result {
+                if let Some(session_id) = target_session_id {
+                    if let Some(session) = self.common.get_session_via_id(session_id) {
+                        session.teardown();
+                    }
+                }
+
+                return Err(e);
+            } else {
+                return Ok(target_session_id.unwrap());
+            }
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_psk_exchange(
