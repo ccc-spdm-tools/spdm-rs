@@ -29,6 +29,8 @@ impl RequesterContext {
         slot_id: u8,
         requester_context_struct: Option<SpdmMeasurementContextStruct>,
     ) -> SpdmResult<u8> {
+        use crate::requester::context::SpdmCommandState;
+
         if transcript_meas.is_none() {
             *transcript_meas = Some(ManagedBufferM::default());
         }
@@ -51,6 +53,7 @@ impl RequesterContext {
             if e != SPDM_STATUS_NOT_READY_PEER {
                 self.common.reset_message_m(session_id);
                 *transcript_meas = None;
+                self.exec_state.command_state = SpdmCommandState::Idle;
             }
         }
 
@@ -71,6 +74,8 @@ impl RequesterContext {
         slot_id: u8,
         requester_context_struct: Option<SpdmMeasurementContextStruct>,
     ) -> SpdmResult<u8> {
+        use crate::requester::context::{GettingMeasurementsSubstate, SpdmCommandState};
+
         info!("send spdm measurement\n");
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
@@ -84,36 +89,82 @@ impl RequesterContext {
 
         let requester_context = requester_context_struct.unwrap_or_default();
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_measurement_record(
-            measurement_attributes,
-            measurement_operation,
-            spdm_nonce_struct,
-            slot_id,
-            &requester_context,
-            &mut send_buffer,
-        )?;
-        self.send_message(session_id, &send_buffer[..send_used], false)
-            .await?;
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::GettingMeasurements(GettingMeasurementsSubstate::Init);
+        }
 
-        // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(session_id, &mut receive_buffer, true)
-            .await?;
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingMeasurements(GettingMeasurementsSubstate::Init)
+        {
+            let mut temp_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let send_used = self.encode_spdm_measurement_record(
+                measurement_attributes,
+                measurement_operation,
+                spdm_nonce_struct,
+                slot_id,
+                &requester_context,
+                &mut temp_buffer,
+            )?;
+            let mut send_buffer_lock = self.exec_state.send_buffer.lock();
+            send_buffer_lock.0[..send_used].copy_from_slice(&temp_buffer[..send_used]);
+            send_buffer_lock.1 = send_used;
+            drop(send_buffer_lock);
+            self.exec_state.command_state =
+                SpdmCommandState::GettingMeasurements(GettingMeasurementsSubstate::Measuring);
+        }
 
-        self.handle_spdm_measurement_record_response(
-            session_id,
-            slot_id,
-            measurement_attributes,
-            measurement_operation,
-            requester_context,
-            content_changed,
-            spdm_measurement_record_structure,
-            &send_buffer[..send_used],
-            &receive_buffer[..used],
-            transcript_meas,
-        )
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingMeasurements(GettingMeasurementsSubstate::Measuring)
+        {
+            let (send_data, send_len) = {
+                let send_buffer_lock = self.exec_state.send_buffer.lock();
+                let mut data = [0u8; config::MAX_SPDM_MSG_SIZE];
+                data[..send_buffer_lock.1]
+                    .copy_from_slice(&send_buffer_lock.0[..send_buffer_lock.1]);
+                (data, send_buffer_lock.1)
+            };
+            self.send_message(session_id, &send_data[..send_len], false)
+                .await?;
+            self.exec_state.command_state =
+                SpdmCommandState::GettingMeasurements(GettingMeasurementsSubstate::MeasuringResume);
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingMeasurements(GettingMeasurementsSubstate::MeasuringResume)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(session_id, &mut receive_buffer, true)
+                .await?;
+
+            let (send_data, send_len) = {
+                let send_buffer_lock = self.exec_state.send_buffer.lock();
+                let mut data = [0u8; config::MAX_SPDM_MSG_SIZE];
+                data[..send_buffer_lock.1]
+                    .copy_from_slice(&send_buffer_lock.0[..send_buffer_lock.1]);
+                (data, send_buffer_lock.1)
+            };
+
+            let result = self.handle_spdm_measurement_record_response(
+                session_id,
+                slot_id,
+                measurement_attributes,
+                measurement_operation,
+                requester_context,
+                content_changed,
+                spdm_measurement_record_structure,
+                &send_data[..send_len],
+                &receive_buffer[..used],
+                transcript_meas,
+            );
+
+            // Reset to Idle after completion (success or error)
+            self.exec_state.command_state = SpdmCommandState::Idle;
+            return result;
+        }
+
+        Err(SPDM_STATUS_INVALID_PARAMETER)
     }
 
     pub fn encode_spdm_measurement_record(
