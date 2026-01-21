@@ -23,6 +23,8 @@ use crate::crypto::SpdmReqExchangeContext;
 use crate::error::SpdmResult;
 use crate::message::*;
 
+extern crate alloc;
+
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_key_exchange(
@@ -30,6 +32,8 @@ impl RequesterContext {
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
     ) -> SpdmResult<u32> {
+        use crate::requester::context::{KeyExchangingSubstate, SpdmCommandState};
+
         info!("send spdm key exchange\n");
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8
@@ -40,51 +44,131 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        let req_session_id = self.common.get_next_half_session_id(true)?;
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Init);
+        }
 
-        self.common
-            .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestKeyExchange, None);
+        let mut req_session_id;
+        let mut key_exchange_context = None;
 
-        self.common
-            .runtime_info
-            .set_peer_used_cert_chain_slot_id(slot_id);
+        if self.exec_state.command_state
+            == SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Init)
+        {
+            req_session_id = self.common.get_next_half_session_id(true)?;
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let (key_exchange_context, send_used) = self.encode_spdm_key_exchange(
-            req_session_id,
-            &mut send_buffer,
-            slot_id,
-            measurement_summary_hash_type,
-        )?;
-        self.send_message(None, &send_buffer[..send_used], false)
-            .await?;
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestKeyExchange,
+                None,
+            );
 
-        // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let receive_used = self
-            .receive_message(None, &mut receive_buffer, false)
-            .await?;
+            self.common
+                .runtime_info
+                .set_peer_used_cert_chain_slot_id(slot_id);
 
-        let mut target_session_id = None;
-        if let Err(e) = self.handle_spdm_key_exchange_response(
-            req_session_id,
-            slot_id,
-            &send_buffer[..send_used],
-            &receive_buffer[..receive_used],
-            measurement_summary_hash_type,
-            key_exchange_context,
-            &mut target_session_id,
-        ) {
-            if let Some(session_id) = target_session_id {
-                if let Some(session) = self.common.get_session_via_id(session_id) {
-                    session.teardown();
-                }
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let (ctx, send_used) = self.encode_spdm_key_exchange(
+                req_session_id,
+                &mut send_buffer,
+                slot_id,
+                measurement_summary_hash_type,
+            )?;
+
+            // Store the key exchange context in additional_buffer as raw bytes
+            // Since we can't serialize trait objects, we store a marker to indicate
+            // that the context exists in this execution
+            {
+                let mut guard = self.exec_state.additional_buffer.lock();
+                *guard = Some(alloc::vec::Vec::new()); // Marker indicating context is present
             }
 
-            Err(e)
-        } else {
-            Ok(target_session_id.unwrap())
+            key_exchange_context = Some(ctx);
+
+            *self.exec_state.send_buffer.lock() = (send_buffer, send_used);
+
+            self.exec_state.state_data = (req_session_id as u64)
+                | ((slot_id as u64) << 16)
+                | ((measurement_summary_hash_type.get_u8() as u64) << 24);
+
+            self.exec_state.command_state =
+                SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Send);
         }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Receive);
+            self.send_message(None, &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Receive)
+        {
+            // Check if we have the key_exchange_context from the current execution
+            let has_context = {
+                let guard = self.exec_state.additional_buffer.lock();
+                guard.is_some()
+            };
+
+            // If resuming after checkpoint, we cannot restore the key_exchange_context
+            // since it contains non-serializable cryptographic state (ephemeral private keys).
+            // In this case, the key exchange must be restarted from Init.
+            if !has_context || key_exchange_context.is_none() {
+                error!("Cannot resume key exchange after checkpoint - private key context lost\n");
+                self.exec_state.command_state = SpdmCommandState::Idle;
+                self.exec_state.additional_buffer.lock().take();
+                return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+            }
+
+            // Retrieve stored parameters
+            req_session_id = (self.exec_state.state_data & 0xFFFF) as u16;
+            let slot_id = ((self.exec_state.state_data >> 16) & 0xFF) as u8;
+            let measurement_summary_hash_type =
+                match ((self.exec_state.state_data >> 24) & 0xFF) as u8 {
+                    0x0 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                    0x1 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
+                    0xFF => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
+                    _ => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                };
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let receive_used = self
+                .receive_message(None, &mut receive_buffer, false)
+                .await?;
+
+            let mut target_session_id = None;
+            let result = self.handle_spdm_key_exchange_response(
+                req_session_id,
+                slot_id,
+                &send_data[..send_len],
+                &receive_buffer[..receive_used],
+                measurement_summary_hash_type,
+                key_exchange_context.unwrap(),
+                &mut target_session_id,
+            );
+
+            self.exec_state.command_state = SpdmCommandState::Idle;
+            self.exec_state.additional_buffer.lock().take(); // Clear additional_buffer
+
+            if let Err(e) = result {
+                if let Some(session_id) = target_session_id {
+                    if let Some(session) = self.common.get_session_via_id(session_id) {
+                        session.teardown();
+                    }
+                }
+
+                return Err(e);
+            } else {
+                return Ok(target_session_id.unwrap());
+            }
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_key_exchange(

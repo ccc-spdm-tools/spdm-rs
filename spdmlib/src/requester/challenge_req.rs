@@ -77,12 +77,13 @@ impl RequesterContext {
         {
             // Retrieve parameters
             let slot_id = (self.exec_state.state_data & 0xFF) as u8;
-            let measurement_summary_hash_type = match ((self.exec_state.state_data >> 8) & 0xFF) as u8 {
-                0x0 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
-                0x1 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
-                0xFF => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
-                _ => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
-            };
+            let measurement_summary_hash_type =
+                match ((self.exec_state.state_data >> 8) & 0xFF) as u8 {
+                    0x0 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                    0x1 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
+                    0xFF => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
+                    _ => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                };
 
             let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
             let used = self

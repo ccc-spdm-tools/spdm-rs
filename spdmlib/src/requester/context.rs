@@ -327,6 +327,7 @@ pub struct CommandExecutionState {
     pub command_state: SpdmCommandState,
     pub send_buffer: Arc<Mutex<([u8; config::MAX_SPDM_MSG_SIZE], usize)>>,
     pub state_data: u64,
+    pub additional_buffer: Arc<Mutex<Option<alloc::vec::Vec<u8>>>>,
 }
 
 impl Default for CommandExecutionState {
@@ -341,6 +342,7 @@ impl CommandExecutionState {
             command_state: SpdmCommandState::Idle,
             send_buffer: Arc::new(Mutex::new(([0u8; config::MAX_SPDM_MSG_SIZE], 0))),
             state_data: 0,
+            additional_buffer: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -361,6 +363,17 @@ impl Codec for CommandExecutionState {
 
         cnt += self.state_data.encode(bytes)?;
 
+        let additional_guard = self.additional_buffer.lock();
+        let has_additional = if additional_guard.is_some() { 1u8 } else { 0u8 };
+        cnt += has_additional.encode(bytes)?;
+        if let Some(ref buf) = *additional_guard {
+            let buf_len = buf.len() as u16;
+            cnt += buf_len.encode(bytes)?;
+            for byte in buf.iter() {
+                cnt += byte.encode(bytes)?;
+            }
+        }
+
         Ok(cnt)
     }
 
@@ -380,10 +393,23 @@ impl Codec for CommandExecutionState {
 
         let state_data = u64::read(r)?;
 
+        let has_additional = u8::read(r)?;
+        let additional_buffer = if has_additional != 0 {
+            let buf_len = u16::read(r)? as usize;
+            let mut buf = alloc::vec::Vec::with_capacity(buf_len);
+            for _ in 0..buf_len {
+                buf.push(u8::read(r)?);
+            }
+            Some(buf)
+        } else {
+            None
+        };
+
         Some(CommandExecutionState {
             command_state,
             send_buffer: Arc::new(Mutex::new((buffer, buffer_size))),
             state_data,
+            additional_buffer: Arc::new(Mutex::new(additional_buffer)),
         })
     }
 }
