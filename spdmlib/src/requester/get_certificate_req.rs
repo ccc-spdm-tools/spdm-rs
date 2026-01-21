@@ -9,42 +9,10 @@ use crate::error::{
 };
 use crate::message::*;
 use crate::protocol::*;
+use crate::requester::context::GettingCertificateSubstate;
 use crate::requester::*;
 
 impl RequesterContext {
-    #[maybe_async::maybe_async]
-    async fn send_receive_spdm_certificate_partial(
-        &mut self,
-        session_id: Option<u32>,
-        slot_id: u8,
-        total_size: u32,
-        offset: u32,
-        length: u32,
-    ) -> SpdmResult<(u32, u32)> {
-        info!("send spdm certificate\n");
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used =
-            self.encode_spdm_certificate_partial(slot_id, offset, length, &mut send_buffer)?;
-
-        self.send_message(session_id, &send_buffer[..send_used], false)
-            .await?;
-
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(session_id, &mut receive_buffer, false)
-            .await?;
-
-        self.handle_spdm_certificate_partial_response(
-            session_id,
-            slot_id,
-            total_size,
-            offset,
-            length,
-            &send_buffer[..send_used],
-            &receive_buffer[..used],
-        )
-    }
-
     pub fn encode_spdm_certificate_partial(
         &mut self,
         slot_id: u8,
@@ -78,6 +46,7 @@ impl RequesterContext {
         offset: u32,
         length: u32,
         send_buffer: &[u8],
+        send_used: usize,
         receive_buffer: &[u8],
     ) -> SpdmResult<(u32, u32)> {
         let mut reader = Reader::init(receive_buffer);
@@ -141,7 +110,7 @@ impl RequesterContext {
 
                             match session_id {
                                 None => {
-                                    self.common.append_message_b(send_buffer)?;
+                                    self.common.append_message_b(&send_buffer[..send_used])?;
                                     self.common.append_message_b(&receive_buffer[..used])?;
                                 }
                                 Some(_session_id) => {}
@@ -186,39 +155,131 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
         }
 
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestGetCertificate,
-            session_id,
-        );
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::GettingCertificate(GettingCertificateSubstate::Init);
+        }
 
-        self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
-        while length != 0 {
-            let (portion_length, remainder_length) = self
-                .send_receive_spdm_certificate_partial(
-                    session_id, slot_id, total_size, offset, length,
-                )
-                .await?;
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingCertificate(GettingCertificateSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestGetCertificate,
+                session_id,
+            );
+            self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+            self.exec_state.command_state =
+                SpdmCommandState::GettingCertificate(GettingCertificateSubstate::Retrieving);
+        }
+
+        if matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::GettingCertificate(GettingCertificateSubstate::Retrieving)
+        ) || matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::GettingCertificate(GettingCertificateSubstate::RetrievingResume)
+        ) {
+            if matches!(
+                self.exec_state.command_state,
+                SpdmCommandState::GettingCertificate(GettingCertificateSubstate::RetrievingResume)
+            ) {
+                offset = (self.exec_state.state_data & 0xFFFF) as u32;
+                length = ((self.exec_state.state_data >> 16) & 0xFFFF) as u32;
+                total_size = ((self.exec_state.state_data >> 32) & 0xFFFFFFFF) as u32;
+            }
+            while length != 0 {
+                if matches!(
+                    self.exec_state.command_state,
+                    SpdmCommandState::GettingCertificate(GettingCertificateSubstate::Retrieving)
+                ) {
+                    let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+                    let send_used = self.encode_spdm_certificate_partial(
+                        slot_id,
+                        offset,
+                        length,
+                        &mut send_buffer,
+                    )?;
+
+                    *self.exec_state.send_buffer.lock() = (send_buffer, send_used);
+                    self.exec_state.command_state = SpdmCommandState::GettingCertificate(
+                        GettingCertificateSubstate::RetrievingResume,
+                    );
+                    self.exec_state.state_data = ((offset as u64) & 0xFFFF)
+                        | (((length as u64) & 0xFFFF) << 16)
+                        | ((total_size as u64) << 32);
+
+                    let (send_buffer, send_used) = *self.exec_state.send_buffer.lock();
+                    self.send_message(session_id, &send_buffer[..send_used], false)
+                        .await?;
+                }
+
+                let (send_buffer, send_used) = *self.exec_state.send_buffer.lock();
+
+                let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+                let used = self
+                    .receive_message(session_id, &mut receive_buffer, false)
+                    .await?;
+
+                let (portion_length, remainder_length) = self
+                    .handle_spdm_certificate_partial_response(
+                        session_id,
+                        slot_id,
+                        total_size,
+                        offset,
+                        length,
+                        &send_buffer[..send_used],
+                        send_used,
+                        &receive_buffer[..used],
+                    )?;
+
+                if total_size == 0 {
+                    total_size = portion_length + remainder_length;
+                }
+                offset += portion_length;
+                length = remainder_length;
+
+                if length > MAX_SPDM_CERT_PORTION_LEN as u32 {
+                    length = MAX_SPDM_CERT_PORTION_LEN as u32;
+                }
+
+                // Iterate state to retrieving
+                self.exec_state.command_state =
+                    SpdmCommandState::GettingCertificate(GettingCertificateSubstate::Retrieving);
+            }
+
             if total_size == 0 {
-                total_size = portion_length + remainder_length;
+                self.common.peer_info.peer_cert_chain_temp = None;
+                return Err(SPDM_STATUS_INVALID_CERT);
             }
-            offset += portion_length;
-            length = remainder_length;
-            if length > MAX_SPDM_CERT_PORTION_LEN as u32 {
-                length = MAX_SPDM_CERT_PORTION_LEN as u32;
+            if length == 0 {
+                // Retrieved full certificate chain, proceeding to verification
+                self.exec_state.command_state = SpdmCommandState::GettingCertificate(
+                    GettingCertificateSubstate::VerifyingCertificateChain,
+                );
             }
-        }
-        if total_size == 0 {
-            self.common.peer_info.peer_cert_chain_temp = None;
-            return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let result = self.verify_spdm_certificate_chain();
-        if result.is_ok() {
-            self.common.peer_info.peer_cert_chain[slot_id as usize]
-                .clone_from(&self.common.peer_info.peer_cert_chain_temp);
+        if matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::GettingCertificate(
+                GettingCertificateSubstate::VerifyingCertificateChain,
+            ),
+        ) {
+            let result = self.verify_spdm_certificate_chain();
+            if result.is_ok() {
+                self.common.peer_info.peer_cert_chain[slot_id as usize]
+                    .clone_from(&self.common.peer_info.peer_cert_chain_temp);
+            }
+            self.common.peer_info.peer_cert_chain_temp = None;
+
+            // Clear command state on completion
+            self.exec_state.command_state = SpdmCommandState::Idle;
+            self.exec_state.state_data = 0;
+
+            return result;
         }
-        self.common.peer_info.peer_cert_chain_temp = None;
-        result
+
+        Err(SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn verify_spdm_certificate_chain(&mut self) -> SpdmResult {

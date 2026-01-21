@@ -261,6 +261,7 @@ fn test_handle_spdm_certificate_partial_response() {
                 tc.offset,
                 tc.length,
                 &send_buffer,
+                0,
                 tc.receive_buffer,
             );
             assert!(
