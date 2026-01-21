@@ -11,16 +11,290 @@ use crate::error::*;
 #[cfg(any(feature = "chunk-cap", feature = "mut-auth"))]
 use crate::message::*;
 use crate::protocol::*;
-
-#[cfg(feature = "chunk-cap")]
 use codec::{Codec, Reader, Writer};
-use spin::Mutex;
+use core::ops::DerefMut;
 extern crate alloc;
 use alloc::sync::Arc;
-use core::ops::DerefMut;
+use spin::Mutex;
+
+/// Substate for KEY_UPDATE command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyUpdateSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+    KeyVerificationSend = 3,
+    KeyVerificationReceive = 4,
+}
+
+/// Substate for HEARTBEAT command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeartbeatSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for END_SESSION command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EndSessionSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for START_SESSION (FINISH) command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinishingSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for NEGOTIATE_ALGORITHMS command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NegotiateAlgorithmsSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for GET_VERSION command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GettingVersionSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for GET_CAPABILITIES command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GettingCapabilitiesSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for INIT_CONNECTION (GET_VERSION, GET_CAPABILITIES, NEGOTIATE_ALGORITHMS)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InitConnectionSubstate {
+    Init = 0,
+    SpdmVersion = 1,
+    SpdmCapability = 2,
+    SpdmAlgorithm = 3,
+}
+
+/// Substate for GET_CERTIFICATE command (can have multiple portions)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GettingCertificateSubstate {
+    Init = 0,
+    Retrieving = 1,                // Normal certificate retrieval in progress
+    RetrievingResume = 2,          // Resuming from receive phase (request already sent)
+    VerifyingCertificateChain = 3, // Certificate chain verification in progress
+}
+
+/// Substate for GET_MEASUREMENTS command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GettingMeasurementsSubstate {
+    Init = 0,
+    Measuring = 1,       // Normal measurement retrieval in progress
+    MeasuringResume = 2, // Resuming from receive phase (request already sent)
+}
+
+/// Common state tracking for SPDM command checkpointing
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpdmCommandState {
+    Idle,
+    KeyUpdating(KeyUpdateSubstate),
+    Heartbeating(HeartbeatSubstate),
+    EndingSession(EndSessionSubstate),
+    Finishing(FinishingSubstate),
+    NegotiatingAlgorithms(NegotiateAlgorithmsSubstate),
+    GettingCapabilities(GettingCapabilitiesSubstate),
+    GettingVersion(GettingVersionSubstate),
+    InitializingConnection(InitConnectionSubstate),
+    GettingCertificate(GettingCertificateSubstate),
+    GettingMeasurements(GettingMeasurementsSubstate),
+}
+
+impl SpdmCommandState {
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            SpdmCommandState::Idle => 0,
+            SpdmCommandState::KeyUpdating(substate) => 0x10 | (*substate as u8),
+            SpdmCommandState::Heartbeating(substate) => 0x20 | (*substate as u8),
+            SpdmCommandState::EndingSession(substate) => 0x30 | (*substate as u8),
+            SpdmCommandState::Finishing(substate) => 0x40 | (*substate as u8),
+            SpdmCommandState::NegotiatingAlgorithms(substate) => 0x50 | (*substate as u8),
+            SpdmCommandState::GettingCapabilities(substate) => 0x60 | (*substate as u8),
+            SpdmCommandState::GettingVersion(substate) => 0x70 | (*substate as u8),
+            SpdmCommandState::InitializingConnection(substate) => 0x80 | (*substate as u8),
+            SpdmCommandState::GettingCertificate(substate) => 0x90 | (*substate as u8),
+            SpdmCommandState::GettingMeasurements(substate) => 0xA0 | (*substate as u8),
+        }
+    }
+
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(SpdmCommandState::Idle),
+            0x10 => Some(SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Init)),
+            0x11 => Some(SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Send)),
+            0x12 => Some(SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Receive)),
+            0x13 => Some(SpdmCommandState::KeyUpdating(
+                KeyUpdateSubstate::KeyVerificationSend,
+            )),
+            0x14 => Some(SpdmCommandState::KeyUpdating(
+                KeyUpdateSubstate::KeyVerificationReceive,
+            )),
+            0x20 => Some(SpdmCommandState::Heartbeating(HeartbeatSubstate::Init)),
+            0x21 => Some(SpdmCommandState::Heartbeating(HeartbeatSubstate::Send)),
+            0x22 => Some(SpdmCommandState::Heartbeating(HeartbeatSubstate::Receive)),
+            0x30 => Some(SpdmCommandState::EndingSession(EndSessionSubstate::Init)),
+            0x31 => Some(SpdmCommandState::EndingSession(EndSessionSubstate::Send)),
+            0x32 => Some(SpdmCommandState::EndingSession(EndSessionSubstate::Receive)),
+            0x40 => Some(SpdmCommandState::Finishing(FinishingSubstate::Init)),
+            0x41 => Some(SpdmCommandState::Finishing(FinishingSubstate::Send)),
+            0x42 => Some(SpdmCommandState::Finishing(FinishingSubstate::Receive)),
+            0x50 => Some(SpdmCommandState::NegotiatingAlgorithms(
+                NegotiateAlgorithmsSubstate::Init,
+            )),
+            0x51 => Some(SpdmCommandState::NegotiatingAlgorithms(
+                NegotiateAlgorithmsSubstate::Send,
+            )),
+            0x52 => Some(SpdmCommandState::NegotiatingAlgorithms(
+                NegotiateAlgorithmsSubstate::Receive,
+            )),
+            0x60 => Some(SpdmCommandState::GettingCapabilities(
+                GettingCapabilitiesSubstate::Init,
+            )),
+            0x61 => Some(SpdmCommandState::GettingCapabilities(
+                GettingCapabilitiesSubstate::Send,
+            )),
+            0x62 => Some(SpdmCommandState::GettingCapabilities(
+                GettingCapabilitiesSubstate::Receive,
+            )),
+            0x70 => Some(SpdmCommandState::GettingVersion(
+                GettingVersionSubstate::Init,
+            )),
+            0x71 => Some(SpdmCommandState::GettingVersion(
+                GettingVersionSubstate::Send,
+            )),
+            0x72 => Some(SpdmCommandState::GettingVersion(
+                GettingVersionSubstate::Receive,
+            )),
+            0x80 => Some(SpdmCommandState::InitializingConnection(
+                InitConnectionSubstate::Init,
+            )),
+            0x81 => Some(SpdmCommandState::InitializingConnection(
+                InitConnectionSubstate::SpdmVersion,
+            )),
+            0x82 => Some(SpdmCommandState::InitializingConnection(
+                InitConnectionSubstate::SpdmCapability,
+            )),
+            0x83 => Some(SpdmCommandState::InitializingConnection(
+                InitConnectionSubstate::SpdmAlgorithm,
+            )),
+            0x90 => Some(SpdmCommandState::GettingCertificate(
+                GettingCertificateSubstate::Init,
+            )),
+            0x91 => Some(SpdmCommandState::GettingCertificate(
+                GettingCertificateSubstate::Retrieving,
+            )),
+            0x92 => Some(SpdmCommandState::GettingCertificate(
+                GettingCertificateSubstate::RetrievingResume,
+            )),
+            0x93 => Some(SpdmCommandState::GettingCertificate(
+                GettingCertificateSubstate::VerifyingCertificateChain,
+            )),
+            0xA0 => Some(SpdmCommandState::GettingMeasurements(
+                GettingMeasurementsSubstate::Init,
+            )),
+            0xA1 => Some(SpdmCommandState::GettingMeasurements(
+                GettingMeasurementsSubstate::Measuring,
+            )),
+            0xA2 => Some(SpdmCommandState::GettingMeasurements(
+                GettingMeasurementsSubstate::MeasuringResume,
+            )),
+            _ => None,
+        }
+    }
+}
+
+impl Codec for SpdmCommandState {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        self.as_u8().encode(bytes)
+    }
+
+    fn read(r: &mut Reader) -> Option<Self> {
+        let value = u8::read(r)?;
+        Self::from_u8(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct CommandExecutionState {
+    pub command_state: SpdmCommandState,
+    pub send_buffer: Arc<Mutex<([u8; config::MAX_SPDM_MSG_SIZE], usize)>>,
+    pub state_data: u64,
+}
+
+impl CommandExecutionState {
+    pub fn new() -> Self {
+        CommandExecutionState {
+            command_state: SpdmCommandState::Idle,
+            send_buffer: Arc::new(Mutex::new(([0u8; config::MAX_SPDM_MSG_SIZE], 0))),
+            state_data: 0,
+        }
+    }
+}
+
+impl Codec for CommandExecutionState {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut cnt = 0usize;
+
+        cnt += self.command_state.encode(bytes)?;
+
+        let guard = self.send_buffer.lock();
+        let buffer_size = guard.1 as u16;
+        cnt += buffer_size.encode(bytes)?;
+
+        for i in 0..buffer_size as usize {
+            cnt += guard.0[i].encode(bytes)?;
+        }
+
+        cnt += self.state_data.encode(bytes)?;
+
+        Ok(cnt)
+    }
+
+    fn read(r: &mut Reader) -> Option<Self> {
+        let command_state = SpdmCommandState::read(r)?;
+
+        let buffer_size = u16::read(r)? as usize;
+
+        if buffer_size > config::MAX_SPDM_MSG_SIZE {
+            return None;
+        }
+
+        let mut buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        for i in 0..buffer_size {
+            buffer[i] = u8::read(r)?;
+        }
+
+        let state_data = u64::read(r)?;
+
+        Some(CommandExecutionState {
+            command_state,
+            send_buffer: Arc::new(Mutex::new((buffer, buffer_size))),
+            state_data,
+        })
+    }
+}
 
 pub struct RequesterContext {
     pub common: common::SpdmContext,
+    pub exec_state: CommandExecutionState,
 }
 
 impl RequesterContext {
@@ -37,7 +311,17 @@ impl RequesterContext {
                 config_info,
                 provision_info,
             ),
+            exec_state: CommandExecutionState::new(),
         }
+    }
+
+    /// Get a copy of the send buffer data without holding the lock across await points.
+    /// Returns (buffer_copy, used_length)
+    pub fn get_send_buffer_copy(&self) -> ([u8; config::MAX_SPDM_MSG_SIZE], usize) {
+        let guard = self.exec_state.send_buffer.lock();
+        let mut temp = [0u8; config::MAX_SPDM_MSG_SIZE];
+        temp[..guard.1].copy_from_slice(&guard.0[..guard.1]);
+        (temp, guard.1)
     }
 
     #[maybe_async::maybe_async]
@@ -45,12 +329,73 @@ impl RequesterContext {
         &mut self,
         transcript_vca: &mut Option<ManagedBufferA>,
     ) -> SpdmResult {
-        *transcript_vca = None;
-        self.send_receive_spdm_version().await?;
-        self.send_receive_spdm_capability().await?;
-        self.send_receive_spdm_algorithm().await?;
-        *transcript_vca = Some(self.common.runtime_info.message_a.clone());
-        Ok(())
+        use InitConnectionSubstate::*;
+
+        let current_state = self.exec_state.command_state;
+        debug!("init_connection - current state: {:?}\n", current_state);
+
+        match current_state {
+            SpdmCommandState::Idle => {
+                *transcript_vca = None;
+                self.exec_state.command_state = SpdmCommandState::InitializingConnection(Init);
+            }
+            SpdmCommandState::InitializingConnection(_)
+            | SpdmCommandState::GettingVersion(_)
+            | SpdmCommandState::GettingCapabilities(_)
+            | SpdmCommandState::NegotiatingAlgorithms(_) => {
+                // Continue from checkpoint
+                debug!("Resuming init_connection from checkpoint\n");
+            }
+            _ => {
+                error!("Invalid state transition for init_connection\n");
+                return Err(SPDM_STATUS_INVALID_STATE_LOCAL);
+            }
+        }
+
+        // GET_VERSION phase
+        if matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::InitializingConnection(Init) | SpdmCommandState::GettingVersion(_)
+        ) {
+            debug!("init_connection: GET_VERSION phase\n");
+            self.send_receive_spdm_version().await?;
+            self.exec_state.command_state = SpdmCommandState::InitializingConnection(SpdmVersion);
+        }
+
+        // GET_CAPABILITIES phase
+        if matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::InitializingConnection(SpdmVersion)
+                | SpdmCommandState::GettingCapabilities(_)
+        ) {
+            debug!("init_connection: GET_CAPABILITIES phase\n");
+            self.send_receive_spdm_capability().await?;
+            self.exec_state.command_state =
+                SpdmCommandState::InitializingConnection(SpdmCapability);
+        }
+
+        // NEGOTIATE_ALGORITHMS phase
+        if matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::InitializingConnection(SpdmCapability)
+                | SpdmCommandState::NegotiatingAlgorithms(_)
+        ) {
+            debug!("init_connection: NEGOTIATE_ALGORITHMS phase\n");
+            self.send_receive_spdm_algorithm().await?;
+            self.exec_state.command_state = SpdmCommandState::InitializingConnection(SpdmAlgorithm);
+        }
+
+        // Complete
+        if matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::InitializingConnection(SpdmAlgorithm)
+        ) {
+            *transcript_vca = Some(self.common.runtime_info.message_a.clone());
+            self.exec_state.command_state = SpdmCommandState::Idle;
+            return Ok(());
+        }
+
+        Err(SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     #[maybe_async::maybe_async]

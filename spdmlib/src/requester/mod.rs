@@ -31,7 +31,7 @@ mod psk_exchange_req;
 mod psk_finish_req;
 mod vendor_req;
 
-pub use context::RequesterContext;
+pub use context::{CommandExecutionState, RequesterContext, SpdmCommandState};
 
 use crate::common::*;
 use crate::config;
