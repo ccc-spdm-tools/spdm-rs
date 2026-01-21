@@ -1,0 +1,76 @@
+From 5775069508fc581967685bbaeed7eabf85fc7f42 Mon Sep 17 00:00:00 2001
+From: Stanislaw Grams <stanislaw.grams@intel.com>
+Date: Mon, 24 Nov 2025 15:22:56 +0100
+Subject: [PATCH] src/x509.rs: add skip-unsupported-critical-extensions-check feature
+
+This patch adds "skip-unsupported-critical-extensions-check" feature, which
+skips unsupported critical extensions check within x509 certificate
+constructor methods.
+
+Signed-off-by: Stanislaw Grams <stanislaw.grams@intel.com>
+---
+ Cargo.toml  |  1 +
+ src/x509.rs | 17 ++++++++++++++---
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index de6fe41..8ccf034 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -77,6 +77,7 @@ aws-lc-rs = ["dep:aws-lc-rs", "aws-lc-rs/aws-lc-sys", "aws-lc-rs/prebuilt-nasm"]
+ aws-lc-rs-fips = ["dep:aws-lc-rs", "aws-lc-rs/fips"]
+ ring = ["dep:ring"]
+ std = ["alloc", "pki-types/std"]
++skip-unsupported-critical-extensions-check = []
+ 
+ [dependencies]
+ aws-lc-rs = { version = "1.14", optional = true, default-features = false }
+diff --git a/src/x509.rs b/src/x509.rs
+index 87b219a..306b016 100644
+--- a/src/x509.rs
++++ b/src/x509.rs
+@@ -17,6 +17,7 @@ use crate::error::{DerTypeId, Error};
+ use crate::subject_name::GeneralName;
+ 
+ pub(crate) struct Extension<'a> {
++    #[cfg(not(feature = "skip-unsupported-critical-extensions-check"))]
+     pub(crate) critical: bool,
+     pub(crate) id: untrusted::Input<'a>,
+     pub(crate) value: untrusted::Input<'a>,
+@@ -24,9 +25,17 @@ pub(crate) struct Extension<'a> {
+ 
+ impl Extension<'_> {
+     pub(crate) fn unsupported(&self) -> Result<(), Error> {
+-        match self.critical {
+-            true => Err(Error::UnsupportedCriticalExtension),
+-            false => Ok(()),
++        #[cfg(not(feature = "skip-unsupported-critical-extensions-check"))]
++        {
++            if self.critical {
++                return Err(Error::UnsupportedCriticalExtension);
++            } else {
++                return Ok(());
++            }
++        }
++        #[cfg(feature = "skip-unsupported-critical-extensions-check")]
++        {
++            Ok(())
+         }
+     }
+ }
+@@ -34,10 +43,12 @@ impl Extension<'_> {
+ impl<'a> FromDer<'a> for Extension<'a> {
+     fn from_der(reader: &mut untrusted::Reader<'a>) -> Result<Self, Error> {
+         let id = der::expect_tag(reader, der::Tag::OID)?;
++        #[allow(unused_variables)]
+         let critical = bool::from_der(reader)?;
+         let value = der::expect_tag(reader, der::Tag::OctetString)?;
+         Ok(Extension {
+             id,
++            #[cfg(not(feature = "skip-unsupported-critical-extensions-check"))]
+             critical,
+             value,
+         })
+-- 
+2.52.0
+
