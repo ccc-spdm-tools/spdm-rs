@@ -75,6 +75,8 @@ pub mod hash {
         use super::{SpdmBaseHashAlgo, SpdmDigestStruct, CRYPTO_HASH};
         use crate::error::SpdmResult;
         use codec::Codec;
+        extern crate alloc;
+
         #[derive(Ord, PartialEq, PartialOrd, Eq, Debug, Default)]
         pub struct SpdmHashCtx(usize);
 
@@ -94,12 +96,55 @@ pub mod hash {
 
         impl Codec for SpdmHashCtx {
             fn encode(&self, writer: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
+                #[cfg(feature = "spdm-ring")]
+                {
+                    use crate::crypto::spdm_ring::hash_impl::hash_ext::hash_ctx_export;
+
+                    if let Some(state) = hash_ctx_export(self.0) {
+                        let algo_bits = state.algo.bits();
+                        algo_bits.encode(writer)?;
+
+                        let len = state.replay_buffer.len() as u32;
+                        len.encode(writer)?;
+                        writer
+                            .extend_from_slice(&state.replay_buffer)
+                            .ok_or(codec::EncodeErr)?;
+
+                        return Ok(4 + 4 + state.replay_buffer.len());
+                    }
+                }
+
                 (self.0 as u64).encode(writer)
             }
 
             fn read(reader: &mut codec::Reader) -> Option<Self> {
-                let handle = u64::read(reader)? as usize;
-                Some(SpdmHashCtx(handle))
+                #[cfg(feature = "spdm-ring")]
+                {
+                    use crate::crypto::spdm_ring::hash_impl::hash_ext::{
+                        hash_ctx_import, HashCtxState,
+                    };
+                    use crate::protocol::SpdmBaseHashAlgo;
+
+                    let algo_bits = u32::read(reader)?;
+                    let algo = SpdmBaseHashAlgo::from_bits(algo_bits)?;
+
+                    let len = u32::read(reader)? as usize;
+                    let mut replay_buffer = alloc::vec::Vec::with_capacity(len);
+                    for _ in 0..len {
+                        let byte = u8::read(reader)?;
+                        replay_buffer.push(byte);
+                    }
+
+                    let state = HashCtxState {
+                        algo,
+                        replay_buffer,
+                    };
+
+                    let handle = hash_ctx_import(&state)?;
+                    SpdmHashCtx(handle);
+                }
+
+                None
             }
         }
 
@@ -118,6 +163,23 @@ pub mod hash {
                 .try_get_or_init(|| DEFAULT.clone())
                 .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .hash_ctx_update_cb)(ctx.0, data)
+        }
+
+        /// Clear replay buffer to free memory when checkpointing is no longer needed
+        /// This should be called after the hash context has been successfully serialized
+        /// or when the transcript is no longer needed for checkpointing
+        pub fn hash_ctx_clear_replay_buffer(ctx: &SpdmHashCtx) -> SpdmResult {
+            #[cfg(feature = "spdm-ring")]
+            {
+                use crate::crypto::spdm_ring::hash_impl::hash_ext::hash_ctx_clear_replay_buffer;
+                hash_ctx_clear_replay_buffer(ctx.0)
+            }
+
+            #[cfg(not(feature = "spdm-ring"))]
+            {
+                // No-op for non-ring implementations that don't use replay buffer
+                Ok(())
+            }
         }
 
         pub fn hash_ctx_finalize(mut ctx: SpdmHashCtx) -> Option<SpdmDigestStruct> {
@@ -148,7 +210,8 @@ pub mod hash {
 
     #[cfg(feature = "hashed-transcript-data")]
     pub use self::hash_ext::{
-        hash_ctx_dup, hash_ctx_finalize, hash_ctx_init, hash_ctx_update, SpdmHashCtx,
+        hash_ctx_clear_replay_buffer, hash_ctx_dup, hash_ctx_finalize, hash_ctx_init,
+        hash_ctx_update, SpdmHashCtx,
     };
 }
 

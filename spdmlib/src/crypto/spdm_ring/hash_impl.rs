@@ -33,41 +33,105 @@ fn hash_all(base_hash_algo: SpdmBaseHashAlgo, data: &[u8]) -> Option<SpdmDigestS
 }
 
 #[cfg(feature = "hashed-transcript-data")]
-mod hash_ext {
+pub mod hash_ext {
     use super::*;
     use alloc::boxed::Box;
     use alloc::collections::BTreeMap;
+    use alloc::vec::Vec;
     use lazy_static::lazy_static;
     use spin::Mutex;
 
     pub type HashCtxConcrete = ring::digest::Context;
 
+    struct HashCtxWithReplay {
+        ctx: HashCtxConcrete,
+        replay_buffer: Vec<u8>,
+        algo: SpdmBaseHashAlgo,
+    }
+
     lazy_static! {
-        static ref HASH_CTX_TABLE: Mutex<BTreeMap<usize, Box<HashCtxConcrete>>> =
+        static ref HASH_CTX_TABLE: Mutex<BTreeMap<usize, Box<HashCtxWithReplay>>> =
             Mutex::new(BTreeMap::new());
     }
     use crate::error::{SpdmResult, SPDM_STATUS_CRYPTO_ERROR};
 
+    #[derive(Debug, Clone)]
+    pub struct HashCtxState {
+        pub algo: SpdmBaseHashAlgo,
+        pub replay_buffer: Vec<u8>,
+    }
+
+    pub fn hash_ctx_export(handle: usize) -> Option<HashCtxState> {
+        let table = HASH_CTX_TABLE.lock();
+        let ctx_with_replay = table.get(&handle)?;
+
+        Some(HashCtxState {
+            algo: ctx_with_replay.algo,
+            replay_buffer: ctx_with_replay.replay_buffer.clone(),
+        })
+    }
+
+    pub fn hash_ctx_import(state: &HashCtxState) -> Option<usize> {
+        let algorithm = match state.algo {
+            SpdmBaseHashAlgo::TPM_ALG_SHA_256 => &ring::digest::SHA256,
+            SpdmBaseHashAlgo::TPM_ALG_SHA_384 => &ring::digest::SHA384,
+            SpdmBaseHashAlgo::TPM_ALG_SHA_512 => &ring::digest::SHA512,
+            _ => return None,
+        };
+
+        let mut ctx = HashCtxConcrete::new(algorithm);
+        ctx.update(&state.replay_buffer);
+
+        let ctx_with_replay = Box::new(HashCtxWithReplay {
+            ctx,
+            replay_buffer: state.replay_buffer.clone(),
+            algo: state.algo,
+        });
+
+        Some(insert_to_table(ctx_with_replay))
+    }
+
     pub fn hash_ctx_update(handle: usize, data: &[u8]) -> SpdmResult {
         let mut table = HASH_CTX_TABLE.lock();
-        let ctx = table.get_mut(&handle).ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
-        ctx.update(data);
+        let ctx_with_replay = table.get_mut(&handle).ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+
+        ctx_with_replay.ctx.update(data);
+        ctx_with_replay.replay_buffer.extend_from_slice(data);
+
+        Ok(())
+    }
+
+    pub fn hash_ctx_clear_replay_buffer(handle: usize) -> SpdmResult {
+        let mut table = HASH_CTX_TABLE.lock();
+        let ctx_with_replay = table.get_mut(&handle).ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+
+        ctx_with_replay.replay_buffer.clear();
+        ctx_with_replay.replay_buffer.shrink_to_fit();
+
         Ok(())
     }
 
     pub fn hash_ctx_finalize(handle: usize) -> Option<SpdmDigestStruct> {
-        let ctx = HASH_CTX_TABLE.lock().remove(&handle)?;
-        let digest_value = ctx.finish();
+        let mut ctx_with_replay = HASH_CTX_TABLE.lock().remove(&handle)?;
+
+        ctx_with_replay.replay_buffer.clear();
+        ctx_with_replay.replay_buffer.shrink_to_fit();
+
+        let digest_value = ctx_with_replay.ctx.finish();
         Some(SpdmDigestStruct::from(digest_value.as_ref()))
     }
 
     pub fn hash_ctx_dup(handle: usize) -> Option<usize> {
-        let ctx_new = {
+        let ctx_with_replay_new = {
             let table = HASH_CTX_TABLE.lock();
-            let ctx = table.get(&handle)?;
-            ctx.clone()
+            let ctx_with_replay = table.get(&handle)?;
+            Box::new(HashCtxWithReplay {
+                ctx: ctx_with_replay.ctx.clone(),
+                replay_buffer: ctx_with_replay.replay_buffer.clone(),
+                algo: ctx_with_replay.algo,
+            })
         };
-        let new_handle = insert_to_table(ctx_new);
+        let new_handle = insert_to_table(ctx_with_replay_new);
         Some(new_handle)
     }
 
@@ -78,12 +142,16 @@ mod hash_ext {
             SpdmBaseHashAlgo::TPM_ALG_SHA_512 => &ring::digest::SHA512,
             _ => return None,
         };
-        let ctx = Box::new(HashCtxConcrete::new(algorithm));
-        Some(insert_to_table(ctx))
+        let ctx_with_replay = Box::new(HashCtxWithReplay {
+            ctx: HashCtxConcrete::new(algorithm),
+            replay_buffer: Vec::new(),
+            algo: base_hash_algo,
+        });
+        Some(insert_to_table(ctx_with_replay))
     }
 
-    fn insert_to_table(value: Box<HashCtxConcrete>) -> usize {
-        let handle_ptr: *const HashCtxConcrete = &*value;
+    fn insert_to_table(value: Box<HashCtxWithReplay>) -> usize {
+        let handle_ptr: *const HashCtxWithReplay = &*value;
         let handle = handle_ptr as usize;
         HASH_CTX_TABLE.lock().insert(handle, value);
         handle
