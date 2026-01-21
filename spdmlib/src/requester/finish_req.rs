@@ -39,6 +39,8 @@ impl RequesterContext {
         req_slot_id: Option<u8>,
         session_id: u32,
     ) -> SpdmResult {
+        use crate::requester::context::{FinishingSubstate, SpdmCommandState};
+
         let in_clear_text = self
             .common
             .negotiate_info
@@ -71,58 +73,74 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestFinish,
-            Some(session_id),
-        );
-
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = self.encode_spdm_finish(session_id, req_slot_id, &mut send_buffer);
-        if res.is_err() {
-            self.common
-                .get_session_via_id(session_id)
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
-                .teardown();
-            return Err(res.err().unwrap());
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state = SpdmCommandState::Finishing(FinishingSubstate::Init);
         }
-        let send_used = res.unwrap();
-        let res = if in_clear_text {
-            self.send_message(None, &send_buffer[..send_used], false)
-                .await
-        } else {
-            self.send_message(Some(session_id), &send_buffer[..send_used], false)
-                .await
-        };
-        if res.is_err() {
-            self.common
-                .get_session_via_id(session_id)
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
-                .teardown();
+
+        if self.exec_state.command_state == SpdmCommandState::Finishing(FinishingSubstate::Init) {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestFinish,
+                Some(session_id),
+            );
+
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let res = self.encode_spdm_finish(session_id, req_slot_id, &mut send_buffer);
+            if res.is_err() {
+                self.common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
+                    .teardown();
+                return Err(res.err().unwrap());
+            }
+            let send_used = res.unwrap();
+
+            self.exec_state.command_state = SpdmCommandState::Finishing(FinishingSubstate::Receive);
+
+            let res = if in_clear_text {
+                self.send_message(None, &send_buffer[..send_used], false)
+                    .await
+            } else {
+                self.send_message(Some(session_id), &send_buffer[..send_used], false)
+                    .await
+            };
+            if res.is_err() {
+                self.common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
+                    .teardown();
+                return res;
+            }
+        }
+
+        if self.exec_state.command_state == SpdmCommandState::Finishing(FinishingSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let res = if in_clear_text {
+                self.receive_message(None, &mut receive_buffer, false).await
+            } else {
+                self.receive_message(Some(session_id), &mut receive_buffer, false)
+                    .await
+            };
+            if res.is_err() {
+                self.common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
+                    .teardown();
+                return Err(res.err().unwrap());
+            }
+            let receive_used = res.unwrap();
+            let res = self.handle_spdm_finish_response(session_id, &receive_buffer[..receive_used]);
+            if res.is_err() {
+                if let Some(session) = self.common.get_session_via_id(session_id) {
+                    session.teardown();
+                }
+            } else {
+                self.exec_state.command_state = SpdmCommandState::Idle;
+            }
             return res;
         }
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = if in_clear_text {
-            self.receive_message(None, &mut receive_buffer, false).await
-        } else {
-            self.receive_message(Some(session_id), &mut receive_buffer, false)
-                .await
-        };
-        if res.is_err() {
-            self.common
-                .get_session_via_id(session_id)
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
-                .teardown();
-            return Err(res.err().unwrap());
-        }
-        let receive_used = res.unwrap();
-        let res = self.handle_spdm_finish_response(session_id, &receive_buffer[..receive_used]);
-        if res.is_err() {
-            if let Some(session) = self.common.get_session_via_id(session_id) {
-                session.teardown();
-            }
-        }
-        res
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_finish(
