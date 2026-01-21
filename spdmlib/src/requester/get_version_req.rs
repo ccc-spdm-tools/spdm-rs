@@ -12,22 +12,62 @@ use crate::requester::*;
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_version(&mut self) -> SpdmResult {
-        // reset context on get version request
-        self.common.reset_context();
+        use crate::requester::context::{GettingVersionSubstate, SpdmCommandState};
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_version(&mut send_buffer)?;
-        self.send_message(None, &send_buffer[..send_used], false)
-            .await?;
+        if !matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::GettingVersion(_)
+        ) {
+            // reset context on get version request
+            self.common.reset_context();
+            self.exec_state.command_state =
+                SpdmCommandState::GettingVersion(GettingVersionSubstate::Init);
+        }
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(None, &mut receive_buffer, false)
-            .await?;
-        self.handle_spdm_version_response(0, &send_buffer[..send_used], &receive_buffer[..used])
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingVersion(GettingVersionSubstate::Init)
+        {
+            self.encode_spdm_version()?;
+            self.exec_state.command_state =
+                SpdmCommandState::GettingVersion(GettingVersionSubstate::Send);
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingVersion(GettingVersionSubstate::Send)
+        {
+            self.exec_state.command_state =
+                SpdmCommandState::GettingVersion(GettingVersionSubstate::Receive);
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.send_message(None, &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingVersion(GettingVersionSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(None, &mut receive_buffer, false)
+                .await?;
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            let result = self.handle_spdm_version_response(
+                0,
+                &send_data[..send_len],
+                &receive_buffer[..used],
+            );
+
+            self.exec_state.command_state = SpdmCommandState::Idle;
+            return result;
+        }
+
+        unreachable!("Invalid state in send_receive_spdm_version")
     }
 
-    pub fn encode_spdm_version(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
+    pub fn encode_spdm_version(&mut self) -> SpdmResult {
+        let mut guard = self.exec_state.send_buffer.lock();
+        let buf = &mut guard.0;
         let mut writer = Writer::init(buf);
         let request = SpdmMessage {
             header: SpdmMessageHeader {
@@ -36,7 +76,9 @@ impl RequesterContext {
             },
             payload: SpdmMessagePayload::SpdmGetVersionRequest(SpdmGetVersionRequestPayload {}),
         };
-        request.spdm_encode(&mut self.common, &mut writer)
+        let used = request.spdm_encode(&mut self.common, &mut writer)?;
+        guard.1 = used;
+        Ok(())
     }
 
     pub fn handle_spdm_version_response(

@@ -12,23 +12,46 @@ use crate::requester::*;
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_end_session(&mut self, session_id: u32) -> SpdmResult {
+        use crate::requester::context::{EndSessionSubstate, SpdmCommandState};
+
         info!("send spdm end_session\n");
 
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestEndSession,
-            Some(session_id),
-        );
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::EndingSession(EndSessionSubstate::Init);
+        }
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self.encode_spdm_end_session(&mut send_buffer)?;
-        self.send_message(Some(session_id), &send_buffer[..used], false)
-            .await?;
+        if self.exec_state.command_state
+            == SpdmCommandState::EndingSession(EndSessionSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestEndSession,
+                Some(session_id),
+            );
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(Some(session_id), &mut receive_buffer, false)
-            .await?;
-        self.handle_spdm_end_session_response(session_id, &receive_buffer[..used])
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self.encode_spdm_end_session(&mut send_buffer)?;
+            self.exec_state.command_state =
+                SpdmCommandState::EndingSession(EndSessionSubstate::Receive);
+            self.send_message(Some(session_id), &send_buffer[..used], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::EndingSession(EndSessionSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(Some(session_id), &mut receive_buffer, false)
+                .await?;
+
+            let result = self.handle_spdm_end_session_response(session_id, &receive_buffer[..used]);
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            return result;
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_end_session(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {

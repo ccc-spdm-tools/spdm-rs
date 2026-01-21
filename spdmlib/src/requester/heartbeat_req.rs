@@ -9,24 +9,57 @@ use crate::requester::*;
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_heartbeat(&mut self, session_id: u32) -> SpdmResult {
+        use crate::requester::context::{HeartbeatSubstate, SpdmCommandState};
+
         info!("send spdm heartbeat\n");
 
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestHeartbeat,
-            Some(session_id),
-        );
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state = SpdmCommandState::Heartbeating(HeartbeatSubstate::Init);
+        }
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self.encode_spdm_heartbeat(&mut send_buffer)?;
-        self.send_message(Some(session_id), &send_buffer[..used], false)
-            .await?;
+        if self.exec_state.command_state == SpdmCommandState::Heartbeating(HeartbeatSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestHeartbeat,
+                Some(session_id),
+            );
 
-        // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(Some(session_id), &mut receive_buffer, false)
-            .await?;
-        self.handle_spdm_heartbeat_response(session_id, &receive_buffer[..used])
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self.encode_spdm_heartbeat(&mut send_buffer)?;
+
+            {
+                let mut guard = self.exec_state.send_buffer.lock();
+                guard.0[..used].copy_from_slice(&send_buffer[..used]);
+                guard.1 = used;
+            }
+
+            self.exec_state.command_state = SpdmCommandState::Heartbeating(HeartbeatSubstate::Send);
+        }
+
+        if self.exec_state.command_state == SpdmCommandState::Heartbeating(HeartbeatSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::Heartbeating(HeartbeatSubstate::Receive);
+            self.send_message(Some(session_id), &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::Heartbeating(HeartbeatSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(Some(session_id), &mut receive_buffer, false)
+                .await?;
+
+            let result = self.handle_spdm_heartbeat_response(session_id, &receive_buffer[..used]);
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            return result;
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_heartbeat(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {

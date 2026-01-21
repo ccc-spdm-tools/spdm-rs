@@ -13,24 +13,67 @@ use crate::requester::*;
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_algorithm(&mut self) -> SpdmResult {
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms,
-            None,
-        );
+        use crate::requester::context::{NegotiateAlgorithmsSubstate, SpdmCommandState};
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_algorithm(&mut send_buffer)?;
-        self.send_message(None, &send_buffer[..send_used], false)
-            .await?;
+        info!("send_receive_spdm_algorithm\n");
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(None, &mut receive_buffer, false)
-            .await?;
-        self.handle_spdm_algorithm_response(0, &send_buffer[..send_used], &receive_buffer[..used])
+        if !matches!(
+            self.exec_state.command_state,
+            SpdmCommandState::NegotiatingAlgorithms(_)
+        ) {
+            self.exec_state.command_state =
+                SpdmCommandState::NegotiatingAlgorithms(NegotiateAlgorithmsSubstate::Init);
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::NegotiatingAlgorithms(NegotiateAlgorithmsSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms,
+                None,
+            );
+
+            self.encode_spdm_algorithm()?;
+            self.exec_state.command_state =
+                SpdmCommandState::NegotiatingAlgorithms(NegotiateAlgorithmsSubstate::Send);
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::NegotiatingAlgorithms(NegotiateAlgorithmsSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::NegotiatingAlgorithms(NegotiateAlgorithmsSubstate::Receive);
+            self.send_message(None, &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::NegotiatingAlgorithms(NegotiateAlgorithmsSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(None, &mut receive_buffer, false)
+                .await?;
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+
+            self.handle_spdm_algorithm_response(
+                0,
+                &send_data[..send_len],
+                &receive_buffer[..used],
+            )?;
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            return Ok(());
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
-    pub fn encode_spdm_algorithm(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
+    pub fn encode_spdm_algorithm(&mut self) -> SpdmResult {
+        let mut guard = self.exec_state.send_buffer.lock();
+        let buf = &mut guard.0;
         let mut other_params_support = SpdmAlgoOtherParams::empty();
 
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
@@ -135,7 +178,8 @@ impl RequesterContext {
                 },
             ),
         };
-        request.spdm_encode(&mut self.common, &mut writer)
+        guard.1 = request.spdm_encode(&mut self.common, &mut writer)?;
+        Ok(())
     }
 
     pub fn handle_spdm_algorithm_response(
