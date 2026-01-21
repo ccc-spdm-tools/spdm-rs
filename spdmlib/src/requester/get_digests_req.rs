@@ -10,29 +10,68 @@ use crate::requester::*;
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_digest(&mut self, session_id: Option<u32>) -> SpdmResult {
+        use crate::requester::context::{GettingDigestsSubstate, SpdmCommandState};
+
         info!("send spdm digest\n");
 
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestGetDigests,
-            session_id,
-        );
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::GettingDigests(GettingDigestsSubstate::Init);
+        }
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_digest(&mut send_buffer)?;
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingDigests(GettingDigestsSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestGetDigests,
+                session_id,
+            );
 
-        self.send_message(session_id, &send_buffer[..send_used], false)
-            .await?;
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let send_used = self.encode_spdm_digest(&mut send_buffer)?;
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(session_id, &mut receive_buffer, false)
-            .await?;
+            {
+                let mut guard = self.exec_state.send_buffer.lock();
+                guard.0[..send_used].copy_from_slice(&send_buffer[..send_used]);
+                guard.1 = send_used;
+            }
 
-        self.handle_spdm_digest_response(
-            session_id,
-            &send_buffer[..send_used],
-            &receive_buffer[..used],
-        )
+            self.exec_state.command_state =
+                SpdmCommandState::GettingDigests(GettingDigestsSubstate::Send);
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingDigests(GettingDigestsSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::GettingDigests(GettingDigestsSubstate::Receive);
+            self.send_message(session_id, &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::GettingDigests(GettingDigestsSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(session_id, &mut receive_buffer, false)
+                .await?;
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+
+            let result = self.handle_spdm_digest_response(
+                session_id,
+                &send_data[..send_len],
+                &receive_buffer[..used],
+            );
+
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            return result;
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_digest(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
