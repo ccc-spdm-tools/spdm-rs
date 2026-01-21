@@ -21,40 +21,91 @@ impl RequesterContext {
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
         requester_context_struct: Option<SpdmChallengeContextStruct>,
     ) -> SpdmResult {
+        use crate::requester::context::{ChallengingSubstate, SpdmCommandState};
+
         info!("send spdm challenge\n");
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        self.common
-            .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestChallenge, None);
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::Challenging(ChallengingSubstate::Init);
+        }
 
         let requester_context = requester_context_struct.unwrap_or_default();
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_challenge(
-            slot_id,
-            measurement_summary_hash_type,
-            &mut send_buffer,
-            &requester_context,
-        )?;
-        self.send_message(None, &send_buffer[..send_used], false)
-            .await?;
+        if self.exec_state.command_state == SpdmCommandState::Challenging(ChallengingSubstate::Init)
+        {
+            self.common
+                .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestChallenge, None);
 
-        // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(None, &mut receive_buffer, true)
-            .await?;
-        self.handle_spdm_challenge_response(
-            0, // NULL
-            slot_id,
-            measurement_summary_hash_type,
-            requester_context,
-            &send_buffer[..send_used],
-            &receive_buffer[..used],
-        )
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let send_used = self.encode_spdm_challenge(
+                slot_id,
+                measurement_summary_hash_type,
+                &mut send_buffer,
+                &requester_context,
+            )?;
+
+            {
+                let mut guard = self.exec_state.send_buffer.lock();
+                guard.0[..send_used].copy_from_slice(&send_buffer[..send_used]);
+                guard.1 = send_used;
+            }
+
+            // Store parameters for later use
+            self.exec_state.state_data =
+                (slot_id as u64) | ((measurement_summary_hash_type.get_u8() as u64) << 8);
+
+            self.exec_state.command_state =
+                SpdmCommandState::Challenging(ChallengingSubstate::Send);
+        }
+
+        if self.exec_state.command_state == SpdmCommandState::Challenging(ChallengingSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::Challenging(ChallengingSubstate::Receive);
+            self.send_message(None, &send_data[..send_len], false)
+                .await?;
+        }
+
+        if self.exec_state.command_state
+            == SpdmCommandState::Challenging(ChallengingSubstate::Receive)
+        {
+            // Retrieve parameters
+            let slot_id = (self.exec_state.state_data & 0xFF) as u8;
+            let measurement_summary_hash_type = match ((self.exec_state.state_data >> 8) & 0xFF) as u8 {
+                0x0 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                0x1 => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeTcb,
+                0xFF => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeAll,
+                _ => SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+            };
+
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let used = self
+                .receive_message(None, &mut receive_buffer, true)
+                .await?;
+
+            let (send_data, send_len) = self.get_send_buffer_copy();
+
+            let result = self.handle_spdm_challenge_response(
+                0, // NULL
+                slot_id,
+                measurement_summary_hash_type,
+                requester_context,
+                &send_data[..send_len],
+                &receive_buffer[..used],
+            );
+
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            return result;
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_challenge(
