@@ -30,55 +30,95 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn delegate_send_receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
+        use crate::requester::context::{PskFinishingSubstate, SpdmCommandState};
+
         if self.common.get_session_via_id(session_id).is_none() {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestPskFinish,
-            Some(session_id),
-        );
-
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = self.encode_spdm_psk_finish(session_id, &mut send_buffer);
-        if res.is_err() {
-            self.common
-                .get_session_via_id(session_id)
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
-                .teardown();
-            return Err(res.err().unwrap());
-        }
-        let send_used = res.unwrap();
-        let res = self
-            .send_message(Some(session_id), &send_buffer[..send_used], false)
-            .await;
-        if res.is_err() {
-            self.common
-                .get_session_via_id(session_id)
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
-                .teardown();
-            return res;
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state =
+                SpdmCommandState::PskFinishing(PskFinishingSubstate::Init);
         }
 
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = self
-            .receive_message(Some(session_id), &mut receive_buffer, false)
-            .await;
-        if res.is_err() {
-            self.common
-                .get_session_via_id(session_id)
-                .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
-                .teardown();
-            return Err(res.err().unwrap());
+        if self.exec_state.command_state
+            == SpdmCommandState::PskFinishing(PskFinishingSubstate::Init)
+        {
+            self.common.reset_buffer_via_request_code(
+                SpdmRequestResponseCode::SpdmRequestPskFinish,
+                Some(session_id),
+            );
+
+            let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let res = self.encode_spdm_psk_finish(session_id, &mut send_buffer);
+            if res.is_err() {
+                self.common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
+                    .teardown();
+                return Err(res.err().unwrap());
+            }
+            let send_used = res.unwrap();
+
+            {
+                let mut guard = self.exec_state.send_buffer.lock();
+                guard.0[..send_used].copy_from_slice(&send_buffer[..send_used]);
+                guard.1 = send_used;
+            }
+
+            self.exec_state.command_state =
+                SpdmCommandState::PskFinishing(PskFinishingSubstate::Send);
         }
-        let receive_used = res.unwrap();
-        let res = self.handle_spdm_psk_finish_response(session_id, &receive_buffer[..receive_used]);
-        if res.is_err() {
-            if let Some(session) = self.common.get_session_via_id(session_id) {
-                session.teardown();
+
+        if self.exec_state.command_state
+            == SpdmCommandState::PskFinishing(PskFinishingSubstate::Send)
+        {
+            let (send_data, send_len) = self.get_send_buffer_copy();
+            self.exec_state.command_state =
+                SpdmCommandState::PskFinishing(PskFinishingSubstate::Receive);
+
+            let res = self
+                .send_message(Some(session_id), &send_data[..send_len], false)
+                .await;
+            if res.is_err() {
+                self.common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
+                    .teardown();
+                return res;
             }
         }
-        res
+
+        if self.exec_state.command_state
+            == SpdmCommandState::PskFinishing(PskFinishingSubstate::Receive)
+        {
+            let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+            let res = self
+                .receive_message(Some(session_id), &mut receive_buffer, false)
+                .await;
+            if res.is_err() {
+                self.common
+                    .get_session_via_id(session_id)
+                    .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
+                    .teardown();
+                return Err(res.err().unwrap());
+            }
+            let receive_used = res.unwrap();
+
+            let result =
+                self.handle_spdm_psk_finish_response(session_id, &receive_buffer[..receive_used]);
+
+            self.exec_state.command_state = SpdmCommandState::Idle;
+
+            if result.is_err() {
+                if let Some(session) = self.common.get_session_via_id(session_id) {
+                    session.teardown();
+                }
+            }
+            return result;
+        }
+
+        Err(crate::error::SPDM_STATUS_INVALID_STATE_LOCAL)
     }
 
     pub fn encode_spdm_psk_finish(&mut self, session_id: u32, buf: &mut [u8]) -> SpdmResult<usize> {
