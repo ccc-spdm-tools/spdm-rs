@@ -11,40 +11,44 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    async fn send_receive_spdm_key_update_op(
+    async fn send_spdm_key_update_op(
         &mut self,
         session_id: u32,
         key_update_operation: SpdmKeyUpdateOperation,
         tag: u8,
     ) -> SpdmResult {
         info!("send spdm key_update\n");
-
         self.common.reset_buffer_via_request_code(
             SpdmRequestResponseCode::SpdmRequestKeyUpdate,
             Some(session_id),
         );
-
         let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self.encode_spdm_key_update_op(key_update_operation, tag, &mut send_buffer)?;
         self.send_message(Some(session_id), &send_buffer[..used], false)
             .await?;
+        Ok(())
+    }
 
-        // update key
+    #[maybe_async::maybe_async]
+    async fn receive_spdm_key_update_op(
+        &mut self,
+        session_id: u32,
+        key_update_operation: SpdmKeyUpdateOperation,
+    ) -> SpdmResult {
         let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-        let session = if let Some(s) = self.common.get_session_via_id(session_id) {
-            s
-        } else {
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        };
+        let session = self
+            .common
+            .get_session_via_id(session_id)
+            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
         let update_requester = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateSingleKey
             || key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         let update_responder = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         session.create_data_secret_update(spdm_version_sel, update_requester, update_responder)?;
+
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
             .await?;
-
         self.handle_spdm_key_update_op_response(
             session_id,
             update_requester,
@@ -155,13 +159,48 @@ impl RequesterContext {
         {
             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
         }
-        self.send_receive_spdm_key_update_op(session_id, key_update_operation, 1)
-            .await?;
-        self.send_receive_spdm_key_update_op(
-            session_id,
-            SpdmKeyUpdateOperation::SpdmVerifyNewKey,
-            2,
-        )
-        .await
+
+        use crate::requester::context::{KeyUpdateSubstate, SpdmCommandState};
+
+        // Set Init state at start if Idle
+        if self.exec_state.command_state == SpdmCommandState::Idle {
+            self.exec_state.command_state = SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Init);
+        }
+
+        // First phase: KeyUpdate - Send
+        if self.exec_state.command_state == SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Init) {
+            self.exec_state.command_state = SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Send);
+            self.send_spdm_key_update_op(session_id, key_update_operation, 1)
+                .await?;
+        }
+
+        // First phase: KeyUpdate - Receive
+        if self.exec_state.command_state == SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Send) {
+            self.exec_state.command_state =
+                SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Receive);
+            self.receive_spdm_key_update_op(session_id, key_update_operation)
+                .await?;
+        }
+
+        // Second phase: VerifyNewKey - Send
+        if self.exec_state.command_state
+            == SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Receive)
+        {
+            self.exec_state.command_state =
+                SpdmCommandState::KeyUpdating(KeyUpdateSubstate::KeyVerificationSend);
+            self.send_spdm_key_update_op(session_id, SpdmKeyUpdateOperation::SpdmVerifyNewKey, 2)
+                .await?;
+        }
+
+        // Second phase: VerifyNewKey - Receive
+        if self.exec_state.command_state
+            == SpdmCommandState::KeyUpdating(KeyUpdateSubstate::KeyVerificationSend)
+        {
+            self.receive_spdm_key_update_op(session_id, SpdmKeyUpdateOperation::SpdmVerifyNewKey)
+                .await?;
+            self.exec_state.command_state = SpdmCommandState::Idle;
+        }
+
+        Ok(())
     }
 }
