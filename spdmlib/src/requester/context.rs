@@ -109,6 +109,46 @@ pub enum VendorSubstate {
     Receive = 2,
 }
 
+/// Substate for GET_DIGESTS command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GettingDigestsSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for CHALLENGE command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChallengingSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for KEY_EXCHANGE command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyExchangingSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for PSK_EXCHANGE command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PskExchangingSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
+/// Substate for PSK_FINISH command
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PskFinishingSubstate {
+    Init = 0,
+    Send = 1,
+    Receive = 2,
+}
+
 /// Common state tracking for SPDM command checkpointing
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,6 +165,11 @@ pub enum SpdmCommandState {
     GettingCertificate(GettingCertificateSubstate),
     GettingMeasurements(GettingMeasurementsSubstate),
     VendorRequesting(VendorSubstate),
+    GettingDigests(GettingDigestsSubstate),
+    Challenging(ChallengingSubstate),
+    KeyExchanging(KeyExchangingSubstate),
+    PskExchanging(PskExchangingSubstate),
+    PskFinishing(PskFinishingSubstate),
 }
 
 impl SpdmCommandState {
@@ -142,6 +187,11 @@ impl SpdmCommandState {
             SpdmCommandState::GettingCertificate(substate) => 0x90 | (*substate as u16),
             SpdmCommandState::GettingMeasurements(substate) => 0xA0 | (*substate as u16),
             SpdmCommandState::VendorRequesting(substate) => 0xB0 | (*substate as u16),
+            SpdmCommandState::GettingDigests(substate) => 0xC0 | (*substate as u16),
+            SpdmCommandState::Challenging(substate) => 0xD0 | (*substate as u16),
+            SpdmCommandState::KeyExchanging(substate) => 0xE0 | (*substate as u16),
+            SpdmCommandState::PskExchanging(substate) => 0xF0 | (*substate as u16),
+            SpdmCommandState::PskFinishing(substate) => 0x100 | (*substate as u16),
         }
     }
 
@@ -229,6 +279,33 @@ impl SpdmCommandState {
             0xB0 => Some(SpdmCommandState::VendorRequesting(VendorSubstate::Init)),
             0xB1 => Some(SpdmCommandState::VendorRequesting(VendorSubstate::Send)),
             0xB2 => Some(SpdmCommandState::VendorRequesting(VendorSubstate::Receive)),
+            0xC0 => Some(SpdmCommandState::GettingDigests(
+                GettingDigestsSubstate::Init,
+            )),
+            0xC1 => Some(SpdmCommandState::GettingDigests(
+                GettingDigestsSubstate::Send,
+            )),
+            0xC2 => Some(SpdmCommandState::GettingDigests(
+                GettingDigestsSubstate::Receive,
+            )),
+            0xD0 => Some(SpdmCommandState::Challenging(ChallengingSubstate::Init)),
+            0xD1 => Some(SpdmCommandState::Challenging(ChallengingSubstate::Send)),
+            0xD2 => Some(SpdmCommandState::Challenging(ChallengingSubstate::Receive)),
+            0xE0 => Some(SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Init)),
+            0xE1 => Some(SpdmCommandState::KeyExchanging(KeyExchangingSubstate::Send)),
+            0xE2 => Some(SpdmCommandState::KeyExchanging(
+                KeyExchangingSubstate::Receive,
+            )),
+            0xF0 => Some(SpdmCommandState::PskExchanging(PskExchangingSubstate::Init)),
+            0xF1 => Some(SpdmCommandState::PskExchanging(PskExchangingSubstate::Send)),
+            0xF2 => Some(SpdmCommandState::PskExchanging(
+                PskExchangingSubstate::Receive,
+            )),
+            0x100 => Some(SpdmCommandState::PskFinishing(PskFinishingSubstate::Init)),
+            0x101 => Some(SpdmCommandState::PskFinishing(PskFinishingSubstate::Send)),
+            0x102 => Some(SpdmCommandState::PskFinishing(
+                PskFinishingSubstate::Receive,
+            )),
             _ => None,
         }
     }
