@@ -128,24 +128,24 @@ pub enum SpdmCommandState {
 }
 
 impl SpdmCommandState {
-    pub fn as_u8(&self) -> u8 {
+    pub fn as_u16(&self) -> u16 {
         match self {
             SpdmCommandState::Idle => 0,
-            SpdmCommandState::KeyUpdating(substate) => 0x10 | (*substate as u8),
-            SpdmCommandState::Heartbeating(substate) => 0x20 | (*substate as u8),
-            SpdmCommandState::EndingSession(substate) => 0x30 | (*substate as u8),
-            SpdmCommandState::Finishing(substate) => 0x40 | (*substate as u8),
-            SpdmCommandState::NegotiatingAlgorithms(substate) => 0x50 | (*substate as u8),
-            SpdmCommandState::GettingCapabilities(substate) => 0x60 | (*substate as u8),
-            SpdmCommandState::GettingVersion(substate) => 0x70 | (*substate as u8),
-            SpdmCommandState::InitializingConnection(substate) => 0x80 | (*substate as u8),
-            SpdmCommandState::GettingCertificate(substate) => 0x90 | (*substate as u8),
-            SpdmCommandState::GettingMeasurements(substate) => 0xA0 | (*substate as u8),
-            SpdmCommandState::VendorRequesting(substate) => 0xB0 | (*substate as u8),
+            SpdmCommandState::KeyUpdating(substate) => 0x10 | (*substate as u16),
+            SpdmCommandState::Heartbeating(substate) => 0x20 | (*substate as u16),
+            SpdmCommandState::EndingSession(substate) => 0x30 | (*substate as u16),
+            SpdmCommandState::Finishing(substate) => 0x40 | (*substate as u16),
+            SpdmCommandState::NegotiatingAlgorithms(substate) => 0x50 | (*substate as u16),
+            SpdmCommandState::GettingCapabilities(substate) => 0x60 | (*substate as u16),
+            SpdmCommandState::GettingVersion(substate) => 0x70 | (*substate as u16),
+            SpdmCommandState::InitializingConnection(substate) => 0x80 | (*substate as u16),
+            SpdmCommandState::GettingCertificate(substate) => 0x90 | (*substate as u16),
+            SpdmCommandState::GettingMeasurements(substate) => 0xA0 | (*substate as u16),
+            SpdmCommandState::VendorRequesting(substate) => 0xB0 | (*substate as u16),
         }
     }
 
-    pub fn from_u8(value: u8) -> Option<Self> {
+    pub fn from_u16(value: u16) -> Option<Self> {
         match value {
             0 => Some(SpdmCommandState::Idle),
             0x10 => Some(SpdmCommandState::KeyUpdating(KeyUpdateSubstate::Init)),
@@ -236,12 +236,12 @@ impl SpdmCommandState {
 
 impl Codec for SpdmCommandState {
     fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
-        self.as_u8().encode(bytes)
+        self.as_u16().encode(bytes)
     }
 
     fn read(r: &mut Reader) -> Option<Self> {
-        let value = u8::read(r)?;
-        Self::from_u8(value)
+        let value = u16::read(r)?;
+        Self::from_u16(value)
     }
 }
 
