@@ -8,7 +8,7 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_heartbeat(&mut self, session_id: u32) -> SpdmResult {
+    pub async fn send_spdm_heartbeat(&mut self, session_id: u32) -> SpdmResult {
         info!("send spdm heartbeat\n");
 
         self.common.reset_buffer_via_request_code(
@@ -19,14 +19,22 @@ impl RequesterContext {
         let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self.encode_spdm_heartbeat(&mut send_buffer)?;
         self.send_message(Some(session_id), &send_buffer[..used], false)
-            .await?;
+            .await
+    }
 
-        // Receive
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_heartbeat(&mut self, session_id: u32) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
             .await?;
         self.handle_spdm_heartbeat_response(session_id, &receive_buffer[..used])
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_heartbeat(&mut self, session_id: u32) -> SpdmResult {
+        self.send_spdm_heartbeat(session_id).await?;
+        self.receive_spdm_heartbeat(session_id).await
     }
 
     pub fn encode_spdm_heartbeat(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
