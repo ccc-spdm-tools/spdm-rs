@@ -13,6 +13,7 @@ use crate::requester::*;
 impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn send_spdm_algorithm(&mut self, send_buffer: &mut [u8]) -> SpdmResult<usize> {
+        info!("!!! send algorithm !!!");
         self.common.reset_buffer_via_request_code(
             SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms,
             None,
@@ -26,6 +27,7 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn receive_spdm_algorithm(&mut self, send_buffer: &[u8]) -> SpdmResult {
+        info!("!!! receive algorithm !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(None, &mut receive_buffer, false)

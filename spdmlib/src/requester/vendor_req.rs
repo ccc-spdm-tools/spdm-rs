@@ -15,7 +15,7 @@ impl RequesterContext {
         vendor_id_struct: VendorIDStruct,
         req_payload_struct: VendorDefinedReqPayloadStruct,
     ) -> SpdmResult {
-        info!("send vendor defined request\n");
+        info!("!!! send vendor_defined_request !!!");
 
         self.common.reset_buffer_via_request_code(
             SpdmRequestResponseCode::SpdmRequestVendorDefinedRequest,
@@ -48,6 +48,7 @@ impl RequesterContext {
         &mut self,
         session_id: Option<u32>,
     ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
+        info!("!!! receive vendor_defined_request !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let receive_used = self
             .receive_message(session_id, &mut receive_buffer, false)

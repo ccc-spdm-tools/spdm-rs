@@ -14,7 +14,7 @@ impl RequesterContext {
         session_id: Option<u32>,
         send_buffer: &mut [u8],
     ) -> SpdmResult<usize> {
-        info!("send spdm digest\n");
+        info!("!!! send digest !!!");
 
         self.common.reset_buffer_via_request_code(
             SpdmRequestResponseCode::SpdmRequestGetDigests,
@@ -35,6 +35,7 @@ impl RequesterContext {
         session_id: Option<u32>,
         send_buffer: &[u8],
     ) -> SpdmResult {
+        info!("!!! receive digest !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(session_id, &mut receive_buffer, false)

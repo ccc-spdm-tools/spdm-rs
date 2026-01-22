@@ -16,6 +16,7 @@ impl RequesterContext {
         session_id: u32,
         send_buffer: &mut [u8],
     ) -> SpdmResult<usize> {
+        info!("!!! send end_session !!!");
         self.common.reset_buffer_via_request_code(
             SpdmRequestResponseCode::SpdmRequestEndSession,
             Some(session_id),
@@ -29,6 +30,7 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn receive_spdm_end_session(&mut self, session_id: u32) -> SpdmResult {
+        info!("!!! receive end_session !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)

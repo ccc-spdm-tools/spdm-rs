@@ -23,6 +23,7 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn receive_spdm_version(&mut self, send_buffer: &[u8]) -> SpdmResult {
+        info!("!!! receive version !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(None, &mut receive_buffer, false)

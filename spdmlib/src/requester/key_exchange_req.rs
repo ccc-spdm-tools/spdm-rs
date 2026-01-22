@@ -31,7 +31,7 @@ impl RequesterContext {
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
         send_buffer: &mut [u8],
     ) -> SpdmResult<(u16, SpdmReqExchangeContext, usize)> {
-        info!("send spdm key exchange\n");
+        info!("!!! send key_exchange !!!");
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8
             && (slot_id != SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE

@@ -24,7 +24,7 @@ impl RequesterContext {
         psk_hint: Option<&SpdmPskHintStruct>,
         send_buffer: &mut [u8],
     ) -> SpdmResult<(u16, SpdmPskHintStruct, usize)> {
-        info!("send spdm psk exchange\n");
+        info!("!!! send psk_exchange !!!");
 
         let psk_hint = if let Some(hint) = psk_hint {
             hint.clone()
@@ -57,6 +57,7 @@ impl RequesterContext {
         psk_hint: &SpdmPskHintStruct,
         send_buffer: &[u8],
     ) -> SpdmResult<u32> {
+        info!("!!! receive psk_exchange !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let receive_used = self
             .receive_message(None, &mut receive_buffer, false)

@@ -22,6 +22,7 @@ impl RequesterContext {
         requester_context_struct: Option<&SpdmChallengeContextStruct>,
         send_buffer: &mut [u8],
     ) -> SpdmResult<usize> {
+        info!("!!! send challenge !!!");
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
@@ -50,6 +51,7 @@ impl RequesterContext {
         requester_context: SpdmChallengeContextStruct,
         send_buffer: &[u8],
     ) -> SpdmResult {
+        info!("!!! receive challenge !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(None, &mut receive_buffer, true)

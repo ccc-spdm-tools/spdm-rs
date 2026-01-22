@@ -211,7 +211,7 @@ impl RequesterContext {
             *transcript_meas = Some(ManagedBufferM::default());
         }
 
-        info!("send spdm measurement\n");
+        info!("!!! send measurement !!!");
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
@@ -250,6 +250,7 @@ impl RequesterContext {
         transcript_meas: &mut Option<ManagedBufferM>,
         send_buffer: &[u8],
     ) -> SpdmResult {
+        info!("!!! receive measurement !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(session_id, &mut receive_buffer, true)

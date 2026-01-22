@@ -24,6 +24,7 @@ impl RequesterContext {
 
     #[maybe_async::maybe_async]
     pub async fn receive_spdm_heartbeat(&mut self, session_id: u32) -> SpdmResult {
+        info!("!!! receive heartbeat !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)

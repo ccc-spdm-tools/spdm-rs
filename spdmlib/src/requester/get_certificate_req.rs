@@ -21,7 +21,7 @@ impl RequesterContext {
         length: u32,
         send_buffer: &mut [u8],
     ) -> SpdmResult<usize> {
-        info!("send spdm certificate\n");
+        info!("!!! send certificate !!!");
         let send_used =
             self.encode_spdm_certificate_partial(slot_id, offset, length, send_buffer)?;
 
@@ -41,6 +41,7 @@ impl RequesterContext {
         length: u32,
         send_buffer: &[u8],
     ) -> SpdmResult<(u32, u32)> {
+        info!("!!! receive certificate !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(session_id, &mut receive_buffer, false)
