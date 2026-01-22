@@ -18,11 +18,12 @@ use core::ops::DerefMut;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_psk_exchange(
+    pub async fn send_spdm_psk_exchange(
         &mut self,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
         psk_hint: Option<&SpdmPskHintStruct>,
-    ) -> SpdmResult<u32> {
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<(u16, SpdmPskHintStruct, usize)> {
         info!("send spdm psk exchange\n");
 
         let psk_hint = if let Some(hint) = psk_hint {
@@ -34,19 +35,28 @@ impl RequesterContext {
         self.common
             .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestPskExchange, None);
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let half_session_id = self.common.get_next_half_session_id(true)?;
         let send_used = self.encode_spdm_psk_exchange(
             half_session_id,
             measurement_summary_hash_type,
             &psk_hint,
-            &mut send_buffer,
+            send_buffer,
         )?;
 
         self.send_message(None, &send_buffer[..send_used], false)
             .await?;
 
-        // Receive
+        Ok((half_session_id, psk_hint, send_used))
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_psk_exchange(
+        &mut self,
+        half_session_id: u16,
+        measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        psk_hint: &SpdmPskHintStruct,
+        send_buffer: &[u8],
+    ) -> SpdmResult<u32> {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let receive_used = self
             .receive_message(None, &mut receive_buffer, false)
@@ -56,8 +66,8 @@ impl RequesterContext {
         if let Err(e) = self.handle_spdm_psk_exchange_response(
             half_session_id,
             measurement_summary_hash_type,
-            &psk_hint,
-            &send_buffer[..send_used],
+            psk_hint,
+            send_buffer,
             &receive_buffer[..receive_used],
             &mut target_session_id,
         ) {
@@ -71,6 +81,25 @@ impl RequesterContext {
         } else {
             Ok(target_session_id.unwrap())
         }
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_psk_exchange(
+        &mut self,
+        measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        psk_hint: Option<&SpdmPskHintStruct>,
+    ) -> SpdmResult<u32> {
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let (half_session_id, psk_hint, send_used) = self
+            .send_spdm_psk_exchange(measurement_summary_hash_type, psk_hint, &mut send_buffer)
+            .await?;
+        self.receive_spdm_psk_exchange(
+            half_session_id,
+            measurement_summary_hash_type,
+            &psk_hint,
+            &send_buffer[..send_used],
+        )
+        .await
     }
 
     pub fn encode_spdm_psk_exchange(
