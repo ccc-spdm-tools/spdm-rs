@@ -13,22 +13,34 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    async fn send_receive_spdm_certificate_partial(
+    pub async fn send_spdm_certificate(
+        &mut self,
+        session_id: Option<u32>,
+        slot_id: u8,
+        offset: u32,
+        length: u32,
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<usize> {
+        info!("send spdm certificate\n");
+        let send_used =
+            self.encode_spdm_certificate_partial(slot_id, offset, length, send_buffer)?;
+
+        self.send_message(session_id, &send_buffer[..send_used], false)
+            .await?;
+
+        Ok(send_used)
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_certificate(
         &mut self,
         session_id: Option<u32>,
         slot_id: u8,
         total_size: u32,
         offset: u32,
         length: u32,
+        send_buffer: &[u8],
     ) -> SpdmResult<(u32, u32)> {
-        info!("send spdm certificate\n");
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used =
-            self.encode_spdm_certificate_partial(slot_id, offset, length, &mut send_buffer)?;
-
-        self.send_message(session_id, &send_buffer[..send_used], false)
-            .await?;
-
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(session_id, &mut receive_buffer, false)
@@ -40,7 +52,7 @@ impl RequesterContext {
             total_size,
             offset,
             length,
-            &send_buffer[..send_used],
+            send_buffer,
             &receive_buffer[..used],
         )
     }
@@ -192,12 +204,24 @@ impl RequesterContext {
         );
 
         self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         while length != 0 {
+            let send_used = self
+                .send_spdm_certificate(session_id, slot_id, offset, length, &mut send_buffer)
+                .await?;
+
             let (portion_length, remainder_length) = self
-                .send_receive_spdm_certificate_partial(
-                    session_id, slot_id, total_size, offset, length,
+                .receive_spdm_certificate(
+                    session_id,
+                    slot_id,
+                    total_size,
+                    offset,
+                    length,
+                    &send_buffer[..send_used],
                 )
                 .await?;
+
             if total_size == 0 {
                 total_size = portion_length + remainder_length;
             }
