@@ -9,7 +9,11 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_digest(&mut self, session_id: Option<u32>) -> SpdmResult {
+    pub async fn send_spdm_digest(
+        &mut self,
+        session_id: Option<u32>,
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<usize> {
         info!("send spdm digest\n");
 
         self.common.reset_buffer_via_request_code(
@@ -17,22 +21,34 @@ impl RequesterContext {
             session_id,
         );
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_digest(&mut send_buffer)?;
+        let send_used = self.encode_spdm_digest(send_buffer)?;
 
         self.send_message(session_id, &send_buffer[..send_used], false)
             .await?;
 
+        Ok(send_used)
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_digest(
+        &mut self,
+        session_id: Option<u32>,
+        send_buffer: &[u8],
+    ) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(session_id, &mut receive_buffer, false)
             .await?;
 
-        self.handle_spdm_digest_response(
-            session_id,
-            &send_buffer[..send_used],
-            &receive_buffer[..used],
-        )
+        self.handle_spdm_digest_response(session_id, send_buffer, &receive_buffer[..used])
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_digest(&mut self, session_id: Option<u32>) -> SpdmResult {
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_used = self.send_spdm_digest(session_id, &mut send_buffer).await?;
+        self.receive_spdm_digest(session_id, &send_buffer[..send_used])
+            .await
     }
 
     pub fn encode_spdm_digest(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
