@@ -12,33 +12,12 @@ use alloc::boxed::Box;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_finish(
+    pub async fn send_spdm_finish(
         &mut self,
         req_slot_id: Option<u8>,
         session_id: u32,
-    ) -> SpdmResult {
-        info!("send spdm finish\n");
-
-        if let Err(e) = self
-            .delegate_send_receive_spdm_finish(req_slot_id, session_id)
-            .await
-        {
-            if let Some(session) = self.common.get_session_via_id(session_id) {
-                session.teardown();
-            }
-
-            Err(e)
-        } else {
-            Ok(())
-        }
-    }
-
-    #[maybe_async::maybe_async]
-    pub async fn delegate_send_receive_spdm_finish(
-        &mut self,
-        req_slot_id: Option<u8>,
-        session_id: u32,
-    ) -> SpdmResult {
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<(u8, bool)> {
         let in_clear_text = self
             .common
             .negotiate_info
@@ -76,8 +55,7 @@ impl RequesterContext {
             Some(session_id),
         );
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = self.encode_spdm_finish(session_id, req_slot_id, &mut send_buffer);
+        let res = self.encode_spdm_finish(session_id, req_slot_id, send_buffer);
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)
@@ -98,9 +76,18 @@ impl RequesterContext {
                 .get_session_via_id(session_id)
                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?
                 .teardown();
-            return res;
+            return res.map(|_| (req_slot_id, in_clear_text));
         }
 
+        Ok((req_slot_id, in_clear_text))
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_finish(
+        &mut self,
+        session_id: u32,
+        in_clear_text: bool,
+    ) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let res = if in_clear_text {
             self.receive_message(None, &mut receive_buffer, false).await
@@ -123,6 +110,38 @@ impl RequesterContext {
             }
         }
         res
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_finish(
+        &mut self,
+        req_slot_id: Option<u8>,
+        session_id: u32,
+    ) -> SpdmResult {
+        info!("send spdm finish\n");
+
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let (_req_slot_id, in_clear_text) = match self
+            .send_spdm_finish(req_slot_id, session_id, &mut send_buffer)
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                if let Some(session) = self.common.get_session_via_id(session_id) {
+                    session.teardown();
+                }
+                return Err(e);
+            }
+        };
+
+        if let Err(e) = self.receive_spdm_finish(session_id, in_clear_text).await {
+            if let Some(session) = self.common.get_session_via_id(session_id) {
+                session.teardown();
+            }
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn encode_spdm_finish(
