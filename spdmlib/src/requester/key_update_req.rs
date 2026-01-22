@@ -11,7 +11,7 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    async fn send_receive_spdm_key_update_op(
+    pub async fn send_spdm_key_update(
         &mut self,
         session_id: u32,
         key_update_operation: SpdmKeyUpdateOperation,
@@ -40,6 +40,19 @@ impl RequesterContext {
             || key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         let update_responder = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         session.create_data_secret_update(spdm_version_sel, update_requester, update_responder)?;
+        Ok(())
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_key_update(
+        &mut self,
+        session_id: u32,
+        key_update_operation: SpdmKeyUpdateOperation,
+    ) -> SpdmResult {
+        let update_requester = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateSingleKey
+            || key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
+        let update_responder = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
+
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
@@ -155,13 +168,13 @@ impl RequesterContext {
         {
             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
         }
-        self.send_receive_spdm_key_update_op(session_id, key_update_operation, 1)
+        self.send_spdm_key_update(session_id, key_update_operation, 1)
             .await?;
-        self.send_receive_spdm_key_update_op(
-            session_id,
-            SpdmKeyUpdateOperation::SpdmVerifyNewKey,
-            2,
-        )
-        .await
+        self.receive_spdm_key_update(session_id, key_update_operation)
+            .await?;
+        self.send_spdm_key_update(session_id, SpdmKeyUpdateOperation::SpdmVerifyNewKey, 2)
+            .await?;
+        self.receive_spdm_key_update(session_id, SpdmKeyUpdateOperation::SpdmVerifyNewKey)
+            .await
     }
 }
