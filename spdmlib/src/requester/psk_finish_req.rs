@@ -14,22 +14,9 @@ use alloc::boxed::Box;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
+    pub async fn send_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
         info!("send spdm psk_finish\n");
 
-        if let Err(e) = self.delegate_send_receive_spdm_psk_finish(session_id).await {
-            if let Some(session) = self.common.get_session_via_id(session_id) {
-                session.teardown();
-            }
-
-            Err(e)
-        } else {
-            Ok(())
-        }
-    }
-
-    #[maybe_async::maybe_async]
-    pub async fn delegate_send_receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
         if self.common.get_session_via_id(session_id).is_none() {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
@@ -60,6 +47,11 @@ impl RequesterContext {
             return res;
         }
 
+        Ok(())
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let res = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
@@ -79,6 +71,23 @@ impl RequesterContext {
             }
         }
         res
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
+        if let Err(e) = self.send_spdm_psk_finish(session_id).await {
+            if let Some(session) = self.common.get_session_via_id(session_id) {
+                session.teardown();
+            }
+            return Err(e);
+        }
+
+        self.receive_spdm_psk_finish(session_id).await
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn delegate_send_receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
+        self.send_receive_spdm_psk_finish(session_id).await
     }
 
     pub fn encode_spdm_psk_finish(&mut self, session_id: u32, buf: &mut [u8]) -> SpdmResult<usize> {
