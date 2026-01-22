@@ -15,107 +15,6 @@ use crate::protocol::*;
 use crate::requester::*;
 
 impl RequesterContext {
-    #[allow(clippy::too_many_arguments)]
-    #[maybe_async::maybe_async]
-    async fn send_receive_spdm_measurement_record(
-        &mut self,
-        session_id: Option<u32>,
-        measurement_attributes: SpdmMeasurementAttributes,
-        measurement_operation: SpdmMeasurementOperation,
-        spdm_nonce_struct: Option<SpdmNonceStruct>,
-        content_changed: &mut Option<SpdmMeasurementContentChanged>,
-        spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
-        transcript_meas: &mut Option<ManagedBufferM>,
-        slot_id: u8,
-        requester_context_struct: Option<SpdmMeasurementContextStruct>,
-    ) -> SpdmResult<u8> {
-        if transcript_meas.is_none() {
-            *transcript_meas = Some(ManagedBufferM::default());
-        }
-
-        let result = self
-            .delegate_send_receive_spdm_measurement_record(
-                session_id,
-                measurement_attributes,
-                measurement_operation,
-                spdm_nonce_struct,
-                content_changed,
-                spdm_measurement_record_structure,
-                transcript_meas,
-                slot_id,
-                requester_context_struct,
-            )
-            .await;
-
-        if let Err(e) = result {
-            if e != SPDM_STATUS_NOT_READY_PEER {
-                self.common.reset_message_m(session_id);
-                *transcript_meas = None;
-            }
-        }
-
-        result
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    #[maybe_async::maybe_async]
-    async fn delegate_send_receive_spdm_measurement_record(
-        &mut self,
-        session_id: Option<u32>,
-        measurement_attributes: SpdmMeasurementAttributes,
-        measurement_operation: SpdmMeasurementOperation,
-        spdm_nonce_struct: Option<SpdmNonceStruct>,
-        content_changed: &mut Option<SpdmMeasurementContentChanged>,
-        spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
-        transcript_meas: &mut Option<ManagedBufferM>,
-        slot_id: u8,
-        requester_context_struct: Option<SpdmMeasurementContextStruct>,
-    ) -> SpdmResult<u8> {
-        info!("send spdm measurement\n");
-
-        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
-
-        self.common.reset_buffer_via_request_code(
-            SpdmRequestResponseCode::SpdmRequestGetMeasurements,
-            session_id,
-        );
-
-        let requester_context = requester_context_struct.unwrap_or_default();
-
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_measurement_record(
-            measurement_attributes,
-            measurement_operation,
-            spdm_nonce_struct,
-            slot_id,
-            &requester_context,
-            &mut send_buffer,
-        )?;
-        self.send_message(session_id, &send_buffer[..send_used], false)
-            .await?;
-
-        // Receive
-        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
-            .receive_message(session_id, &mut receive_buffer, true)
-            .await?;
-
-        self.handle_spdm_measurement_record_response(
-            session_id,
-            slot_id,
-            measurement_attributes,
-            measurement_operation,
-            requester_context,
-            content_changed,
-            spdm_measurement_record_structure,
-            &send_buffer[..send_used],
-            &receive_buffer[..used],
-            transcript_meas,
-        )
-    }
-
     pub fn encode_spdm_measurement_record(
         &mut self,
         measurement_attributes: SpdmMeasurementAttributes,
@@ -297,6 +196,91 @@ impl RequesterContext {
 
     #[allow(clippy::too_many_arguments)]
     #[maybe_async::maybe_async]
+    pub async fn send_spdm_measurement(
+        &mut self,
+        session_id: Option<u32>,
+        slot_id: u8,
+        spdm_measuremente_attributes: SpdmMeasurementAttributes,
+        measurement_operation: SpdmMeasurementOperation,
+        spdm_nonce_struct: Option<SpdmNonceStruct>,
+        requester_context: &SpdmMeasurementContextStruct,
+        transcript_meas: &mut Option<ManagedBufferM>,
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<usize> {
+        if transcript_meas.is_none() {
+            *transcript_meas = Some(ManagedBufferM::default());
+        }
+
+        info!("send spdm measurement\n");
+
+        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
+        }
+
+        self.common.reset_buffer_via_request_code(
+            SpdmRequestResponseCode::SpdmRequestGetMeasurements,
+            session_id,
+        );
+
+        let send_used = self.encode_spdm_measurement_record(
+            spdm_measuremente_attributes,
+            measurement_operation,
+            spdm_nonce_struct,
+            slot_id,
+            requester_context,
+            send_buffer,
+        )?;
+        self.send_message(session_id, &send_buffer[..send_used], false)
+            .await?;
+        Ok(send_used)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_measurement(
+        &mut self,
+        session_id: Option<u32>,
+        slot_id: u8,
+        spdm_measuremente_attributes: SpdmMeasurementAttributes,
+        measurement_operation: SpdmMeasurementOperation,
+        requester_context: SpdmMeasurementContextStruct,
+        content_changed: &mut Option<SpdmMeasurementContentChanged>,
+        out_total_number: &mut u8,
+        spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure,
+        transcript_meas: &mut Option<ManagedBufferM>,
+        send_buffer: &[u8],
+    ) -> SpdmResult {
+        let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let used = self
+            .receive_message(session_id, &mut receive_buffer, true)
+            .await?;
+
+        let result = self.handle_spdm_measurement_record_response(
+            session_id,
+            slot_id,
+            spdm_measuremente_attributes,
+            measurement_operation,
+            requester_context,
+            content_changed,
+            spdm_measurement_record_structure,
+            send_buffer,
+            &receive_buffer[..used],
+            transcript_meas,
+        );
+
+        if let Err(e) = &result {
+            if *e != SPDM_STATUS_NOT_READY_PEER {
+                self.common.reset_message_m(session_id);
+                *transcript_meas = None;
+            }
+        }
+
+        *out_total_number = result?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[maybe_async::maybe_async]
     pub async fn send_receive_spdm_measurement(
         &mut self,
         session_id: Option<u32>,
@@ -311,20 +295,33 @@ impl RequesterContext {
         spdm_measurement_record_structure: &mut SpdmMeasurementRecordStructure, // out
         transcript_meas: &mut Option<ManagedBufferM>,                           // out
     ) -> SpdmResult {
-        *out_total_number = self
-            .send_receive_spdm_measurement_record(
+        let requester_context = requester_context_struct.unwrap_or_default();
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_used = self
+            .send_spdm_measurement(
                 session_id,
+                slot_id,
                 spdm_measuremente_attributes,
                 measurement_operation,
                 spdm_nonce_struct,
-                content_changed,
-                spdm_measurement_record_structure,
+                &requester_context,
                 transcript_meas,
-                slot_id,
-                requester_context_struct,
+                &mut send_buffer,
             )
             .await?;
-        Ok(())
+        self.receive_spdm_measurement(
+            session_id,
+            slot_id,
+            spdm_measuremente_attributes,
+            measurement_operation,
+            requester_context,
+            content_changed,
+            out_total_number,
+            spdm_measurement_record_structure,
+            transcript_meas,
+            &send_buffer[..send_used],
+        )
+        .await
     }
 
     #[cfg(feature = "hashed-transcript-data")]
