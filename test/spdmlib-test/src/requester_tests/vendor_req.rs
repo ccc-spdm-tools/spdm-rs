@@ -65,7 +65,7 @@ fn test_case0_send_spdm_vendor_defined_request() {
         };
 
         let status = requester
-            .send_spdm_vendor_defined_request(
+            .send_receive_spdm_vendor_defined_request(
                 Some(session_id),
                 standard_id,
                 vendor_idstruct,
