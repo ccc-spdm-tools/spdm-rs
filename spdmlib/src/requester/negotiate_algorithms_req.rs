@@ -12,22 +12,32 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_algorithm(&mut self) -> SpdmResult {
+    pub async fn send_spdm_algorithm(&mut self, send_buffer: &mut [u8]) -> SpdmResult<usize> {
         self.common.reset_buffer_via_request_code(
             SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms,
             None,
         );
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let send_used = self.encode_spdm_algorithm(&mut send_buffer)?;
+        let send_used = self.encode_spdm_algorithm(send_buffer)?;
         self.send_message(None, &send_buffer[..send_used], false)
             .await?;
+        Ok(send_used)
+    }
 
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_algorithm(&mut self, send_buffer: &[u8]) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(None, &mut receive_buffer, false)
             .await?;
-        self.handle_spdm_algorithm_response(0, &send_buffer[..send_used], &receive_buffer[..used])
+        self.handle_spdm_algorithm_response(0, send_buffer, &receive_buffer[..used])
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_algorithm(&mut self) -> SpdmResult {
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_used = self.send_spdm_algorithm(&mut send_buffer).await?;
+        self.receive_spdm_algorithm(&send_buffer[..send_used]).await
     }
 
     pub fn encode_spdm_algorithm(&mut self, buf: &mut [u8]) -> SpdmResult<usize> {
