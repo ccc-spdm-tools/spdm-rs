@@ -25,11 +25,12 @@ use crate::message::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_key_exchange(
+    pub async fn send_spdm_key_exchange(
         &mut self,
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
-    ) -> SpdmResult<u32> {
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<(u16, SpdmReqExchangeContext, usize)> {
         info!("send spdm key exchange\n");
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8
@@ -49,17 +50,27 @@ impl RequesterContext {
             .runtime_info
             .set_peer_used_cert_chain_slot_id(slot_id);
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let (key_exchange_context, send_used) = self.encode_spdm_key_exchange(
             req_session_id,
-            &mut send_buffer,
+            send_buffer,
             slot_id,
             measurement_summary_hash_type,
         )?;
         self.send_message(None, &send_buffer[..send_used], false)
             .await?;
 
-        // Receive
+        Ok((req_session_id, key_exchange_context, send_used))
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_key_exchange(
+        &mut self,
+        req_session_id: u16,
+        slot_id: u8,
+        measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        key_exchange_context: SpdmReqExchangeContext,
+        send_buffer: &[u8],
+    ) -> SpdmResult<u32> {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let receive_used = self
             .receive_message(None, &mut receive_buffer, false)
@@ -69,7 +80,7 @@ impl RequesterContext {
         if let Err(e) = self.handle_spdm_key_exchange_response(
             req_session_id,
             slot_id,
-            &send_buffer[..send_used],
+            send_buffer,
             &receive_buffer[..receive_used],
             measurement_summary_hash_type,
             key_exchange_context,
@@ -85,6 +96,26 @@ impl RequesterContext {
         } else {
             Ok(target_session_id.unwrap())
         }
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_key_exchange(
+        &mut self,
+        slot_id: u8,
+        measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+    ) -> SpdmResult<u32> {
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let (req_session_id, key_exchange_context, send_used) = self
+            .send_spdm_key_exchange(slot_id, measurement_summary_hash_type, &mut send_buffer)
+            .await?;
+        self.receive_spdm_key_exchange(
+            req_session_id,
+            slot_id,
+            measurement_summary_hash_type,
+            key_exchange_context,
+            &send_buffer[..send_used],
+        )
+        .await
     }
 
     pub fn encode_spdm_key_exchange(

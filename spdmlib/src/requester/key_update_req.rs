@@ -29,17 +29,6 @@ impl RequesterContext {
         self.send_message(Some(session_id), &send_buffer[..used], false)
             .await?;
 
-        // update key
-        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
-        let session = if let Some(s) = self.common.get_session_via_id(session_id) {
-            s
-        } else {
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        };
-        let update_requester = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateSingleKey
-            || key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
-        let update_responder = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
-        session.create_data_secret_update(spdm_version_sel, update_requester, update_responder)?;
         Ok(())
     }
 
@@ -52,6 +41,15 @@ impl RequesterContext {
         let update_requester = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateSingleKey
             || key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
         let update_responder = key_update_operation == SpdmKeyUpdateOperation::SpdmUpdateAllKeys;
+
+        // update key
+        let spdm_version_sel = self.common.negotiate_info.spdm_version_sel;
+        let session = if let Some(s) = self.common.get_session_via_id(session_id) {
+            s
+        } else {
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
+        };
+        session.create_data_secret_update(spdm_version_sel, update_requester, update_responder)?;
 
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
