@@ -14,7 +14,7 @@ impl RequesterContext {
         standard_id: RegistryOrStandardsBodyID,
         vendor_id_struct: VendorIDStruct,
         req_payload_struct: VendorDefinedReqPayloadStruct,
-    ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
+    ) -> SpdmResult {
         info!("send vendor defined request\n");
 
         self.common.reset_buffer_via_request_code(
@@ -40,15 +40,38 @@ impl RequesterContext {
         let used = request.spdm_encode(&mut self.common, &mut writer)?;
 
         self.send_message(session_id, &send_buffer[..used], false)
-            .await?;
+            .await
+    }
 
-        //receive
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_vendor_defined_request(
+        &mut self,
+        session_id: Option<u32>,
+    ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let receive_used = self
             .receive_message(session_id, &mut receive_buffer, false)
             .await?;
 
         self.handle_spdm_vendor_defined_respond(session_id, &receive_buffer[..receive_used])
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_vendor_defined_request(
+        &mut self,
+        session_id: Option<u32>,
+        standard_id: RegistryOrStandardsBodyID,
+        vendor_id_struct: VendorIDStruct,
+        req_payload_struct: VendorDefinedReqPayloadStruct,
+    ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
+        self.send_spdm_vendor_defined_request(
+            session_id,
+            standard_id,
+            vendor_id_struct,
+            req_payload_struct,
+        )
+        .await?;
+        self.receive_spdm_vendor_defined_request(session_id).await
     }
 
     pub fn handle_spdm_vendor_defined_respond(
@@ -94,12 +117,11 @@ impl RequesterContext {
     }
 
     #[maybe_async::maybe_async]
-    pub async fn send_spdm_vendor_defined_request_ex<'a>(
+    pub async fn send_spdm_vendor_defined_request_ex(
         &mut self,
         session_id: Option<u32>,
         req_bytes: &[u8],
-        rsp_bytes: &'a mut [u8],
-    ) -> SpdmResult<&'a [u8]> {
+    ) -> SpdmResult {
         info!("send vendor defined request\n");
 
         self.common.reset_buffer_via_request_code(
@@ -107,12 +129,31 @@ impl RequesterContext {
             session_id,
         );
 
-        self.send_message(session_id, req_bytes, false).await?;
+        self.send_message(session_id, req_bytes, false).await
+    }
 
-        //receive
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_vendor_defined_request_ex<'a>(
+        &mut self,
+        session_id: Option<u32>,
+        rsp_bytes: &'a mut [u8],
+    ) -> SpdmResult<&'a [u8]> {
         let receive_used = self.receive_message(session_id, rsp_bytes, false).await?;
 
         self.handle_spdm_vendor_defined_respond_ex(session_id, &rsp_bytes[..receive_used])
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_vendor_defined_request_ex<'a>(
+        &mut self,
+        session_id: Option<u32>,
+        req_bytes: &[u8],
+        rsp_bytes: &'a mut [u8],
+    ) -> SpdmResult<&'a [u8]> {
+        self.send_spdm_vendor_defined_request_ex(session_id, req_bytes)
+            .await?;
+        self.receive_spdm_vendor_defined_request_ex(session_id, rsp_bytes)
+            .await
     }
 
     pub fn handle_spdm_vendor_defined_respond_ex<'a>(
