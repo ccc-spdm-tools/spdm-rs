@@ -15,14 +15,13 @@ use crate::requester::*;
 
 impl RequesterContext {
     #[maybe_async::maybe_async]
-    pub async fn send_receive_spdm_challenge(
+    pub async fn send_spdm_challenge(
         &mut self,
         slot_id: u8,
         measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
-        requester_context_struct: Option<SpdmChallengeContextStruct>,
-    ) -> SpdmResult {
-        info!("send spdm challenge\n");
-
+        requester_context_struct: Option<&SpdmChallengeContextStruct>,
+        send_buffer: &mut [u8],
+    ) -> SpdmResult<usize> {
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
@@ -30,19 +29,27 @@ impl RequesterContext {
         self.common
             .reset_buffer_via_request_code(SpdmRequestResponseCode::SpdmRequestChallenge, None);
 
-        let requester_context = requester_context_struct.unwrap_or_default();
+        let requester_context = requester_context_struct.cloned().unwrap_or_default();
 
-        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let send_used = self.encode_spdm_challenge(
             slot_id,
             measurement_summary_hash_type,
-            &mut send_buffer,
+            send_buffer,
             &requester_context,
         )?;
         self.send_message(None, &send_buffer[..send_used], false)
             .await?;
+        Ok(send_used)
+    }
 
-        // Receive
+    #[maybe_async::maybe_async]
+    pub async fn receive_spdm_challenge(
+        &mut self,
+        slot_id: u8,
+        measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        requester_context: SpdmChallengeContextStruct,
+        send_buffer: &[u8],
+    ) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
         let used = self
             .receive_message(None, &mut receive_buffer, true)
@@ -52,9 +59,38 @@ impl RequesterContext {
             slot_id,
             measurement_summary_hash_type,
             requester_context,
-            &send_buffer[..send_used],
+            send_buffer,
             &receive_buffer[..used],
         )
+    }
+
+    #[maybe_async::maybe_async]
+    pub async fn send_receive_spdm_challenge(
+        &mut self,
+        slot_id: u8,
+        measurement_summary_hash_type: SpdmMeasurementSummaryHashType,
+        requester_context_struct: Option<SpdmChallengeContextStruct>,
+    ) -> SpdmResult {
+        info!("send spdm challenge\n");
+
+        let requester_context = requester_context_struct.as_ref();
+        let mut send_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let send_used = self
+            .send_spdm_challenge(
+                slot_id,
+                measurement_summary_hash_type,
+                requester_context,
+                &mut send_buffer,
+            )
+            .await?;
+
+        self.receive_spdm_challenge(
+            slot_id,
+            measurement_summary_hash_type,
+            requester_context_struct.unwrap_or_default(),
+            &send_buffer[..send_used],
+        )
+        .await
     }
 
     pub fn encode_spdm_challenge(
