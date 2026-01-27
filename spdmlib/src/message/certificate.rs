@@ -10,7 +10,7 @@ use crate::protocol::{
 use crate::{common, error::SpdmStatus};
 use codec::{Codec, Reader, Writer};
 
-pub(crate) const MAX_SPDM_CERT_PORTION_LEN: usize = 512;
+pub const MAX_SPDM_CERT_PORTION_LEN: usize = 512;
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmGetCertificateRequestPayload {

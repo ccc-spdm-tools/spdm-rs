@@ -61,7 +61,7 @@ pub async fn pci_tdisp_req_get_tdisp_capabilities(
     .map_err(|_| SPDM_STATUS_BUFFER_FULL)?
         as u32;
     let vendor_defined_rsp_payload_struct = spdm_requester
-        .send_spdm_vendor_defined_request(
+        .send_receive_spdm_vendor_defined_request(
             Some(session_id),
             STANDARD_ID,
             vendor_id(),

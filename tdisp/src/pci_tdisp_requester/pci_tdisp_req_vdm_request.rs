@@ -26,7 +26,7 @@ pub async fn pci_tdisp_req_vdm_request(
         Err(SPDM_STATUS_INVALID_PARAMETER)
     } else {
         spdm_requester
-            .send_spdm_vendor_defined_request(
+            .send_receive_spdm_vendor_defined_request(
                 Some(session_id),
                 STANDARD_ID,
                 vendor_id(),
