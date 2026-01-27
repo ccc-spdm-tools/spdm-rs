@@ -75,6 +75,8 @@ pub mod hash {
         use super::{SpdmBaseHashAlgo, SpdmDigestStruct, CRYPTO_HASH};
         use crate::error::SpdmResult;
         use codec::Codec;
+        extern crate alloc;
+
         #[derive(Ord, PartialEq, PartialOrd, Eq, Debug, Default)]
         pub struct SpdmHashCtx(usize);
 
@@ -94,12 +96,68 @@ pub mod hash {
 
         impl Codec for SpdmHashCtx {
             fn encode(&self, writer: &mut codec::Writer) -> Result<usize, codec::EncodeErr> {
+                // Export hash state for serialization
+                #[cfg(feature = "spdm-ring")]
+                {
+                    use crate::crypto::spdm_ring::hash_impl::hash_ext::hash_ctx_export;
+
+                    if let Some(state) = hash_ctx_export(self.0) {
+                        // Encode algorithm
+                        let algo_bits = state.algo.bits();
+                        algo_bits.encode(writer)?;
+
+                        // Encode replay buffer length and data
+                        let len = state.replay_buffer.len() as u32;
+                        len.encode(writer)?;
+                        writer
+                            .extend_from_slice(&state.replay_buffer)
+                            .ok_or(codec::EncodeErr)?;
+
+                        return Ok(4 + 4 + state.replay_buffer.len());
+                    }
+                }
+
+                // Fallback: encode just the handle (won't work after deserialization)
                 (self.0 as u64).encode(writer)
             }
 
             fn read(reader: &mut codec::Reader) -> Option<Self> {
-                let handle = u64::read(reader)? as usize;
-                Some(SpdmHashCtx(handle))
+                // Try to read as serialized state first
+                #[cfg(feature = "spdm-ring")]
+                {
+                    use crate::crypto::spdm_ring::hash_impl::hash_ext::{
+                        hash_ctx_import, HashCtxState,
+                    };
+                    use crate::protocol::SpdmBaseHashAlgo;
+
+                    // Read algorithm
+                    let algo_bits = u32::read(reader)?;
+                    let algo = SpdmBaseHashAlgo::from_bits(algo_bits)?;
+
+                    // Read replay buffer
+                    let len = u32::read(reader)? as usize;
+                    let mut replay_buffer = alloc::vec::Vec::with_capacity(len);
+                    for _ in 0..len {
+                        let byte = u8::read(reader)?;
+                        replay_buffer.push(byte);
+                    }
+
+                    let state = HashCtxState {
+                        algo,
+                        replay_buffer,
+                    };
+
+                    // Import state and create new context
+                    let handle = hash_ctx_import(&state)?;
+                    Some(SpdmHashCtx(handle))
+                }
+
+                #[cfg(not(feature = "spdm-ring"))]
+                {
+                    // Fallback for non-ring implementations
+                    let handle = u64::read(reader)? as usize;
+                    Some(SpdmHashCtx(handle))
+                }
             }
         }
 
