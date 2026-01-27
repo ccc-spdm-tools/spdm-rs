@@ -191,7 +191,23 @@ impl RequesterContext {
             session_id,
         );
 
-        self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        if self.common.peer_info.peer_cert_chain_temp.is_none() {
+            self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
+        } else {
+            self.common
+                .peer_info
+                .peer_cert_chain_temp
+                .as_mut()
+                .unwrap()
+                .data_size = 0;
+            self.common
+                .peer_info
+                .peer_cert_chain_temp
+                .as_mut()
+                .unwrap()
+                .data
+                .fill(0);
+        }
         while length != 0 {
             let (portion_length, remainder_length) = self
                 .send_receive_spdm_certificate_partial(
@@ -208,16 +224,61 @@ impl RequesterContext {
             }
         }
         if total_size == 0 {
-            self.common.peer_info.peer_cert_chain_temp = None;
+            self.common
+                .peer_info
+                .peer_cert_chain_temp
+                .as_mut()
+                .unwrap()
+                .data_size = 0;
+            self.common
+                .peer_info
+                .peer_cert_chain_temp
+                .as_mut()
+                .unwrap()
+                .data
+                .fill(0);
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
         let result = self.verify_spdm_certificate_chain();
         if result.is_ok() {
-            self.common.peer_info.peer_cert_chain[slot_id as usize]
-                .clone_from(&self.common.peer_info.peer_cert_chain_temp);
+            if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                self.common.peer_info.peer_cert_chain[slot_id as usize] =
+                    Some(SpdmCertChainBuffer::default());
+            }
+            let peer_cert_chain = self.common.peer_info.peer_cert_chain[slot_id as usize]
+                .as_mut()
+                .unwrap();
+            peer_cert_chain.data_size = self
+                .common
+                .peer_info
+                .peer_cert_chain_temp
+                .as_ref()
+                .unwrap()
+                .data_size;
+            peer_cert_chain.data[..(peer_cert_chain.data_size as usize)].copy_from_slice(
+                &self
+                    .common
+                    .peer_info
+                    .peer_cert_chain_temp
+                    .as_ref()
+                    .unwrap()
+                    .data[..(peer_cert_chain.data_size as usize)],
+            );
         }
-        self.common.peer_info.peer_cert_chain_temp = None;
+        self.common
+            .peer_info
+            .peer_cert_chain_temp
+            .as_mut()
+            .unwrap()
+            .data_size = 0;
+        self.common
+            .peer_info
+            .peer_cert_chain_temp
+            .as_mut()
+            .unwrap()
+            .data
+            .fill(0);
         result
     }
 
@@ -248,20 +309,19 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let data_size = peer_cert_chain.data_size - 4 - self.common.get_hash_size() as u32;
-        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
-        data[0..(data_size as usize)].copy_from_slice(
+        let data_size: u32 = peer_cert_chain.data_size - 4 - self.common.get_hash_size() as u32;
+        let mut runtime_peer_cert_chain_data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        runtime_peer_cert_chain_data[0..(data_size as usize)].copy_from_slice(
             &peer_cert_chain.data[(4usize + self.common.get_hash_size() as usize)
                 ..(peer_cert_chain.data_size as usize)],
         );
-        let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
         info!("1. get runtime_peer_cert_chain_data!\n");
 
         //
         // 1.1 verify the integrity of the chain
         //
         if crypto::cert_operation::verify_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
+            &runtime_peer_cert_chain_data[..data_size as usize],
         )
         .is_err()
         {
@@ -274,10 +334,10 @@ impl RequesterContext {
         // 1.2 verify the root cert hash
         //
         let (root_cert_begin, root_cert_end) = crypto::cert_operation::get_cert_from_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
+            &runtime_peer_cert_chain_data[..data_size as usize],
             0,
         )?;
-        let root_cert = &runtime_peer_cert_chain_data.data[root_cert_begin..root_cert_end];
+        let root_cert = &runtime_peer_cert_chain_data[root_cert_begin..root_cert_end];
         if is_root_certificate(root_cert).is_ok() {
             let root_hash = if let Some(rh) =
                 crypto::hash::hash_all(self.common.negotiate_info.base_hash_sel, root_cert)
@@ -299,10 +359,10 @@ impl RequesterContext {
         // 1.3 verify the leaf cert
         //
         let (leaf_cert_begin, leaf_cert_end) = crypto::cert_operation::get_cert_from_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
+            &runtime_peer_cert_chain_data[..data_size as usize],
             -1,
         )?;
-        let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
+        let leaf_cert = &runtime_peer_cert_chain_data[leaf_cert_begin..leaf_cert_end];
         if check_leaf_certificate(
             leaf_cert,
             self.common

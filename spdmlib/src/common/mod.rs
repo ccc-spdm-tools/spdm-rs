@@ -309,9 +309,7 @@ impl SpdmContext {
 
     pub fn construct_my_cert_chain(&mut self) -> SpdmResult {
         for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
-            if self.provision_info.my_cert_chain[slot_id].is_none()
-                && self.provision_info.my_cert_chain_data[slot_id].is_some()
-            {
+            if self.provision_info.my_cert_chain_data[slot_id].is_some() {
                 let cert_chain = self.provision_info.my_cert_chain_data[slot_id]
                     .as_ref()
                     .unwrap();
@@ -335,9 +333,18 @@ impl SpdmContext {
                         .copy_from_slice(&root_hash.data[..(root_hash.data_size as usize)]);
                     data[(4 + root_hash.data_size as usize)..(data_size as usize)]
                         .copy_from_slice(&cert_chain.data[..(cert_chain.data_size as usize)]);
-                    self.provision_info.my_cert_chain[slot_id] =
-                        Some(SpdmCertChainBuffer { data_size, data });
                     debug!("my_cert_chain - {:02x?}\n", &data[..(data_size as usize)]);
+                    if self.provision_info.my_cert_chain[slot_id].is_none() {
+                        self.provision_info.my_cert_chain[slot_id] = Some(SpdmCertChainBuffer {
+                            data_size,
+                            data: Box::new(data),
+                        });
+                    } else {
+                        let cert_chain_buffer =
+                            self.provision_info.my_cert_chain[slot_id].as_mut().unwrap();
+                        cert_chain_buffer.data_size = data_size;
+                        cert_chain_buffer.data.copy_from_slice(&data);
+                    }
                 } else {
                     return Err(SPDM_STATUS_CRYPTO_ERROR);
                 }
@@ -2598,7 +2605,7 @@ impl Codec for SpdmProvisionInfo {
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        let mut my_cert_chain_data = [None; SPDM_MAX_SLOT_NUMBER];
+        let mut my_cert_chain_data = [const { None }; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
         for (i, slot) in my_cert_chain_data
             .iter_mut()
@@ -2611,7 +2618,7 @@ impl Codec for SpdmProvisionInfo {
                 *slot = None;
             }
         }
-        let mut my_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        let mut my_cert_chain = [const { None }; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
         for (i, slot) in my_cert_chain
             .iter_mut()
@@ -2624,7 +2631,7 @@ impl Codec for SpdmProvisionInfo {
                 *slot = None;
             }
         }
-        let mut peer_root_cert_data = [None; MAX_ROOT_CERT_SUPPORT];
+        let mut peer_root_cert_data = [const { None }; MAX_ROOT_CERT_SUPPORT];
         let bitmap = u32::read(reader)?;
         for (i, slot) in peer_root_cert_data
             .iter_mut()
@@ -2706,9 +2713,9 @@ impl Codec for SpdmProvisionInfo {
 impl Default for SpdmProvisionInfo {
     fn default() -> Self {
         SpdmProvisionInfo {
-            my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
-            my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
-            peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+            my_cert_chain_data: [const { None }; SPDM_MAX_SLOT_NUMBER],
+            my_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
+            peer_root_cert_data: [const { None }; MAX_ROOT_CERT_SUPPORT],
             my_pub_key: None,
             peer_pub_key: None,
             local_supported_slot_mask: 0xff,
@@ -2788,7 +2795,7 @@ impl Codec for SpdmPeerInfo {
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        let mut peer_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        let mut peer_cert_chain = [const { None }; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
         for (i, slot) in peer_cert_chain
             .iter_mut()

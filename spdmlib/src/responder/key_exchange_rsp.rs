@@ -353,7 +353,7 @@ impl ResponderContext {
         let req_slot_id = 0;
 
         let cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE as usize {
-            if let Some(my_pub_key) = self.common.provision_info.my_pub_key {
+            if let Some(my_pub_key) = &self.common.provision_info.my_pub_key {
                 crypto::hash::hash_all(
                     self.common.negotiate_info.base_hash_sel,
                     my_pub_key.data[..my_pub_key.data_size as usize].as_ref(),

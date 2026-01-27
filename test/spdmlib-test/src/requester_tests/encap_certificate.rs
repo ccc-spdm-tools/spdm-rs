@@ -39,7 +39,7 @@ fn test_encap_handle_get_certificate() {
     context.common.provision_info.my_cert_chain = [
         Some(SpdmCertChainBuffer {
             data_size: 1024u32,
-            data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            data: Box::new([0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]),
         }),
         None,
         None,
