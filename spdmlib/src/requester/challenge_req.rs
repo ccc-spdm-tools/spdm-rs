@@ -123,6 +123,19 @@ impl RequesterContext {
                                 return Err(SPDM_STATUS_INVALID_MSG_FIELD);
                             }
 
+                            if self
+                                .verify_challenge_auth_cert_chain_hash(
+                                    slot_id,
+                                    &challenge_auth.cert_chain_hash,
+                                )
+                                .is_err()
+                            {
+                                error!("verify_challenge_auth_cert_chain_hash fail");
+                                self.common.reset_message_b();
+                                self.common.reset_message_c();
+                                return Err(SPDM_STATUS_VERIF_FAIL);
+                            }
+
                             // verify signature
                             let signature_size = self.common.get_asym_sig_size() as usize;
                             let temp_used = used - signature_size;
@@ -162,6 +175,57 @@ impl RequesterContext {
             }
             None => Err(SPDM_STATUS_INVALID_MSG_FIELD),
         }
+    }
+
+    pub fn verify_challenge_auth_cert_chain_hash(
+        &self,
+        slot_id: u8,
+        cert_chain_hash: &SpdmDigestStruct,
+    ) -> SpdmResult {
+        let peer_cert_chain_hash;
+        let expected_cert_chain_hash = if slot_id == SPDM_PUB_KEY_SLOT_ID_CHALLENGE {
+            let peer_pub_key = self
+                .common
+                .provision_info
+                .peer_pub_key
+                .as_ref()
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            peer_cert_chain_hash = crypto::hash::hash_all(
+                self.common.negotiate_info.base_hash_sel,
+                peer_pub_key.as_ref(),
+            );
+            peer_cert_chain_hash.as_ref()
+        } else {
+            peer_cert_chain_hash = crypto::hash::hash_all(
+                self.common.negotiate_info.base_hash_sel,
+                self.common.peer_info.peer_cert_chain[slot_id as usize]
+                    .as_ref()
+                    .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
+                    .as_ref(),
+            );
+            peer_cert_chain_hash.as_ref()
+        };
+
+        if expected_cert_chain_hash.is_none() {
+            error!("peer_cert_chain is not populated or public key is not provisioned!\n");
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
+        }
+
+        let expected_cert_chain_hash = expected_cert_chain_hash.unwrap();
+
+        if cert_chain_hash.data_size != expected_cert_chain_hash.data_size
+            || cert_chain_hash.data[..cert_chain_hash.data_size as usize]
+                != expected_cert_chain_hash.data[..expected_cert_chain_hash.data_size as usize]
+        {
+            error!("cert_chain_hash - {:02x?}\n", cert_chain_hash);
+            error!(
+                "expected_cert_chain_hash - {:02x?}\n",
+                expected_cert_chain_hash
+            );
+            return Err(SPDM_STATUS_VERIF_FAIL);
+        }
+
+        Ok(())
     }
 
     #[cfg(feature = "hashed-transcript-data")]
