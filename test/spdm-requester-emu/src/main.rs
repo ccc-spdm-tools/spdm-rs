@@ -220,7 +220,16 @@ async fn test_spdm(
                 None,
                 None,
             ],
-            my_cert_chain: [None, None, None, None, None, None, None, None],
+            my_cert_chain: [
+                Some(SpdmCertChainBuffer::default()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
             peer_root_cert_data: peer_root_cert_data_list,
             ..Default::default()
         }
@@ -726,14 +735,32 @@ async fn test_idekm_tdisp(
                 None,
                 None,
             ],
-            my_cert_chain: [None, None, None, None, None, None, None, None],
+            my_cert_chain: [
+                Some(SpdmCertChainBuffer::default()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
             peer_root_cert_data: peer_root_cert_data_list,
             ..Default::default()
         }
     } else {
         common::SpdmProvisionInfo {
             my_cert_chain_data: [None, None, None, None, None, None, None, None],
-            my_cert_chain: [None, None, None, None, None, None, None, None],
+            my_cert_chain: [
+                Some(SpdmCertChainBuffer::default()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
             peer_root_cert_data: peer_root_cert_data_list,
             ..Default::default()
         }
