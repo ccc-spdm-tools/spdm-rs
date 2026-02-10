@@ -14,17 +14,23 @@ Internal Input: Data to be signed. Data to be HMACed.
 
 Threat: Information disclosure (including side channel), Elevation of privilege, Tampering with data.
 
+The integrator must guarantee the security of device private key.
+
 2. <B>spdmlib::common::session</B> is to handle <B>ephemeral secret</B>. (Crypto engine specific)
 
-It can generate DH secret and derive the session key. (The keys can be imported and exported as an option.) It can handle key update. It can encrypt and decrypt the message.
+It can generate DH secret and derive the session key. It can handle key update. It can encrypt and decrypt the message.
 
-API: Generate DH secret. Manage the SPDM session. Encrypt and decrypt the SPDM secured message.
+The session DH private key and SPDM session keys should be treated as internal. In order to support SPDM context import and export, the DH private key and SPDM session keys can be imported and exported as an option.
+
+API: Generate DH secret. Manage the SPDM session. Encrypt and decrypt the SPDM secured message. Import/Export DH private key (optional). Import/Export SPDM session keys (optional).
 
 External Input: Cipher message to be decrypted. (Malicious)
 
 Internal Input: Plain message to be encrypted. Internal SPDM session context.
 
 Threat: Information disclosure (including side channel), Elevation of privilege, Tampering with data, Denial of service.
+
+The integrator must guarantee the security of exported DH private key and exported SPDM session keys.
 
 3. <B>sdmlib::crypto</B> is to handle <B>no secret</B> operation.
 
