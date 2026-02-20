@@ -1,0 +1,50 @@
+[package]
+name = "spdm_x509"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Mariusz Galan <stanislaw.grams@intel.com>",
+    "Stanislaw Grams <stanislaw.grams@intel.com>"
+    ]
+license = "Apache-2.0 or MIT"
+description = "X.509 certificate parsing and validation with SPDM extensions and multi-backend support"
+
+[dependencies]
+# ASN.1/DER encoding and decoding
+der = { version = "0.7", default-features = false, features = ["alloc", "derive", "oid"] }
+spki = { version = "0.7", default-features = false, features = ["alloc"] }
+const-oid = { version = "0.9", default-features = false }
+
+# Cryptographic backends (optional)
+ring = { version = "0.17", optional = true, default-features = false, features = ["alloc"] }
+untrusted = { version = "0.9", optional = true }
+
+# PEM encoding support
+pem-rfc7468 = { version = "0.7", default-features = false, features = ["alloc"] }
+
+# base64ct 1.7+ may require edition2024; allow patch updates within 1.6.x
+base64ct = "~1.6"
+
+# Logging
+log = { version = "0.4", default-features = false }
+
+[target.'cfg(any(target_os = "uefi", target_os = "none"))'.dependencies]
+sys_time = { path = "../../../../sys_time" }
+
+[dev-dependencies]
+# For testing
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+default = ["ring-backend", "no-time-check"]
+ring-backend = ["ring", "untrusted"]
+mbedtls-backend = []
+std = ["der/std", "ring?/std", "log/std"]
+no-time-check = []
+alloc = ["der/alloc"]
+
+[lib]
+name = "spdm_x509"
+path = "src/lib.rs"
