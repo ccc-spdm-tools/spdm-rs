@@ -250,8 +250,8 @@ test = false
 doc = false
 
 [[bin]]
-name = "fuzz_x509v3"
-path = "fuzz_targets/fuzz_x509v3.rs"
+name = "fuzz_spdm_x509"
+path = "fuzz_targets/fuzz_spdm_x509.rs"
 test = false
 doc = false
 bench = false
