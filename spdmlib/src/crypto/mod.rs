@@ -4,8 +4,8 @@
 
 pub mod bytes_mut_scrubbed;
 mod crypto_callbacks;
-mod x509v3;
-pub use x509v3::*;
+
+extern crate spdm_x509;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -25,7 +25,45 @@ pub use crypto_callbacks::{
 #[cfg(feature = "hashed-transcript-data")]
 pub use self::hash::SpdmHashCtx;
 
+use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_UNSUPPORTED_CAP};
 use conquer_once::spin::OnceCell;
+
+/// Check if a certificate is a root certificate (self-signed)
+pub fn is_root_certificate(cert_der: &[u8]) -> SpdmResult {
+    match spdm_x509::Certificate::from_der(cert_der) {
+        Ok(cert) => {
+            // Root cert: issuer == subject
+            if cert.tbs_certificate.issuer == cert.tbs_certificate.subject {
+                Ok(())
+            } else {
+                Err(SPDM_STATUS_INVALID_CERT)
+            }
+        }
+        Err(_) => Err(SPDM_STATUS_INVALID_CERT),
+    }
+}
+
+/// Check leaf certificate validity (basic constraints, key usage)
+pub fn check_leaf_certificate(cert_der: &[u8], _is_alias_cert: bool) -> SpdmResult {
+    use spdm_x509::x509::extensions::{BasicConstraints, BASIC_CONSTRAINTS};
+
+    match spdm_x509::Certificate::from_der(cert_der) {
+        Ok(cert) => {
+            // Leaf cert should not be a CA
+            if let Some(extensions) = &cert.tbs_certificate.extensions {
+                if let Some(bc_ext) = extensions.find(&BASIC_CONSTRAINTS) {
+                    if let Ok(bc) = BasicConstraints::from_extension(bc_ext) {
+                        if bc.ca {
+                            return Err(SPDM_STATUS_INVALID_CERT);
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+        Err(_) => Err(SPDM_STATUS_INVALID_CERT),
+    }
+}
 
 static CRYPTO_HASH: OnceCell<SpdmHash> = OnceCell::uninit();
 static CRYPTO_HMAC: OnceCell<SpdmHmac> = OnceCell::uninit();
@@ -523,8 +561,6 @@ pub mod rand {
 #[cfg(feature = "fips")]
 pub mod fips;
 
-// Add this import at the top of the file (after other use statements)
-use crate::error::{SpdmResult, SPDM_STATUS_UNSUPPORTED_CAP};
 use crate::protocol::{
     SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmPqcAsymAlgo, SpdmSignatureStruct,
 };

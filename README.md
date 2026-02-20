@@ -83,7 +83,7 @@ git clone https://github.com/ccc-spdm-tools/spdm-rs.git
 git submodule update --init --recursive
 ```
 
-Then patch the ring/webpki.
+Then patch ring.
 ```
 sh_script/pre-build.sh
 ```
