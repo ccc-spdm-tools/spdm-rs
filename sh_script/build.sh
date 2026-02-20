@@ -175,6 +175,11 @@ run_basic_test() {
     echo_command cargo test --features=fips -- --test-threads=1
     popd
 
+    echo "Running basic spdm_x509 tests..."
+    echo_command cargo test -p spdm_x509 -- --test-threads=1
+    echo_command cargo test -p spdm_x509 --no-default-features -- --test-threads=1
+    echo "Running basic spdm_x509 tests finished..."
+
     echo "Running spdmlib-test..."
     pushd test/spdmlib-test
     echo_command cargo test -- --test-threads=1
