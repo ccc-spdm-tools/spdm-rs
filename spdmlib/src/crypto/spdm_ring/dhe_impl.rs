@@ -341,7 +341,7 @@ mod tests {
     fn test_multiple_serialization_rounds() {
         // Test that we can serialize and deserialize multiple times
         for dhe_algo in [SpdmDheAlgo::SECP_256_R1, SpdmDheAlgo::SECP_384_R1].iter() {
-            let (public_key, mut private_key_box) =
+            let (_public_key, mut private_key_box) =
                 generate_key_pair(*dhe_algo).expect("Failed to generate initial key pair");
 
             // Perform multiple serialization/deserialization rounds

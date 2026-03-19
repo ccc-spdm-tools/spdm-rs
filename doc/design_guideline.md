@@ -48,7 +48,7 @@ Threat: Tampering with data, Denial of service.
 
 2. alloc is not allowed in spdmlib or the trait defined by spdmlib, such as spdm_crypt.
 
-The trait implenmtation may use alloc, such as ring or webpki.
+The trait implementation may use alloc, such as ring.
 
 3. std is not allowed in spdmlib.
 
@@ -93,5 +93,3 @@ SpdmDigestStruct/SpdmSignatureStruct need guarantee the match between size and a
 1. Use Option<>, if the function just returns Some(v)/None.
 
 2. Use Result<(),()>, if the function wants to return Ok(v)/Err(e).
-
-
