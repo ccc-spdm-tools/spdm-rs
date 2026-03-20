@@ -257,20 +257,35 @@ async fn handle_message(
     println!("handle_message!");
     let socket_io_transport = SocketIoTransport::new(stream);
     let socket_io_transport = Arc::new(Mutex::new(socket_io_transport));
-    let rsp_capabilities = SpdmResponseCapabilityFlags::CERT_CAP
-        | SpdmResponseCapabilityFlags::CHAL_CAP
-        | SpdmResponseCapabilityFlags::MEAS_CAP_SIG
-        | SpdmResponseCapabilityFlags::MEAS_FRESH_CAP
-        | SpdmResponseCapabilityFlags::ENCRYPT_CAP
-        | SpdmResponseCapabilityFlags::MAC_CAP
-        | SpdmResponseCapabilityFlags::KEY_EX_CAP
-        | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
-        | SpdmResponseCapabilityFlags::ENCAP_CAP
-        | SpdmResponseCapabilityFlags::HBEAT_CAP
-        | SpdmResponseCapabilityFlags::KEY_UPD_CAP
-        | SpdmResponseCapabilityFlags::LARGE_RESP_CAP;
+    let use_raw_pub_key = use_raw_pub_key();
+    let rsp_capabilities = if use_raw_pub_key {
+        SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP
+            | SpdmResponseCapabilityFlags::CHAL_CAP
+            | SpdmResponseCapabilityFlags::MEAS_CAP_SIG
+            | SpdmResponseCapabilityFlags::MEAS_FRESH_CAP
+            | SpdmResponseCapabilityFlags::ENCRYPT_CAP
+            | SpdmResponseCapabilityFlags::MAC_CAP
+            | SpdmResponseCapabilityFlags::KEY_EX_CAP
+            | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
+            | SpdmResponseCapabilityFlags::ENCAP_CAP
+            | SpdmResponseCapabilityFlags::HBEAT_CAP
+            | SpdmResponseCapabilityFlags::KEY_UPD_CAP
+            | SpdmResponseCapabilityFlags::LARGE_RESP_CAP
+    } else {
+        SpdmResponseCapabilityFlags::CERT_CAP
+            | SpdmResponseCapabilityFlags::CHAL_CAP
+            | SpdmResponseCapabilityFlags::MEAS_CAP_SIG
+            | SpdmResponseCapabilityFlags::MEAS_FRESH_CAP
+            | SpdmResponseCapabilityFlags::ENCRYPT_CAP
+            | SpdmResponseCapabilityFlags::MAC_CAP
+            | SpdmResponseCapabilityFlags::KEY_EX_CAP
+            | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
+            | SpdmResponseCapabilityFlags::ENCAP_CAP
+            | SpdmResponseCapabilityFlags::HBEAT_CAP
+            | SpdmResponseCapabilityFlags::KEY_UPD_CAP
+            | SpdmResponseCapabilityFlags::LARGE_RESP_CAP
+    };
     // | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
-    // | SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP
     let rsp_capabilities = if cfg!(feature = "mut-auth") {
         rsp_capabilities | SpdmResponseCapabilityFlags::MUT_AUTH_CAP
     } else {
@@ -375,20 +390,46 @@ async fn handle_message(
             .copy_from_slice(leaf_cert.as_ref());
     }
 
-    let provision_info = common::SpdmProvisionInfo {
-        my_cert_chain_data: [
-            Some(my_cert_chain_data),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        ],
-        my_cert_chain: [None, None, None, None, None, None, None, None],
-        peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
-        ..Default::default()
+    let provision_info = if use_raw_pub_key {
+        let pub_key_file_path = if use_ecdsa() {
+            "test_key/ecp384/end_responder.key.pub.der"
+        } else {
+            "test_key/rsa3072/end_responder.key.pub.der"
+        };
+        let pub_key_data = std::fs::read(pub_key_file_path).expect("unable to read pub key!");
+        let mut my_pub_key = SpdmCertChainData {
+            ..Default::default()
+        };
+        my_pub_key.data_size = pub_key_data.len() as u32;
+        my_pub_key.data[..pub_key_data.len()].copy_from_slice(&pub_key_data);
+        println!(
+            "Raw public key mode: loaded my pub key from {} ({} bytes)",
+            pub_key_file_path,
+            pub_key_data.len()
+        );
+        common::SpdmProvisionInfo {
+            my_cert_chain_data: [None, None, None, None, None, None, None, None],
+            my_cert_chain: [None, None, None, None, None, None, None, None],
+            peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+            my_pub_key: Some(my_pub_key),
+            ..Default::default()
+        }
+    } else {
+        common::SpdmProvisionInfo {
+            my_cert_chain_data: [
+                Some(my_cert_chain_data),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            my_cert_chain: [None, None, None, None, None, None, None, None],
+            peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+            ..Default::default()
+        }
     };
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());

@@ -50,6 +50,15 @@ pub fn req_use_ecdsa() -> bool {
         .unwrap_or(REQ_USE_ECDSA)
 }
 
+/// Check if raw public key (RFC7250 / PUB_KEY_ID_CAP) mode should be used.
+/// SPDMRS_USE_RAW_PUB_KEY=true or 1 -> uses raw public key
+/// SPDMRS_USE_RAW_PUB_KEY=false or unset -> uses certificate chain (default)
+pub fn use_raw_pub_key() -> bool {
+    std::env::var("SPDMRS_USE_RAW_PUB_KEY")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
     pub command: u32,
