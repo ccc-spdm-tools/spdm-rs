@@ -23,7 +23,7 @@ impl RequesterContext {
         send_buffer: &mut [u8],
     ) -> SpdmResult<usize> {
         info!("!!! send challenge !!!");
-        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
+        if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 && slot_id != SPDM_PUB_KEY_SLOT_ID_CHALLENGE {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
 
@@ -283,19 +283,29 @@ impl RequesterContext {
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         debug!("message_m1m2_hash - {:02x?}", message_m1m2_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-            error!("peer_cert_chain is not populated!\n");
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
-
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let (cert_chain_data_buf, der);
+        if slot_id == SPDM_PUB_KEY_SLOT_ID_CHALLENGE {
+            let peer_pub_key = self
+                .common
+                .provision_info
+                .peer_pub_key
                 .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            cert_chain_data_buf = peer_pub_key.data[..peer_pub_key.data_size as usize].to_vec();
+            der = SpdmDer::SpdmDerPubKeyRfc7250(&cert_chain_data_buf);
+        } else {
+            if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                error!("peer_cert_chain is not populated!\n");
+                return Err(SPDM_STATUS_INVALID_PARAMETER);
+            }
+            let chain_ref = self.common.peer_info.peer_cert_chain[slot_id as usize]
+                .as_ref()
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            cert_chain_data_buf = chain_ref.data
+                [(4usize + self.common.get_hash_size() as usize)..(chain_ref.data_size as usize)]
+                .to_vec();
+            der = SpdmDer::SpdmDerCertChain(&cert_chain_data_buf);
+        }
 
         let mut message_sign = ManagedBuffer12Sign::default();
 
@@ -322,7 +332,7 @@ impl RequesterContext {
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
-            SpdmDer::SpdmDerCertChain(cert_chain_data),
+            der,
             message_sign.as_ref(),
             signature,
         )
@@ -354,19 +364,29 @@ impl RequesterContext {
         .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
         debug!("message_m1m2_hash - {:02x?}", message_m1m2_hash.as_ref());
 
-        if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
-            error!("peer_cert_chain is not populated!\n");
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
-
-        let cert_chain_data = &self.common.peer_info.peer_cert_chain[slot_id as usize]
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-            .data[(4usize + self.common.get_hash_size() as usize)
-            ..(self.common.peer_info.peer_cert_chain[slot_id as usize]
+        let (cert_chain_data_buf, der);
+        if slot_id == SPDM_PUB_KEY_SLOT_ID_CHALLENGE {
+            let peer_pub_key = self
+                .common
+                .provision_info
+                .peer_pub_key
                 .as_ref()
-                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
-                .data_size as usize)];
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            cert_chain_data_buf = peer_pub_key.data[..peer_pub_key.data_size as usize].to_vec();
+            der = SpdmDer::SpdmDerPubKeyRfc7250(&cert_chain_data_buf);
+        } else {
+            if self.common.peer_info.peer_cert_chain[slot_id as usize].is_none() {
+                error!("peer_cert_chain is not populated!\n");
+                return Err(SPDM_STATUS_INVALID_PARAMETER);
+            }
+            let chain_ref = self.common.peer_info.peer_cert_chain[slot_id as usize]
+                .as_ref()
+                .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            cert_chain_data_buf = chain_ref.data
+                [(4usize + self.common.get_hash_size() as usize)..(chain_ref.data_size as usize)]
+                .to_vec();
+            der = SpdmDer::SpdmDerCertChain(&cert_chain_data_buf);
+        }
 
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             message_m1m2.reset_message();
@@ -388,7 +408,7 @@ impl RequesterContext {
             self.common.negotiate_info.base_hash_sel,
             self.common.negotiate_info.base_asym_sel,
             self.common.negotiate_info.pqc_asym_sel,
-            SpdmDer::SpdmDerCertChain(cert_chain_data),
+            der,
             message_m1m2.as_ref(),
             signature,
         )
