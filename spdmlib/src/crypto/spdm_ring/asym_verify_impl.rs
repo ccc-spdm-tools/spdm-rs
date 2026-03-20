@@ -97,19 +97,32 @@ fn asym_verify(
                 Some(pk) => pk,
                 None => return Err(SPDM_STATUS_VERIF_FAIL),
             };
-            let sign_algorithm = match (base_hash_algo, base_asym_algo) {
-                (
-                    SpdmBaseHashAlgo::TPM_ALG_SHA_256,
-                    SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
-                ) => &signature::ECDSA_P256_SHA256_FIXED,
-                (
-                    SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-                    SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
-                ) => &signature::ECDSA_P384_SHA384_FIXED,
-                _ => {
-                    return Err(SPDM_STATUS_VERIF_FAIL);
-                }
-            };
+            let sign_algorithm: &dyn signature::VerificationAlgorithm =
+                match (base_hash_algo, base_asym_algo) {
+                    (
+                        SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+                    ) => &signature::ECDSA_P256_SHA256_FIXED,
+                    (
+                        SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+                    ) => &signature::ECDSA_P384_SHA384_FIXED,
+                    (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072) => {
+                        &signature::RSA_PKCS1_2048_8192_SHA256
+                    }
+                    (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072) => {
+                        &signature::RSA_PKCS1_2048_8192_SHA384
+                    }
+                    (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072) => {
+                        &signature::RSA_PSS_2048_8192_SHA256
+                    }
+                    (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072) => {
+                        &signature::RSA_PSS_2048_8192_SHA384
+                    }
+                    _ => {
+                        return Err(SPDM_STATUS_VERIF_FAIL);
+                    }
+                };
             let pk = UnparsedPublicKey::new(sign_algorithm, pub_key);
             pk.verify(data, &signature.data[..signature.data_size as usize])
                 .map_err(|_| SPDM_STATUS_VERIF_FAIL)
@@ -514,5 +527,26 @@ mod tests {
         assert_eq!(extracted[1], 0x6B);
         assert_eq!(extracted[2], 0x17);
         assert_eq!(extracted[64], 0xF5);
+    }
+
+    #[test]
+    fn test_extract_spki_pubkey_rfc7250_rsa3072() {
+        // SubjectPublicKeyInfo for RSA 3072 (422 bytes):
+        //   SEQUENCE {
+        //     SEQUENCE { OID rsaEncryption(1.2.840.113549.1.1.1), NULL }
+        //     BIT STRING { RSAPublicKey SEQUENCE { modulus INTEGER, exponent INTEGER } }
+        //   }
+        let spki = &include_bytes!("../../../../test_key/rsa3072/end_responder.key.pub.der")[..];
+        assert_eq!(spki.len(), 422);
+
+        let extracted = extract_spki_pubkey(spki).expect("should extract RSA-3072 pubkey");
+        // BIT STRING is 0x03 0x82 0x01 0x8F (399 bytes), minus 1 unused-bits byte = 398
+        assert_eq!(extracted.len(), 398);
+        // RSAPublicKey starts with SEQUENCE tag
+        assert_eq!(extracted[0], 0x30);
+        // Ends with public exponent 0x01 0x00 0x01 (65537)
+        assert_eq!(extracted[395], 0x01);
+        assert_eq!(extracted[396], 0x00);
+        assert_eq!(extracted[397], 0x01);
     }
 }
