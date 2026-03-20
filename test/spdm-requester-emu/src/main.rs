@@ -97,18 +97,31 @@ async fn test_spdm(
     socket_io_transport: Arc<Mutex<dyn SpdmDeviceIo + Send + Sync>>,
     transport_encap: Arc<Mutex<dyn SpdmTransportEncap + Send + Sync>>,
 ) {
-    let req_capabilities = SpdmRequestCapabilityFlags::CERT_CAP
-        | SpdmRequestCapabilityFlags::CHAL_CAP
-        | SpdmRequestCapabilityFlags::ENCRYPT_CAP
-        | SpdmRequestCapabilityFlags::MAC_CAP
-        | SpdmRequestCapabilityFlags::KEY_EX_CAP
-        | SpdmRequestCapabilityFlags::PSK_CAP
-        | SpdmRequestCapabilityFlags::ENCAP_CAP
-        | SpdmRequestCapabilityFlags::HBEAT_CAP
-        | SpdmRequestCapabilityFlags::KEY_UPD_CAP
-        | SpdmRequestCapabilityFlags::LARGE_RESP_CAP;
+    let use_raw_pub_key = use_raw_pub_key();
+    let req_capabilities = if use_raw_pub_key {
+        SpdmRequestCapabilityFlags::PUB_KEY_ID_CAP
+            | SpdmRequestCapabilityFlags::CHAL_CAP
+            | SpdmRequestCapabilityFlags::ENCRYPT_CAP
+            | SpdmRequestCapabilityFlags::MAC_CAP
+            | SpdmRequestCapabilityFlags::KEY_EX_CAP
+            | SpdmRequestCapabilityFlags::PSK_CAP
+            | SpdmRequestCapabilityFlags::ENCAP_CAP
+            | SpdmRequestCapabilityFlags::HBEAT_CAP
+            | SpdmRequestCapabilityFlags::KEY_UPD_CAP
+            | SpdmRequestCapabilityFlags::LARGE_RESP_CAP
+    } else {
+        SpdmRequestCapabilityFlags::CERT_CAP
+            | SpdmRequestCapabilityFlags::CHAL_CAP
+            | SpdmRequestCapabilityFlags::ENCRYPT_CAP
+            | SpdmRequestCapabilityFlags::MAC_CAP
+            | SpdmRequestCapabilityFlags::KEY_EX_CAP
+            | SpdmRequestCapabilityFlags::PSK_CAP
+            | SpdmRequestCapabilityFlags::ENCAP_CAP
+            | SpdmRequestCapabilityFlags::HBEAT_CAP
+            | SpdmRequestCapabilityFlags::KEY_UPD_CAP
+            | SpdmRequestCapabilityFlags::LARGE_RESP_CAP
+    };
     // | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
-    // | SpdmRequestCapabilityFlags::PUB_KEY_ID_CAP
     let req_capabilities = if cfg!(feature = "mut-auth") {
         req_capabilities | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
     } else {
@@ -157,79 +170,106 @@ async fn test_spdm(
         ..Default::default()
     };
 
-    let mut peer_root_cert_data = SpdmCertChainData {
-        ..Default::default()
-    };
-
-    let ca_file_path = if use_ecdsa() {
-        "test_key/ecp384/ca.cert.der"
-    } else {
-        "test_key/rsa3072/ca.cert.der"
-    };
-    let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
-    let inter_file_path = if use_ecdsa() {
-        "test_key/ecp384/inter.cert.der"
-    } else {
-        "test_key/rsa3072/inter.cert.der"
-    };
-    let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
-    let leaf_file_path = if use_ecdsa() {
-        "test_key/ecp384/end_responder.cert.der"
-    } else {
-        "test_key/rsa3072/end_responder.cert.der"
-    };
-    let leaf_cert = std::fs::read(leaf_file_path).expect("unable to read leaf cert!");
-
-    let ca_len = ca_cert.len();
-    let inter_len = inter_cert.len();
-    let leaf_len = leaf_cert.len();
-    println!(
-        "total cert size - {:?} = {:?} + {:?} + {:?}",
-        ca_len + inter_len + leaf_len,
-        ca_len,
-        inter_len,
-        leaf_len
-    );
-    peer_root_cert_data.data_size = (ca_len) as u32;
-    peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
-
-    let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
-    peer_root_cert_data_list[0] = Some(peer_root_cert_data);
-
-    let provision_info = if cfg!(feature = "mut-auth") {
-        spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
-        spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
-        let mut my_cert_chain_data = SpdmCertChainData {
+    let provision_info = if use_raw_pub_key {
+        let pub_key_file_path = if use_ecdsa() {
+            "test_key/ecp384/end_responder.key.pub.der"
+        } else {
+            "test_key/rsa3072/end_responder.key.pub.der"
+        };
+        let pub_key_data = std::fs::read(pub_key_file_path).expect("unable to read peer pub key!");
+        let mut peer_pub_key = SpdmCertChainData {
             ..Default::default()
         };
-
-        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
-        my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
-        my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
-        my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
-            .copy_from_slice(leaf_cert.as_ref());
-
-        common::SpdmProvisionInfo {
-            my_cert_chain_data: [
-                Some(my_cert_chain_data),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            ],
-            my_cert_chain: [None, None, None, None, None, None, None, None],
-            peer_root_cert_data: peer_root_cert_data_list,
-            ..Default::default()
-        }
-    } else {
+        peer_pub_key.data_size = pub_key_data.len() as u32;
+        peer_pub_key.data[..pub_key_data.len()].copy_from_slice(&pub_key_data);
+        println!(
+            "Raw public key mode: loaded peer pub key from {} ({} bytes)",
+            pub_key_file_path,
+            pub_key_data.len()
+        );
         common::SpdmProvisionInfo {
             my_cert_chain_data: [None, None, None, None, None, None, None, None],
             my_cert_chain: [None, None, None, None, None, None, None, None],
-            peer_root_cert_data: peer_root_cert_data_list,
+            peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+            peer_pub_key: Some(peer_pub_key),
             ..Default::default()
+        }
+    } else {
+        let mut peer_root_cert_data = SpdmCertChainData {
+            ..Default::default()
+        };
+
+        let ca_file_path = if use_ecdsa() {
+            "test_key/ecp384/ca.cert.der"
+        } else {
+            "test_key/rsa3072/ca.cert.der"
+        };
+        let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
+        let inter_file_path = if use_ecdsa() {
+            "test_key/ecp384/inter.cert.der"
+        } else {
+            "test_key/rsa3072/inter.cert.der"
+        };
+        let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
+        let leaf_file_path = if use_ecdsa() {
+            "test_key/ecp384/end_responder.cert.der"
+        } else {
+            "test_key/rsa3072/end_responder.cert.der"
+        };
+        let leaf_cert = std::fs::read(leaf_file_path).expect("unable to read leaf cert!");
+
+        let ca_len = ca_cert.len();
+        let inter_len = inter_cert.len();
+        let leaf_len = leaf_cert.len();
+        println!(
+            "total cert size - {:?} = {:?} + {:?} + {:?}",
+            ca_len + inter_len + leaf_len,
+            ca_len,
+            inter_len,
+            leaf_len
+        );
+        peer_root_cert_data.data_size = (ca_len) as u32;
+        peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
+
+        let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
+        peer_root_cert_data_list[0] = Some(peer_root_cert_data);
+
+        if cfg!(feature = "mut-auth") {
+            spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+            spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+            let mut my_cert_chain_data = SpdmCertChainData {
+                ..Default::default()
+            };
+
+            my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
+            my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
+            my_cert_chain_data.data[ca_len..(ca_len + inter_len)]
+                .copy_from_slice(inter_cert.as_ref());
+            my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
+                .copy_from_slice(leaf_cert.as_ref());
+
+            common::SpdmProvisionInfo {
+                my_cert_chain_data: [
+                    Some(my_cert_chain_data),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ],
+                my_cert_chain: [None, None, None, None, None, None, None, None],
+                peer_root_cert_data: peer_root_cert_data_list,
+                ..Default::default()
+            }
+        } else {
+            common::SpdmProvisionInfo {
+                my_cert_chain_data: [None, None, None, None, None, None, None, None],
+                my_cert_chain: [None, None, None, None, None, None, None, None],
+                peer_root_cert_data: peer_root_cert_data_list,
+                ..Default::default()
+            }
         }
     };
 
@@ -245,30 +285,37 @@ async fn test_spdm(
         panic!("init_connection failed!");
     }
 
-    if context.send_receive_spdm_digest(None).await.is_err() {
-        panic!("send_receive_spdm_digest failed!");
+    if !use_raw_pub_key {
+        if context.send_receive_spdm_digest(None).await.is_err() {
+            panic!("send_receive_spdm_digest failed!");
+        }
+
+        if context
+            .send_receive_spdm_certificate(None, 0)
+            .await
+            .is_err()
+        {
+            panic!("send_receive_spdm_certificate failed!");
+        }
     }
 
-    if context
-        .send_receive_spdm_certificate(None, 0)
-        .await
-        .is_err()
     {
-        panic!("send_receive_spdm_certificate failed!");
+        let challenge_slot_id = if use_raw_pub_key { 0xFF } else { 0 };
+        if context
+            .send_receive_spdm_challenge(
+                challenge_slot_id,
+                SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                Some(SpdmChallengeContextStruct::default()),
+            )
+            .await
+            .is_err()
+        {
+            panic!("send_receive_spdm_challenge failed!");
+        }
     }
 
-    if context
-        .send_receive_spdm_challenge(
-            0,
-            SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
-            Some(SpdmChallengeContextStruct::default()),
-        )
-        .await
-        .is_err()
-    {
-        panic!("send_receive_spdm_challenge failed!");
-    }
-
+    let measurement_slot_id = if use_raw_pub_key { 0xF } else { 0 }; // 0xF = SPDM_PUB_KEY_SLOT_ID_MEASUREMENT
+    let measurement_attributes = SpdmMeasurementAttributes::SIGNATURE_REQUESTED;
     let mut total_number: u8 = 0;
     let mut spdm_measurement_record_structure = SpdmMeasurementRecordStructure::default();
     let mut content_changed = None;
@@ -277,8 +324,8 @@ async fn test_spdm(
     if context
         .send_receive_spdm_measurement(
             None,
-            0,
-            SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
+            measurement_slot_id,
+            measurement_attributes,
             SpdmMeasurementOperation::SpdmMeasurementRequestAll,
             None,
             None,
@@ -297,10 +344,11 @@ async fn test_spdm(
         panic!("get message_m from send_receive_spdm_measurement failed!");
     }
 
+    let session_slot_id = if use_raw_pub_key { 0xFF } else { 0 };
     let result = context
         .start_session(
             false,
-            0,
+            session_slot_id,
             SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
         )
         .await;
@@ -532,8 +580,8 @@ async fn test_spdm(
         if context
             .send_receive_spdm_measurement(
                 Some(session_id),
-                0,
-                SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
+                measurement_slot_id,
+                measurement_attributes,
                 SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
                 None,
                 None,
@@ -552,20 +600,22 @@ async fn test_spdm(
             panic!("get VCA + message_m from send_receive_spdm_measurement failed!");
         }
 
-        if context
-            .send_receive_spdm_digest(Some(session_id))
-            .await
-            .is_err()
-        {
-            panic!("send_receive_spdm_digest failed");
-        }
+        if !use_raw_pub_key {
+            if context
+                .send_receive_spdm_digest(Some(session_id))
+                .await
+                .is_err()
+            {
+                panic!("send_receive_spdm_digest failed");
+            }
 
-        if context
-            .send_receive_spdm_certificate(Some(session_id), 0)
-            .await
-            .is_err()
-        {
-            panic!("send_receive_spdm_certificate failed");
+            if context
+                .send_receive_spdm_certificate(Some(session_id), 0)
+                .await
+                .is_err()
+            {
+                panic!("send_receive_spdm_certificate failed");
+            }
         }
 
         if context.end_session(session_id).await.is_err() {
@@ -1552,11 +1602,13 @@ fn emu_main_inner() {
             transport_encap.clone(),
         )));
 
-        block_on(Box::pin(test_idekm_tdisp(
-            socket_io_transport.clone(),
-            transport_encap.clone(),
-            key_iv,
-        )));
+        if !use_raw_pub_key() {
+            block_on(Box::pin(test_idekm_tdisp(
+                socket_io_transport.clone(),
+                transport_encap.clone(),
+                key_iv,
+            )));
+        }
 
         block_on(Box::pin(send_receive_stop(
             socket,
@@ -1569,7 +1621,9 @@ fn emu_main_inner() {
     {
         test_spdm(socket_io_transport.clone(), transport_encap.clone());
 
-        test_idekm_tdisp(socket_io_transport.clone(), transport_encap.clone(), key_iv);
+        if !use_raw_pub_key() {
+            test_idekm_tdisp(socket_io_transport.clone(), transport_encap.clone(), key_iv);
+        }
 
         send_receive_stop(socket, transport_encap, transport_type);
     }
