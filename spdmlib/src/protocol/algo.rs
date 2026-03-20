@@ -1103,6 +1103,7 @@ pub const SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE: u8 = 0xFF;
 pub const SPDM_PUB_KEY_SLOT_ID_KEY_EXCHANGE_RSP: u8 = 0xF;
 pub const SPDM_PUB_KEY_SLOT_ID_CHALLENGE: u8 = 0xFF;
 pub const SPDM_PUB_KEY_SLOT_ID_FINISH: u8 = 0xFF;
+pub const SPDM_PUB_KEY_SLOT_ID_MEASUREMENT: u8 = 0xF;
 
 enum_builder! {
     @U8

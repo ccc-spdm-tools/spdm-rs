@@ -105,14 +105,23 @@ impl ResponderContext {
         {
             self.common.runtime_info.need_measurement_signature = true;
 
-            if slot_id >= SPDM_MAX_SLOT_NUMBER {
-                self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
-                return (
-                    Err(SPDM_STATUS_INVALID_MSG_FIELD),
-                    Some(writer.used_slice()),
-                );
-            }
-            if self.common.provision_info.my_cert_chain[slot_id].is_none() {
+            let is_pub_key_id = slot_id == SPDM_PUB_KEY_SLOT_ID_MEASUREMENT as usize;
+            if !is_pub_key_id {
+                if slot_id >= SPDM_MAX_SLOT_NUMBER {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                        Some(writer.used_slice()),
+                    );
+                }
+                if self.common.provision_info.my_cert_chain[slot_id].is_none() {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                        Some(writer.used_slice()),
+                    );
+                }
+            } else if self.common.provision_info.my_pub_key.is_none() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
                 return (
                     Err(SPDM_STATUS_INVALID_STATE_LOCAL),
