@@ -10,7 +10,7 @@ use crate::common::spdm_codec::SpdmCodec;
 use crate::error::{SpdmStatus, SPDM_STATUS_BUFFER_FULL};
 use crate::protocol::{
     SpdmMeasurementContextStruct, SpdmMeasurementRecordStructure, SpdmNonceStruct,
-    SpdmSignatureStruct, SPDM_MAX_SLOT_NUMBER,
+    SpdmSignatureStruct, SPDM_MAX_SLOT_NUMBER, SPDM_PUB_KEY_SLOT_ID_MEASUREMENT,
 };
 use codec::enum_builder;
 use codec::{Codec, Reader, Writer};
@@ -129,7 +129,8 @@ impl SpdmCodec for SpdmGetMeasurementsRequestPayload {
             } else {
                 0
             };
-        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != 0xF) {
+        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != SPDM_PUB_KEY_SLOT_ID_MEASUREMENT)
+        {
             return None;
         }
         let requester_context =
@@ -222,7 +223,8 @@ impl SpdmCodec for SpdmMeasurementsResponsePayload {
         let number_of_measurement = u8::read(r)?; // param1
         let param2 = u8::read(r)?; // param2
         let slot_id = param2 & MEASUREMENT_RESPONDER_PARAM2_SLOT_ID_MASK; // Bit [3:0]
-        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != 0xF) {
+        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != SPDM_PUB_KEY_SLOT_ID_MEASUREMENT)
+        {
             return None;
         }
         let content_changed = param2 & MEASUREMENT_RESPONDER_PARAM2_CONTENT_CHANGED_MASK; // Bit [5:4]
