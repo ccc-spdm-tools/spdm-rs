@@ -47,7 +47,7 @@ impl Codec for GeneralOpaqueDataHeader {
 
         if spec_id != DMTF_SPEC_ID
             || opaque_version != DMTF_OPAQUE_VERSION
-            || opaque_list_total_elements != OPAQUE_LIST_TOTAL_ELEMENTS
+            || opaque_list_total_elements == 0
         {
             None
         } else {
@@ -83,7 +83,7 @@ impl Codec for FM1OpaqueDataHeader {
         let opaque_list_total_elements = u8::read(r)?;
         u24::read(r)?; // reserved
 
-        if opaque_list_total_elements != OPAQUE_LIST_TOTAL_ELEMENTS {
+        if opaque_list_total_elements == 0 {
             None
         } else {
             Some(Self)
