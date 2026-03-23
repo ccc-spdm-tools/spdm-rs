@@ -106,7 +106,7 @@ impl SpdmCodec for SpdmKeyExchangeRequestPayload {
             SpdmMeasurementSummaryHashType::Unknown(_) => return None,
         }
         let slot_id = u8::read(r)?; // param2
-        if (slot_id > 8) && (slot_id != 0xFF) {
+        if (slot_id >= SPDM_MAX_SLOT_NUMBER as u8) && (slot_id != 0xFF) {
             return None;
         }
         let req_session_id = u16::read(r)?;
