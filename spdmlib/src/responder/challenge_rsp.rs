@@ -197,8 +197,12 @@ impl ResponderContext {
             },
             payload: SpdmMessagePayload::SpdmChallengeAuthResponse(
                 SpdmChallengeAuthResponsePayload {
-                    slot_id: slot_id as u8,
-                    slot_mask: 0x1,
+                    slot_id: if is_pub_key_id {
+                        SPDM_PUB_KEY_SLOT_ID_CHALLENGE_AUTH
+                    } else {
+                        slot_id as u8
+                    },
+                    slot_mask: if is_pub_key_id { 0x00 } else { 0x01 },
                     challenge_auth_attribute: SpdmChallengeAuthAttribute::empty(),
                     cert_chain_hash,
                     nonce: SpdmNonceStruct { data: nonce },
