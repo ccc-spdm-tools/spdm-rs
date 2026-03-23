@@ -285,7 +285,11 @@ async fn handle_message(
             | SpdmResponseCapabilityFlags::KEY_UPD_CAP
             | SpdmResponseCapabilityFlags::LARGE_RESP_CAP
     };
-    // | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
+    let rsp_capabilities = if use_handshake_in_the_clear() {
+        rsp_capabilities | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
+    } else {
+        rsp_capabilities
+    };
     let rsp_capabilities = if cfg!(feature = "mut-auth") {
         rsp_capabilities | SpdmResponseCapabilityFlags::MUT_AUTH_CAP
     } else {
