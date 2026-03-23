@@ -59,6 +59,15 @@ pub fn use_raw_pub_key() -> bool {
         .unwrap_or(false)
 }
 
+/// Check if HANDSHAKE_IN_THE_CLEAR_CAP should be advertised.
+/// SPDMRS_USE_HANDSHAKE_IN_THE_CLEAR=true or 1 -> enables HANDSHAKE_IN_THE_CLEAR_CAP
+/// SPDMRS_USE_HANDSHAKE_IN_THE_CLEAR=false or 0 or unset -> disables (default)
+pub fn use_handshake_in_the_clear() -> bool {
+    std::env::var("SPDMRS_USE_HANDSHAKE_IN_THE_CLEAR")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
     pub command: u32,

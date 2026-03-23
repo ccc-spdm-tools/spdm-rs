@@ -121,7 +121,11 @@ async fn test_spdm(
             | SpdmRequestCapabilityFlags::KEY_UPD_CAP
             | SpdmRequestCapabilityFlags::LARGE_RESP_CAP
     };
-    // | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
+    let req_capabilities = if use_handshake_in_the_clear() {
+        req_capabilities | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
+    } else {
+        req_capabilities
+    };
     let req_capabilities = if cfg!(feature = "mut-auth") {
         req_capabilities | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
     } else {
@@ -663,8 +667,12 @@ async fn test_idekm_tdisp(
         | SpdmRequestCapabilityFlags::HBEAT_CAP
         | SpdmRequestCapabilityFlags::KEY_UPD_CAP
         | SpdmRequestCapabilityFlags::LARGE_RESP_CAP;
-    // | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
     // | SpdmRequestCapabilityFlags::PUB_KEY_ID_CAP
+    let req_capabilities = if use_handshake_in_the_clear() {
+        req_capabilities | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
+    } else {
+        req_capabilities
+    };
     let req_capabilities = if cfg!(feature = "mut-auth") {
         req_capabilities | SpdmRequestCapabilityFlags::MUT_AUTH_CAP
     } else {
