@@ -258,6 +258,11 @@ async fn handle_message(
     let socket_io_transport = SocketIoTransport::new(stream);
     let socket_io_transport = Arc::new(Mutex::new(socket_io_transport));
     let use_raw_pub_key = use_raw_pub_key();
+    let psk_cap = if use_psk_without_context() {
+        SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT
+    } else {
+        SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
+    };
     let rsp_capabilities = if use_raw_pub_key {
         SpdmResponseCapabilityFlags::PUB_KEY_ID_CAP
             | SpdmResponseCapabilityFlags::CHAL_CAP
@@ -266,7 +271,7 @@ async fn handle_message(
             | SpdmResponseCapabilityFlags::ENCRYPT_CAP
             | SpdmResponseCapabilityFlags::MAC_CAP
             | SpdmResponseCapabilityFlags::KEY_EX_CAP
-            | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
+            | psk_cap
             | SpdmResponseCapabilityFlags::ENCAP_CAP
             | SpdmResponseCapabilityFlags::HBEAT_CAP
             | SpdmResponseCapabilityFlags::KEY_UPD_CAP
@@ -279,7 +284,7 @@ async fn handle_message(
             | SpdmResponseCapabilityFlags::ENCRYPT_CAP
             | SpdmResponseCapabilityFlags::MAC_CAP
             | SpdmResponseCapabilityFlags::KEY_EX_CAP
-            | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT
+            | psk_cap
             | SpdmResponseCapabilityFlags::ENCAP_CAP
             | SpdmResponseCapabilityFlags::HBEAT_CAP
             | SpdmResponseCapabilityFlags::KEY_UPD_CAP
