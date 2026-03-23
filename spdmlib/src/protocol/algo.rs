@@ -190,8 +190,8 @@ bitflags! {
             | Self::TPM_ALG_SHA_384.bits
             | Self::TPM_ALG_SHA_512.bits
             | Self::TPM_ALG_SHA3_256.bits
-            | Self::TPM_ALG_SHA3_256.bits
-            | Self::TPM_ALG_SHA3_256.bits
+            | Self::TPM_ALG_SHA3_384.bits
+            | Self::TPM_ALG_SHA3_512.bits
             | Self::TPM_ALG_SM3.bits;
     }
 }
