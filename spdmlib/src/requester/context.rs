@@ -112,7 +112,15 @@ impl RequesterContext {
             let session_id = self
                 .send_receive_spdm_psk_exchange(measurement_summary_hash_type, None)
                 .await?;
-            self.send_receive_spdm_psk_finish(session_id).await?;
+            // When PSK_CAP_WITH_CONTEXT is negotiated, PSK_FINISH is required.
+            if self
+                .common
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT)
+            {
+                self.send_receive_spdm_psk_finish(session_id).await?;
+            }
             Ok(session_id)
         }
     }
