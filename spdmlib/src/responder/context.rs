@@ -599,7 +599,11 @@ impl ResponderContext {
                                 writer,
                             ),
 
-                        _ => (Err(SPDM_STATUS_UNSUPPORTED_CAP), None),
+                        _ => self.handle_error_request(
+                            SpdmErrorCode::SpdmErrorUnsupportedRequest,
+                            bytes,
+                            writer,
+                        ),
                     },
                     None => (Err(SPDM_STATUS_UNSUPPORTED_CAP), None),
                 }
@@ -662,7 +666,11 @@ impl ResponderContext {
                                 writer,
                             ),
 
-                        _ => (Err(SPDM_STATUS_UNSUPPORTED_CAP), None),
+                        _ => self.handle_error_request(
+                            SpdmErrorCode::SpdmErrorUnsupportedRequest,
+                            bytes,
+                            writer,
+                        ),
                     },
                     None => (Err(SPDM_STATUS_UNSUPPORTED_CAP), None),
                 }
@@ -782,7 +790,11 @@ impl ResponderContext {
                     writer,
                 ),
 
-                _ => (Err(SPDM_STATUS_UNSUPPORTED_CAP), None),
+                _ => self.handle_error_request(
+                    SpdmErrorCode::SpdmErrorUnsupportedRequest,
+                    bytes,
+                    writer,
+                ),
             },
             None => (Err(SPDM_STATUS_UNSUPPORTED_CAP), None),
         }
