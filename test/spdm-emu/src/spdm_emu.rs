@@ -68,6 +68,15 @@ pub fn use_handshake_in_the_clear() -> bool {
         .unwrap_or(false)
 }
 
+/// Check if PSK_CAP_WITHOUT_CONTEXT should be used (responder only).
+/// SPDMRS_USE_PSK_WITHOUT_CONTEXT=true or 1 -> uses PSK_CAP_WITHOUT_CONTEXT
+/// SPDMRS_USE_PSK_WITHOUT_CONTEXT=false or 0 or unset -> uses PSK_CAP_WITH_CONTEXT (default)
+pub fn use_psk_without_context() -> bool {
+    std::env::var("SPDMRS_USE_PSK_WITHOUT_CONTEXT")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
     pub command: u32,
