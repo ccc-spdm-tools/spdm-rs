@@ -229,9 +229,54 @@ run_rust_spdm_emu_chunk_cap() {
     cleanup
 }
 
+run_rust_spdm_emu_raw_pub_key() {
+    # Raw public key (PUB_KEY_ID) mode is only supported by the spdm-ring backend.
+    # Skip if either requester or responder uses spdm-mbedtls.
+    if [[ "$RUN_REQUESTER_FEATURES" == *"spdm-mbedtls"* ]] || [[ "$RUN_RESPONDER_FEATURES" == *"spdm-mbedtls"* ]]; then
+        echo "Skipping raw public key test (mbedtls does not support raw pub key verification)..."
+        return
+    fi
+    echo "Running requester and responder with raw public key..."
+    export SPDMRS_USE_RAW_PUB_KEY=true
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_FEATURES"
+    unset SPDMRS_USE_RAW_PUB_KEY
+    cleanup
+}
+
+run_with_spdm_emu_raw_pub_key() {
+    # Raw public key (PUB_KEY_ID) mode is only supported by the spdm-ring backend.
+    # Skip if either requester or responder uses spdm-mbedtls.
+    if [[ "$RUN_REQUESTER_FEATURES" == *"spdm-mbedtls"* ]] || [[ "$RUN_RESPONDER_FEATURES" == *"spdm-mbedtls"* ]]; then
+        echo "Skipping cross test with spdm-emu raw public key (mbedtls does not support raw pub key verification)..."
+        return
+    fi
+    echo "Running cross test with spdm-emu raw public key..."
+    pushd test_key
+    chmod +x ./spdm_responder_emu
+    echo_command ./spdm_responder_emu --trans PCI_DOE --cap CACHE,CHAL,MEAS_SIG,MEAS_FRESH,ENCRYPT,MAC,KEY_EX,PSK,ENCAP,HBEAT,KEY_UPD,HANDSHAKE_IN_CLEAR,PUB_KEY_ID --slot_id 0xFF --mut_auth NO &
+    popd
+    sleep 5
+    export SPDMRS_USE_RAW_PUB_KEY=true
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_FEATURES"
+    unset SPDMRS_USE_RAW_PUB_KEY
+    cleanup
+
+    export SPDMRS_USE_RAW_PUB_KEY=true
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_FEATURES" &
+    sleep 20
+    pushd test_key
+    chmod +x ./spdm_requester_emu
+    echo_command ./spdm_requester_emu --trans PCI_DOE --cap CHAL,ENCRYPT,MAC,KEY_EX,PSK,ENCAP,HBEAT,KEY_UPD,PUB_KEY_ID --slot_id 0xFF --mut_auth NO --exe_conn CHAL,MEAS --exe_session KEY_EX,PSK,KEY_UPDATE,HEARTBEAT,MEAS
+    popd
+    unset SPDMRS_USE_RAW_PUB_KEY
+}
+
 run() {
     run_basic_test
     run_rust_spdm_emu
+    run_rust_spdm_emu_raw_pub_key
     run_rust_spdm_emu_mut_auth
     run_rust_spdm_emu_mandatory_mut_auth
 }
@@ -287,6 +332,7 @@ main() {
         run
         if [ "$RUNNER_OS" == "Linux" ]; then
             run_with_spdm_emu
+            run_with_spdm_emu_raw_pub_key
             run_with_spdm_emu_mut_auth
             run_with_spdm_emu_mandatory_mut_auth
         fi
