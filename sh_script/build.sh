@@ -230,12 +230,6 @@ run_rust_spdm_emu_chunk_cap() {
 }
 
 run_rust_spdm_emu_raw_pub_key() {
-    # Raw public key (PUB_KEY_ID) mode is only supported by the spdm-ring backend.
-    # Skip if either requester or responder uses spdm-mbedtls.
-    if [[ "$RUN_REQUESTER_FEATURES" == *"spdm-mbedtls"* ]] || [[ "$RUN_RESPONDER_FEATURES" == *"spdm-mbedtls"* ]]; then
-        echo "Skipping raw public key test (mbedtls does not support raw pub key verification)..."
-        return
-    fi
     echo "Running requester and responder with raw public key..."
     export SPDMRS_USE_RAW_PUB_KEY=true
     echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_FEATURES" &
@@ -246,12 +240,6 @@ run_rust_spdm_emu_raw_pub_key() {
 }
 
 run_with_spdm_emu_raw_pub_key() {
-    # Raw public key (PUB_KEY_ID) mode is only supported by the spdm-ring backend.
-    # Skip if either requester or responder uses spdm-mbedtls.
-    if [[ "$RUN_REQUESTER_FEATURES" == *"spdm-mbedtls"* ]] || [[ "$RUN_RESPONDER_FEATURES" == *"spdm-mbedtls"* ]]; then
-        echo "Skipping cross test with spdm-emu raw public key (mbedtls does not support raw pub key verification)..."
-        return
-    fi
     echo "Running cross test with spdm-emu raw public key..."
     pushd test_key
     chmod +x ./spdm_responder_emu
