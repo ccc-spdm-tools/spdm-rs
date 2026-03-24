@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use mbedtls::{hash, x509::Certificate};
+use mbedtls::{hash, pk::Pk, x509::Certificate};
 use spdmlib::crypto::SpdmAsymVerify;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_VERIF_FAIL};
 use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
@@ -11,27 +11,62 @@ pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
     verify_cb: asym_verify,
 };
 
-fn asym_verify(
-    base_hash_algo: SpdmBaseHashAlgo,
-    base_asym_algo: SpdmBaseAsymAlgo,
-    der: SpdmDer,
-    data: &[u8],
-    signature: &SpdmSignatureStruct,
-) -> SpdmResult {
-    if signature.data_size != base_asym_algo.get_sig_size() {
-        return Err(SPDM_STATUS_INVALID_PARAMETER);
-    }
-
-    let public_cert_der = match der {
-        SpdmDer::SpdmDerCertChain(cert_chain) => cert_chain,
-        SpdmDer::SpdmDerPubKeyRfc7250(_) => return Err(SPDM_STATUS_INVALID_PARAMETER),
-    };
-
-    let hash_algo = match base_hash_algo {
+fn get_hash_algo(base_hash_algo: SpdmBaseHashAlgo) -> SpdmResult<hash::Type> {
+    match base_hash_algo {
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Ok(hash::Type::Sha256),
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Ok(hash::Type::Sha384),
         _ => Err(SPDM_STATUS_INVALID_PARAMETER),
-    }?;
+    }
+}
+
+fn convert_signature<'a>(
+    base_asym_algo: SpdmBaseAsymAlgo,
+    signature: &'a SpdmSignatureStruct,
+    der_buf: &'a mut [u8],
+) -> SpdmResult<&'a [u8]> {
+    match base_asym_algo {
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
+        | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
+            let der_sign_size = ecc_signature_bin_to_der(signature.as_ref(), der_buf)?;
+            Ok(&der_buf[0..der_sign_size])
+        }
+        SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
+        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
+        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
+        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
+        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
+        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => Ok(signature.as_ref()),
+        _ => Err(SPDM_STATUS_INVALID_PARAMETER),
+    }
+}
+
+fn verify_with_pub_key(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    raw_pub_key: &[u8],
+    data: &[u8],
+    signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    let hash_algo = get_hash_algo(base_hash_algo)?;
+
+    let mut der_signature = [0u8; spdmlib::protocol::ECDSA_ECC_NIST_P384_SIG_SIZE + 8];
+    let signature = convert_signature(base_asym_algo, signature, &mut der_signature)?;
+
+    let data_hash = (super::hash_impl::DEFAULT.hash_all_cb)(base_hash_algo, data).unwrap();
+
+    let mut pk = Pk::from_public_key(raw_pub_key).map_err(|_| SPDM_STATUS_VERIF_FAIL)?;
+    pk.verify(hash_algo, data_hash.as_ref(), signature)
+        .map_err(|_| SPDM_STATUS_VERIF_FAIL)
+}
+
+fn verify_with_cert_chain(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    public_cert_der: &[u8],
+    data: &[u8],
+    signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    let hash_algo = get_hash_algo(base_hash_algo)?;
 
     match base_asym_algo {
         SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
@@ -42,25 +77,8 @@ fn asym_verify(
         _ => return Err(SPDM_STATUS_INVALID_PARAMETER),
     };
 
-    // DER has this format: 0x30 size 0x02 r_size 0x00 [r_size] 0x02 s_size 0x00 [s_size]
     let mut der_signature = [0u8; spdmlib::protocol::ECDSA_ECC_NIST_P384_SIG_SIZE + 8];
-
-    let signature = match base_asym_algo {
-        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
-        | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
-            let der_sign_size = ecc_signature_bin_to_der(signature.as_ref(), &mut der_signature)?;
-            &der_signature[0..der_sign_size]
-        }
-        SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
-        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
-        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
-        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
-        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
-        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => signature.as_ref(),
-        _ => {
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
-    };
+    let signature = convert_signature(base_asym_algo, signature, &mut der_signature)?;
 
     let (leaf_begin, leaf_end) =
         (super::cert_operation_impl::DEFAULT.get_cert_from_cert_chain_cb)(public_cert_der, -1)?;
@@ -74,6 +92,31 @@ fn asym_verify(
         .public_key_mut()
         .verify(hash_algo, data_hash.as_ref(), signature)
         .map_err(|_| SPDM_STATUS_VERIF_FAIL)
+}
+
+fn asym_verify(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    der: SpdmDer,
+    data: &[u8],
+    signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    if signature.data_size != base_asym_algo.get_sig_size() {
+        return Err(SPDM_STATUS_INVALID_PARAMETER);
+    }
+
+    match der {
+        SpdmDer::SpdmDerPubKeyRfc7250(raw_pub_key) => {
+            verify_with_pub_key(base_hash_algo, base_asym_algo, raw_pub_key, data, signature)
+        }
+        SpdmDer::SpdmDerCertChain(public_cert_der) => verify_with_cert_chain(
+            base_hash_algo,
+            base_asym_algo,
+            public_cert_der,
+            data,
+            signature,
+        ),
+    }
 }
 
 // add ASN.1 for the ECDSA binary signature
