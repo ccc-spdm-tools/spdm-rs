@@ -202,7 +202,17 @@ impl ResponderContext {
                     } else {
                         slot_id as u8
                     },
-                    slot_mask: if is_pub_key_id { 0x00 } else { 0x01 },
+                    slot_mask: if is_pub_key_id {
+                        0x00
+                    } else {
+                        let mut mask = 0u8;
+                        for i in 0..SPDM_MAX_SLOT_NUMBER {
+                            if self.common.provision_info.my_cert_chain[i].is_some() {
+                                mask |= 1 << i;
+                            }
+                        }
+                        mask
+                    },
                     challenge_auth_attribute: SpdmChallengeAuthAttribute::empty(),
                     cert_chain_hash,
                     nonce: SpdmNonceStruct { data: nonce },
