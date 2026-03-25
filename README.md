@@ -208,6 +208,26 @@ export SPDMRS_USE_ECDSA=false        # controls base_asym_algo (BaseAsymAlgo)
 export SPDMRS_REQ_USE_ECDSA=false    # controls req_asym_algo (ReqBaseAsymAlg)
 ```
 
+### Run emulator with raw public key (PUB_KEY_ID) mode
+
+spdm-rs supports raw public key authentication per RFC 7250 (PUB_KEY_ID) as an alternative to certificate chains. In this mode, the responder uses a SubjectPublicKeyInfo DER-encoded public key instead of a full certificate chain.
+
+To enable raw public key mode, set the `SPDMRS_USE_RAW_PUB_KEY` environment variable:
+
+```bash
+export SPDMRS_USE_RAW_PUB_KEY=true
+
+cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
+```
+
+```bash
+export SPDMRS_USE_RAW_PUB_KEY=true
+
+cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
+```
+
+Both `spdm-ring` and `spdm-mbedtls` crypto backends support raw public key verification.
+
 ### Cross test with [spdm_emu](https://github.com/DMTF/spdm-emu)
 Open one command windows in workspace and run:
 
