@@ -1,0 +1,13 @@
+[package]
+name = "spdmlib_crypto_aws_lc"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 or MIT"
+
+[dependencies]
+spdmlib = { path = "../spdmlib", default-features = false }
+aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", features = ["unstable"] }
+
+[features]
+default = []
+hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
