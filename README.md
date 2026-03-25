@@ -69,7 +69,9 @@ Responder: CERT_CAP, CHAL_CAP, MEAS_CAP_NO_SIG, MEAS_CAP_SIG, MEAS_FRESH_CAP, EN
 It depends on crypto wrapper. Current support algorithms:
 * Hash: SHA2(256/384/512)
 * Signature: RSA-SSA(2048/3072/4096) / RSA-PSS(2048/3072/4096) / ECDSA (P256/P384)
+* PQC Signature: ML-DSA (44/65/87) — requires `spdm-aws-lc` feature and [aws-lc-rs](https://github.com/aws/aws-lc-rs)
 * KeyExchange: ECDHE(P256/P384)
+* PQC KeyExchange: ML-KEM (512/768/1024) — requires `spdm-aws-lc` feature and [aws-lc-rs](https://github.com/aws/aws-lc-rs)
 * AEAD: AES_GCM(128/256) / ChaCha20Poly1305
 
 ## Documentation
@@ -169,6 +171,7 @@ The following list shows the supported combinations for both spdm-requester-emu 
 | spdm-mbedtls,is_sync                               | mbedtls       | No                             | sync                   | use mbedtls as crypto library with hashed-transcript-data disabled, sync version.                               |
 | spdm-mbedtls,hashed-transcript-data,is_sync        | mbedtls       | Yes                            | sync                   | use mbedtls as crypto library with hashed-transcript-data enabled, sync version.                                |
 | spdm-mbedtls,hashed-transcript-data,async-executor | mbedtls       | Yes                            | executor async runtime | use mbedtls as crypto library with hashed-transcript-data enabled, async version, use executor as async runtime |
+| spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc | ring+aws-lc-rs | Yes                    | executor async runtime | use ring + aws-lc-rs for PQC (ML-DSA, ML-KEM) with hashed-transcript-data enabled, async version               |
 
 
 For example, run the emulator with spdm-ring enabled and without hashed-transcript-data enabled, and use executor as async runtime. 
@@ -227,6 +230,54 @@ cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hash
 ```
 
 Both `spdm-ring` and `spdm-mbedtls` crypto backends support raw public key verification.
+
+### Run emulator with PQC algorithms (ML-DSA + ML-KEM)
+
+SPDM 1.4 introduces Post-Quantum Cryptography (PQC) support. spdm-rs supports ML-DSA for signature and ML-KEM for key exchange via the [aws-lc-rs](https://github.com/aws/aws-lc-rs) crypto backend.
+
+**Note:** PQC support with aws-lc-rs currently only works for std build. It does not work for no-std build.
+
+**Prerequisites:**
+
+1. Initialize the aws-lc-rs submodule:
+```
+git submodule update --init --recursive external/aws-lc-rs
+```
+
+2. Build with the `spdm-aws-lc` feature:
+```
+cargo build -p spdm-requester-emu -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+```
+
+**Run PQC self-test (spdm-rs requester vs spdm-rs responder):**
+
+Currently PQC is supported in raw public key mode (RFC 7250). Set the following environment variables to enable PQC:
+
+```
+export SPDMRS_USE_PQC=true
+export SPDMRS_USE_RAW_PUB_KEY=true
+```
+
+Open one command window and run the responder:
+```
+SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+```
+
+Open another command window and run the requester:
+```
+SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+```
+
+This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1024 for key exchange, including: GET_VERSION, GET_CAPABILITIES, NEGOTIATE_ALGORITHMS, CHALLENGE, GET_MEASUREMENTS, KEY_EXCHANGE, FINISH, HEARTBEAT, KEY_UPDATE, GET_MEASUREMENTS (in-session), END_SESSION, PSK_EXCHANGE, PSK_FINISH, and END_SESSION.
+
+**Environment variables:**
+
+| Variable | Description |
+|---|---|
+| `SPDMRS_USE_PQC` | Set to `true` to enable PQC-only mode (ML-DSA-87 + ML-KEM-1024) |
+| `SPDMRS_USE_RAW_PUB_KEY` | Set to `true` to use raw public key (RFC 7250) instead of certificate chain |
+
+**Note:** PQC certificate chain mode is not yet supported because the ring/webpki library does not recognize ML-DSA OIDs. Raw public key mode must be used for PQC testing.
 
 ### Cross test with [spdm_emu](https://github.com/DMTF/spdm-emu)
 Open one command windows in workspace and run:
