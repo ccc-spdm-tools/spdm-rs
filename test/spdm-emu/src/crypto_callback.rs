@@ -194,10 +194,59 @@ fn sign_rsa_asym_algo(
 fn pqc_asym_sign(
     _spdm_context: &SpdmContext,
     _base_hash_algo: SpdmBaseHashAlgo,
-    _pqc_asym_algo: SpdmPqcAsymAlgo,
-    _data: &[u8],
+    pqc_asym_algo: SpdmPqcAsymAlgo,
+    data: &[u8],
 ) -> Option<SpdmSignatureStruct> {
-    unimplemented!()
+    #[cfg(feature = "spdm-aws-lc")]
+    {
+        use aws_lc_rs::unstable::signature::{
+            PqdsaKeyPair, ML_DSA_44_SIGNING, ML_DSA_65_SIGNING, ML_DSA_87_SIGNING,
+        };
+
+        let signing_algo = match pqc_asym_algo {
+            SpdmPqcAsymAlgo::ALG_MLDSA_44 => &ML_DSA_44_SIGNING,
+            SpdmPqcAsymAlgo::ALG_MLDSA_65 => &ML_DSA_65_SIGNING,
+            SpdmPqcAsymAlgo::ALG_MLDSA_87 => &ML_DSA_87_SIGNING,
+            _ => {
+                panic!("unsupported PQC asym algo: {:?}", pqc_asym_algo);
+            }
+        };
+
+        let key_dir_name = match pqc_asym_algo {
+            SpdmPqcAsymAlgo::ALG_MLDSA_44 => "mldsa44",
+            SpdmPqcAsymAlgo::ALG_MLDSA_65 => "mldsa65",
+            SpdmPqcAsymAlgo::ALG_MLDSA_87 => "mldsa87",
+            _ => unreachable!(),
+        };
+
+        let key_file_path = get_test_key_directory()
+            .join("test_key")
+            .join(key_dir_name)
+            .join("end_responder.key.der");
+
+        let der_file = std::fs::read(&key_file_path)
+            .unwrap_or_else(|e| panic!("unable to read PQC key from {:?}: {}", key_file_path, e));
+
+        let key_pair = PqdsaKeyPair::from_pkcs8(signing_algo, &der_file)
+            .unwrap_or_else(|e| panic!("unable to parse PQC key pair: {:?}", e));
+
+        let sig_len = signing_algo.signature_len();
+        let mut sig_buf = vec![0u8; sig_len];
+        let written = key_pair.sign(data, &mut sig_buf).ok()?;
+
+        let mut full_signature = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
+        full_signature[..written].copy_from_slice(&sig_buf[..written]);
+
+        Some(SpdmSignatureStruct {
+            data_size: written as u16,
+            data: full_signature,
+        })
+    }
+    #[cfg(not(feature = "spdm-aws-lc"))]
+    {
+        let _ = (pqc_asym_algo, data);
+        unimplemented!("PQC signing requires spdm-aws-lc feature")
+    }
 }
 
 fn get_test_key_directory() -> PathBuf {
@@ -208,4 +257,15 @@ fn get_test_key_directory() -> PathBuf {
         .parent()
         .expect("can't find parent_dir");
     crate_dir.to_path_buf()
+}
+
+/// Register PQC crypto callbacks (KEM and ML-DSA verification) using aws-lc-rs.
+/// Must be called before any PQC operations.
+#[cfg(feature = "spdm-aws-lc")]
+pub fn register_pqc_crypto_callbacks() {
+    spdmlib::crypto::pqc_asym_verify::register(
+        spdmlib_crypto_aws_lc::pqc_asym_verify_impl::DEFAULT.clone(),
+    );
+    spdmlib::crypto::kem_decap::register(spdmlib_crypto_aws_lc::kem_impl::DEFAULT_DECAP.clone());
+    spdmlib::crypto::kem_encap::register(spdmlib_crypto_aws_lc::kem_impl::DEFAULT_ENCAP.clone());
 }

@@ -138,6 +138,8 @@ async fn test_spdm(
         req_capabilities
     };
 
+    let use_pqc = use_pqc();
+
     let config_info = common::SpdmConfigInfo {
         spdm_version: [
             Some(SpdmVersion::SpdmVersion10),
@@ -149,21 +151,39 @@ async fn test_spdm(
         req_capabilities,
         req_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
-        base_asym_algo: if use_ecdsa() {
+        base_asym_algo: if use_pqc {
+            SpdmBaseAsymAlgo::empty()
+        } else if use_ecdsa() {
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         } else {
             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
         },
         base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        dhe_algo: SpdmDheAlgo::SECP_384_R1,
+        dhe_algo: if use_pqc {
+            SpdmDheAlgo::empty()
+        } else {
+            SpdmDheAlgo::SECP_384_R1
+        },
         aead_algo: SpdmAeadAlgo::AES_256_GCM,
-        req_asym_algo: if req_use_ecdsa() {
+        req_asym_algo: if use_pqc {
+            SpdmReqAsymAlgo::empty()
+        } else if req_use_ecdsa() {
             SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         } else {
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
+        pqc_asym_algo: if use_pqc {
+            SpdmPqcAsymAlgo::ALG_MLDSA_87
+        } else {
+            SpdmPqcAsymAlgo::empty()
+        },
+        kem_algo: if use_pqc {
+            SpdmKemAlgo::ALG_MLKEM_1024
+        } else {
+            SpdmKemAlgo::empty()
+        },
         data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
@@ -175,7 +195,9 @@ async fn test_spdm(
     };
 
     let provision_info = if use_raw_pub_key {
-        let pub_key_file_path = if use_ecdsa() {
+        let pub_key_file_path = if use_pqc {
+            "test_key/mldsa87/end_responder.key.pub.der"
+        } else if use_ecdsa() {
             "test_key/ecp384/end_responder.key.pub.der"
         } else {
             "test_key/rsa3072/end_responder.key.pub.der"
@@ -203,19 +225,25 @@ async fn test_spdm(
             ..Default::default()
         };
 
-        let ca_file_path = if use_ecdsa() {
+        let ca_file_path = if use_pqc {
+            "test_key/mldsa87/ca.cert.der"
+        } else if use_ecdsa() {
             "test_key/ecp384/ca.cert.der"
         } else {
             "test_key/rsa3072/ca.cert.der"
         };
         let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
-        let inter_file_path = if use_ecdsa() {
+        let inter_file_path = if use_pqc {
+            "test_key/mldsa87/inter.cert.der"
+        } else if use_ecdsa() {
             "test_key/ecp384/inter.cert.der"
         } else {
             "test_key/rsa3072/inter.cert.der"
         };
         let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
-        let leaf_file_path = if use_ecdsa() {
+        let leaf_file_path = if use_pqc {
+            "test_key/mldsa87/end_responder.cert.der"
+        } else if use_ecdsa() {
             "test_key/ecp384/end_responder.cert.der"
         } else {
             "test_key/rsa3072/end_responder.cert.der"
@@ -1567,6 +1595,9 @@ fn emu_main_inner() {
 
     #[cfg(feature = "spdm-mbedtls")]
     spdm_emu::crypto::crypto_mbedtls_register_handles();
+
+    #[cfg(feature = "spdm-aws-lc")]
+    spdm_emu::crypto_callback::register_pqc_crypto_callbacks();
 
     let since_the_epoch = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
