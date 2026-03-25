@@ -34,8 +34,14 @@ patch-ring() {
     popd
 }
 
+setup-aws-lc-rs() {
+    # setup aws-lc-rs: init nested submodule and fix symlinks
+    bash external/patches/aws-lc-rs/setup-aws-lc-rs.sh
+}
+
 format-patch() {
     patch-ring
+    setup-aws-lc-rs
 }
 
 process_args "$@"

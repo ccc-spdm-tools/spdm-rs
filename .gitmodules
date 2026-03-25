@@ -1,3 +1,6 @@
 [submodule "external/ring"]
 	path = external/ring
 	url = https://github.com/briansmith/ring.git
+[submodule "external/aws-lc-rs"]
+	path = external/aws-lc-rs
+	url = https://github.com/aws/aws-lc-rs.git
