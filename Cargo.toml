@@ -63,9 +63,12 @@ members = [
 
     "fuzz-target/random_requester",
     "fuzz-target/pass_context",
+
+    "spdmlib_crypto_aws_lc",
 ]
 exclude = [
     "external/ring",
+    "external/aws-lc-rs",
     "fuzz-target/",
 ]
 
