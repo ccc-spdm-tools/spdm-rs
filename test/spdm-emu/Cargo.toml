@@ -25,6 +25,8 @@ executor = { path = "../../executor" }
 maybe-async = "0.2.7"
 
 spdmlib_crypto_mbedtls = { path = "../../spdmlib_crypto_mbedtls", default-features = false, optional = true }
+spdmlib_crypto_aws_lc = { path = "../../spdmlib_crypto_aws_lc", optional = true }
+aws-lc-rs = { path = "../../external/aws-lc-rs/aws-lc-rs", features = ["unstable"], optional = true }
 
 [features]
 default = ["spdm-ring", "spdmlib/hashed-transcript-data", "async-executor"]
@@ -33,6 +35,7 @@ chunk-cap = ["spdmlib/chunk-cap"]
 mandatory-mut-auth = ["mut-auth", "spdmlib/mandatory-mut-auth"]
 spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std"]
 spdm-mbedtls = ["spdmlib_crypto_mbedtls"]
+spdm-aws-lc = ["spdmlib_crypto_aws_lc", "aws-lc-rs"]
 hashed-transcript-data = ["spdmlib/hashed-transcript-data", "spdmlib_crypto_mbedtls?/hashed-transcript-data"]
 async-executor = []
 async-tokio = []

@@ -77,6 +77,15 @@ pub fn use_psk_without_context() -> bool {
         .unwrap_or(false)
 }
 
+/// Check if PQC (Post-Quantum Cryptography) algorithms should be used.
+/// SPDMRS_USE_PQC=true or 1 -> enables PQC (ML-DSA-87 + ML-KEM-1024)
+/// SPDMRS_USE_PQC=false or 0 or unset -> disables PQC (default)
+pub fn use_pqc() -> bool {
+    std::env::var("SPDMRS_USE_PQC")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
     pub command: u32,
