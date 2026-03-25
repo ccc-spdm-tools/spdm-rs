@@ -524,7 +524,7 @@ pub mod rand {
 pub mod fips;
 
 // Add this import at the top of the file (after other use statements)
-use crate::error::{SpdmResult, SPDM_STATUS_UNSUPPORTED_CAP};
+use crate::error::SpdmResult;
 use crate::protocol::{
     SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmPqcAsymAlgo, SpdmSignatureStruct,
 };
@@ -546,7 +546,13 @@ pub fn spdm_asym_verify(
                 data,
                 signature,
             ),
-            SpdmDer::SpdmDerPubKeyRfc7250(_) => Err(SPDM_STATUS_UNSUPPORTED_CAP),
+            SpdmDer::SpdmDerPubKeyRfc7250(public_key_der) => self::pqc_asym_verify::verify(
+                base_hash_algo,
+                pqc_asym_algo,
+                public_key_der,
+                data,
+                signature,
+            ),
         }
     } else {
         self::asym_verify::verify(base_hash_algo, base_asym_algo, der, data, signature)
