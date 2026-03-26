@@ -1,0 +1,23 @@
+{
+    "__usage": "config for PQC (ML-DSA + ML-KEM) support with larger buffers for PQC signatures and cert chains",
+    "cert_config": {
+        "max_cert_chain_data_size": 24576
+    },
+    "measurement_config": {
+        "max_measurement_record_size": 4000,
+        "max_measurement_val_len": 1024
+    },
+    "psk_config": {
+        "max_psk_context_size": 64,
+        "max_psk_hint_size": 32
+    },
+    "max_opaque_list_elements_count": 3,
+    "max_session_count": 4,
+    "transport_config": {
+        "sender_buffer_size": 8256,
+        "receiver_buffer_size": 8256
+    },
+    "max_spdm_msg_size": 8192,
+    "heartbeat_period_value": 240,
+    "max_root_cert_support": 10
+}
