@@ -244,8 +244,9 @@ SPDM 1.4 introduces Post-Quantum Cryptography (PQC) support. spdm-rs supports ML
 git submodule update --init --recursive external/aws-lc-rs
 ```
 
-2. Build with the `spdm-aws-lc` feature:
+2. Build with the `spdm-aws-lc` feature and `pqc_config.json` (PQC signatures and key exchanges require larger buffer sizes than the default configuration):
 ```
+export SPDM_CONFIG="etc/pqc_config.json"
 cargo build -p spdm-requester-emu -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
 ```
 
@@ -254,18 +255,19 @@ cargo build -p spdm-requester-emu -p spdm-responder-emu --no-default-features --
 Currently PQC is supported in raw public key mode (RFC 7250). Set the following environment variables to enable PQC:
 
 ```
+export SPDM_CONFIG="etc/pqc_config.json"
 export SPDMRS_USE_PQC=true
 export SPDMRS_USE_RAW_PUB_KEY=true
 ```
 
 Open one command window and run the responder:
 ```
-SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
 ```
 
 Open another command window and run the requester:
 ```
-SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
 ```
 
 This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1024 for key exchange, including: GET_VERSION, GET_CAPABILITIES, NEGOTIATE_ALGORITHMS, CHALLENGE, GET_MEASUREMENTS, KEY_EXCHANGE, FINISH, HEARTBEAT, KEY_UPDATE, GET_MEASUREMENTS (in-session), END_SESSION, PSK_EXCHANGE, PSK_FINISH, and END_SESSION.
@@ -274,6 +276,7 @@ This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1
 
 | Variable | Description |
 |---|---|
+| `SPDM_CONFIG` | Set to `"etc/pqc_config.json"` for PQC builds (larger buffers for ML-DSA signatures and cert chains) |
 | `SPDMRS_USE_PQC` | Set to `true` to enable PQC-only mode (ML-DSA-87 + ML-KEM-1024) |
 | `SPDMRS_USE_RAW_PUB_KEY` | Set to `true` to use raw public key (RFC 7250) instead of certificate chain |
 
