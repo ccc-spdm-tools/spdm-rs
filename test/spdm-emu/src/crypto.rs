@@ -10,19 +10,11 @@ pub fn crypto_mbedtls_register_handles() {
         spdmlib_crypto_mbedtls::asym_verify_impl::DEFAULT.clone(),
     );
 
-    spdmlib::crypto::pqc_asym_verify::register(
-        spdmlib_crypto_mbedtls::pqc_asym_verify_impl::DEFAULT.clone(),
-    );
-
     spdmlib::crypto::cert_operation::register(
         spdmlib_crypto_mbedtls::cert_operation_impl::DEFAULT.clone(),
     );
 
     spdmlib::crypto::dhe::register(spdmlib_crypto_mbedtls::dhe_impl::DEFAULT.clone());
-
-    spdmlib::crypto::kem_decap::register(spdmlib_crypto_mbedtls::kem_impl::DEFAULT_DECAP.clone());
-
-    spdmlib::crypto::kem_encap::register(spdmlib_crypto_mbedtls::kem_impl::DEFAULT_ENCAP.clone());
 
     spdmlib::crypto::hash::register(spdmlib_crypto_mbedtls::hash_impl::DEFAULT.clone());
 
