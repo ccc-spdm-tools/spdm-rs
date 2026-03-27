@@ -657,19 +657,29 @@ async fn test_spdm(
         panic!("\nSession session_id not got\n");
     }
 
-    let result = context
-        .start_session(
-            true,
-            0,
-            SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+    if context
+        .common
+        .negotiate_info
+        .rsp_capabilities_sel
+        .intersects(
+            SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT
+                | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT,
         )
-        .await;
-    if let Ok(session_id) = result {
-        if context.end_session(session_id).await.is_err() {
-            panic!("\nSession session_id is err\n");
+    {
+        let result = context
+            .start_session(
+                true,
+                0,
+                SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+            )
+            .await;
+        if let Ok(session_id) = result {
+            if context.end_session(session_id).await.is_err() {
+                panic!("\nSession session_id is err\n");
+            }
+        } else {
+            panic!("\nSession session_id not got\n");
         }
-    } else {
-        panic!("\nSession session_id not got\n");
     }
 
     #[cfg(feature = "test_stack_size")]
