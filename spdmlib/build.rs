@@ -248,4 +248,10 @@ fn main() {
     println!("cargo:rerun-if-changed=../Cargo.lock");
     println!("cargo:rerun-if-changed={}", SPDM_CONFIG_JSON_DEFAULT_PATH);
     println!("cargo:rerun-if-env-changed={}", SPDM_CONFIG_ENV);
+    // Track the generated config.rs so build.rs reruns if it's deleted or
+    // overwritten by another cargo invocation with a different SPDM_CONFIG.
+    println!(
+        "cargo:rerun-if-changed={}/{}",
+        SPDM_CONFIG_RS_OUT_DIR, SPDM_CONFIG_RS_OUT_FILE_NAME
+    );
 }
