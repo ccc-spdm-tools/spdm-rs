@@ -199,6 +199,7 @@ fn pqc_asym_sign(
 ) -> Option<SpdmSignatureStruct> {
     #[cfg(feature = "spdm-aws-lc")]
     {
+        use aws_lc_rs::encoding::AsRawBytes;
         use aws_lc_rs::unstable::signature::{
             PqdsaKeyPair, ML_DSA_44_SIGNING, ML_DSA_65_SIGNING, ML_DSA_87_SIGNING,
         };
@@ -230,17 +231,17 @@ fn pqc_asym_sign(
         let key_pair = PqdsaKeyPair::from_pkcs8(signing_algo, &der_file)
             .unwrap_or_else(|e| panic!("unable to parse PQC key pair: {:?}", e));
 
-        let sig_len = signing_algo.signature_len();
-        let mut sig_buf = vec![0u8; sig_len];
-        let written = key_pair.sign(data, &mut sig_buf).ok()?;
+        // Extract raw private key for signing with ML-DSA context string
+        let raw_priv_key = key_pair
+            .private_key()
+            .as_raw_bytes()
+            .expect("failed to get raw private key");
 
-        let mut full_signature = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
-        full_signature[..written].copy_from_slice(&sig_buf[..written]);
-
-        Some(SpdmSignatureStruct {
-            data_size: written as u16,
-            data: full_signature,
-        })
+        spdmlib_crypto_aws_lc::pqc_asym_sign_impl::pqc_sign_with_context(
+            pqc_asym_algo,
+            raw_priv_key.as_ref(),
+            data,
+        )
     }
     #[cfg(not(feature = "spdm-aws-lc"))]
     {
