@@ -107,6 +107,14 @@ build() {
 
     echo "Building spdm-responder-emu..."
     echo_command cargo build -p spdm-responder-emu
+
+    echo "Building spdm-requester-emu with PQC (spdm-aws-lc)..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    echo_command cargo build -p spdm-requester-emu --no-default-features --features="spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+
+    echo "Building spdm-responder-emu with PQC (spdm-aws-lc)..."
+    echo_command cargo build -p spdm-responder-emu --no-default-features --features="spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+    echo_command unset SPDM_CONFIG
 }
 
 RUN_REQUESTER_FEATURES=${RUN_REQUESTER_FEATURES:-spdm-ring,hashed-transcript-data,async-executor}
@@ -116,6 +124,8 @@ RUN_RESPONDER_MUTAUTH_FEATURES="${RUN_RESPONDER_FEATURES},mut-auth"
 RUN_RESPONDER_MANDATORY_MUTAUTH_FEATURES="${RUN_RESPONDER_FEATURES},mandatory-mut-auth"
 RUN_REQUESTER_CHUNK_CAP_FEATURES="${RUN_REQUESTER_FEATURES},chunk-cap"
 RUN_RESPONDER_CHUNK_CAP_FEATURES="${RUN_RESPONDER_FEATURES},chunk-cap"
+RUN_REQUESTER_PQC_FEATURES="${RUN_REQUESTER_FEATURES},spdm-aws-lc,chunk-cap"
+RUN_RESPONDER_PQC_FEATURES="${RUN_RESPONDER_FEATURES},spdm-aws-lc,chunk-cap"
 
 
 run_with_spdm_emu() {
@@ -239,6 +249,24 @@ run_rust_spdm_emu_raw_pub_key() {
     cleanup
 }
 
+run_rust_spdm_emu_pqc() {
+    echo "Running requester and responder with PQC (ML-DSA + ML-KEM)..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    # Force build.rs to regenerate config.rs with PQC buffer sizes.
+    # build.rs writes to spdmlib/src/config.rs (a shared source file),
+    # which may have been overwritten by prior non-PQC test builds.
+    rm -f spdmlib/src/config.rs
+    export SPDMRS_USE_PQC=true
+    export SPDMRS_USE_RAW_PUB_KEY=true
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_FEATURES"
+    unset SPDMRS_USE_PQC
+    unset SPDMRS_USE_RAW_PUB_KEY
+    echo_command unset SPDM_CONFIG
+    cleanup
+}
+
 run_with_spdm_emu_raw_pub_key() {
     echo "Running cross test with spdm-emu raw public key..."
     pushd test_key
@@ -261,12 +289,50 @@ run_with_spdm_emu_raw_pub_key() {
     unset SPDMRS_USE_RAW_PUB_KEY
 }
 
+run_with_spdm_emu_pqc() {
+    echo "Running cross test with spdm-emu PQC (ML-DSA + ML-KEM)..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    # Force build.rs to regenerate config.rs with PQC buffer sizes.
+    # build.rs writes to spdmlib/src/config.rs (a shared source file),
+    # which may have been overwritten by prior non-PQC test builds.
+    rm -f spdmlib/src/config.rs
+    pushd test_key
+    chmod +x ./spdm_responder_emu
+    # spdm-emu binaries are dynamically linked against a custom OpenSSL
+    # (libcrypto.so.3) with PQC/ML-DSA support, shipped in test_key/.
+    export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH:-}
+    echo_command ./spdm_responder_emu --trans PCI_DOE --cap CACHE,CHAL,MEAS_SIG,MEAS_FRESH,ENCRYPT,MAC,KEY_EX,ENCAP,HBEAT,KEY_UPD,HANDSHAKE_IN_CLEAR,PUB_KEY_ID,CHUNK --slot_id 0xFF --mut_auth NO --pqc_asym ML_DSA_87 --kem ML_KEM_1024 --pqc_first TRUE &
+    popd
+    sleep 5
+    export SPDMRS_USE_PQC=true
+    export SPDMRS_USE_RAW_PUB_KEY=true
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_FEATURES"
+    unset SPDMRS_USE_PQC
+    unset SPDMRS_USE_RAW_PUB_KEY
+    cleanup
+
+    export SPDMRS_USE_PQC=true
+    export SPDMRS_USE_RAW_PUB_KEY=true
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_FEATURES" &
+    sleep 20
+    pushd test_key
+    chmod +x ./spdm_requester_emu
+    export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH:-}
+    echo_command ./spdm_requester_emu --trans PCI_DOE --cap CHAL,ENCRYPT,MAC,KEY_EX,ENCAP,HBEAT,KEY_UPD,PUB_KEY_ID,CHUNK --slot_id 0xFF --mut_auth NO --pqc_asym ML_DSA_87 --kem ML_KEM_1024 --pqc_first TRUE --exe_conn CHAL,MEAS --exe_session KEY_EX,KEY_UPDATE,HEARTBEAT,MEAS
+    popd
+    unset SPDMRS_USE_PQC
+    unset SPDMRS_USE_RAW_PUB_KEY
+    unset LD_LIBRARY_PATH
+    echo_command unset SPDM_CONFIG
+}
+
 run() {
     run_basic_test
     run_rust_spdm_emu
     run_rust_spdm_emu_raw_pub_key
     run_rust_spdm_emu_mut_auth
     run_rust_spdm_emu_mandatory_mut_auth
+    run_rust_spdm_emu_pqc
 }
 
 CHECK_OPTION=false
@@ -323,6 +389,7 @@ main() {
             run_with_spdm_emu_raw_pub_key
             run_with_spdm_emu_mut_auth
             run_with_spdm_emu_mandatory_mut_auth
+            run_with_spdm_emu_pqc
         fi
     fi
 }

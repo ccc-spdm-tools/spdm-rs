@@ -46,6 +46,9 @@ jobs:
           - runs-on: windows-latest
             run_requester_features: "spdm-ring,hashed-transcript-data,async-executor"
             run_responder_features: "spdm-ring,hashed-transcript-data,async-executor"
+          - runs-on: ubuntu-latest
+            run_requester_features: "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+            run_responder_features: "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
     # The type of runner that the job will run on
     runs-on: ${{ matrix.runs-on }}
 
