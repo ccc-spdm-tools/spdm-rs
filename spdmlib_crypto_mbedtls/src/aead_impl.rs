@@ -177,7 +177,7 @@ mod test {
     }
 
     fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {
-        if hex_str.len() % 2 != 0 {
+        if !hex_str.len().is_multiple_of(2) {
             return Err(String::from(
                 "Hex string does not have an even number of digits",
             ));
@@ -193,7 +193,7 @@ mod test {
     }
 
     fn from_hex_to_aead_key(hex_str: &str) -> Result<SpdmAeadKeyStruct, String> {
-        if hex_str.len() % 2 != 0 || hex_str.len() > SPDM_MAX_AEAD_KEY_SIZE * 2 {
+        if !hex_str.len().is_multiple_of(2) || hex_str.len() > SPDM_MAX_AEAD_KEY_SIZE * 2 {
             return Err(String::from(
                 "Hex string does not have an even number of digits",
             ));
@@ -212,7 +212,7 @@ mod test {
     }
 
     fn from_hex_to_aead_iv(hex_str: &str) -> Result<SpdmAeadIvStruct, String> {
-        if hex_str.len() % 2 != 0 || hex_str.len() > SPDM_MAX_AEAD_IV_SIZE * 2 {
+        if !hex_str.len().is_multiple_of(2) || hex_str.len() > SPDM_MAX_AEAD_IV_SIZE * 2 {
             return Err(String::from(
                 "Hex string does not have an even number of digits",
             ));

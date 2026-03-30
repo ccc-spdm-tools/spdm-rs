@@ -94,14 +94,7 @@ mod tests {
         let out_size = 64;
         let hkdf_expand = hkdf_expand(base_hash_algo, &prk, info, out_size);
 
-        match hkdf_expand {
-            Some(_) => {
-                assert!(true)
-            }
-            None => {
-                assert!(false)
-            }
-        }
+        assert!(hkdf_expand.is_some(), "hkdf_expand should succeed");
     }
     #[test]
     fn test_case1_hkdf_expand() {
@@ -116,15 +109,11 @@ mod tests {
         let out_size = 64;
         let hkdf_expand = hkdf_expand(base_hash_algo, &prk, info, out_size);
 
-        match hkdf_expand {
-            Some(_) => {
-                // when bash_hash_algo is empty
-                // hkdf_expand will failed and return None.
-                assert!(false)
-            }
-            None => {
-                assert!(true)
-            }
-        }
+        // when base_hash_algo is empty
+        // hkdf_expand will fail and return None.
+        assert!(
+            hkdf_expand.is_none(),
+            "hkdf_expand should fail with empty base_hash_algo"
+        );
     }
 }
