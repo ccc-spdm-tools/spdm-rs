@@ -67,9 +67,9 @@ fn handle_input_json(input_json: String) -> io::Result<String> {
             continue;
         }
         let acv_version = value["acvVersion"].as_str();
-        if acv_version.is_some() {
+        if let Some(acv_version) = acv_version {
             output.push(serde_json::json!({
-                "acvVersion": acv_version.unwrap()
+                "acvVersion": acv_version
             }));
             continue;
         }
@@ -224,9 +224,9 @@ fn algorithm_sha2(test_groups: &Vec<Value>, algo_str: &str) -> Vec<Value> {
                     let len = content_length / 8;
                     assert_eq!(msg.as_slice().len(), len as usize);
 
-                    let mut ctx = hash::hash_ctx_init(algo).unwrap();
+                    let ctx = hash::hash_ctx_init(algo).unwrap();
                     for _ in 0..repeat {
-                        hash::hash_ctx_update(&mut ctx, msg.as_slice()).unwrap();
+                        hash::hash_ctx_update(&ctx, msg.as_slice()).unwrap();
                     }
                     let md = hash::hash_ctx_finalize(ctx).unwrap();
 
@@ -305,6 +305,7 @@ fn algorithm_hmac_sha2(test_groups: &Vec<Value>, algo_str: &str) -> Vec<Value> {
     results
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ecdsa_verify(
     tc_id: u64,
     curve: &str,
@@ -629,7 +630,7 @@ fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
                             }
                         })
                         .is_ok();
-                    if ret == false {
+                    if !ret {
                         passed = false;
                     }
 
@@ -652,8 +653,10 @@ fn handle_algorithm_ecdhe(test_groups: &Vec<Value>) -> Vec<Value> {
                     let pub_x = from_hex(ephemeral_public_server_x).unwrap();
                     let pub_y = from_hex(ephemeral_public_server_y).unwrap();
 
-                    let mut public_key = SpdmDheExchangeStruct::default();
-                    public_key.data_size = (pub_x.len() + pub_y.len()) as u16;
+                    let mut public_key = SpdmDheExchangeStruct {
+                        data_size: (pub_x.len() + pub_y.len()) as u16,
+                        ..SpdmDheExchangeStruct::default()
+                    };
                     public_key.data[0..pub_x.len()].copy_from_slice(pub_x.as_slice());
                     public_key.data[pub_x.len()..pub_x.len() + pub_y.len()]
                         .copy_from_slice(pub_y.as_slice());
@@ -735,7 +738,7 @@ fn handle_algorithm_rsa(test_groups: &Vec<Value>) -> Vec<Value> {
 }
 
 fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {
-    if hex_str.len() % 2 != 0 {
+    if !hex_str.len().is_multiple_of(2) {
         return Err(String::from(
             "Hex string does not have an even number of digits",
         ));
