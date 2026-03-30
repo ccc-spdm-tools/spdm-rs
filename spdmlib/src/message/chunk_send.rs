@@ -54,10 +54,8 @@ impl SpdmCodec for SpdmChunkSendRequestPayload {
             .encode(bytes)
             .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Chunk Size
 
-        if self.large_message_size.is_some() {
-            cnt += self
-                .large_message_size
-                .unwrap()
+        if let Some(large_message_size) = self.large_message_size {
+            cnt += large_message_size
                 .encode(bytes)
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // Large Message Size
         }

@@ -4,6 +4,7 @@
 
 #![no_std]
 #![forbid(unsafe_code)]
+#![allow(clippy::duplicate_mod)]
 
 #[cfg(feature = "std")]
 extern crate std;

@@ -238,10 +238,11 @@ mod tests {
     fn test_case0_spdm_get_certificate_request_payload() {
         let u8_slice = &mut [0u8; 12];
         let mut writer = Writer::init(u8_slice);
-        let mut value = SpdmGetCertificateRequestPayload::default();
-        value.slot_id = 4;
-        value.offset = 100;
-        value.length = 100;
+        let value = SpdmGetCertificateRequestPayload {
+            slot_id: 4,
+            offset: 100,
+            length: 100,
+        };
 
         create_spdm_context!(context);
 
@@ -259,11 +260,12 @@ mod tests {
     fn test_case0_spdm_certificate_response_payload() {
         let u8_slice = &mut [0u8; 6 + MAX_SPDM_CERT_PORTION_LEN];
         let mut writer = Writer::init(u8_slice);
-        let mut value = SpdmCertificateResponsePayload::default();
-        value.slot_id = 4;
-        value.portion_length = MAX_SPDM_CERT_PORTION_LEN as u32;
-        value.remainder_length = 100;
-        value.cert_chain = [100u8; MAX_SPDM_CERT_PORTION_LEN];
+        let value = SpdmCertificateResponsePayload {
+            slot_id: 4,
+            portion_length: MAX_SPDM_CERT_PORTION_LEN as u32,
+            remainder_length: 100,
+            cert_chain: [100u8; MAX_SPDM_CERT_PORTION_LEN],
+        };
 
         create_spdm_context!(context);
 

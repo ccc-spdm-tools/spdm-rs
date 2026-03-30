@@ -68,9 +68,7 @@ mod tests {
         let spdm_digest_struct = hmac_verify(base_hash_algo, key.as_ref(), data, &spdm_digest);
 
         match spdm_digest_struct {
-            Ok(()) => {
-                assert!(true)
-            }
+            Ok(()) => {}
             _ => {
                 panic!()
             }
@@ -88,9 +86,7 @@ mod tests {
         let spdm_digest_struct = hmac_verify(base_hash_algo, key.as_ref(), data, &spdm_digest);
 
         match spdm_digest_struct {
-            Ok(()) => {
-                assert!(true)
-            }
+            Ok(()) => {}
             _ => {
                 panic!()
             }
@@ -110,9 +106,7 @@ mod tests {
         let spdm_digest_struct = hmac_verify(base_hash_algo, key.as_ref(), data, &spdm_digest);
 
         match spdm_digest_struct {
-            Ok(()) => {
-                assert!(true)
-            }
+            Ok(()) => {}
             _ => {
                 panic!()
             }

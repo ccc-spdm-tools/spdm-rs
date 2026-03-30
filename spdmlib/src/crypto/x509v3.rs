@@ -1652,8 +1652,8 @@ mod tests {
             .expect("unable to read ca cert!");
         let mut malformed_cert = cert.clone();
         malformed_cert[1] = 0x88;
-        for i in 2..10 {
-            malformed_cert[i] = 0xff;
+        for item in malformed_cert.iter_mut().take(10).skip(2) {
+            *item = 0xff;
         }
         assert_eq!(
             check_cert_format(

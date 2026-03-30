@@ -55,7 +55,7 @@ fn test_chunk_get_and_response_struct() {
     assert_eq!(u8_slice[4..6], [0, 0]);
     LittleEndian::write_u32(field_slice, chunk_size as u32);
     assert_eq!(u8_slice[6..10], field_slice[..]);
-    LittleEndian::write_u32(field_slice, large_message_size as u32);
+    LittleEndian::write_u32(field_slice, large_message_size);
     assert_eq!(u8_slice[10..14], field_slice[..]);
 
     context.chunk_context.transferred_size = 0;

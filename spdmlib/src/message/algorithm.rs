@@ -929,7 +929,7 @@ mod tests {
         assert_eq!(48, reader.left());
         let spdm_negotiate_algorithms_request_payload =
             SpdmNegotiateAlgorithmsRequestPayload::spdm_read(&mut context, &mut reader);
-        assert_eq!(spdm_negotiate_algorithms_request_payload.is_none(), true);
+        assert!(spdm_negotiate_algorithms_request_payload.is_none());
     }
     #[test]
     fn test_case0_spdm_algorithms_response_payload() {
@@ -1082,7 +1082,7 @@ mod tests {
         assert_eq!(48, reader.left());
         let spdm_algorithms_response_payload =
             SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
-        assert_eq!(spdm_algorithms_response_payload.is_none(), true);
+        assert!(spdm_algorithms_response_payload.is_none());
         u8_slice[30] = 0;
 
         u8_slice[0] = 1; // number of algorithm structure tables
@@ -1091,7 +1091,7 @@ mod tests {
         assert_eq!(48, reader.left());
         let spdm_algorithms_response_payload =
             SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
-        assert_eq!(spdm_algorithms_response_payload.is_none(), true);
+        assert!(spdm_algorithms_response_payload.is_none());
         u8_slice[0] = 0;
         u8_slice[35] = 0;
 
@@ -1100,7 +1100,7 @@ mod tests {
         assert_eq!(48, reader.left());
         let spdm_algorithms_response_payload =
             SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
-        assert_eq!(spdm_algorithms_response_payload.is_none(), false);
+        assert!(spdm_algorithms_response_payload.is_some());
         assert_eq!(
             spdm_algorithms_response_payload
                 .unwrap()

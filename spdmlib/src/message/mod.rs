@@ -1749,7 +1749,7 @@ mod tests {
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
         let spdm_message = SpdmMessage::spdm_read(&mut context, &mut reader);
-        assert_eq!(spdm_message.is_none(), true);
+        assert!(spdm_message.is_none());
     }
 
     #[test]

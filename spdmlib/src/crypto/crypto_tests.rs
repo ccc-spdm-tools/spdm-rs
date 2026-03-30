@@ -23,23 +23,23 @@ fn test_case_hash() {
     // Len = 8
     // Msg = d3
     // MD = 28969cdfa74a12c82f3bad960b0b000aca2ac329deea5c2328ebc6f2ba9802c1
-    let mut ctx = hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_256).unwrap();
+    let ctx = hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_256).unwrap();
     let data = &from_hex("d3").unwrap();
     let md = &from_hex("28969cdfa74a12c82f3bad960b0b000aca2ac329deea5c2328ebc6f2ba9802c1").unwrap();
-    hash::hash_ctx_update(&mut ctx, data).unwrap();
+    hash::hash_ctx_update(&ctx, data).unwrap();
     let res = hash::hash_ctx_finalize(ctx).unwrap();
     assert_eq!(res.as_ref(), md);
 
     // Len = 512
     // Msg = 5a86b737eaea8ee976a0a24da63e7ed7eefad18a101c1211e2b3650c5187c2a8a650547208251f6d4237e661c7bf4c77f335390394c37fa1a9f9be836ac28509
     // MD = 42e61e174fbb3897d6dd6cef3dd2802fe67b331953b06114a65c772859dfc1aa
-    let mut ctx2 = hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_256).unwrap();
+    let ctx2 = hash::hash_ctx_init(SpdmBaseHashAlgo::TPM_ALG_SHA_256).unwrap();
     let data = &from_hex("5a86b737eaea8ee976a0a24da63e7ed7eefad18a101c1211e2b3650c5187c2a8a650547208251f6d4237e661c7bf4c77f335390394c37fa1a9f9be836ac28509").unwrap();
     let md = &from_hex("42e61e174fbb3897d6dd6cef3dd2802fe67b331953b06114a65c772859dfc1aa").unwrap();
-    hash::hash_ctx_update(&mut ctx2, &data.as_slice()[0..10]).unwrap();
-    let mut ctx3 = ctx2.clone();
-    hash::hash_ctx_update(&mut ctx2, &data[10..]).unwrap();
-    hash::hash_ctx_update(&mut ctx3, &data[10..]).unwrap();
+    hash::hash_ctx_update(&ctx2, &data.as_slice()[0..10]).unwrap();
+    let ctx3 = ctx2.clone();
+    hash::hash_ctx_update(&ctx2, &data[10..]).unwrap();
+    hash::hash_ctx_update(&ctx3, &data[10..]).unwrap();
     let res = hash::hash_ctx_finalize(ctx2).unwrap();
     let res3 = hash::hash_ctx_finalize(ctx3).unwrap();
     assert_eq!(res.as_ref(), md);
@@ -157,7 +157,7 @@ fn test_case_chacha20_poly1305() {
 }
 
 fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {
-    if hex_str.len() % 2 != 0 {
+    if !hex_str.len().is_multiple_of(2) {
         return Err(String::from(
             "Hex string does not have an even number of digits",
         ));
@@ -173,7 +173,7 @@ fn from_hex(hex_str: &str) -> Result<Vec<u8>, String> {
 }
 
 fn from_hex_to_aead_key(hex_str: &str) -> Result<SpdmAeadKeyStruct, String> {
-    if hex_str.len() % 2 != 0 || hex_str.len() > SPDM_MAX_AEAD_KEY_SIZE * 2 {
+    if !hex_str.len().is_multiple_of(2) || hex_str.len() > SPDM_MAX_AEAD_KEY_SIZE * 2 {
         return Err(String::from(
             "Hex string does not have an even number of digits",
         ));
@@ -192,7 +192,7 @@ fn from_hex_to_aead_key(hex_str: &str) -> Result<SpdmAeadKeyStruct, String> {
 }
 
 fn from_hex_to_aead_iv(hex_str: &str) -> Result<SpdmAeadIvStruct, String> {
-    if hex_str.len() % 2 != 0 || hex_str.len() > SPDM_MAX_AEAD_IV_SIZE * 2 {
+    if !hex_str.len().is_multiple_of(2) || hex_str.len() > SPDM_MAX_AEAD_IV_SIZE * 2 {
         return Err(String::from(
             "Hex string does not have an even number of digits",
         ));

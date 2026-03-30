@@ -130,7 +130,7 @@ mod tests {
         let data = &mut [0u8; 64];
 
         let hash_all = hash_all(base_hash_algo, data);
-        assert_eq!(hash_all.is_none(), true);
+        assert!(hash_all.is_none());
     }
     #[test]
     fn test_case0_hash_update() {
