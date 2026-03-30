@@ -10,6 +10,7 @@ use spdmlib::error::{
     SPDM_STATUS_ENCAP_FAIL,
 };
 extern crate alloc;
+#[cfg(not(feature = "is_sync"))]
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::ops::Deref;
@@ -211,11 +212,6 @@ mod tests {
     }
     #[test]
     fn test_case0_encap() {
-        use crate::header::tests::alloc::sync::Arc;
-        extern crate alloc;
-        use core::ops::DerefMut;
-        use spin::Mutex;
-
         {
             let mut mctp_transport_encap = MctpTransportEncap {};
             let mut transport_buffer = [100u8; config::SENDER_BUFFER_SIZE];
