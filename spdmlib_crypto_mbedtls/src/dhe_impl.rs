@@ -139,7 +139,6 @@ fn test_case0_dhe() {
 }
 #[test]
 fn test_case1_dhe() {
-    for dhe_algo in [SpdmDheAlgo::empty()].iter() {
-        assert_eq!(generate_key_pair(*dhe_algo).is_none(), true);
-    }
+    let dhe_algo = SpdmDheAlgo::empty();
+    assert!(generate_key_pair(dhe_algo).is_none());
 }
