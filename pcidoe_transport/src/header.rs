@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 extern crate alloc;
+#[cfg(not(feature = "is_sync"))]
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use codec::enum_builder;
@@ -272,7 +273,7 @@ mod tests_header {
         assert_eq!(4, reader.left());
         let pcidoemessageheader = PciDoeMessageHeader::read(&mut reader);
         assert_eq!(0, reader.left());
-        assert_eq!(pcidoemessageheader.is_none(), true);
+        assert!(pcidoemessageheader.is_none());
     }
     #[test]
     #[should_panic]
