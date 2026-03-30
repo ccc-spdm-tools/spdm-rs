@@ -165,6 +165,6 @@ fn test_handle_encap_response_certificate() {
         .as_mut()
         .unwrap()
         .data_size;
-    assert_eq!(offset, 0x400 as u32);
+    assert_eq!(offset, 0x400_u32);
     assert_eq!(context.common.encap_context.encap_cert_size, offset + 0x400);
 }

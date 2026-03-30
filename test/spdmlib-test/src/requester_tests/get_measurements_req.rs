@@ -257,14 +257,14 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00];
                 v.extend_from_slice(&[0xFF; 32]); // Nonce
                 v.extend_from_slice(&[0x10, 0x00]); // OpaqueDataLength
                 v.extend_from_slice(&[0x02; 16]); // OpaqueData
                 v.extend_from_slice(&[0x00; 8]); // RequesterContext
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Ok(5),
         },
         Tc {
@@ -273,7 +273,7 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::SpdmMeasurementQueryTotalNumber,
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x01, 0x00, 0x01, 0x37, 0x00, 0x00];
                 v.extend_from_slice(fixed_block); // MeasurementRecordData
                 v.extend_from_slice(&[0xFF; 32]);
@@ -281,7 +281,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Err(SPDM_STATUS_INVALID_MSG_FIELD),
         },
         Tc {
@@ -290,7 +290,7 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::Unknown(0x05),
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x01, 0x00, 0x01, 0x37, 0x00, 0x00];
                 v.extend_from_slice(fixed_block);
                 v.extend_from_slice(&[0xFF; 32]);
@@ -298,7 +298,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Ok(1), // should expect Err?
         },
         Tc {
@@ -307,7 +307,7 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::Unknown(0x05),
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x00, 0x00, 0x02, 0x6E, 0x00, 0x00];
                 v.extend_from_slice(fixed_block);
                 v.extend_from_slice(fixed_block);
@@ -316,7 +316,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Err(SPDM_STATUS_INVALID_MSG_FIELD),
         },
         Tc {
@@ -325,7 +325,7 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::Unknown(0xFF),
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x01, 0x00, 0x01, 0x37, 0x00, 0x00];
                 v.extend_from_slice(fixed_block);
                 v.extend_from_slice(&[0xFF; 32]);
@@ -333,7 +333,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Ok(1),
         },
         Tc {
@@ -342,7 +342,7 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::SpdmMeasurementRequestAll,
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x01, 0x00, 0x01, 0x37, 0x00, 0x00];
                 v.extend_from_slice(fixed_block);
                 v.extend_from_slice(&[0xFF; 32]);
@@ -350,7 +350,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Ok(1),
         },
         Tc {
@@ -359,14 +359,14 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::RAW_BIT_STREAM_REQUESTED,
             operation: SpdmMeasurementOperation::SpdmMeasurementRequestAll,
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
                 v.extend_from_slice(&[0xFF; 32]);
                 v.extend_from_slice(&[0x10, 0x00]);
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Ok(0),
         },
         Tc {
@@ -375,7 +375,7 @@ fn test_handle_spdm_measurement_record_response() {
             attributes: SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
             operation: SpdmMeasurementOperation::SpdmMeasurementRequestAll,
             requester_context: SpdmMeasurementContextStruct::default(),
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x00, 0x00, 0x02, 0x6E, 0x00, 0x00];
                 v.extend_from_slice(fixed_block);
                 v.extend_from_slice(fixed_block);
@@ -385,7 +385,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x00; 8]);
                 v.extend_from_slice(&[0xFF; 96]); // Signature
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Err(SPDM_STATUS_INVALID_MSG_FIELD),
         },
         Tc {
@@ -396,14 +396,14 @@ fn test_handle_spdm_measurement_record_response() {
             requester_context: SpdmMeasurementContextStruct {
                 data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
             },
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00];
                 v.extend_from_slice(&[0xFF; 32]); // Nonce
                 v.extend_from_slice(&[0x10, 0x00]); // OpaqueDataLength
                 v.extend_from_slice(&[0x02; 16]); // OpaqueData
                 v.extend_from_slice(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]); // RequesterContext
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Ok(5),
         },
         Tc {
@@ -414,14 +414,14 @@ fn test_handle_spdm_measurement_record_response() {
             requester_context: SpdmMeasurementContextStruct {
                 data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
             },
-            receive_buffer: (|| -> Box<[u8]> {
+            receive_buffer: {
                 let mut v = vec![0x13, 0x60, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00];
                 v.extend_from_slice(&[0xFF; 32]); // Nonce
                 v.extend_from_slice(&[0x10, 0x00]); // OpaqueDataLength
                 v.extend_from_slice(&[0x02; 16]); // OpaqueData
                 v.extend_from_slice(&[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x09]); // Mismatched RequesterContext
                 v.into_boxed_slice()
-            })(),
+            },
             expected_result: Err(SPDM_STATUS_INVALID_MSG_FIELD),
         },
     ];
@@ -471,7 +471,7 @@ fn test_handle_spdm_measurement_record_response() {
                 &mut content_changed,
                 &mut spdm_measurement_record_structure,
                 &send_buffer,
-                &*tc.receive_buffer,
+                &tc.receive_buffer,
                 &mut transcript_meas,
             );
             assert!(
@@ -672,8 +672,10 @@ fn test_case1_send_receive_spdm_measurement() {
         message_l1l2
             .append_message(&transcript_meas.as_ref()[..transcript_meas_len - 96])
             .unwrap();
-        let mut spdm_signature_struct = SpdmSignatureStruct::default();
-        spdm_signature_struct.data_size = 96;
+        let mut spdm_signature_struct = SpdmSignatureStruct {
+            data_size: 96,
+            ..SpdmSignatureStruct::default()
+        };
         spdm_signature_struct.data[..96]
             .copy_from_slice(&transcript_meas.as_ref()[transcript_meas_len - 96..]);
         let message_l1l2_hash =
@@ -693,11 +695,11 @@ fn test_case1_send_receive_spdm_measurement() {
             .append_message(message_l1l2_hash.as_ref())
             .unwrap();
 
-        let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0 as usize]
+        let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0_usize]
             .as_ref()
             .unwrap()
             .data[(4usize + requester.common.get_hash_size() as usize)
-            ..(requester.common.peer_info.peer_cert_chain[0 as usize]
+            ..(requester.common.peer_info.peer_cert_chain[0_usize]
                 .as_ref()
                 .unwrap()
                 .data_size as usize)];
@@ -912,8 +914,10 @@ fn test_case3_send_receive_spdm_measurement() {
                 message_l1l2
                     .append_message(&transcript_meas.as_ref()[..transcript_meas_len - 96])
                     .unwrap();
-                let mut spdm_signature_struct = SpdmSignatureStruct::default();
-                spdm_signature_struct.data_size = 96;
+                let mut spdm_signature_struct = SpdmSignatureStruct {
+                    data_size: 96,
+                    ..SpdmSignatureStruct::default()
+                };
                 spdm_signature_struct.data[..96]
                     .copy_from_slice(&transcript_meas.as_ref()[transcript_meas_len - 96..]);
                 let message_l1l2_hash = crypto::hash::hash_all(
@@ -935,11 +939,11 @@ fn test_case3_send_receive_spdm_measurement() {
                     .append_message(message_l1l2_hash.as_ref())
                     .unwrap();
 
-                let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0 as usize]
+                let cert_chain_data = &requester.common.peer_info.peer_cert_chain[0_usize]
                     .as_ref()
                     .unwrap()
                     .data[(4usize + requester.common.get_hash_size() as usize)
-                    ..(requester.common.peer_info.peer_cert_chain[0 as usize]
+                    ..(requester.common.peer_info.peer_cert_chain[0_usize]
                         .as_ref()
                         .unwrap()
                         .data_size as usize)];

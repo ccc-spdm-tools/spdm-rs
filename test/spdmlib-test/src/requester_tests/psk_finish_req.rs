@@ -5,6 +5,7 @@
 #[cfg(feature = "hashed-transcript-data")]
 extern crate alloc;
 #[cfg(feature = "hashed-transcript-data")]
+#[allow(unused_imports)]
 use {
     crate::common::crypto_callback::*,
     crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
@@ -279,7 +280,7 @@ fn test_case1_send_receive_spdm_psk_finish() {
             .send_receive_spdm_psk_finish(4294901758)
             .await
             .is_ok();
-        assert_eq!(status, false);
+        assert!(!status);
 
         for session in requester.common.session.iter() {
             assert_eq!(

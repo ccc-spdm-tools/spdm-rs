@@ -116,7 +116,10 @@ fn test_case1_handle_spdm_digest() {
     let spdm_certificate_chain_len = spdm_certificate_chain.as_ref().len();
 
     const PORTION_LENGTH: usize = 0x200;
-    let count = (spdm_certificate_chain.as_ref().len() + PORTION_LENGTH - 1) / PORTION_LENGTH;
+    let count = spdm_certificate_chain
+        .as_ref()
+        .len()
+        .div_ceil(PORTION_LENGTH);
     for index in 0..count {
         let offset = index * PORTION_LENGTH;
         let remainder_length = spdm_certificate_chain_len - offset;

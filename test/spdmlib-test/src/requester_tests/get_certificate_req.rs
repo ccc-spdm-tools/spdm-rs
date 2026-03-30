@@ -5,6 +5,7 @@
 #[cfg(feature = "hashed-transcript-data")]
 extern crate alloc;
 #[cfg(feature = "hashed-transcript-data")]
+#[allow(unused_imports)]
 use {
     crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
     crate::common::secret_callback::*,

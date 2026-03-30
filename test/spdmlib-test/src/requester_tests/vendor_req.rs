@@ -73,7 +73,7 @@ fn test_case0_send_spdm_vendor_defined_request() {
             )
             .await
             .is_ok();
-        assert_eq!(status, false); //since vendor defined response payload is not implemented, so false is expected here.
+        assert!(!status); //since vendor defined response payload is not implemented, so false is expected here.
     };
     executor::block_on(future);
 }

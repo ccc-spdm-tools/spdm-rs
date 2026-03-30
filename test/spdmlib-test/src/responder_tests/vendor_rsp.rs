@@ -74,6 +74,6 @@ fn test_case0_handle_spdm_vendor_defined_request() {
             b'd'
         );
     } else {
-        assert!(false, "Not expected result!");
+        panic!("Not expected result!");
     }
 }

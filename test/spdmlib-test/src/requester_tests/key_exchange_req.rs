@@ -257,7 +257,7 @@ fn test_case1_send_receive_spdm_key_exchange() {
             .send_receive_spdm_key_exchange(0, measurement_summary_hash_type)
             .await
             .is_ok();
-        assert_eq!(status, false);
+        assert!(!status);
 
         for session in requester.common.session.iter() {
             assert_eq!(
