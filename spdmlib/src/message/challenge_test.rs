@@ -55,7 +55,7 @@ fn test_challenge_struct() {
         + INVALID_OPAQUE_DATA_LENGTH as usize
         + SHA256_DIGEST_SIZE * 2];
     LittleEndian::write_u16(
-        &mut u8_slice[(36 + 2 * SHA256_DIGEST_SIZE as usize)..],
+        &mut u8_slice[(36 + 2 * SHA256_DIGEST_SIZE)..],
         INVALID_OPAQUE_DATA_LENGTH,
     );
     let reader = &mut Reader::init(&u8_slice[2..]);
@@ -80,7 +80,7 @@ fn test_challenge_struct_opaque_data_length_negative() {
         + SHA256_DIGEST_SIZE * 2];
     const OPAQUE_DATA_LENGTH: u16 = 1024u16;
     LittleEndian::write_u16(
-        &mut u8_slice[(36 + 2 * SHA256_DIGEST_SIZE as usize)..],
+        &mut u8_slice[(36 + 2 * SHA256_DIGEST_SIZE)..],
         OPAQUE_DATA_LENGTH,
     );
     let reader = &mut Reader::init(&u8_slice[2..]);

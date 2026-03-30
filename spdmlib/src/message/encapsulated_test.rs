@@ -20,7 +20,7 @@ fn test_get_encapsulated_request_payload() {
         .unwrap();
     assert_eq!(size, 2);
 
-    let mut reader = Reader::init(&mut buffer);
+    let mut reader = Reader::init(&buffer);
     let ret = SpdmGetEncapsulatedRequestPayload::spdm_read(&mut context, &mut reader);
     assert!(ret.is_some());
 }
@@ -36,7 +36,7 @@ fn test_encapsulated_request_payload() {
     let size = encap_req.spdm_encode(&mut context, &mut writer).unwrap();
     assert_eq!(size, 2);
 
-    let mut reader = Reader::init(&mut buffer);
+    let mut reader = Reader::init(&buffer);
     let encap_req = SpdmEncapsulatedRequestPayload::spdm_read(&mut context, &mut reader).unwrap();
     assert_eq!(encap_req.request_id, 0xa);
 }
@@ -54,7 +54,7 @@ fn test_deliver_encapsulated_response_payload() {
         .unwrap();
     assert_eq!(size, 2);
 
-    let mut reader = Reader::init(&mut buffer);
+    let mut reader = Reader::init(&buffer);
     let deliver_encap_rsp =
         SpdmDeliverEncapsulatedResponsePayload::spdm_read(&mut context, &mut reader).unwrap();
     assert_eq!(deliver_encap_rsp.request_id, 0xa);
@@ -78,7 +78,7 @@ fn test_encapsulated_response_ack_payload() {
         .unwrap();
     assert_eq!(size, 6);
 
-    let mut reader = Reader::init(&mut buffer);
+    let mut reader = Reader::init(&buffer);
     let encap_rsp_ack =
         SpdmEncapsulatedResponseAckPayload::spdm_read(&mut context, &mut reader).unwrap();
     assert_eq!(encap_rsp_ack.request_id, 0xa);
@@ -107,7 +107,7 @@ fn test_encapsulated_response_ack_payload_ver11() {
         .unwrap();
     assert_eq!(size, 2);
 
-    let mut reader = Reader::init(&mut buffer);
+    let mut reader = Reader::init(&buffer);
     let encap_rsp_ack =
         SpdmEncapsulatedResponseAckPayload::spdm_read(&mut context, &mut reader).unwrap();
     assert_eq!(encap_rsp_ack.request_id, 0xa);

@@ -199,8 +199,9 @@ mod tests {
     }
     #[test]
     fn test_case1_dhe() {
-        for dhe_algo in [SpdmDheAlgo::empty()].iter() {
-            assert_eq!(generate_key_pair(*dhe_algo).is_none(), true);
+        {
+            let dhe_algo = SpdmDheAlgo::empty();
+            assert!(generate_key_pair(dhe_algo).is_none());
         }
     }
 
@@ -341,17 +342,17 @@ mod tests {
     fn test_multiple_serialization_rounds() {
         // Test that we can serialize and deserialize multiple times
         for dhe_algo in [SpdmDheAlgo::SECP_256_R1, SpdmDheAlgo::SECP_384_R1].iter() {
-            let (public_key, mut private_key_box) =
+            let (_public_key, mut private_key_box) =
                 generate_key_pair(*dhe_algo).expect("Failed to generate initial key pair");
 
             // Perform multiple serialization/deserialization rounds
             for round in 0..3 {
                 let private_key_bytes = private_key_box
                     .export_private_key()
-                    .expect(&alloc::format!("Failed to export key in round {}", round));
+                    .unwrap_or_else(|| panic!("Failed to export key in round {}", round));
 
                 private_key_box = import_private_key(*dhe_algo, &private_key_bytes)
-                    .expect(&alloc::format!("Failed to import key in round {}", round));
+                    .unwrap_or_else(|| panic!("Failed to import key in round {}", round));
             }
 
             // Generate a peer key and verify the final key still works

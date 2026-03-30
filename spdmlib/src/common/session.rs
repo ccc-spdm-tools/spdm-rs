@@ -1892,15 +1892,19 @@ mod tests_session {
     #[test]
     #[should_panic]
     fn test_case0_setup() {
-        let mut session = SpdmSession::default();
-        session.session_id = 0xffffu32;
+        let mut session = SpdmSession {
+            session_id: 0xffffu32,
+            ..SpdmSession::default()
+        };
         let session_id = 4294901758u32;
         let _ = session.setup(session_id).is_err();
     }
     #[test]
     fn test_case0_teardown() {
-        let mut session = SpdmSession::default();
-        session.session_id = 0x0f0f0f0fu32;
+        let mut session = SpdmSession {
+            session_id: 0x0f0f0f0fu32,
+            ..SpdmSession::default()
+        };
         session.teardown();
         assert!(session.session_id != 0x0f0f0f0fu32);
     }

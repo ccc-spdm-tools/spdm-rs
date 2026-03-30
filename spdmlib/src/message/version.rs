@@ -176,7 +176,7 @@ mod tests {
         assert!(value.encode(&mut writer).is_err());
         let mut reader = Reader::init(u8_slice);
         let spdmversionstruct = SpdmVersionStruct::read(&mut reader);
-        assert_eq!(spdmversionstruct.is_none(), true);
+        assert!(spdmversionstruct.is_none());
     }
     #[test]
     fn test_case0_spdm_version_response_payload() {

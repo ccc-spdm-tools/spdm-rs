@@ -227,9 +227,11 @@ mod tests {
     fn test_case1_spdm_digests_response_payload() {
         let u8_slice = &mut [0u8; 2];
         let mut writer = Writer::init(u8_slice);
-        let mut value = SpdmDigestsResponsePayload::default();
-        value.slot_mask = 0b00000000;
-        value.digests = gen_array_clone(SpdmDigestStruct::default(), SPDM_MAX_SLOT_NUMBER);
+        let value = SpdmDigestsResponsePayload {
+            slot_mask: 0b00000000,
+            digests: gen_array_clone(SpdmDigestStruct::default(), SPDM_MAX_SLOT_NUMBER),
+            ..SpdmDigestsResponsePayload::default()
+        };
 
         create_spdm_context!(context);
 
@@ -240,9 +242,11 @@ mod tests {
 
         let u8_slice = &mut [0u8; 2];
         let mut writer = Writer::init(u8_slice);
-        let mut value = SpdmDigestsResponsePayload::default();
-        value.slot_mask = 0b00011111;
-        value.digests = gen_array_clone(SpdmDigestStruct::default(), SPDM_MAX_SLOT_NUMBER);
+        let value = SpdmDigestsResponsePayload {
+            slot_mask: 0b00011111,
+            digests: gen_array_clone(SpdmDigestStruct::default(), SPDM_MAX_SLOT_NUMBER),
+            ..SpdmDigestsResponsePayload::default()
+        };
 
         create_spdm_context!(context);
 

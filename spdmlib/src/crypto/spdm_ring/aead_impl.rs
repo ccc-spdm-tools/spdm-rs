@@ -312,9 +312,7 @@ mod tests {
         let ret_tag_size = decrypt(aead_algo, key, iv, aad, cipher_text, tag, plain_text);
 
         match ret_tag_size {
-            Ok(16) => {
-                assert!(true)
-            }
+            Ok(16) => {}
             _ => {
                 panic!()
             }

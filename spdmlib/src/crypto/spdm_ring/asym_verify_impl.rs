@@ -316,8 +316,8 @@ mod tests {
     #[test]
     fn test_case0_ecc_signature_bin_to_der() {
         let signature = &mut [0x00u8; 64];
-        for i in 10..signature.len() {
-            signature[i] = 0x10;
+        for item in signature.iter_mut().skip(10) {
+            *item = 0x10;
         }
 
         let der_signature = &mut [0u8; 64];
@@ -328,8 +328,8 @@ mod tests {
     #[test]
     fn test_case1_ecc_signature_bin_to_der() {
         let signature = &mut [0x00u8; 64];
-        for i in 10..signature.len() {
-            signature[i] = 0xff;
+        for item in signature.iter_mut().skip(10) {
+            *item = 0xff;
         }
 
         let der_signature = &mut [0u8; 64];

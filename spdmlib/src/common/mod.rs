@@ -2878,18 +2878,12 @@ impl Codec for SpdmEncapContext {
 }
 
 #[cfg(feature = "chunk-cap")]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub enum SpdmChunkStatus {
+    #[default]
     Idle,
     ChunkSendAndAck,
     ChunkGetAndResponse,
-}
-
-#[cfg(feature = "chunk-cap")]
-impl Default for SpdmChunkStatus {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 #[cfg(feature = "chunk-cap")]
