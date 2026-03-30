@@ -478,7 +478,7 @@ mod tests {
             buf: u8_slice,
             offs: 0,
         };
-        assert_eq!(reader.any_left(), true);
+        assert!(reader.any_left());
     }
     #[test]
     fn test_case1_any_left() {
@@ -487,7 +487,7 @@ mod tests {
             buf: u8_slice,
             offs: 4,
         };
-        assert_eq!(reader.any_left(), false);
+        assert!(!reader.any_left());
     }
     #[test]
     fn test_case0_read_bytes() {
@@ -504,7 +504,7 @@ mod tests {
             buf: u8_slice,
             offs: 4,
         };
-        assert_eq!(reader.sub(4).is_none(), true);
+        assert!(reader.sub(4).is_none());
     }
 
     #[test]
