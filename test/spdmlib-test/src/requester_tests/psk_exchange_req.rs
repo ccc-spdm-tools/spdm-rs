@@ -171,7 +171,7 @@ fn test_case1_send_receive_spdm_psk_exchange() {
             .send_receive_spdm_psk_exchange(measurement_summary_hash_type, Some(&psk_key))
             .await
             .is_ok();
-        assert_eq!(status, false);
+        assert!(!status);
 
         for session in requester.common.session.iter() {
             assert_eq!(

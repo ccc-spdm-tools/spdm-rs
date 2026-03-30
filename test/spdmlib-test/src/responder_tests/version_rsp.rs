@@ -113,7 +113,7 @@ pub fn construct_version_positive() -> (TestSpdmMessage, TestSpdmMessage) {
         u8::from(SpdmVersion::default()) as u16,
         MAX_SPDM_VERSION_COUNT,
     );
-    for (_, v) in config_info.spdm_version.iter().flatten().enumerate() {
+    for v in config_info.spdm_version.iter().flatten() {
         version_number_entry[version_number_entry_count] = (u8::from(*v) as u16) << 8;
         version_number_entry_count += 1;
     }

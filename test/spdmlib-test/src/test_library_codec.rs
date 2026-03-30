@@ -426,26 +426,34 @@ fn test_spdm_provision_info_codec() {
 #[test]
 fn test_spdm_provision_info_codec_with_populated_data() {
     // Test with populated certificate data (populate first few slots only to stay within buffer limits)
-    let mut cert_data_1 = SpdmCertChainData::default();
-    cert_data_1.data_size = 50;
+    let mut cert_data_1 = SpdmCertChainData {
+        data_size: 50,
+        ..SpdmCertChainData::default()
+    };
     for i in 0..50 {
         cert_data_1.data[i] = (i % 256) as u8;
     }
 
-    let mut cert_data_2 = SpdmCertChainData::default();
-    cert_data_2.data_size = 60;
+    let mut cert_data_2 = SpdmCertChainData {
+        data_size: 60,
+        ..SpdmCertChainData::default()
+    };
     for i in 0..60 {
         cert_data_2.data[i] = ((i * 2) % 256) as u8;
     }
 
-    let mut peer_root_cert_1 = SpdmCertChainData::default();
-    peer_root_cert_1.data_size = 40;
+    let mut peer_root_cert_1 = SpdmCertChainData {
+        data_size: 40,
+        ..SpdmCertChainData::default()
+    };
     for i in 0..40 {
         peer_root_cert_1.data[i] = ((i * 3) % 256) as u8;
     }
 
-    let mut peer_root_cert_2 = SpdmCertChainData::default();
-    peer_root_cert_2.data_size = 35;
+    let mut peer_root_cert_2 = SpdmCertChainData {
+        data_size: 35,
+        ..SpdmCertChainData::default()
+    };
     for i in 0..35 {
         peer_root_cert_2.data[i] = ((i * 4) % 256) as u8;
     }
@@ -656,8 +664,10 @@ fn test_spdm_peer_info_codec_with_populated_data() {
     // Test with all populated certificate chains (smaller sizes to fit in buffers)
     let mut cert_chain_templates = Vec::new();
     for slot in 0..SPDM_MAX_SLOT_NUMBER {
-        let mut cert_chain = SpdmCertChainBuffer::default();
-        cert_chain.data_size = 80 + (slot as u32 * 10); // Smaller sizes to fit
+        let mut cert_chain = SpdmCertChainBuffer {
+            data_size: 80 + (slot as u32 * 10),
+            ..SpdmCertChainBuffer::default()
+        }; // Smaller sizes to fit
         for i in 0..cert_chain.data_size {
             cert_chain.data[i as usize] = ((i + slot as u32 * 3) % 256) as u8;
         }
@@ -693,14 +703,14 @@ fn test_spdm_peer_info_codec_with_populated_data() {
 
     let original = SpdmPeerInfo {
         peer_cert_chain: [
-            Some(cert_chain_templates[0].clone()),
-            Some(cert_chain_templates[1].clone()),
-            Some(cert_chain_templates[2].clone()),
-            Some(cert_chain_templates[3].clone()),
-            Some(cert_chain_templates[4].clone()),
-            Some(cert_chain_templates[5].clone()),
-            Some(cert_chain_templates[6].clone()),
-            Some(cert_chain_templates[7].clone()),
+            Some(cert_chain_templates[0]),
+            Some(cert_chain_templates[1]),
+            Some(cert_chain_templates[2]),
+            Some(cert_chain_templates[3]),
+            Some(cert_chain_templates[4]),
+            Some(cert_chain_templates[5]),
+            Some(cert_chain_templates[6]),
+            Some(cert_chain_templates[7]),
         ],
         peer_cert_chain_temp: None,
         peer_supported_slot_mask: 0xFF,   // All slots supported
@@ -1083,16 +1093,13 @@ fn test_spdm_negotiate_info_comprehensive() {
     for (i, original) in test_cases.iter().enumerate() {
         let mut buffer = [0u8; 4096];
         let mut writer = Writer::init(&mut buffer);
-        let encoded_size = original.encode(&mut writer).expect(&format!(
-            "Failed to encode SpdmNegotiateInfo test case {}",
-            i
-        ));
+        let encoded_size = original
+            .encode(&mut writer)
+            .unwrap_or_else(|_| panic!("Failed to encode SpdmNegotiateInfo test case {}", i));
 
         let mut reader = Reader::init(&buffer[..encoded_size]);
-        let decoded = SpdmNegotiateInfo::read(&mut reader).expect(&format!(
-            "Failed to decode SpdmNegotiateInfo test case {}",
-            i
-        ));
+        let decoded = SpdmNegotiateInfo::read(&mut reader)
+            .unwrap_or_else(|| panic!("Failed to decode SpdmNegotiateInfo test case {}", i));
 
         assert_eq!(*original, decoded, "Mismatch in test case {}", i);
     }

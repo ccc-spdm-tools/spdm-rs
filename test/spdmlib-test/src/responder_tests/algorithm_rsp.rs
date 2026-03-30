@@ -141,18 +141,12 @@ fn test_case0_handle_spdm_algorithm() {
             spdm_sturct_data.measurement_specification,
             SpdmMeasurementSpecification::DMTF
         );
-        assert_eq!(
-            spdm_sturct_data
-                .other_params_support
-                .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN),
-            true
-        );
-        assert_eq!(
-            spdm_sturct_data
-                .other_params_support
-                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1),
-            true
-        );
+        assert!(spdm_sturct_data
+            .other_params_support
+            .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN));
+        assert!(spdm_sturct_data
+            .other_params_support
+            .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1));
         assert_eq!(
             spdm_sturct_data.base_asym_algo,
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
@@ -218,20 +212,14 @@ fn test_case0_handle_spdm_algorithm() {
                 payload.measurement_specification_sel,
                 SpdmMeasurementSpecification::DMTF
             );
-            assert_eq!(
-                payload
-                    .other_params_selection
-                    .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN),
-                false
-            );
-            assert_eq!(
-                payload
-                    .other_params_selection
-                    .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1),
-                true
-            );
-            assert_eq!(context.common.negotiate_info.multi_key_conn_req, false);
-            assert_eq!(context.common.negotiate_info.multi_key_conn_rsp, true);
+            assert!(!payload
+                .other_params_selection
+                .contains(SpdmAlgoOtherParams::MULTI_KEY_CONN));
+            assert!(payload
+                .other_params_selection
+                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1));
+            assert!(!context.common.negotiate_info.multi_key_conn_req);
+            assert!(context.common.negotiate_info.multi_key_conn_rsp);
             assert_eq!(
                 payload.measurement_hash_algo,
                 SpdmMeasurementHashAlgo::TPM_ALG_SHA_384

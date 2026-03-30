@@ -150,8 +150,8 @@ fn test_case1_send_receive_spdm_algorithm() {
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_req, true);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_rsp, true);
+        assert!(requester.common.negotiate_info.multi_key_conn_req);
+        assert!(requester.common.negotiate_info.multi_key_conn_rsp);
         assert_eq!(
             requester.common.negotiate_info.mel_specification_sel,
             SpdmMelSpecification::DMTF_MEL_SPEC
@@ -275,8 +275,8 @@ fn test_case2_send_receive_spdm_algorithm() {
 
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_req, false);
-        assert_eq!(requester.common.negotiate_info.multi_key_conn_rsp, false);
+        assert!(!requester.common.negotiate_info.multi_key_conn_req);
+        assert!(!requester.common.negotiate_info.multi_key_conn_rsp);
         assert_eq!(
             requester.common.negotiate_info.mel_specification_sel,
             SpdmMelSpecification::empty()

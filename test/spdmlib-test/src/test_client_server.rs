@@ -71,20 +71,20 @@ fn intergration_client_server() {
         );
 
         let mut transcript_vca = None;
-        assert!(!requester_context
+        assert!(requester_context
             .init_connection(&mut transcript_vca)
             .await
-            .is_err());
+            .is_ok());
 
-        assert!(!requester_context
+        assert!(requester_context
             .send_receive_spdm_digest(None)
             .await
-            .is_err());
+            .is_ok());
 
-        assert!(!requester_context
+        assert!(requester_context
             .send_receive_spdm_certificate(None, 0)
             .await
-            .is_err());
+            .is_ok());
 
         #[cfg(feature = "mut-auth")]
         {
