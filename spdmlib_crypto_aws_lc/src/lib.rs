@@ -29,8 +29,6 @@ mod tests {
     }
 
     fn kem_roundtrip(algo: SpdmKemAlgo) {
-        use spdmlib::crypto::{SpdmKemCipherTextExchange, SpdmKemEncapKeyExchange};
-
         // Generate key pair (responder side)
         let (encap_key_struct, decap_exchange) =
             (kem_impl::DEFAULT_DECAP.generate_key_pair_cb)(algo).expect("generate_key_pair failed");
@@ -97,8 +95,10 @@ mod tests {
         let written = key_pair.sign(message, &mut sig_buf).expect("sign failed");
 
         // Build SpdmSignatureStruct
-        let mut sig_struct = SpdmSignatureStruct::default();
-        sig_struct.data_size = written as u16;
+        let mut sig_struct = SpdmSignatureStruct {
+            data_size: written as u16,
+            ..SpdmSignatureStruct::default()
+        };
         sig_struct.data[..written].copy_from_slice(&sig_buf[..written]);
 
         // Verify using our callback
