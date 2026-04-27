@@ -562,6 +562,10 @@ impl SpdmSession {
         self.heartbeat_period = 0;
         self.secure_spdm_version_sel = SecuredMessageVersion::default();
         self.mut_auth_requested = SpdmKeyExchangeMutAuthAttributes::empty();
+        self.responder_backup_valid = false;
+        self.requester_backup_valid = false;
+        self.th1 = SpdmDigestStruct::default();
+        self.th2 = SpdmDigestStruct::default();
     }
 
     pub fn get_session_id(&self) -> u32 {
