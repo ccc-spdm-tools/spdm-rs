@@ -215,12 +215,18 @@ impl SpdmCodec for SpdmNegotiateAlgorithmsRequestPayload {
                         key_schedule_present = true;
                     }
                     SpdmAlg::SpdmAlgoPqcReqAsym(_) => {
+                        if context.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion14 {
+                            return None;
+                        }
                         if pqc_req_asym_present {
                             return None;
                         }
                         pqc_req_asym_present = true;
                     }
                     SpdmAlg::SpdmAlgoKem(_) => {
+                        if context.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion14 {
+                            return None;
+                        }
                         if kem_present {
                             return None;
                         }
@@ -657,6 +663,9 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                         }
                     }
                     SpdmAlg::SpdmAlgoPqcReqAsym(v) => {
+                        if context.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion14 {
+                            return None;
+                        }
                         if pqc_req_asym_present {
                             return None;
                         }
@@ -667,6 +676,9 @@ impl SpdmCodec for SpdmAlgorithmsResponsePayload {
                         }
                     }
                     SpdmAlg::SpdmAlgoKem(v) => {
+                        if context.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion14 {
+                            return None;
+                        }
                         if kem_present {
                             return None;
                         }
@@ -796,7 +808,7 @@ mod tests {
             ],
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -881,7 +893,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
 
         assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
@@ -927,6 +939,59 @@ mod tests {
         u8_slice[31] = 1;
         let mut reader = Reader::init(u8_slice);
         assert_eq!(48, reader.left());
+        let spdm_negotiate_algorithms_request_payload =
+            SpdmNegotiateAlgorithmsRequestPayload::spdm_read(&mut context, &mut reader);
+        assert!(spdm_negotiate_algorithms_request_payload.is_none());
+    }
+
+    #[test]
+    fn test_case3_spdm_negotiate_algorithms_request_payload_rejects_v13_pqc_structs() {
+        let value = SpdmNegotiateAlgorithmsRequestPayload {
+            measurement_specification: SpdmMeasurementSpecification::DMTF,
+            other_params_support: SpdmAlgoOtherParams::empty(),
+            base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+            base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            pqc_asym_algo: SpdmPqcAsymAlgo::empty(),
+            mel_specification: SpdmMelSpecification::empty(),
+            alg_struct_count: 5,
+            alg_struct: [
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeDHE,
+                    alg_supported: SpdmAlg::SpdmAlgoDhe(SpdmDheAlgo::SECP_256_R1),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeAEAD,
+                    alg_supported: SpdmAlg::SpdmAlgoAead(SpdmAeadAlgo::AES_128_GCM),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeReqAsym,
+                    alg_supported: SpdmAlg::SpdmAlgoReqAsym(
+                        SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+                    ),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeKeySchedule,
+                    alg_supported: SpdmAlg::SpdmAlgoKeySchedule(
+                        SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
+                    ),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                    alg_supported: SpdmAlg::SpdmAlgoPqcReqAsym(SpdmPqcReqAsymAlgo::ALG_MLDSA_87),
+                },
+                SpdmAlgStruct::default(),
+            ],
+        };
+
+        let u8_slice = &mut [0u8; 52];
+        let mut writer = Writer::init(u8_slice);
+
+        create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
+        assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
+
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        let mut reader = Reader::init(u8_slice);
         let spdm_negotiate_algorithms_request_payload =
             SpdmNegotiateAlgorithmsRequestPayload::spdm_read(&mut context, &mut reader);
         assert!(spdm_negotiate_algorithms_request_payload.is_none());
@@ -978,7 +1043,7 @@ mod tests {
         };
 
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
 
         context.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
         context.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
@@ -1155,6 +1220,64 @@ mod tests {
         );
         assert_eq!(spdm_sturct_data.alg_struct_count, 0);
         assert_eq!(16, reader.left());
+    }
+
+    #[test]
+    fn test_case3_spdm_algorithms_response_payload_rejects_v13_pqc_structs() {
+        let value = SpdmAlgorithmsResponsePayload {
+            measurement_specification_sel: SpdmMeasurementSpecification::DMTF,
+            other_params_selection: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
+            measurement_hash_algo: SpdmMeasurementHashAlgo::RAW_BIT_STREAM,
+            base_asym_sel: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+            base_hash_sel: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            pqc_asym_sel: SpdmPqcAsymAlgo::empty(),
+            mel_specification_sel: SpdmMelSpecification::empty(),
+            alg_struct_count: 5,
+            alg_struct: [
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeDHE,
+                    alg_supported: SpdmAlg::SpdmAlgoDhe(SpdmDheAlgo::SECP_256_R1),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeAEAD,
+                    alg_supported: SpdmAlg::SpdmAlgoAead(SpdmAeadAlgo::AES_128_GCM),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeReqAsym,
+                    alg_supported: SpdmAlg::SpdmAlgoReqAsym(
+                        SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+                    ),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeKeySchedule,
+                    alg_supported: SpdmAlg::SpdmAlgoKeySchedule(
+                        SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
+                    ),
+                },
+                SpdmAlgStruct {
+                    alg_type: SpdmAlgType::SpdmAlgTypeKEM,
+                    alg_supported: SpdmAlg::SpdmAlgoKem(SpdmKemAlgo::ALG_MLKEM_1024),
+                },
+                SpdmAlgStruct::default(),
+            ],
+        };
+
+        let u8_slice = &mut [0u8; 56];
+        let mut writer = Writer::init(u8_slice);
+
+        create_spdm_context!(context);
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
+        context.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
+        context.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
+        context.config_info.base_asym_algo = SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048;
+        context.config_info.base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+        assert!(value.spdm_encode(&mut context, &mut writer).is_ok());
+
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        let mut reader = Reader::init(u8_slice);
+        let spdm_algorithms_response_payload =
+            SpdmAlgorithmsResponsePayload::spdm_read(&mut context, &mut reader);
+        assert!(spdm_algorithms_response_payload.is_none());
     }
 }
 
