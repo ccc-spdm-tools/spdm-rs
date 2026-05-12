@@ -40,7 +40,7 @@ fn test_case0_handle_spdm_algorithm() {
             provision_info,
         );
 
-        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
         context
             .common
             .negotiate_info
@@ -60,7 +60,7 @@ fn test_case0_handle_spdm_algorithm() {
         let spdm_message_header = &mut [0u8; 1024];
         let mut writer = Writer::init(spdm_message_header);
         let value = SpdmMessageHeader {
-            version: SpdmVersion::SpdmVersion13,
+            version: SpdmVersion::SpdmVersion14,
             request_response_code: SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms,
         };
         assert!(value.encode(&mut writer).is_ok());
@@ -125,7 +125,7 @@ fn test_case0_handle_spdm_algorithm() {
 
         let mut reader = Reader::init(u8_slice);
         let spdm_message_header = SpdmMessageHeader::read(&mut reader).unwrap();
-        assert_eq!(spdm_message_header.version, SpdmVersion::SpdmVersion13);
+        assert_eq!(spdm_message_header.version, SpdmVersion::SpdmVersion14);
         assert_eq!(
             spdm_message_header.request_response_code,
             SpdmRequestResponseCode::SpdmRequestNegotiateAlgorithms
@@ -202,7 +202,7 @@ fn test_case0_handle_spdm_algorithm() {
         let spdm_message: SpdmMessage =
             SpdmMessage::spdm_read(&mut context.common, &mut reader).unwrap();
 
-        assert_eq!(spdm_message.header.version, SpdmVersion::SpdmVersion13);
+        assert_eq!(spdm_message.header.version, SpdmVersion::SpdmVersion14);
         assert_eq!(
             spdm_message.header.request_response_code,
             SpdmRequestResponseCode::SpdmResponseAlgorithms

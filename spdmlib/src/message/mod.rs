@@ -793,7 +793,7 @@ mod tests {
             ),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
 
         let spdm_message = new_spdm_message(value, context);
         assert_eq!(
@@ -891,7 +891,7 @@ mod tests {
             }),
         };
         create_spdm_context!(context);
-        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
 
         context.config_info.measurement_specification = SpdmMeasurementSpecification::DMTF;
         context.config_info.measurement_hash_algo = SpdmMeasurementHashAlgo::RAW_BIT_STREAM;
