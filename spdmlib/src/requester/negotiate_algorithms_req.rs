@@ -235,7 +235,34 @@ impl RequesterContext {
                             if algorithms.base_hash_sel.bits() == 0 {
                                 return Err(SPDM_STATUS_NEGOTIATION_FAIL);
                             }
+                            if !self
+                                .common
+                                .config_info
+                                .base_hash_algo
+                                .contains(algorithms.base_hash_sel)
+                            {
+                                error!(
+                                    "Responder base_hash_sel {:X?} not subset of offer {:X?}\n",
+                                    algorithms.base_hash_sel.bits(),
+                                    self.common.config_info.base_hash_algo.bits()
+                                );
+                                return Err(SPDM_STATUS_NEGOTIATION_FAIL);
+                            }
                             self.common.negotiate_info.base_hash_sel = algorithms.base_hash_sel;
+                            if algorithms.base_asym_sel.bits() != 0
+                                && !self
+                                    .common
+                                    .config_info
+                                    .base_asym_algo
+                                    .contains(algorithms.base_asym_sel)
+                            {
+                                error!(
+                                    "Responder base_asym_sel {:X?} not subset of offer {:X?}\n",
+                                    algorithms.base_asym_sel.bits(),
+                                    self.common.config_info.base_asym_algo.bits()
+                                );
+                                return Err(SPDM_STATUS_NEGOTIATION_FAIL);
+                            }
                             self.common.negotiate_info.base_asym_sel = algorithms.base_asym_sel;
                             if self.common.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion14
@@ -255,6 +282,20 @@ impl RequesterContext {
                                 match &alg.alg_supported {
                                     SpdmAlg::SpdmAlgoDhe(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
+                                            if v.bits() != 0
+                                                && !self
+                                                    .common
+                                                    .config_info
+                                                    .dhe_algo
+                                                    .contains(*v)
+                                            {
+                                                error!(
+                                                    "Responder DHE {:X?} not subset of offer {:X?}\n",
+                                                    v.bits(),
+                                                    self.common.config_info.dhe_algo.bits()
+                                                );
+                                                return Err(SPDM_STATUS_NEGOTIATION_FAIL);
+                                            }
                                             self.common.negotiate_info.dhe_sel = *v;
                                         } else {
                                             error!(
@@ -266,6 +307,20 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoAead(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
+                                            if v.bits() != 0
+                                                && !self
+                                                    .common
+                                                    .config_info
+                                                    .aead_algo
+                                                    .contains(*v)
+                                            {
+                                                error!(
+                                                    "Responder AEAD {:X?} not subset of offer {:X?}\n",
+                                                    v.bits(),
+                                                    self.common.config_info.aead_algo.bits()
+                                                );
+                                                return Err(SPDM_STATUS_NEGOTIATION_FAIL);
+                                            }
                                             self.common.negotiate_info.aead_sel = *v;
                                         } else {
                                             error!(
@@ -277,6 +332,20 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoReqAsym(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
+                                            if v.bits() != 0
+                                                && !self
+                                                    .common
+                                                    .config_info
+                                                    .req_asym_algo
+                                                    .contains(*v)
+                                            {
+                                                error!(
+                                                    "Responder req_asym {:X?} not subset of offer {:X?}\n",
+                                                    v.bits(),
+                                                    self.common.config_info.req_asym_algo.bits()
+                                                );
+                                                return Err(SPDM_STATUS_NEGOTIATION_FAIL);
+                                            }
                                             self.common.negotiate_info.req_asym_sel = *v;
                                         } else {
                                             error!(
@@ -288,6 +357,20 @@ impl RequesterContext {
                                     }
                                     SpdmAlg::SpdmAlgoKeySchedule(v) => {
                                         if v.is_no_more_than_one_selected() || v.bits() == 0 {
+                                            if v.bits() != 0
+                                                && !self
+                                                    .common
+                                                    .config_info
+                                                    .key_schedule_algo
+                                                    .contains(*v)
+                                            {
+                                                error!(
+                                                    "Responder key_schedule {:X?} not subset of offer {:X?}\n",
+                                                    v.bits(),
+                                                    self.common.config_info.key_schedule_algo.bits()
+                                                );
+                                                return Err(SPDM_STATUS_NEGOTIATION_FAIL);
+                                            }
                                             self.common.negotiate_info.key_schedule_sel = *v;
                                         } else {
                                             error!(
