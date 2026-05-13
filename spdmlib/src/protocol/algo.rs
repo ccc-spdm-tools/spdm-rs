@@ -2261,6 +2261,80 @@ impl SpdmHkdfPseudoRandomKey {
     }
 }
 
+/// Serializable representation of KEY_EXCHANGE cryptographic context.
+/// Stores the ephemeral private key data needed to resume KEY_EXCHANGE after checkpoint.
+#[derive(Clone, PartialEq, Eq)]
+pub struct KeyExchangeContextData {
+    /// Algorithm type: 0=DHE, 1=KEM
+    pub algo_type: u8,
+    /// DHE algorithm (if algo_type=0): corresponds to SpdmDheAlgo bits (u16)
+    pub dhe_algo: u16,
+    /// Private key data (raw bytes for DHE, implementation-specific for KEM)
+    pub private_key_data: alloc::vec::Vec<u8>,
+}
+
+impl core::fmt::Debug for KeyExchangeContextData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("KeyExchangeContextData")
+            .field("algo_type", &self.algo_type)
+            .field("dhe_algo", &self.dhe_algo)
+            .field(
+                "private_key_data",
+                &format_args!("[REDACTED, {} bytes]", self.private_key_data.len()),
+            )
+            .finish()
+    }
+}
+
+impl Zeroize for KeyExchangeContextData {
+    fn zeroize(&mut self) {
+        self.algo_type.zeroize();
+        self.dhe_algo.zeroize();
+        self.private_key_data.zeroize();
+    }
+}
+
+impl Drop for KeyExchangeContextData {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl Codec for KeyExchangeContextData {
+    fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let used = bytes.used();
+        self.algo_type.encode(bytes)?;
+        self.dhe_algo.encode(bytes)?;
+        let len = self.private_key_data.len() as u32;
+        len.encode(bytes)?;
+        bytes
+            .extend_from_slice(&self.private_key_data)
+            .ok_or(codec::EncodeErr)?;
+        Ok(bytes.used() - used)
+    }
+
+    fn read(r: &mut Reader) -> Option<Self> {
+        let algo_type = u8::read(r)?;
+        let dhe_algo = u16::read(r)?;
+        let len = u32::read(r)? as usize;
+        if len > SPDM_MAX_REQ_KEY_EXCHANGE_SIZE {
+            return None;
+        }
+        if len > r.left() {
+            return None;
+        }
+        let mut private_key_data = alloc::vec::Vec::with_capacity(len);
+        for _ in 0..len {
+            private_key_data.push(u8::read(r)?);
+        }
+        Some(KeyExchangeContextData {
+            algo_type,
+            dhe_algo,
+            private_key_data,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2705,5 +2779,54 @@ mod tests {
         assert!(value.encode(&mut writer).is_ok());
         let mut reader = Reader::init(u8_slice);
         SpdmUnknownAlgo::read(&mut reader);
+    }
+
+    #[test]
+    fn test_key_exchange_context_data_rejects_oversized_len() {
+        let mut buf = [0u8; 7];
+        buf[0] = 0; // algo_type
+        buf[1] = 0;
+        buf[2] = 0; // dhe_algo
+        buf[3..7].copy_from_slice(&u32::MAX.to_le_bytes());
+
+        let mut reader = Reader::init(&buf);
+        assert!(
+            KeyExchangeContextData::read(&mut reader).is_none(),
+            "decode must reject an oversized private-key length"
+        );
+    }
+
+    #[test]
+    fn test_key_exchange_context_data_rejects_truncated_payload() {
+        let claimed_len = core::cmp::max(1u32, SPDM_MAX_REQ_KEY_EXCHANGE_SIZE as u32);
+        let mut buf = [0u8; 7];
+        buf[0] = 0;
+        buf[1] = 0;
+        buf[2] = 0;
+        buf[3..7].copy_from_slice(&claimed_len.to_le_bytes());
+
+        let mut reader = Reader::init(&buf);
+        assert!(
+            KeyExchangeContextData::read(&mut reader).is_none(),
+            "decode must reject a length larger than the remaining buffer"
+        );
+    }
+
+    #[test]
+    fn test_key_exchange_context_data_roundtrip_within_bounds() {
+        let original = KeyExchangeContextData {
+            algo_type: 0,
+            dhe_algo: 0x0002,
+            private_key_data: alloc::vec![0xAAu8; 48],
+        };
+
+        let mut buf = [0u8; 256];
+        let mut writer = Writer::init(&mut buf);
+        let used = original.encode(&mut writer).expect("encode");
+        let mut reader = Reader::init(&buf[..used]);
+        let decoded = KeyExchangeContextData::read(&mut reader).expect("decode");
+        assert_eq!(decoded.algo_type, original.algo_type);
+        assert_eq!(decoded.dhe_algo, original.dhe_algo);
+        assert_eq!(decoded.private_key_data, original.private_key_data);
     }
 }
