@@ -2261,14 +2261,44 @@ impl SpdmHkdfPseudoRandomKey {
     }
 }
 
+/// Algorithm selection for KEY_EXCHANGE context serialization.
+#[derive(Clone, PartialEq, Eq)]
+pub enum KeyExchangeAlgo {
+    /// DHE-based key exchange
+    Dhe(SpdmDheAlgo),
+    /// KEM-based key exchange
+    Kem(SpdmKemAlgo),
+}
+
+impl core::fmt::Debug for KeyExchangeAlgo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            KeyExchangeAlgo::Dhe(algo) => write!(f, "Dhe({:?})", algo),
+            KeyExchangeAlgo::Kem(algo) => write!(f, "Kem({:?})", algo),
+        }
+    }
+}
+
+impl Zeroize for KeyExchangeAlgo {
+    fn zeroize(&mut self) {
+        match self {
+            KeyExchangeAlgo::Dhe(algo) => {
+                // SpdmDheAlgo is a bitflags u16 — overwrite with empty
+                *algo = SpdmDheAlgo::empty();
+            }
+            KeyExchangeAlgo::Kem(algo) => {
+                *algo = SpdmKemAlgo::empty();
+            }
+        }
+    }
+}
+
 /// Serializable representation of KEY_EXCHANGE cryptographic context.
 /// Stores the ephemeral private key data needed to resume KEY_EXCHANGE after checkpoint.
 #[derive(Clone, PartialEq, Eq)]
 pub struct KeyExchangeContextData {
-    /// Algorithm type: 0=DHE, 1=KEM
-    pub algo_type: u8,
-    /// DHE algorithm (if algo_type=0): corresponds to SpdmDheAlgo bits (u16)
-    pub dhe_algo: u16,
+    /// Algorithm used for key exchange
+    pub algo: KeyExchangeAlgo,
     /// Private key data (raw bytes for DHE, implementation-specific for KEM)
     pub private_key_data: alloc::vec::Vec<u8>,
 }
@@ -2276,8 +2306,7 @@ pub struct KeyExchangeContextData {
 impl core::fmt::Debug for KeyExchangeContextData {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("KeyExchangeContextData")
-            .field("algo_type", &self.algo_type)
-            .field("dhe_algo", &self.dhe_algo)
+            .field("algo", &self.algo)
             .field(
                 "private_key_data",
                 &format_args!("[REDACTED, {} bytes]", self.private_key_data.len()),
@@ -2288,8 +2317,7 @@ impl core::fmt::Debug for KeyExchangeContextData {
 
 impl Zeroize for KeyExchangeContextData {
     fn zeroize(&mut self) {
-        self.algo_type.zeroize();
-        self.dhe_algo.zeroize();
+        self.algo.zeroize();
         self.private_key_data.zeroize();
     }
 }
@@ -2301,10 +2329,19 @@ impl Drop for KeyExchangeContextData {
 }
 
 impl Codec for KeyExchangeContextData {
+    /// Wire format: [algo_type: u8] [algo_bits: u16] [len: u32] [private_key_data: u8*len]
     fn encode(&self, bytes: &mut Writer) -> Result<usize, codec::EncodeErr> {
         let used = bytes.used();
-        self.algo_type.encode(bytes)?;
-        self.dhe_algo.encode(bytes)?;
+        match &self.algo {
+            KeyExchangeAlgo::Dhe(dhe_algo) => {
+                0u8.encode(bytes)?;
+                dhe_algo.bits().encode(bytes)?;
+            }
+            KeyExchangeAlgo::Kem(kem_algo) => {
+                1u8.encode(bytes)?;
+                kem_algo.bits().encode(bytes)?;
+            }
+        }
         let len = self.private_key_data.len() as u32;
         len.encode(bytes)?;
         bytes
@@ -2315,7 +2352,16 @@ impl Codec for KeyExchangeContextData {
 
     fn read(r: &mut Reader) -> Option<Self> {
         let algo_type = u8::read(r)?;
-        let dhe_algo = u16::read(r)?;
+        let algo_bits = u16::read(r)?;
+        let algo = match algo_type {
+            0 => KeyExchangeAlgo::Dhe(SpdmDheAlgo::from_bits(
+                algo_bits & SpdmDheAlgo::VALID_MASK.bits,
+            )?),
+            1 => KeyExchangeAlgo::Kem(SpdmKemAlgo::from_bits(
+                algo_bits & SpdmKemAlgo::VALID_MASK.bits,
+            )?),
+            _ => return None,
+        };
         let len = u32::read(r)? as usize;
         if len > SPDM_MAX_REQ_KEY_EXCHANGE_SIZE {
             return None;
@@ -2328,8 +2374,7 @@ impl Codec for KeyExchangeContextData {
             private_key_data.push(u8::read(r)?);
         }
         Some(KeyExchangeContextData {
-            algo_type,
-            dhe_algo,
+            algo,
             private_key_data,
         })
     }
@@ -2783,10 +2828,12 @@ mod tests {
 
     #[test]
     fn test_key_exchange_context_data_rejects_oversized_len() {
+        // algo_type=0 (DHE), algo_bits=SECP_256_R1, len=u32::MAX
         let mut buf = [0u8; 7];
-        buf[0] = 0; // algo_type
-        buf[1] = 0;
-        buf[2] = 0; // dhe_algo
+        buf[0] = 0; // algo_type = DHE
+        let algo_bits = SpdmDheAlgo::SECP_256_R1.bits().to_le_bytes();
+        buf[1] = algo_bits[0];
+        buf[2] = algo_bits[1];
         buf[3..7].copy_from_slice(&u32::MAX.to_le_bytes());
 
         let mut reader = Reader::init(&buf);
@@ -2800,9 +2847,10 @@ mod tests {
     fn test_key_exchange_context_data_rejects_truncated_payload() {
         let claimed_len = core::cmp::max(1u32, SPDM_MAX_REQ_KEY_EXCHANGE_SIZE as u32);
         let mut buf = [0u8; 7];
-        buf[0] = 0;
-        buf[1] = 0;
-        buf[2] = 0;
+        buf[0] = 0; // algo_type = DHE
+        let algo_bits = SpdmDheAlgo::SECP_256_R1.bits().to_le_bytes();
+        buf[1] = algo_bits[0];
+        buf[2] = algo_bits[1];
         buf[3..7].copy_from_slice(&claimed_len.to_le_bytes());
 
         let mut reader = Reader::init(&buf);
@@ -2813,10 +2861,24 @@ mod tests {
     }
 
     #[test]
-    fn test_key_exchange_context_data_roundtrip_within_bounds() {
+    fn test_key_exchange_context_data_rejects_invalid_algo_type() {
+        let mut buf = [0u8; 7];
+        buf[0] = 99; // invalid algo_type
+        buf[1] = 0x08;
+        buf[2] = 0x00;
+        buf[3..7].copy_from_slice(&0u32.to_le_bytes());
+
+        let mut reader = Reader::init(&buf);
+        assert!(
+            KeyExchangeContextData::read(&mut reader).is_none(),
+            "decode must reject unknown algo_type"
+        );
+    }
+
+    #[test]
+    fn test_key_exchange_context_data_roundtrip_dhe() {
         let original = KeyExchangeContextData {
-            algo_type: 0,
-            dhe_algo: 0x0002,
+            algo: KeyExchangeAlgo::Dhe(SpdmDheAlgo::SECP_384_R1),
             private_key_data: alloc::vec![0xAAu8; 48],
         };
 
@@ -2825,8 +2887,23 @@ mod tests {
         let used = original.encode(&mut writer).expect("encode");
         let mut reader = Reader::init(&buf[..used]);
         let decoded = KeyExchangeContextData::read(&mut reader).expect("decode");
-        assert_eq!(decoded.algo_type, original.algo_type);
-        assert_eq!(decoded.dhe_algo, original.dhe_algo);
+        assert_eq!(decoded.algo, original.algo);
+        assert_eq!(decoded.private_key_data, original.private_key_data);
+    }
+
+    #[test]
+    fn test_key_exchange_context_data_roundtrip_kem() {
+        let original = KeyExchangeContextData {
+            algo: KeyExchangeAlgo::Kem(SpdmKemAlgo::ALG_MLKEM_768),
+            private_key_data: alloc::vec![0xBBu8; 64],
+        };
+
+        let mut buf = [0u8; 256];
+        let mut writer = Writer::init(&mut buf);
+        let used = original.encode(&mut writer).expect("encode");
+        let mut reader = Reader::init(&buf[..used]);
+        let decoded = KeyExchangeContextData::read(&mut reader).expect("decode");
+        assert_eq!(decoded.algo, original.algo);
         assert_eq!(decoded.private_key_data, original.private_key_data);
     }
 }
