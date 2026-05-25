@@ -23,6 +23,6 @@ jobs:
       run: |
           ./sh_script/pre-build.sh
 
-    - uses: EmbarkStudios/cargo-deny-action@6c8f9facfa5047ec02d8485b6bf52b587b7777d1 # v2.0.18
+    - uses: EmbarkStudios/cargo-deny-action@a531616d8ce3b9177443e48a1159bc945a099823 # v2.0.19
       with:
         command: check ${{ matrix.checks }}
