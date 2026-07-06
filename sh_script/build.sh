@@ -146,6 +146,24 @@ run_with_spdm_emu() {
     popd
 }
 
+run_with_spdm_emu_supported_algs() {
+    # DSP0274 1.3+ SUPPORTED_ALGOS_EXT_CAP cross-test: spdm-rs Requester asks the libspdm
+    # (spdm-emu) Responder for its SupportedAlgorithms block in CAPABILITIES, then decodes and
+    # consumes it. Requires CHUNK_CAP on both peers. Note: at SPDM 1.4 the SupportedAlgorithms
+    # block plus the ALGORITHMS response can exceed libspdm's default VCA transcript buffer
+    # (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE = 200 + 2*LIBSPDM_MAX_VERSION_COUNT); build libspdm
+    # with a larger LIBSPDM_MAX_VERSION_COUNT if the 1.4 handshake fails with BUFFER_FULL.
+    echo "Running SupportedAlgorithms cross-test (spdm-rs requester vs libspdm responder)..."
+    pushd test_key
+    chmod +x ./spdm_responder_emu
+    echo_command  ./spdm_responder_emu --trans PCI_DOE &
+    popd
+    sleep 5
+    SPDMRS_USE_SUPPORTED_ALGOS=1 \
+        echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_CHUNK_CAP_FEATURES"
+    cleanup
+}
+
 run_with_spdm_emu_mut_auth() {
     echo "Running mutual authentication with spdm-emu..."
     pushd test_key
@@ -239,6 +257,20 @@ run_rust_spdm_emu_chunk_cap() {
     cleanup
 }
 
+run_rust_spdm_emu_supported_algs() {
+    # DSP0274 1.3 SUPPORTED_ALGOS_EXT_CAP end-to-end (spdm-rs requester <-> spdm-rs responder):
+    # the Requester queries the Responder's SupportedAlgorithms block in CAPABILITIES, then the
+    # full handshake (algorithms, cert, challenge, measurement, key exchange, session) proceeds
+    # over the same transcript. Requires CHUNK_CAP on both peers.
+    echo "Running requester and responder with SupportedAlgorithms (SUPPORTED_ALGOS_EXT_CAP)..."
+    export SPDMRS_USE_SUPPORTED_ALGOS=1
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_CHUNK_CAP_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_CHUNK_CAP_FEATURES"
+    unset SPDMRS_USE_SUPPORTED_ALGOS
+    cleanup
+}
+
 run_rust_spdm_emu_raw_pub_key() {
     echo "Running requester and responder with raw public key..."
     export SPDMRS_USE_RAW_PUB_KEY=true
@@ -329,6 +361,7 @@ run_with_spdm_emu_pqc() {
 run() {
     run_basic_test
     run_rust_spdm_emu
+    run_rust_spdm_emu_supported_algs
     run_rust_spdm_emu_raw_pub_key
     run_rust_spdm_emu_mut_auth
     run_rust_spdm_emu_mandatory_mut_auth
@@ -386,6 +419,7 @@ main() {
         run
         if [ "$RUNNER_OS" == "Linux" ]; then
             run_with_spdm_emu
+            run_with_spdm_emu_supported_algs
             run_with_spdm_emu_raw_pub_key
             run_with_spdm_emu_mut_auth
             run_with_spdm_emu_mandatory_mut_auth

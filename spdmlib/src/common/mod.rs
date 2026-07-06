@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -10,6 +10,7 @@ pub mod spdm_codec;
 #[cfg(feature = "mut-auth")]
 use crate::message::SpdmKeyExchangeMutAuthAttributes;
 use crate::message::SpdmRequestResponseCode;
+use crate::message::SpdmSupportedAlgorithmsBlock;
 use crate::{crypto, protocol::*};
 use spin::Mutex;
 extern crate alloc;
@@ -1427,6 +1428,8 @@ pub struct SpdmConfigInfo {
     pub pqc_asym_algo: SpdmPqcAsymAlgo,          // spdm 1.4
     pub pqc_req_asym_algo: SpdmPqcReqAsymAlgo,   // spdm 1.4
     pub kem_algo: SpdmKemAlgo,                   // spdm 1.4
+    // spdm 1.3: requester asks for SupportedAlgorithms in GET_CAPABILITIES (needs CHUNK_CAP).
+    pub supported_algos_ext_cap: bool,
 }
 
 impl Codec for SpdmConfigInfo {
@@ -1468,6 +1471,7 @@ impl Codec for SpdmConfigInfo {
         size += self.pqc_asym_algo.encode(writer)?;
         size += self.pqc_req_asym_algo.encode(writer)?;
         size += self.kem_algo.encode(writer)?;
+        size += (self.supported_algos_ext_cap as u8).encode(writer)?;
         Ok(size)
     }
 
@@ -1513,6 +1517,7 @@ impl Codec for SpdmConfigInfo {
         let pqc_asym_algo = SpdmPqcAsymAlgo::read(reader)?;
         let pqc_req_asym_algo = SpdmPqcReqAsymAlgo::read(reader)?;
         let kem_algo = SpdmKemAlgo::read(reader)?;
+        let supported_algos_ext_cap = u8::read(reader)? != 0;
 
         Some(Self {
             spdm_version,
@@ -1539,6 +1544,7 @@ impl Codec for SpdmConfigInfo {
             pqc_asym_algo,
             pqc_req_asym_algo,
             kem_algo,
+            supported_algos_ext_cap,
         })
     }
 }
@@ -2716,6 +2722,9 @@ pub struct SpdmPeerInfo {
     pub peer_key_pair_id: [Option<u8>; SPDM_MAX_SLOT_NUMBER],
     pub peer_cert_info: [Option<SpdmCertificateModelType>; SPDM_MAX_SLOT_NUMBER],
     pub peer_key_usage_bit_mask: [Option<SpdmKeyUsageMask>; SPDM_MAX_SLOT_NUMBER],
+    // spdm 1.3: SupportedAlgorithms block reported by the peer Responder in its CAPABILITIES
+    // response (GET_CAPABILITIES SUPPORTED_ALGOS_EXT_CAP). None if the peer did not include it.
+    pub peer_supported_algorithms: Option<SpdmSupportedAlgorithmsBlock>,
 }
 
 impl Codec for SpdmPeerInfo {
@@ -2771,6 +2780,15 @@ impl Codec for SpdmPeerInfo {
         size += bitmap.encode(writer)?;
         for val in self.peer_key_usage_bit_mask.iter().flatten() {
             size += val.encode(writer)?;
+        }
+        match &self.peer_supported_algorithms {
+            Some(val) => {
+                size += 1u8.encode(writer)?;
+                size += val.encode(writer)?;
+            }
+            None => {
+                size += 0u8.encode(writer)?;
+            }
         }
         Ok(size)
     }
@@ -2835,6 +2853,11 @@ impl Codec for SpdmPeerInfo {
                 *slot = None;
             }
         }
+        let peer_supported_algorithms = if u8::read(reader)? != 0 {
+            Some(SpdmSupportedAlgorithmsBlock::read(reader)?)
+        } else {
+            None
+        };
         Some(Self {
             peer_cert_chain,
             peer_cert_chain_temp,
@@ -2843,6 +2866,7 @@ impl Codec for SpdmPeerInfo {
             peer_key_pair_id,
             peer_cert_info,
             peer_key_usage_bit_mask,
+            peer_supported_algorithms,
         })
     }
 }

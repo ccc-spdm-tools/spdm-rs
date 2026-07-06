@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -1019,7 +1019,7 @@ impl Default for SpdmAlg {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SpdmAlgStruct {
     pub alg_type: SpdmAlgType,
     pub alg_supported: SpdmAlg,

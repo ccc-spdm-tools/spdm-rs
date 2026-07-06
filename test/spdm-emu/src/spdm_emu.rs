@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -82,6 +82,16 @@ pub fn use_psk_without_context() -> bool {
 /// SPDMRS_USE_PQC=false or 0 or unset -> disables PQC (default)
 pub fn use_pqc() -> bool {
     std::env::var("SPDMRS_USE_PQC")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
+/// Check if the Requester should query the Responder's SupportedAlgorithms block
+/// (DSP0274 1.3 SUPPORTED_ALGOS_EXT_CAP). Requires CHUNK_CAP; drives config_info.
+/// SPDMRS_USE_SUPPORTED_ALGOS=true or 1 -> request the block
+/// SPDMRS_USE_SUPPORTED_ALGOS=false or 0 or unset -> do not request (default)
+pub fn use_supported_algos_ext_cap() -> bool {
+    std::env::var("SPDMRS_USE_SUPPORTED_ALGOS")
         .map(|v| v == "true" || v == "1")
         .unwrap_or(false)
 }

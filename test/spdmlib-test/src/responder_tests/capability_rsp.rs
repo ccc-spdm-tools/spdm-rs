@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -56,6 +56,7 @@ fn test_case0_handle_spdm_capability() {
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
             ex_flags: SpdmRequestCapabilityExFlags::default(),
+            supported_algos_requested: false,
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
         let bytes = &mut [0u8; 1024];

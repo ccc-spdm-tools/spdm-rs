@@ -1,9 +1,218 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common;
 use crate::message::*;
+
+/// Base size (in bytes) of the SupportedAlgorithms block header, i.e. the size of
+/// libspdm's `spdm_supported_algorithms_block_t`. This is the NEGOTIATE_ALGORITHMS
+/// request body without the 2-byte SPDM message header, so its internal `Length`
+/// field is `SUPPORTED_ALGO_BLOCK_FIXED_LEN + (2 + AlgFixedCount) * AlgStructCount`.
+const SUPPORTED_ALGO_BLOCK_FIXED_LEN: u16 = 30;
+
+/// DSP0274 1.3+ SupportedAlgorithms block. It is requested by the Requester via the
+/// GET_CAPABILITIES Param1 `SUPPORTED_ALGOS_EXT_CAP` bit and returned by the Responder
+/// appended to the CAPABILITIES response (after MaxSPDMmsgSize). Its on-wire layout is
+/// identical to the NEGOTIATE_ALGORITHMS request body, except the block's `Length` field
+/// excludes the 2-byte SPDM message header.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SpdmSupportedAlgorithmsBlock {
+    pub measurement_specification: SpdmMeasurementSpecification,
+    pub other_params_support: SpdmAlgoOtherParams,
+    pub base_asym_algo: SpdmBaseAsymAlgo,
+    pub base_hash_algo: SpdmBaseHashAlgo,
+    pub pqc_asym_algo: SpdmPqcAsymAlgo, // SpdmVersion14
+    pub mel_specification: SpdmMelSpecification,
+    pub alg_struct_count: u8,
+    pub alg_struct: [SpdmAlgStruct; MAX_SUPPORTED_ALG_STRUCTURE_COUNT],
+}
+
+impl SpdmCodec for SpdmSupportedAlgorithmsBlock {
+    fn spdm_encode(
+        &self,
+        context: &mut common::SpdmContext,
+        bytes: &mut Writer,
+    ) -> Result<usize, SpdmStatus> {
+        let mut cnt = 0usize;
+        cnt += self
+            .alg_struct_count
+            .encode(bytes)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1 (number of alg struct tables)
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
+
+        let alg_fixed_count = 2u16;
+        let length =
+            SUPPORTED_ALGO_BLOCK_FIXED_LEN + (2 + alg_fixed_count) * self.alg_struct_count as u16;
+        cnt += length.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+
+        cnt += self
+            .measurement_specification
+            .encode(bytes)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        cnt += self
+            .other_params_support
+            .encode(bytes)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        cnt += self
+            .base_asym_algo
+            .encode(bytes)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        cnt += self
+            .base_hash_algo
+            .encode(bytes)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+            cnt += self
+                .pqc_asym_algo
+                .encode(bytes)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        } else {
+            for _i in 0..4 {
+                cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved
+            }
+        }
+
+        for _i in 0..8 {
+            cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved2
+        }
+
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // ext_asym_count
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // ext_hash_count
+        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved3
+        cnt += self
+            .mel_specification
+            .encode(bytes)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+
+        for algo in self.alg_struct.iter().take(self.alg_struct_count as usize) {
+            cnt += algo.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        }
+        Ok(cnt)
+    }
+
+    fn spdm_read(
+        context: &mut common::SpdmContext,
+        r: &mut Reader,
+    ) -> Option<SpdmSupportedAlgorithmsBlock> {
+        let alg_struct_count = u8::read(r)?; // param1 (number of alg struct tables)
+        if alg_struct_count > MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8 {
+            return None;
+        }
+        u8::read(r)?; // param2
+        let length = u16::read(r)?;
+
+        let measurement_specification = SpdmMeasurementSpecification::read(r)?;
+        let other_params_support = SpdmAlgoOtherParams::read(r)?;
+        let base_asym_algo = SpdmBaseAsymAlgo::read(r)?;
+        let base_hash_algo = SpdmBaseHashAlgo::read(r)?;
+
+        let pqc_asym_algo = if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+        {
+            SpdmPqcAsymAlgo::read(r)?
+        } else {
+            for _i in 0..4 {
+                u8::read(r)?; // reserved
+            }
+            SpdmPqcAsymAlgo::default()
+        };
+
+        for _i in 0..8 {
+            u8::read(r)?; // reserved2
+        }
+
+        let ext_asym_count = u8::read(r)?;
+        if ext_asym_count != 0 {
+            return None;
+        }
+        let ext_hash_count = u8::read(r)?;
+        if ext_hash_count != 0 {
+            return None;
+        }
+        u8::read(r)?; // reserved3
+        let mel_specification = SpdmMelSpecification::read(r)?;
+
+        let mut alg_struct =
+            gen_array_clone(SpdmAlgStruct::default(), MAX_SUPPORTED_ALG_STRUCTURE_COUNT);
+        let mut current_type = SpdmAlgType::Unknown(0);
+        for algo in alg_struct.iter_mut().take(alg_struct_count as usize) {
+            let alg = SpdmAlgStruct::read(r)?;
+            // AlgStruct tables must be present in ascending AlgType order with no duplicates.
+            if current_type.get_u8() >= alg.alg_type.get_u8() {
+                return None;
+            }
+            current_type = alg.alg_type;
+            *algo = alg;
+        }
+
+        let alg_fixed_count = 2u16;
+        let calc_length =
+            SUPPORTED_ALGO_BLOCK_FIXED_LEN + (2 + alg_fixed_count) * alg_struct_count as u16;
+        if length != calc_length {
+            return None;
+        }
+
+        Some(SpdmSupportedAlgorithmsBlock {
+            measurement_specification,
+            other_params_support,
+            base_asym_algo,
+            base_hash_algo,
+            pqc_asym_algo,
+            mel_specification,
+            alg_struct_count,
+            alg_struct,
+        })
+    }
+}
+
+// Version-independent Codec used to serialize the block inside a stored SpdmContext
+// (SpdmPeerInfo export/import). Unlike spdm_encode, this is NOT the on-wire CAPABILITIES
+// format: every field is stored unconditionally so a round-trip preserves the struct.
+impl Codec for SpdmSupportedAlgorithmsBlock {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.measurement_specification.encode(writer)?;
+        size += self.other_params_support.encode(writer)?;
+        size += self.base_asym_algo.encode(writer)?;
+        size += self.base_hash_algo.encode(writer)?;
+        size += self.pqc_asym_algo.encode(writer)?;
+        size += self.mel_specification.encode(writer)?;
+        size += self.alg_struct_count.encode(writer)?;
+        for algo in self.alg_struct.iter().take(self.alg_struct_count as usize) {
+            size += algo.encode(writer)?;
+        }
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let measurement_specification = SpdmMeasurementSpecification::read(reader)?;
+        let other_params_support = SpdmAlgoOtherParams::read(reader)?;
+        let base_asym_algo = SpdmBaseAsymAlgo::read(reader)?;
+        let base_hash_algo = SpdmBaseHashAlgo::read(reader)?;
+        let pqc_asym_algo = SpdmPqcAsymAlgo::read(reader)?;
+        let mel_specification = SpdmMelSpecification::read(reader)?;
+        let alg_struct_count = u8::read(reader)?;
+        if alg_struct_count > MAX_SUPPORTED_ALG_STRUCTURE_COUNT as u8 {
+            return None;
+        }
+        let mut alg_struct =
+            gen_array_clone(SpdmAlgStruct::default(), MAX_SUPPORTED_ALG_STRUCTURE_COUNT);
+        for algo in alg_struct.iter_mut().take(alg_struct_count as usize) {
+            *algo = SpdmAlgStruct::read(reader)?;
+        }
+        Some(SpdmSupportedAlgorithmsBlock {
+            measurement_specification,
+            other_params_support,
+            base_asym_algo,
+            base_hash_algo,
+            pqc_asym_algo,
+            mel_specification,
+            alg_struct_count,
+            alg_struct,
+        })
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmGetCapabilitiesRequestPayload {
@@ -14,6 +223,9 @@ pub struct SpdmGetCapabilitiesRequestPayload {
     pub max_spdm_msg_size: u32,
     // New fields from SpdmVersion14
     pub ex_flags: SpdmRequestCapabilityExFlags,
+    // SpdmVersion13: request the Responder to return its SupportedAlgorithms in CAPABILITIES.
+    // Drives the Param1 SUPPORTED_ALGOS_EXT_CAP bit; requires CHUNK_CAP.
+    pub supported_algos_requested: bool,
 }
 
 impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
@@ -23,7 +235,13 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
-        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        let mut param1 = SpdmCapabilityParam1::empty();
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+            && self.supported_algos_requested
+        {
+            param1.insert(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP);
+        }
+        cnt += param1.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
 
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion11 {
@@ -64,6 +282,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmGetCapabilitiesRequestPayload> {
+        let mut supported_algos_requested = false;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             let param1 = SpdmCapabilityParam1::read(r)?; // param1
             if param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP)
@@ -74,6 +293,8 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
             {
                 return None;
             }
+            supported_algos_requested =
+                param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP);
         } else {
             u8::read(r)?; // param1
         }
@@ -195,6 +416,7 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
             data_transfer_size,
             max_spdm_msg_size,
             ex_flags,
+            supported_algos_requested,
         })
     }
 }
@@ -207,6 +429,9 @@ pub struct SpdmCapabilitiesResponsePayload {
     pub max_spdm_msg_size: u32,
     // New fields from SpdmVersion14
     pub ex_flags: SpdmResponseCapabilityExFlags,
+    // SpdmVersion13: SupportedAlgorithms block, present iff the Requester set the
+    // Param1 SUPPORTED_ALGOS_EXT_CAP bit and both peers support CHUNK_CAP.
+    pub supported_algorithms: Option<SpdmSupportedAlgorithmsBlock>,
 }
 
 impl SpdmCodec for SpdmCapabilitiesResponsePayload {
@@ -216,7 +441,13 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
-        cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
+        let mut param1 = SpdmCapabilityParam1::empty();
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
+            && self.supported_algorithms.is_some()
+        {
+            param1.insert(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP);
+        }
+        cnt += param1.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param1
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // param2
 
         cnt += 0u8.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?; // reserved
@@ -248,6 +479,12 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
 
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            if let Some(supported_algorithms) = &self.supported_algorithms {
+                cnt += supported_algorithms.spdm_encode(context, bytes)?;
+            }
+        }
+
         Ok(cnt)
     }
 
@@ -255,7 +492,12 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
         context: &mut common::SpdmContext,
         r: &mut Reader,
     ) -> Option<SpdmCapabilitiesResponsePayload> {
-        u8::read(r)?; // param1
+        let param1 = if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
+            SpdmCapabilityParam1::read(r)? // param1
+        } else {
+            u8::read(r)?; // param1
+            SpdmCapabilityParam1::empty()
+        };
         u8::read(r)?; // param2
 
         u8::read(r)?; // reserved
@@ -415,12 +657,23 @@ impl SpdmCodec for SpdmCapabilitiesResponsePayload {
                 return None;
             }
         }
+
+        let supported_algorithms = if context.negotiate_info.spdm_version_sel
+            >= SpdmVersion::SpdmVersion13
+            && param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP)
+        {
+            Some(SpdmSupportedAlgorithmsBlock::spdm_read(context, r)?)
+        } else {
+            None
+        };
+
         Some(SpdmCapabilitiesResponsePayload {
             ct_exponent,
             flags,
             data_transfer_size,
             max_spdm_msg_size,
             ex_flags,
+            supported_algorithms,
         })
     }
 }
@@ -532,6 +785,7 @@ mod tests {
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
             ex_flags: SpdmRequestCapabilityExFlags::default(),
+            supported_algos_requested: false,
         };
 
         create_spdm_context!(context);
@@ -559,6 +813,7 @@ mod tests {
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
             ex_flags: SpdmRequestCapabilityExFlags::default(),
+            supported_algos_requested: false,
         };
 
         create_spdm_context!(context);
@@ -601,6 +856,7 @@ mod tests {
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
             ex_flags: SpdmResponseCapabilityExFlags::default(),
+            supported_algorithms: None,
         };
 
         create_spdm_context!(context);
@@ -628,6 +884,7 @@ mod tests {
             data_transfer_size: 0,
             max_spdm_msg_size: 0,
             ex_flags: SpdmResponseCapabilityExFlags::default(),
+            supported_algorithms: None,
         };
 
         create_spdm_context!(context);
