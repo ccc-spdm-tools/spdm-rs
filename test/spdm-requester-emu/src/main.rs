@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -191,6 +191,8 @@ async fn test_spdm(
             Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
             Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
         ],
+        // DSP0274 1.3: request the Responder's SupportedAlgorithms block in CAPABILITIES.
+        supported_algos_ext_cap: use_supported_algos_ext_cap(),
         ..Default::default()
     };
 
@@ -315,6 +317,37 @@ async fn test_spdm(
     let mut transcript_vca = None;
     if context.init_connection(&mut transcript_vca).await.is_err() {
         panic!("init_connection failed!");
+    }
+
+    // DSP0274 1.3 SUPPORTED_ALGOS_EXT_CAP: report/validate the Responder's SupportedAlgorithms
+    // block. When we asked for it (use_supported_algos_ext_cap), the Responder is required to
+    // return it (both peers advertise CHUNK_CAP here), so a missing block is a hard failure.
+    match context.get_peer_supported_algorithms() {
+        Some(block) => {
+            log::info!(
+                "!!! CROSS-TEST peer SupportedAlgorithms: count={} base_asym={:08x?} base_hash={:08x?} meas_spec={:02x?} !!!",
+                block.alg_struct_count,
+                block.base_asym_algo,
+                block.base_hash_algo,
+                block.measurement_specification
+            );
+            for i in 0..block.alg_struct_count as usize {
+                log::info!(
+                    "!!! CROSS-TEST   alg_struct[{}]: type={:?} supported={:?} !!!",
+                    i,
+                    block.alg_struct[i].alg_type,
+                    block.alg_struct[i].alg_supported
+                );
+            }
+        }
+        None => {
+            if use_supported_algos_ext_cap() {
+                panic!(
+                    "SUPPORTED_ALGOS_EXT_CAP requested but peer returned no SupportedAlgorithms block!"
+                );
+            }
+            log::info!("!!! CROSS-TEST peer SupportedAlgorithms: NONE !!!");
+        }
     }
 
     if !use_raw_pub_key {

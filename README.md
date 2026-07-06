@@ -322,6 +322,24 @@ cd bin
 spdm_requester_emu.exe --trans PCI_DOE --exe_conn DIGEST,CERT,CHAL,MEAS --exe_session KEY_EX,PSK,KEY_UPDATE,HEARTBEAT,MEAS,DIGEST,CERT
 ```
 
+#### Cross test the SupportedAlgorithms extended capability (DSP0274 1.3)
+
+The SUPPORTED_ALGOS_EXT_CAP capability lets a Requester ask the Responder to
+include its Supported Algorithms Block in the `CAPABILITIES` response. It
+requires `CHUNK_CAP` on both peers.
+
+Note: at SPDM 1.4 the SupportedAlgorithms block plus the `ALGORITHMS` response
+can exceed libspdm's default VCA transcript buffer
+(`LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE = 200 + 2*LIBSPDM_MAX_VERSION_COUNT`); if
+the 1.4 handshake fails with `BUFFER_FULL`, rebuild libspdm with a larger
+`LIBSPDM_MAX_VERSION_COUNT`.
+
+Test spdm-rs as requester (spdm-rs Requester queries libspdm Responder):
+```
+cd bin && spdm_responder_emu.exe --trans PCI_DOE
+SPDMRS_USE_SUPPORTED_ALGOS=1 cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,chunk-cap"
+```
+
 ### Run test cases
 
 Setting up enough stack before running tests

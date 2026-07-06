@@ -1,10 +1,11 @@
-// Copyright (c) 2025 Intel Corporation
+// Copyright (c) 2025, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use codec::{Codec, Reader, Writer};
 use spdmlib::common::*;
 use spdmlib::config::MAX_ROOT_CERT_SUPPORT;
+use spdmlib::message::SpdmSupportedAlgorithmsBlock;
 use spdmlib::protocol::*;
 
 #[test]
@@ -46,6 +47,7 @@ fn test_spdm_config_info_codec() {
         pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
         pqc_req_asym_algo: SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
         kem_algo: SpdmKemAlgo::ALG_MLKEM_1024,
+        supported_algos_ext_cap: true,
     };
 
     // Test round-trip encoding/decoding
@@ -636,6 +638,7 @@ fn test_spdm_peer_info_codec() {
         peer_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         peer_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
         peer_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_supported_algorithms: None,
     };
 
     // Test round-trip encoding/decoding
@@ -745,6 +748,24 @@ fn test_spdm_peer_info_codec_with_populated_data() {
             Some(key_usage_variants[6]),
             Some(key_usage_variants[7]),
         ],
+        peer_supported_algorithms: Some({
+            let mut block = SpdmSupportedAlgorithmsBlock {
+                measurement_specification: SpdmMeasurementSpecification::DMTF,
+                base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+                base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                alg_struct_count: 2,
+                ..Default::default()
+            };
+            block.alg_struct[0] = SpdmAlgStruct {
+                alg_type: SpdmAlgType::SpdmAlgTypeDHE,
+                alg_supported: SpdmAlg::SpdmAlgoDhe(SpdmDheAlgo::SECP_256_R1),
+            };
+            block.alg_struct[1] = SpdmAlgStruct {
+                alg_type: SpdmAlgType::SpdmAlgTypeAEAD,
+                alg_supported: SpdmAlg::SpdmAlgoAead(SpdmAeadAlgo::AES_128_GCM),
+            };
+            block
+        }),
     };
 
     // Test round-trip encoding/decoding
@@ -801,6 +822,12 @@ fn test_spdm_peer_info_codec_with_populated_data() {
             decoded.peer_key_usage_bit_mask[slot]
         );
     }
+
+    // The stored SupportedAlgorithms block must round-trip exactly.
+    assert_eq!(
+        original.peer_supported_algorithms,
+        decoded.peer_supported_algorithms
+    );
 }
 
 #[test]
@@ -814,6 +841,7 @@ fn test_spdm_peer_info_codec_edge_cases() {
         peer_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         peer_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
         peer_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_supported_algorithms: None,
     };
 
     // Test round-trip encoding/decoding
@@ -845,6 +873,7 @@ fn test_spdm_peer_info_codec_edge_cases() {
         peer_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         peer_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
         peer_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_supported_algorithms: None,
     };
 
     let mut writer = Writer::init(&mut buffer);
@@ -1209,6 +1238,7 @@ fn test_large_struct_memory_boundaries() {
         peer_key_pair_id: [None; SPDM_MAX_SLOT_NUMBER],
         peer_cert_info: [None; SPDM_MAX_SLOT_NUMBER],
         peer_key_usage_bit_mask: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_supported_algorithms: None,
     };
 
     let runtime_info = SpdmRuntimeInfo::default();

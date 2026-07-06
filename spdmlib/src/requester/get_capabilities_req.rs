@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -54,10 +54,26 @@ impl RequesterContext {
                     data_transfer_size: self.common.config_info.data_transfer_size,
                     max_spdm_msg_size: self.common.config_info.max_spdm_msg_size,
                     ex_flags: SpdmRequestCapabilityExFlags::default(),
+                    supported_algos_requested: self
+                        .common
+                        .config_info
+                        .req_capabilities
+                        .contains(SpdmRequestCapabilityFlags::CHUNK_CAP)
+                        && self.common.config_info.supported_algos_ext_cap,
                 },
             ),
         };
         request.spdm_encode(&mut self.common, &mut writer)
+    }
+
+    /// Consume the SupportedAlgorithms block that the Responder returned in its CAPABILITIES
+    /// response (DSP0274 1.3+ SUPPORTED_ALGOS_EXT_CAP). Returns `None` if the Requester did not
+    /// request it, the Responder did not support it, or GET_CAPABILITIES has not completed yet.
+    ///
+    /// The Requester can use this to learn the Responder's supported algorithms before sending
+    /// NEGOTIATE_ALGORITHMS, e.g. to pre-select mutually supported algorithms.
+    pub fn get_peer_supported_algorithms(&self) -> Option<&SpdmSupportedAlgorithmsBlock> {
+        self.common.peer_info.peer_supported_algorithms.as_ref()
     }
 
     pub fn handle_spdm_capability_response(
@@ -88,6 +104,12 @@ impl RequesterContext {
                             self.common.negotiate_info.rsp_ct_exponent_sel =
                                 capabilities.ct_exponent;
                             self.common.negotiate_info.rsp_capabilities_sel = capabilities.flags;
+
+                            // spdm 1.3: store the Responder's SupportedAlgorithms block (if it
+                            // included one) so the caller can consume it via
+                            // get_peer_supported_algorithms before NEGOTIATE_ALGORITHMS.
+                            self.common.peer_info.peer_supported_algorithms =
+                                capabilities.supported_algorithms;
 
                             if self.common.negotiate_info.spdm_version_sel
                                 >= SpdmVersion::SpdmVersion12
