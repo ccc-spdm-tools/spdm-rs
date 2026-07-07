@@ -201,3 +201,102 @@ fn test_case1_send_receive_spdm_capability_supported_algorithms() {
     };
     executor::block_on(future);
 }
+
+// DSP0274 1.3 SUPPORTED_ALGOS_EXT_CAP with a chunked CAPABILITIES response: the Requester
+// advertises the minimum DataTransferSize (42), so the block-bearing CAPABILITIES response
+// (> 42 bytes) cannot fit in one transfer and the Responder returns ERROR/LargeResponse; the
+// Requester then retrieves it via CHUNK_GET / CHUNK_RESPONSE. The reassembled CAPABILITIES must
+// still be placed in the VCA transcript identically on both sides.
+#[test]
+#[cfg(feature = "chunk-cap")]
+fn test_case2_send_receive_spdm_capability_supported_algorithms_chunked() {
+    let future = async {
+        let (rsp_config_info, rsp_provision_info) = create_info();
+        let (mut req_config_info, req_provision_info) = create_info();
+        req_config_info.supported_algos_ext_cap = true;
+        // Minimum DataTransferSize forces the block-bearing CAPABILITIES response to be chunked.
+        req_config_info.data_transfer_size = spdmlib::config::SPDM_MIN_DATA_TRANSFER_SIZE as u32;
+
+        let shared_buffer = SharedBuffer::new();
+        let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+            shared_buffer,
+        ))));
+        let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+
+        secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+
+        let mut responder = responder::ResponderContext::new(
+            device_io_responder,
+            pcidoe_transport_encap,
+            rsp_config_info,
+            rsp_provision_info,
+        );
+        responder
+            .common
+            .runtime_info
+            .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
+        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+        let shared_buffer = SharedBuffer::new();
+        let responder = Arc::new(Mutex::new(responder));
+        let device_io_requester = Arc::new(Mutex::new(FakeSpdmDeviceIo::new(
+            Arc::new(shared_buffer),
+            responder.clone(),
+        )));
+
+        let mut requester = RequesterContext::new(
+            device_io_requester,
+            pcidoe_transport_encap2,
+            req_config_info,
+            req_provision_info,
+        );
+
+        requester.common.reset_runtime_info();
+        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        // GET_CAPABILITIES advertises DataTransferSize=42; the block-bearing CAPABILITIES exceeds
+        // it, so this exercises the ERROR/LargeResponse -> CHUNK_GET -> CHUNK_RESPONSE path.
+        assert!(requester.send_receive_spdm_capability().await.is_ok());
+        assert!(requester.send_receive_spdm_algorithm().await.is_ok());
+
+        // The block was retrieved (via chunking) and consumed.
+        let block = requester
+            .get_peer_supported_algorithms()
+            .expect("Responder must return SupportedAlgorithms (chunked) when requested");
+        assert_eq!(block.alg_struct_count, 4);
+        assert_eq!(
+            block.base_asym_algo,
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
+        );
+
+        // Even though CAPABILITIES was chunked on the wire, the reassembled message must appear
+        // identically in both VCA transcripts (the chunk envelopes are not part of the transcript).
+        let req_message_a = requester.common.runtime_info.message_a.as_ref().to_vec();
+        let rsp_message_a = responder
+            .lock()
+            .common
+            .runtime_info
+            .message_a
+            .as_ref()
+            .to_vec();
+        assert_eq!(
+            req_message_a, rsp_message_a,
+            "requester/responder VCA transcripts diverged after chunked CAPABILITIES"
+        );
+
+        let block = block.clone();
+        let mut block_buf = [0u8; 128];
+        let mut block_writer = Writer::init(&mut block_buf);
+        let block_len = block
+            .spdm_encode(&mut requester.common, &mut block_writer)
+            .expect("failed to re-encode SupportedAlgorithms block");
+        let needle = &block_buf[..block_len];
+        assert!(
+            req_message_a.windows(needle.len()).any(|w| w == needle),
+            "SupportedAlgorithms block not found in the VCA transcript after chunking"
+        );
+    };
+    executor::block_on(future);
+}

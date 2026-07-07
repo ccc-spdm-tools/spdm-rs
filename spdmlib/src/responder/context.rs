@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -1122,10 +1122,18 @@ impl ResponderContext {
             return (Err(SPDM_STATUS_UNSUPPORTED_CAP), Some(writer.used_slice()));
         }
 
+        // A CHUNK_GET is expected once a large response has been staged for retrieval. The
+        // CAPABILITIES response itself can be chunked when the Requester queried
+        // SupportedAlgorithms (DSP0274 1.3), so a CHUNK_GET may legitimately arrive while the
+        // connection state is still AfterVersion. Only reject when no chunk transfer is in
+        // progress and the connection has not reached at least AfterVersion.
+        let chunk_get_in_progress =
+            self.common.chunk_context.chunk_status == common::SpdmChunkStatus::ChunkGetAndResponse;
         if self.common.runtime_info.get_connection_state()
             == SpdmConnectionState::SpdmConnectionNotStarted
-            || self.common.runtime_info.get_connection_state()
-                == SpdmConnectionState::SpdmConnectionAfterVersion
+            || (!chunk_get_in_progress
+                && self.common.runtime_info.get_connection_state()
+                    == SpdmConnectionState::SpdmConnectionAfterVersion)
         {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
             return (

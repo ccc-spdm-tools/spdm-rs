@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -291,17 +291,38 @@ impl RequesterContext {
                             if spdm_message_general_payload.param1
                                 == SpdmErrorCode::SpdmErrorLargeResponse.get_u8()
                             {
-                                if !self
-                                    .common
-                                    .negotiate_info
-                                    .rsp_capabilities_sel
-                                    .contains(SpdmResponseCapabilityFlags::CHUNK_CAP)
-                                    || !self
-                                        .common
-                                        .negotiate_info
-                                        .req_capabilities_sel
-                                        .contains(SpdmRequestCapabilityFlags::CHUNK_CAP)
-                                {
+                                // The CAPABILITIES response itself may be chunked when the
+                                // Requester queried SupportedAlgorithms (DSP0274 1.3, GET_
+                                // CAPABILITIES Param1[0]); see DSP0274 clause on the Extended
+                                // capabilities GET_CAPABILITIES request. At that point capability
+                                // negotiation has not completed yet, so the negotiated *_sel
+                                // flags are still empty. Fall back to the locally configured
+                                // capability: the Requester only set Param1[0] when it advertised
+                                // CHUNK_CAP, and a LargeResponse from the Responder implies the
+                                // Responder supports chunking, so it is safe to proceed.
+                                let req_chunk_cap =
+                                    if self.common.negotiate_info.req_capabilities_sel.is_empty() {
+                                        self.common
+                                            .config_info
+                                            .req_capabilities
+                                            .contains(SpdmRequestCapabilityFlags::CHUNK_CAP)
+                                    } else {
+                                        self.common
+                                            .negotiate_info
+                                            .req_capabilities_sel
+                                            .contains(SpdmRequestCapabilityFlags::CHUNK_CAP)
+                                    };
+                                // rsp_capabilities_sel is only meaningful once CAPABILITIES has
+                                // been processed; before that, receiving LargeResponse is itself
+                                // the Responder asserting chunk support.
+                                let rsp_chunk_cap =
+                                    self.common.negotiate_info.rsp_capabilities_sel.is_empty()
+                                        || self
+                                            .common
+                                            .negotiate_info
+                                            .rsp_capabilities_sel
+                                            .contains(SpdmResponseCapabilityFlags::CHUNK_CAP);
+                                if !req_chunk_cap || !rsp_chunk_cap {
                                     return Err(SPDM_STATUS_ERROR_PEER);
                                 }
                                 if message_header.version
