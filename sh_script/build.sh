@@ -267,6 +267,17 @@ run_rust_spdm_emu_supported_algs() {
     echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_CHUNK_CAP_FEATURES" &
     sleep 20
     echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_CHUNK_CAP_FEATURES"
+    cleanup
+
+    # Same exchange with a small DataTransferSize (chunk_test_config.json), so the block-bearing
+    # CAPABILITIES response exceeds DataTransferSize and is transferred via the Large SPDM message
+    # mechanism (ERROR/LargeResponse -> CHUNK_GET -> CHUNK_RESPONSE) before the rest of the flow.
+    echo "Running requester and responder with SupportedAlgorithms over chunked CAPABILITIES..."
+    echo_command export SPDM_CONFIG="etc/chunk_test_config.json"
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_CHUNK_CAP_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_CHUNK_CAP_FEATURES"
+    echo_command export SPDM_CONFIG="etc/config.json"
     unset SPDMRS_USE_SUPPORTED_ALGOS
     cleanup
 }
