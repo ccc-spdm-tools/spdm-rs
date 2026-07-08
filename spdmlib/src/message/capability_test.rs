@@ -76,7 +76,9 @@ fn test_capability_request_struct() {
     assert!(res.data_transfer_size == 4096);
     assert!(res.max_spdm_msg_size == 4096);
 
-    // 1. Validate SUPPORTED_ALGOS_EXT_CAP bit is set and CHUNK_CAP not supported. Expectation failed.
+    // 1. SUPPORTED_ALGOS_EXT_CAP bit is set. The request is accepted regardless of the
+    // Responder's CHUNK_CAP; whether the SupportedAlgorithms block is returned is decided on
+    // the response side.
     let u8_slice = &mut [0u8; 100];
     create_spdm_context!(context);
     context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
@@ -89,7 +91,8 @@ fn test_capability_request_struct() {
 
     let mut reader = Reader::init(&u8_slice[2..]);
     let res = SpdmGetCapabilitiesRequestPayload::spdm_read(&mut context, &mut reader);
-    assert!(res.is_none());
+    assert!(res.is_some());
+    assert!(res.unwrap().supported_algos_requested);
 
     // 2. Validate sample illegal capability flags settings. Expectation failed.
     let u8_slice = &mut [0u8; 100];

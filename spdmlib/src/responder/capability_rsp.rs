@@ -125,43 +125,77 @@ impl ResponderContext {
         info!("send spdm capability\n");
 
         // DSP0274 1.3+: when the Requester asked for SupportedAlgorithms (GET_CAPABILITIES
-        // Param1) and both peers support CHUNK_CAP, return the algorithms block in CAPABILITIES.
-        let supported_algorithms = if self.common.negotiate_info.spdm_version_sel
+        // Param1), try to return the algorithms block in CAPABILITIES. If the resulting response
+        // does not fit in the Requester's DataTransferSize and it cannot be transferred via the
+        // Large SPDM message mechanism (CHUNK_CAP not supported by both peers), drop the block
+        // and return the basic CAPABILITIES response (the Param1 bit is cleared on encode).
+        let mut supported_algorithms = if self.common.negotiate_info.spdm_version_sel
             >= SpdmVersion::SpdmVersion13
             && supported_algos_requested
-            && self
-                .common
-                .negotiate_info
-                .req_capabilities_sel
-                .contains(SpdmRequestCapabilityFlags::CHUNK_CAP)
-            && self
-                .common
-                .config_info
-                .rsp_capabilities
-                .contains(SpdmResponseCapabilityFlags::CHUNK_CAP)
         {
             Some(self.build_supported_algorithms_block())
         } else {
             None
         };
 
-        let response = SpdmMessage {
-            header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
-                request_response_code: SpdmRequestResponseCode::SpdmResponseCapabilities,
-            },
-            payload: SpdmMessagePayload::SpdmCapabilitiesResponse(
-                SpdmCapabilitiesResponsePayload {
-                    ct_exponent: self.common.config_info.rsp_ct_exponent,
-                    flags: self.common.config_info.rsp_capabilities,
-                    data_transfer_size: self.common.config_info.data_transfer_size,
-                    max_spdm_msg_size: self.common.config_info.max_spdm_msg_size,
-                    ex_flags: SpdmResponseCapabilityExFlags::default(),
-                    supported_algorithms,
+        let encode_capabilities = |ctx: &mut ResponderContext,
+                                   writer: &mut Writer,
+                                   supported_algorithms: Option<SpdmSupportedAlgorithmsBlock>|
+         -> SpdmResult<usize> {
+            writer.clear();
+            let response = SpdmMessage {
+                header: SpdmMessageHeader {
+                    version: ctx.common.negotiate_info.spdm_version_sel,
+                    request_response_code: SpdmRequestResponseCode::SpdmResponseCapabilities,
                 },
-            ),
+                payload: SpdmMessagePayload::SpdmCapabilitiesResponse(
+                    SpdmCapabilitiesResponsePayload {
+                        ct_exponent: ctx.common.config_info.rsp_ct_exponent,
+                        flags: ctx.common.config_info.rsp_capabilities,
+                        data_transfer_size: ctx.common.config_info.data_transfer_size,
+                        max_spdm_msg_size: ctx.common.config_info.max_spdm_msg_size,
+                        ex_flags: SpdmResponseCapabilityExFlags::default(),
+                        supported_algorithms,
+                    },
+                ),
+            };
+            response.spdm_encode(&mut ctx.common, writer)
         };
-        let res = response.spdm_encode(&mut self.common, writer);
+
+        let mut res = encode_capabilities(self, writer, supported_algorithms.clone());
+
+        // Drop the SupportedAlgorithms block and re-encode the basic CAPABILITIES response if it
+        // cannot be delivered:
+        //   - it exceeds the Requester's DataTransferSize and chunking is unavailable
+        //     (CHUNK_CAP not supported by both peers), or
+        //   - it exceeds the Requester's MaxSPDMmsgSize. Chunking cannot help here, because
+        //     MaxSPDMmsgSize is the reassembled-message limit; per DSP0274 such a response would
+        //     otherwise have to be rejected with ERROR(ResponseTooLarge).
+        if res.is_ok() && supported_algorithms.is_some() {
+            let can_chunk = self
+                .common
+                .negotiate_info
+                .req_capabilities_sel
+                .contains(SpdmRequestCapabilityFlags::CHUNK_CAP)
+                && self
+                    .common
+                    .config_info
+                    .rsp_capabilities
+                    .contains(SpdmResponseCapabilityFlags::CHUNK_CAP);
+            let req_data_transfer_size =
+                self.common.negotiate_info.req_data_transfer_size_sel as usize;
+            let req_max_spdm_msg_size =
+                self.common.negotiate_info.req_max_spdm_msg_size_sel as usize;
+            let exceeds_transfer_size =
+                !can_chunk && req_data_transfer_size != 0 && writer.used() > req_data_transfer_size;
+            let exceeds_max_msg_size =
+                req_max_spdm_msg_size != 0 && writer.used() > req_max_spdm_msg_size;
+            if exceeds_transfer_size || exceeds_max_msg_size {
+                supported_algorithms = None;
+                res = encode_capabilities(self, writer, supported_algorithms);
+            }
+        }
+
         if res.is_err() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
             return (
