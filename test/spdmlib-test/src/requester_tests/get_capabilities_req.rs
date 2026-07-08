@@ -300,3 +300,133 @@ fn test_case2_send_receive_spdm_capability_supported_algorithms_chunked() {
     };
     executor::block_on(future);
 }
+
+// DSP0274 1.3 SUPPORTED_ALGOS_EXT_CAP when the response cannot be chunked: the Requester asks
+// for the SupportedAlgorithms block with a small DataTransferSize, but neither peer supports
+// CHUNK_CAP. The Responder cannot transfer the larger block-bearing CAPABILITIES, so it drops
+// the block and returns the basic CAPABILITIES response (Param1 bit cleared) instead of failing.
+#[test]
+fn test_case3_send_receive_spdm_capability_supported_algorithms_no_chunk() {
+    let future = async {
+        let (mut rsp_config_info, rsp_provision_info) = create_info();
+        let (mut req_config_info, req_provision_info) = create_info();
+        req_config_info.supported_algos_ext_cap = true;
+        // Neither peer supports CHUNK_CAP.
+        req_config_info
+            .req_capabilities
+            .remove(SpdmRequestCapabilityFlags::CHUNK_CAP);
+        rsp_config_info
+            .rsp_capabilities
+            .remove(SpdmResponseCapabilityFlags::CHUNK_CAP);
+        // Small DataTransferSize so the block-bearing CAPABILITIES would not fit.
+        req_config_info.data_transfer_size = spdmlib::config::SPDM_MIN_DATA_TRANSFER_SIZE as u32;
+
+        let shared_buffer = SharedBuffer::new();
+        let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+            shared_buffer,
+        ))));
+        let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+
+        secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+
+        let mut responder = responder::ResponderContext::new(
+            device_io_responder,
+            pcidoe_transport_encap,
+            rsp_config_info,
+            rsp_provision_info,
+        );
+        responder
+            .common
+            .runtime_info
+            .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
+        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+        let shared_buffer = SharedBuffer::new();
+        let device_io_requester = Arc::new(Mutex::new(FakeSpdmDeviceIo::new(
+            Arc::new(shared_buffer),
+            Arc::new(Mutex::new(responder)),
+        )));
+
+        let mut requester = RequesterContext::new(
+            device_io_requester,
+            pcidoe_transport_encap2,
+            req_config_info,
+            req_provision_info,
+        );
+
+        requester.common.reset_runtime_info();
+        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        // The capability exchange succeeds, but no SupportedAlgorithms block is returned.
+        assert!(requester.send_receive_spdm_capability().await.is_ok());
+        assert!(requester.get_peer_supported_algorithms().is_none());
+    };
+    executor::block_on(future);
+}
+
+// DSP0274 1.3 SUPPORTED_ALGOS_EXT_CAP when the response exceeds MaxSPDMmsgSize: both peers
+// support CHUNK_CAP, but the block-bearing CAPABILITIES is larger than the Requester's
+// MaxSPDMmsgSize. Chunking cannot help (MaxSPDMmsgSize is the reassembled-message limit), so the
+// Responder drops the block and returns the basic CAPABILITIES response rather than emitting a
+// too-large message (which would corrupt the transcript / require ERROR(ResponseTooLarge)).
+#[test]
+#[cfg(feature = "chunk-cap")]
+fn test_case4_send_receive_spdm_capability_supported_algorithms_exceed_max_msg_size() {
+    let future = async {
+        let (rsp_config_info, rsp_provision_info) = create_info();
+        let (mut req_config_info, req_provision_info) = create_info();
+        req_config_info.supported_algos_ext_cap = true;
+        // Both peers keep CHUNK_CAP (from create_info). Set MaxSPDMmsgSize (and DataTransferSize,
+        // which must be <= MaxSPDMmsgSize) to the minimum so the block-bearing CAPABILITIES
+        // exceeds MaxSPDMmsgSize.
+        req_config_info.data_transfer_size = spdmlib::config::SPDM_MIN_DATA_TRANSFER_SIZE as u32;
+        req_config_info.max_spdm_msg_size = spdmlib::config::SPDM_MIN_DATA_TRANSFER_SIZE as u32;
+
+        let shared_buffer = SharedBuffer::new();
+        let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+            shared_buffer,
+        ))));
+        let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+
+        secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+
+        let mut responder = responder::ResponderContext::new(
+            device_io_responder,
+            pcidoe_transport_encap,
+            rsp_config_info,
+            rsp_provision_info,
+        );
+        responder
+            .common
+            .runtime_info
+            .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
+        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+        let shared_buffer = SharedBuffer::new();
+        let device_io_requester = Arc::new(Mutex::new(FakeSpdmDeviceIo::new(
+            Arc::new(shared_buffer),
+            Arc::new(Mutex::new(responder)),
+        )));
+
+        let mut requester = RequesterContext::new(
+            device_io_requester,
+            pcidoe_transport_encap2,
+            req_config_info,
+            req_provision_info,
+        );
+
+        requester.common.reset_runtime_info();
+        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+
+        // The capability exchange succeeds (basic CAPABILITIES), with no SupportedAlgorithms
+        // block, even though CHUNK_CAP is available - because chunking cannot satisfy
+        // MaxSPDMmsgSize.
+        assert!(requester.send_receive_spdm_capability().await.is_ok());
+        assert!(requester.get_peer_supported_algorithms().is_none());
+    };
+    executor::block_on(future);
+}

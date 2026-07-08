@@ -285,14 +285,6 @@ impl SpdmCodec for SpdmGetCapabilitiesRequestPayload {
         let mut supported_algos_requested = false;
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
             let param1 = SpdmCapabilityParam1::read(r)?; // param1
-            if param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP)
-                && !context
-                    .config_info
-                    .rsp_capabilities
-                    .contains(SpdmResponseCapabilityFlags::CHUNK_CAP)
-            {
-                return None;
-            }
             supported_algos_requested =
                 param1.contains(SpdmCapabilityParam1::SUPPORTED_ALGOS_EXT_CAP);
         } else {
