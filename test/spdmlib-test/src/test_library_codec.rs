@@ -1112,10 +1112,17 @@ fn test_mixed_buffer_stress() {
     let mut buffer_b = ManagedBufferB::default();
     let mut buffer_c = ManagedBufferC::default();
 
-    // Fill buffers with different patterns
-    let pattern_a: Vec<u8> = (0..600).map(|i| (i % 256) as u8).collect();
-    let pattern_b: Vec<u8> = (0..500).map(|i| ((i * 2) % 256) as u8).collect();
-    let pattern_c: Vec<u8> = (0..400).map(|i| ((i * 3) % 256) as u8).collect();
+    // Fill buffers with different patterns. Size each pattern to its buffer's
+    // capacity so the test tracks the MAX_MANAGED_BUFFER_*_SIZE constants.
+    let pattern_a: Vec<u8> = (0..MAX_MANAGED_BUFFER_A_SIZE)
+        .map(|i| (i % 256) as u8)
+        .collect();
+    let pattern_b: Vec<u8> = (0..MAX_MANAGED_BUFFER_B_SIZE)
+        .map(|i| ((i * 2) % 256) as u8)
+        .collect();
+    let pattern_c: Vec<u8> = (0..MAX_MANAGED_BUFFER_C_SIZE)
+        .map(|i| ((i * 3) % 256) as u8)
+        .collect();
 
     buffer_a
         .append_message(&pattern_a)
