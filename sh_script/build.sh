@@ -142,7 +142,10 @@ run_with_spdm_emu() {
     sleep 20
     pushd test_key
     chmod +x ./spdm_requester_emu
-    echo_command  ./spdm_requester_emu --trans PCI_DOE --exe_conn DIGEST,CERT,CHAL,MEAS --exe_session KEY_EX,PSK,KEY_UPDATE,HEARTBEAT,MEAS,DIGEST,CERT
+    # The spdm-rs Responder advertises ECDSA_P384 as its ReqBaseAsymAlg (REQ_USE_ECDSA);
+    # the libspdm requester defaults to RSA, so ask it for ECDSA_P384 to match, otherwise
+    # ALGORITHMS negotiation fails (libspdm_init_connection - NEGOTIATION_FAIL).
+    echo_command  ./spdm_requester_emu --trans PCI_DOE --req_asym ECDSA_P384 --exe_conn DIGEST,CERT,CHAL,MEAS --exe_session KEY_EX,PSK,KEY_UPDATE,HEARTBEAT,MEAS,DIGEST,CERT
     popd
 }
 
