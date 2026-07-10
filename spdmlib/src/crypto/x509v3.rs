@@ -1237,7 +1237,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 false
             ),
-            Ok(357)
+            Ok(390)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -1245,7 +1245,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 false
             ),
-            Ok(464)
+            Ok(497)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -1253,7 +1253,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                 false
             ),
-            Ok(464)
+            Ok(497)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -1261,7 +1261,7 @@ mod tests {
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 true
             ),
-            Ok(464)
+            Ok(497)
         );
         assert_eq!(
             check_tbs_certificate(
@@ -1298,7 +1298,7 @@ mod tests {
 
         assert_eq!(
             check_tbs_certificate(&t1[4..], SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048, true),
-            Ok(562)
+            Ok(597)
         );
         assert_eq!(
             check_tbs_certificate(&t1[4..], SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048, false),
@@ -1306,7 +1306,7 @@ mod tests {
         );
         assert_eq!(
             check_tbs_certificate(&t2[4..], SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048, true),
-            Ok(562)
+            Ok(597)
         );
         assert_eq!(
             check_tbs_certificate(&t2[4..], SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048, false),
@@ -1330,11 +1330,11 @@ mod tests {
         );
         assert_eq!(
             check_cert_format(&c2, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384),
-            Ok(480)
+            Ok(512)
         );
         assert_eq!(
             check_cert_format(&c3, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384),
-            Ok(587)
+            Ok(619)
         );
         assert_eq!(
             check_cert_format(&c3, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256),
@@ -1475,12 +1475,12 @@ mod tests {
             Ok((true, key_usage1[309]))
         );
         assert_eq!(
-            get_key_usage_value(&key_usage2[450..]),
-            Ok((true, key_usage2[478]))
+            get_key_usage_value(&key_usage2[451..]),
+            Ok((true, RFC_5280_KEY_USAGE_DIGITAL_SIGNATURE_BIT | 0x60))
         );
         assert_eq!(
-            get_key_usage_value(&key_usage3[450..]),
-            Ok((true, key_usage3[478]))
+            get_key_usage_value(&key_usage3[451..]),
+            Ok((true, RFC_5280_KEY_USAGE_DIGITAL_SIGNATURE_BIT | 0x60))
         );
         assert_eq!(
             get_key_usage_value(key_usage1_wrong),
@@ -1502,10 +1502,10 @@ mod tests {
             .expect("unable to read leaf cert!");
         assert_eq!(check_extensions_spdm_oid(&e1[280..], false), Ok(true));
         assert_eq!(check_extensions_spdm_oid(&e1[280..], true), Ok(true));
-        assert_eq!(check_extensions_spdm_oid(&e2[450..], true), Ok(true));
-        assert_eq!(check_extensions_spdm_oid(&e2[450..], false), Ok(false));
-        assert_eq!(check_extensions_spdm_oid(&e3[450..], true), Ok(true));
-        assert_eq!(check_extensions_spdm_oid(&e3[450..], false), Ok(false));
+        assert_eq!(check_extensions_spdm_oid(&e2[451..], true), Ok(true));
+        assert_eq!(check_extensions_spdm_oid(&e2[451..], false), Ok(false));
+        assert_eq!(check_extensions_spdm_oid(&e3[451..], true), Ok(true));
+        assert_eq!(check_extensions_spdm_oid(&e3[451..], false), Ok(false));
     }
 
     #[test]
