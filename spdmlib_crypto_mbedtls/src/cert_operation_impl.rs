@@ -42,7 +42,11 @@ fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> SpdmResult<(usiz
     }
 }
 
-fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
+fn verify_cert_chain(
+    cert_chain: &[u8],
+    _base_asym_algo: Option<u32>,
+    _base_hash_algo: Option<u32>,
+) -> SpdmResult {
     let mut reader = SliceReader::new(cert_chain).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
     let mut chain = mbedtls::alloc::List::new();
     let mut ca = mbedtls::alloc::List::new();

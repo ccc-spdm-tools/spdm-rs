@@ -115,7 +115,11 @@ type GetCertFromCertChainCb = fn(cert_chain: &[u8], index: isize) -> SpdmResult<
 pub struct SpdmCertOperation {
     pub get_cert_from_cert_chain_cb: GetCertFromCertChainCb,
 
-    pub verify_cert_chain_cb: fn(cert_chain: &[u8]) -> SpdmResult,
+    pub verify_cert_chain_cb: fn(
+        cert_chain: &[u8],
+        base_asym_algo: Option<u32>,
+        base_hash_algo: Option<u32>,
+    ) -> SpdmResult,
 }
 
 type GenerateKeyPairCb = fn(

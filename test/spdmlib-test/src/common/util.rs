@@ -461,6 +461,14 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
     my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
         .copy_from_slice(leaf_cert.as_ref());
 
+    let mut peer_root_cert_data = SpdmCertChainData {
+        ..Default::default()
+    };
+    peer_root_cert_data.data_size = ca_len as u32;
+    peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
+    let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
+    peer_root_cert_data_list[0] = Some(peer_root_cert_data);
+
     let provision_info = SpdmProvisionInfo {
         my_cert_chain_data: [
             Some(my_cert_chain_data),
@@ -473,7 +481,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             None,
         ],
         my_cert_chain: [None, None, None, None, None, None, None, None],
-        peer_root_cert_data: gen_array_clone(None, MAX_ROOT_CERT_SUPPORT),
+        peer_root_cert_data: peer_root_cert_data_list,
         my_pub_key: None,
         peer_pub_key: None,
         local_supported_slot_mask: 0xff,

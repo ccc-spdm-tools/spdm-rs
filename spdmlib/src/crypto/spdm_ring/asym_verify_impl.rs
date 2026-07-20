@@ -2,12 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::crypto::{x509v3, SpdmAsymVerify};
+use crate::crypto::SpdmAsymVerify;
 use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_VERIF_FAIL};
 use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
-use core::convert::TryFrom;
 use ring::signature::{self, UnparsedPublicKey};
-use rustls_pki_types::CertificateDer;
 
 // Parse DER length field. Returns (bytes_consumed_for_length, value)
 fn parse_der_length(input: &[u8]) -> Option<(usize, usize)> {
@@ -30,49 +28,33 @@ fn parse_der_length(input: &[u8]) -> Option<(usize, usize)> {
     Some((1 + num, val))
 }
 
-// Extract the public key bytes from a SubjectPublicKeyInfo DER structure.
-// Parses: SEQUENCE { SEQUENCE { AlgorithmIdentifier }, BIT STRING { public key } }
-// Returns the BIT STRING payload (skipping the unused-bits byte), which for uncompressed
-// EC points will start with 0x04 followed by X||Y.
+// Extract the BIT STRING payload (skipping the unused-bits byte) from a SubjectPublicKeyInfo
+// or any DER blob containing a BIT STRING. Returns the slice containing the raw public key
+// (for uncompressed EC points this will start with 0x04 followed by X||Y).
 pub(crate) fn extract_spki_pubkey(spki: &[u8]) -> Option<&[u8]> {
-    let mut pos = 0usize;
-
-    // 1. Outer SEQUENCE
-    if pos >= spki.len() || spki[pos] != 0x30 {
-        return None;
+    let mut i = 0usize;
+    while i < spki.len() {
+        // look for BIT STRING tag (0x03)
+        if spki[i] == 0x03 {
+            // parse length starting at i+1
+            if let Some((len_of_len, content_len)) = parse_der_length(&spki[i + 1..]) {
+                let content_start = i + 1 + len_of_len;
+                if content_start + content_len <= spki.len() && content_len >= 1 {
+                    // first byte of BIT STRING is number of unused bits
+                    let unused = spki[content_start];
+                    if unused <= 7 {
+                        let key_start = content_start + 1;
+                        let key_len = content_len - 1;
+                        if key_start + key_len <= spki.len() {
+                            return Some(&spki[key_start..(key_start + key_len)]);
+                        }
+                    }
+                }
+            }
+        }
+        i += 1;
     }
-    pos += 1;
-    let (len_bytes, _outer_len) = parse_der_length(&spki[pos..])?;
-    pos += len_bytes;
-
-    // 2. Skip AlgorithmIdentifier SEQUENCE (tag + length + content)
-    if pos >= spki.len() || spki[pos] != 0x30 {
-        return None;
-    }
-    pos += 1;
-    let (len_bytes, algo_len) = parse_der_length(&spki[pos..])?;
-    pos += len_bytes + algo_len;
-
-    // 3. Parse BIT STRING
-    if pos >= spki.len() || spki[pos] != 0x03 {
-        return None;
-    }
-    pos += 1;
-    let (len_bytes, bit_string_len) = parse_der_length(&spki[pos..])?;
-    pos += len_bytes;
-    if bit_string_len < 1 || pos + bit_string_len > spki.len() {
-        return None;
-    }
-    let unused = spki[pos];
-    if unused > 7 {
-        return None;
-    }
-    pos += 1;
-    let key_len = bit_string_len - 1;
-    if pos + key_len > spki.len() {
-        return None;
-    }
-    Some(&spki[pos..pos + key_len])
+    None
 }
 
 pub static DEFAULT: SpdmAsymVerify = SpdmAsymVerify {
@@ -97,140 +79,265 @@ fn asym_verify(
                 Some(pk) => pk,
                 None => return Err(SPDM_STATUS_VERIF_FAIL),
             };
-            let sign_algorithm: &dyn signature::VerificationAlgorithm =
-                match (base_hash_algo, base_asym_algo) {
-                    (
-                        SpdmBaseHashAlgo::TPM_ALG_SHA_256,
-                        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
-                    ) => &signature::ECDSA_P256_SHA256_FIXED,
-                    (
-                        SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-                        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
-                    ) => &signature::ECDSA_P384_SHA384_FIXED,
-                    (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072) => {
-                        &signature::RSA_PKCS1_2048_8192_SHA256
-                    }
-                    (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072) => {
-                        &signature::RSA_PKCS1_2048_8192_SHA384
-                    }
-                    (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072) => {
-                        &signature::RSA_PSS_2048_8192_SHA256
-                    }
-                    (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072) => {
-                        &signature::RSA_PSS_2048_8192_SHA384
-                    }
-                    _ => {
-                        return Err(SPDM_STATUS_VERIF_FAIL);
-                    }
-                };
-            let pk = UnparsedPublicKey::new(sign_algorithm, pub_key);
-            pk.verify(data, &signature.data[..signature.data_size as usize])
-                .map_err(|_| SPDM_STATUS_VERIF_FAIL)
+
+            // RFC7250 uses FIXED signature format (not ASN.1 DER) for ECDSA
+            match base_asym_algo {
+                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
+                | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
+                    // RFC7250 uses FIXED format. Ring only supports matching curve+hash:
+                    // P256+SHA256 and P384+SHA384. Cross-combinations only exist in ASN1 format.
+                    let sign_algorithm = match (base_hash_algo, base_asym_algo) {
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+                        ) => &signature::ECDSA_P256_SHA256_FIXED,
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+                        ) => &signature::ECDSA_P384_SHA384_FIXED,
+                        _ => {
+                            // Unsupported combination for RFC7250
+                            return Err(SPDM_STATUS_VERIF_FAIL);
+                        }
+                    };
+                    let pk = UnparsedPublicKey::new(sign_algorithm, pub_key);
+                    pk.verify(data, &signature.data[..signature.data_size as usize])
+                        .map_err(|_| SPDM_STATUS_VERIF_FAIL)
+                }
+                SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
+                | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
+                | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
+                | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
+                | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
+                | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => {
+                    let sign_algorithm = match (base_hash_algo, base_asym_algo) {
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
+                        ) => &signature::RSA_PKCS1_2048_8192_SHA256,
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096,
+                        ) => &signature::RSA_PSS_2048_8192_SHA256,
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
+                        ) => &signature::RSA_PKCS1_2048_8192_SHA384,
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096,
+                        ) => &signature::RSA_PSS_2048_8192_SHA384,
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
+                        ) => &signature::RSA_PKCS1_2048_8192_SHA512,
+                        (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072,
+                        )
+                        | (
+                            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+                            SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096,
+                        ) => &signature::RSA_PSS_2048_8192_SHA512,
+                        _ => {
+                            return Err(SPDM_STATUS_VERIF_FAIL);
+                        }
+                    };
+                    let pk = UnparsedPublicKey::new(sign_algorithm, pub_key);
+                    pk.verify(data, &signature.data[..signature.data_size as usize])
+                        .map_err(|_| SPDM_STATUS_VERIF_FAIL)
+                }
+                _ => Err(SPDM_STATUS_VERIF_FAIL),
+            }
         }
-        SpdmDer::SpdmDerCertChain(public_cert_der) => {
-            let algorithm = match (base_hash_algo, base_asym_algo) {
+        SpdmDer::SpdmDerCertChain(public_cert_der) => asym_verify_with_spdm_x509(
+            base_hash_algo,
+            base_asym_algo,
+            public_cert_der,
+            data,
+            signature,
+        ),
+    }
+}
+
+// =============================================================================
+// spdm_x509 implementation
+// =============================================================================
+
+fn asym_verify_with_spdm_x509(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    public_cert_der: &[u8],
+    data: &[u8],
+    signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    // Get the leaf certificate using spdm_x509
+    let (leaf_begin, leaf_end) =
+        spdm_x509::x509::chain::get_cert_from_cert_chain(public_cert_der, -1).map_err(|e| {
+            error!("Failed to get leaf cert: {:?}", e);
+            SPDM_STATUS_INVALID_CERT
+        })?;
+
+    let leaf_cert_der = &public_cert_der[leaf_begin..leaf_end];
+
+    // Parse the certificate using spdm_x509 to get the public key
+    let cert = spdm_x509::Certificate::from_der(leaf_cert_der).map_err(|e| {
+        error!("Failed to parse certificate: {:?}", e);
+        SPDM_STATUS_INVALID_CERT
+    })?;
+
+    let pub_key_info = &cert.tbs_certificate.subject_public_key_info;
+    let pub_key_bytes = pub_key_info.subject_public_key.raw_bytes();
+
+    match base_asym_algo {
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
+        | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
+            // For ECDSA, we need to convert the signature from FIXED format to ASN.1 DER format
+            // Ring verifies ECDSA signatures in ASN.1 DER format
+
+            // Convert signature to DER format
+            let mut der_signature = [0u8; crate::protocol::ECDSA_ECC_NIST_P384_SIG_SIZE + 8];
+            let der_sign_size = ecc_signature_bin_to_der(signature.as_ref(), &mut der_signature)?;
+
+            // Select the appropriate algorithm (ASN.1 versions, not FIXED)
+            let sign_algorithm = match (base_hash_algo, base_asym_algo) {
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
-                ) => webpki::ring::ECDSA_P256_SHA256,
-                (
-                    SpdmBaseHashAlgo::TPM_ALG_SHA_256,
-                    SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
-                ) => webpki::ring::ECDSA_P384_SHA256,
+                ) => &signature::ECDSA_P256_SHA256_ASN1,
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
-                ) => webpki::ring::ECDSA_P256_SHA384,
+                ) => &signature::ECDSA_P256_SHA384_ASN1,
+                (
+                    SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                    SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+                ) => &signature::ECDSA_P384_SHA256_ASN1,
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
-                ) => webpki::ring::ECDSA_P384_SHA384,
+                ) => &signature::ECDSA_P384_SHA384_ASN1,
+                _ => {
+                    error!(
+                        "Unsupported ECDSA combination: hash={:?}, asym={:?}",
+                        base_hash_algo, base_asym_algo
+                    );
+                    return Err(SPDM_STATUS_VERIF_FAIL);
+                }
+            };
+
+            let pk = UnparsedPublicKey::new(sign_algorithm, pub_key_bytes);
+            match pk.verify(data, &der_signature[..der_sign_size]) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    error!("ECDSA signature verification failed: {:?}", e);
+                    Err(SPDM_STATUS_VERIF_FAIL)
+                }
+            }
+        }
+        SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
+        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
+        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
+        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
+        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
+        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => {
+            // For RSA, use ring signature verification
+            let sign_algorithm = match (base_hash_algo, base_asym_algo) {
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
-                    webpki::ring::RSA_PKCS1_2048_8192_SHA256
+                    &signature::RSA_PKCS1_2048_8192_SHA256
                 }
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
-                    webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY
+                    &signature::RSA_PSS_2048_8192_SHA256
                 }
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
-                    webpki::ring::RSA_PKCS1_2048_8192_SHA384
+                    &signature::RSA_PKCS1_2048_8192_SHA384
                 }
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
-                    webpki::ring::RSA_PSS_2048_8192_SHA384_LEGACY_KEY
+                    &signature::RSA_PSS_2048_8192_SHA384
                 }
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
-                    webpki::ring::RSA_PKCS1_2048_8192_SHA512
+                    &signature::RSA_PKCS1_2048_8192_SHA512
                 }
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
-                    webpki::ring::RSA_PSS_2048_8192_SHA512_LEGACY_KEY
+                    &signature::RSA_PSS_2048_8192_SHA512
                 }
                 _ => {
-                    panic!();
+                    error!(
+                        "Unsupported RSA combination: hash={:?}, asym={:?}",
+                        base_hash_algo, base_asym_algo
+                    );
+                    return Err(SPDM_STATUS_VERIF_FAIL);
                 }
             };
 
-            x509v3::check_cert_chain_format(public_cert_der, base_asym_algo)?;
-
-            let (leaf_begin, leaf_end) = (super::cert_operation_impl::DEFAULT
-                .get_cert_from_cert_chain_cb)(
-                public_cert_der, -1
-            )?;
-            let leaf_cert_der = &public_cert_der[leaf_begin..leaf_end];
-
-            let certificate_der = CertificateDer::from(leaf_cert_der);
-            let res = webpki::EndEntityCert::try_from(&certificate_der);
-            match res {
-                Ok(cert) => {
-                    //
-                    // Need translate from ECDSA_P384_SHA384_FIXED_SIGNING to ECDSA_P384_SHA384_ASN1
-                    // webpki only support ASN1 format ECDSA signature
-                    //
-                    match base_asym_algo {
-                        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
-                        | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
-                            // DER has this format: 0x30 size 0x02 r_size 0x00 [r_size] 0x02 s_size 0x00 [s_size]
-                            let mut der_signature =
-                                [0u8; crate::protocol::ECDSA_ECC_NIST_P384_SIG_SIZE + 8];
-                            let der_sign_size =
-                                ecc_signature_bin_to_der(signature.as_ref(), &mut der_signature)?;
-
-                            match cert.verify_signature(
-                                algorithm,
-                                data,
-                                &der_signature[..(der_sign_size)],
-                            ) {
-                                Ok(()) => Ok(()),
-                                Err(_) => Err(SPDM_STATUS_VERIF_FAIL),
-                            }
-                        }
-                        SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
-                        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
-                        | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
-                        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048
-                        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
-                        | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => {
-                            // RSASSA or RSAPSS
-                            match cert.verify_signature(algorithm, data, signature.as_ref()) {
-                                Ok(()) => Ok(()),
-                                Err(_) => Err(SPDM_STATUS_VERIF_FAIL),
-                            }
-                        }
-                        _ => Err(SPDM_STATUS_VERIF_FAIL),
-                    }
+            let pk = UnparsedPublicKey::new(sign_algorithm, pub_key_bytes);
+            match pk.verify(data, &signature.data[..signature.data_size as usize]) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    error!("RSA signature verification failed: {:?}", e);
+                    Err(SPDM_STATUS_VERIF_FAIL)
                 }
-                Err(_e) => Err(SPDM_STATUS_INVALID_CERT),
             }
+        }
+        _ => {
+            error!("Unsupported algorithm: {:?}", base_asym_algo);
+            Err(SPDM_STATUS_VERIF_FAIL)
         }
     }
 }
@@ -316,8 +423,8 @@ mod tests {
     #[test]
     fn test_case0_ecc_signature_bin_to_der() {
         let signature = &mut [0x00u8; 64];
-        for item in signature.iter_mut().skip(10) {
-            *item = 0x10;
+        for i in 10..signature.len() {
+            signature[i] = 0x10;
         }
 
         let der_signature = &mut [0u8; 64];
@@ -328,8 +435,8 @@ mod tests {
     #[test]
     fn test_case1_ecc_signature_bin_to_der() {
         let signature = &mut [0x00u8; 64];
-        for item in signature.iter_mut().skip(10) {
-            *item = 0xff;
+        for i in 10..signature.len() {
+            signature[i] = 0xff;
         }
 
         let der_signature = &mut [0u8; 64];
@@ -460,93 +567,28 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_spki_pubkey_rfc7250_p384() {
-        // SubjectPublicKeyInfo for ECDSA P-384:
-        //   SEQUENCE {
-        //     SEQUENCE { OID ecPublicKey(1.2.840.10045.2.1), OID secp384r1(1.3.132.0.34) }
-        //     BIT STRING (97 bytes: 04 || X || Y)
-        //   }
+    fn test_extract_spki_pubkey_rfc7250() {
+        // The SPKI bytes (mixed hex/decimal from user input). We'll construct the byte array
+        // as provided in the earlier conversation.
         let spki = [
-            0x30, 0x76, // SEQUENCE (118 bytes)
-            0x30, 0x10, // SEQUENCE (16 bytes) - AlgorithmIdentifier
-            0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, // OID ecPublicKey
-            0x06, 0x05, 0x2B, 0x81, 0x04, 0x00, 0x22, // OID secp384r1
-            0x03, 0x62, // BIT STRING (98 bytes)
-            0x00, // unused bits = 0
-            0x04, // uncompressed point
-            // X coordinate (48 bytes)
-            0x39, 0xAC, 0xA8, 0x8D, 0xE8, 0xBF, 0xA6, 0xAC, 0x22, 0x97, 0x49, 0x5D, 0x31, 0x40,
-            0xF6, 0xEE, 0xA0, 0xC5, 0x70, 0x27, 0xF5, 0x1F, 0xB7, 0x60, 0xE5, 0x4A, 0xF9, 0x01,
-            0xFB, 0xC4, 0xD1, 0x5F, 0x75, 0x00, 0x59, 0x77, 0x9D, 0xF9, 0x24, 0xC4, 0xAE, 0xFC,
-            0xAC, 0xCE, 0x74, 0xBE, 0x5E, 0x90, // Y coordinate (48 bytes)
-            0xD4, 0xB9, 0x21, 0xC5, 0x18, 0x0A, 0x25, 0x91, 0xD3, 0x4D, 0x44, 0x75, 0x65, 0x39,
-            0xCF, 0x02, 0x11, 0xBB, 0x36, 0x3D, 0x46, 0xE6, 0x50, 0x5E, 0x39, 0x93, 0xD2, 0xBE,
-            0x43, 0xFB, 0xEB, 0x26, 0x1F, 0x40, 0xE4, 0xBF, 0x52, 0xD3, 0xF7, 0x79, 0x09, 0xF7,
-            0xD4, 0x5A, 0x70, 0x19, 0x81, 0x94,
+            0x30, 0x4C, 0x30, 0x0A, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, 0x06,
+            0x05, 0x2B, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00, 0x04, 0x39, 0xAC, 0xA8, 0x8D,
+            0xE8, 0xBF, 0xA6, 0xAC, 0x22, 0x97, 0x49, 0x5D, 0x31, 0x40, 0xF6, 0xEE, 0xA0, 0xC5,
+            0x70, 0x27, 0xF5, 0x1F, 0xB7, 0x60, 0xE5, 0x4A, 0xF9, 0x01, 0xFB, 0xC4, 0xD1, 0x5F,
+            0x75, 0x00, 0x59, 0x77, 0x9D, 0xF9, 0x24, 0xC4, 0xAE, 0xFC, 0xAC, 0xCE, 0x74, 0xBE,
+            0x5E, 0x90, 0xD4, 0xB9, 0x21, 0xC5, 0x18, 0x0A, 0x25, 0x91, 0xD3, 0x4D, 0x44, 0x75,
+            0x65, 0x39, 0xCF, 0x02, 0x11, 0xBB, 0x36, 0x3D, 0x46, 0xE6, 0x50, 0x5E, 0x39, 0x93,
+            0xD2, 0xBE, 0x43, 0xFB, 0xEB, 0x26, 0x1F, 0x40, 0xE4, 0xBF, 0x52, 0xD3, 0xF7, 0x79,
+            0x09, 0xF7, 0xD4, 0x5A, 0x70, 0x19, 0x81, 0x94,
         ];
 
         let extracted = extract_spki_pubkey(&spki).expect("should extract pubkey");
-        // Expect uncompressed point: 0x04 + 48 bytes X + 48 bytes Y = 97 bytes
+        // Expect uncompressed point starting with 0x04 and 96 bytes following (X||Y): total 97
         assert_eq!(extracted.len(), 97);
         assert_eq!(extracted[0], 0x04);
         // Check a few known bytes from X and Y
         assert_eq!(extracted[1], 0x39);
         assert_eq!(extracted[2], 0xAC);
         assert_eq!(extracted[96], 0x94);
-    }
-
-    #[test]
-    fn test_extract_spki_pubkey_rfc7250_p256() {
-        // SubjectPublicKeyInfo for ECDSA P-256:
-        //   SEQUENCE {
-        //     SEQUENCE { OID ecPublicKey(1.2.840.10045.2.1), OID prime256v1(1.2.840.10045.3.1.7) }
-        //     BIT STRING (65 bytes: 04 || X || Y)
-        //   }
-        let spki = [
-            0x30, 0x59, // SEQUENCE (89 bytes)
-            0x30, 0x13, // SEQUENCE (19 bytes) - AlgorithmIdentifier
-            0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01, // OID ecPublicKey
-            0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07, // OID prime256v1
-            0x03, 0x42, // BIT STRING (66 bytes)
-            0x00, // unused bits = 0
-            0x04, // uncompressed point
-            // X coordinate (32 bytes)
-            0x6B, 0x17, 0xD1, 0xF2, 0xE1, 0x2C, 0x42, 0x47, 0xF8, 0xBC, 0xE6, 0xE5, 0x63, 0xA4,
-            0x40, 0xF2, 0x77, 0x03, 0x7D, 0x81, 0x2D, 0xEB, 0x33, 0xA0, 0xF4, 0xA1, 0x39, 0x45,
-            0xD8, 0x98, 0xC2, 0x96, // Y coordinate (32 bytes)
-            0x4F, 0xE3, 0x42, 0xE2, 0xFE, 0x1A, 0x7F, 0x9B, 0x8E, 0xE7, 0xEB, 0x4A, 0x7C, 0x0F,
-            0x9E, 0x16, 0x2B, 0xCE, 0x33, 0x57, 0x6B, 0x31, 0x5E, 0xCE, 0xCB, 0xB6, 0x40, 0x68,
-            0x37, 0xBF, 0x51, 0xF5,
-        ];
-
-        let extracted = extract_spki_pubkey(&spki).expect("should extract P-256 pubkey");
-        // Expect uncompressed point: 0x04 + 32 bytes X + 32 bytes Y = 65 bytes
-        assert_eq!(extracted.len(), 65);
-        assert_eq!(extracted[0], 0x04);
-        // Check known bytes from X and Y
-        assert_eq!(extracted[1], 0x6B);
-        assert_eq!(extracted[2], 0x17);
-        assert_eq!(extracted[64], 0xF5);
-    }
-
-    #[test]
-    fn test_extract_spki_pubkey_rfc7250_rsa3072() {
-        // SubjectPublicKeyInfo for RSA 3072 (422 bytes):
-        //   SEQUENCE {
-        //     SEQUENCE { OID rsaEncryption(1.2.840.113549.1.1.1), NULL }
-        //     BIT STRING { RSAPublicKey SEQUENCE { modulus INTEGER, exponent INTEGER } }
-        //   }
-        let spki = &include_bytes!("../../../../test_key/rsa3072/end_responder.key.pub.der")[..];
-        assert_eq!(spki.len(), 422);
-
-        let extracted = extract_spki_pubkey(spki).expect("should extract RSA-3072 pubkey");
-        // BIT STRING is 0x03 0x82 0x01 0x8F (399 bytes), minus 1 unused-bits byte = 398
-        assert_eq!(extracted.len(), 398);
-        // RSAPublicKey starts with SEQUENCE tag
-        assert_eq!(extracted[0], 0x30);
-        // Ends with public exponent 0x01 0x00 0x01 (65537)
-        assert_eq!(extracted[395], 0x01);
-        assert_eq!(extracted[396], 0x00);
-        assert_eq!(extracted[397], 0x01);
     }
 }

@@ -6,7 +6,9 @@ license = "Apache-2.0 or MIT"
 
 [dependencies]
 spdmlib = { path = "../spdmlib", default-features = false }
+spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false }
 aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", features = ["unstable"] }
+log = { version = "0.4", default-features = false }
 
 [features]
 default = []

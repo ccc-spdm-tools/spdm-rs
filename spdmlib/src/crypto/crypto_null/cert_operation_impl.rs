@@ -14,6 +14,10 @@ fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> SpdmResult<(usiz
     unimplemented!()
 }
 
-fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
+fn verify_cert_chain(
+    cert_chain: &[u8],
+    _base_asym_algo: Option<u32>,
+    _base_hash_algo: Option<u32>,
+) -> SpdmResult {
     unimplemented!()
 }
