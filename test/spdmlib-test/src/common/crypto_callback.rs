@@ -182,7 +182,11 @@ fn fake_get_cert_from_cert_chain(cert_chain: &[u8], _index: isize) -> SpdmResult
     Ok((0, cert_chain.len()))
 }
 
-fn fake_verify_cert_chain(_cert_chain: &[u8]) -> SpdmResult {
+fn fake_verify_cert_chain(
+    _cert_chain: &[u8],
+    _base_asym_algo: Option<u32>,
+    _base_hash_algo: Option<u32>,
+) -> SpdmResult {
     Ok(())
 }
 

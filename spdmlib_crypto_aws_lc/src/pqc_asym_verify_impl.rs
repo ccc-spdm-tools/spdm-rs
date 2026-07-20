@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use core::ffi::{c_int, c_uchar};
+use log::error;
 use spdmlib::crypto::SpdmPqcAsymVerify;
-use spdmlib::error::{SpdmResult, SPDM_STATUS_VERIF_FAIL};
+use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_VERIF_FAIL};
 use spdmlib::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
 
 // Raw public key sizes for ML-DSA variants (without SPKI DER header)
@@ -55,7 +56,53 @@ pub static DEFAULT: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
     verify_cb: pqc_asym_verify,
 };
 
-/// Extract the raw public key from a SubjectPublicKeyInfo (SPKI) DER encoding.
+/// Extract the raw ML-DSA public key from a DER-encoded certificate chain.
+///
+/// Parses the cert chain to find the leaf certificate, then extracts
+/// the SubjectPublicKeyInfo's raw public key bytes. If the raw key bytes
+/// contain an SPKI header (i.e. are longer than expected), strip the header.
+fn extract_public_key_from_cert_chain(
+    public_cert_der: &[u8],
+    expected_raw_size: usize,
+) -> Result<Vec<u8>, spdmlib::error::SpdmStatus> {
+    // Use spdm_x509 to get the leaf certificate (index -1 = last cert)
+    let (leaf_begin, leaf_end) =
+        spdm_x509::x509::chain::get_cert_from_cert_chain(public_cert_der, -1).map_err(|e| {
+            error!("Failed to get leaf cert from chain: {:?}", e);
+            SPDM_STATUS_INVALID_CERT
+        })?;
+
+    let leaf_cert_der = &public_cert_der[leaf_begin..leaf_end];
+
+    // Parse the certificate to extract SubjectPublicKeyInfo
+    let cert = spdm_x509::Certificate::from_der(leaf_cert_der).map_err(|e| {
+        error!("Failed to parse leaf certificate: {:?}", e);
+        SPDM_STATUS_INVALID_CERT
+    })?;
+
+    let pub_key_bytes = cert
+        .tbs_certificate
+        .subject_public_key_info
+        .subject_public_key
+        .raw_bytes();
+
+    // If the key bytes are exactly the expected raw size, use as-is.
+    // Otherwise strip any SPKI/BIT STRING overhead.
+    if pub_key_bytes.len() == expected_raw_size {
+        Ok(pub_key_bytes.to_vec())
+    } else if pub_key_bytes.len() > expected_raw_size {
+        Ok(pub_key_bytes[pub_key_bytes.len() - expected_raw_size..].to_vec())
+    } else {
+        error!(
+            "Public key too small: got {} bytes, expected {}",
+            pub_key_bytes.len(),
+            expected_raw_size
+        );
+        Err(SPDM_STATUS_INVALID_CERT)
+    }
+}
+
+/// Extract the raw public key from raw key bytes or SPKI DER encoding.
 /// If the input is already the expected raw key size, return it as-is.
 fn extract_raw_public_key(public_key_der: &[u8], expected_raw_size: usize) -> &[u8] {
     if public_key_der.len() == expected_raw_size {
@@ -105,22 +152,30 @@ fn pqc_asym_verify(
     let sig_bytes = &signature.data[..signature.data_size as usize];
     let ctx_string = extract_signing_context(data);
 
-    let (raw_key, verify_fn): (&[u8], unsafe extern "C" fn(_, _, _, _, _, _, _) -> _) =
-        match pqc_asym_algo {
-            SpdmPqcAsymAlgo::ALG_MLDSA_44 => (
-                extract_raw_public_key(public_key_der, MLDSA_44_KEY_SIZE),
-                ml_dsa_44_verify,
-            ),
-            SpdmPqcAsymAlgo::ALG_MLDSA_65 => (
-                extract_raw_public_key(public_key_der, MLDSA_65_KEY_SIZE),
-                ml_dsa_65_verify,
-            ),
-            SpdmPqcAsymAlgo::ALG_MLDSA_87 => (
-                extract_raw_public_key(public_key_der, MLDSA_87_KEY_SIZE),
-                ml_dsa_87_verify,
-            ),
-            _ => return Err(SPDM_STATUS_VERIF_FAIL),
+    let expected_key_size = match pqc_asym_algo {
+        SpdmPqcAsymAlgo::ALG_MLDSA_44 => MLDSA_44_KEY_SIZE,
+        SpdmPqcAsymAlgo::ALG_MLDSA_65 => MLDSA_65_KEY_SIZE,
+        SpdmPqcAsymAlgo::ALG_MLDSA_87 => MLDSA_87_KEY_SIZE,
+        _ => return Err(SPDM_STATUS_VERIF_FAIL),
+    };
+
+    // Try to extract the key from a cert chain first; if that fails,
+    // treat the input as a raw public key (RFC 7250 / SPKI).
+    let raw_key_buf;
+    let raw_key: &[u8] =
+        if let Ok(key) = extract_public_key_from_cert_chain(public_key_der, expected_key_size) {
+            raw_key_buf = key;
+            &raw_key_buf
+        } else {
+            extract_raw_public_key(public_key_der, expected_key_size)
         };
+
+    let verify_fn: unsafe extern "C" fn(_, _, _, _, _, _, _) -> _ = match pqc_asym_algo {
+        SpdmPqcAsymAlgo::ALG_MLDSA_44 => ml_dsa_44_verify,
+        SpdmPqcAsymAlgo::ALG_MLDSA_65 => ml_dsa_65_verify,
+        SpdmPqcAsymAlgo::ALG_MLDSA_87 => ml_dsa_87_verify,
+        _ => return Err(SPDM_STATUS_VERIF_FAIL),
+    };
 
     let ctx_ptr = if ctx_string.is_empty() {
         core::ptr::null()

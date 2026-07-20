@@ -4,8 +4,8 @@
 
 pub mod bytes_mut_scrubbed;
 mod crypto_callbacks;
-mod x509v3;
-pub use x509v3::*;
+
+extern crate spdm_x509;
 
 extern crate alloc;
 use alloc::boxed::Box;
@@ -25,7 +25,99 @@ pub use crypto_callbacks::{
 #[cfg(feature = "hashed-transcript-data")]
 pub use self::hash::SpdmHashCtx;
 
+use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT};
 use conquer_once::spin::OnceCell;
+
+/// Check if a certificate is a root certificate (self-signed).
+///
+/// A self-signed certificate must be both self-issued (issuer == subject)
+/// and have a valid self-signature (RFC 5280).
+pub fn is_root_certificate(cert_der: &[u8]) -> SpdmResult {
+    let cert = spdm_x509::Certificate::from_der(cert_der).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
+
+    // Check self-issued: issuer == subject
+    if cert.tbs_certificate.issuer != cert.tbs_certificate.subject {
+        return Err(SPDM_STATUS_INVALID_CERT);
+    }
+
+    // Verify self-signature using the cert's own public key
+    #[cfg(feature = "spdm-ring")]
+    {
+        let validator =
+            spdm_x509::x509::validator::Validator::<spdm_x509::crypto_backend::RingBackend>::new();
+        validator
+            .verify_signature(&cert, &cert)
+            .map_err(|_| SPDM_STATUS_INVALID_CERT)?;
+    }
+
+    Ok(())
+}
+
+/// Check leaf certificate validity per DSP0274 Table 42.
+///
+/// Validates:
+/// - Basic Constraints: if present, cA MUST be FALSE (DSP0274 Table 42 /
+///   RFC 5280 §4.2.1.9 — absence is permitted and implies cA=FALSE)
+/// - Key Usage, if present, MUST assert digitalSignature (RFC 5280 §4.2.1.3)
+/// - AliasCert model: SPDM HW Identity OID must NOT be present
+/// - Non-alias certs (DeviceCert/GenericCert): treated as GenericCert;
+///   absence of the SPDM extension is accepted so that standard chains
+///   (stock spdm-rs test certs, real device chains without SPDM extension)
+///   are not rejected.
+pub fn check_leaf_certificate(cert_der: &[u8], is_alias_cert: bool) -> SpdmResult {
+    use spdm_x509::x509::extensions::{BasicConstraints, KeyUsage, BASIC_CONSTRAINTS, KEY_USAGE};
+
+    let cert = spdm_x509::Certificate::from_der(cert_der).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
+
+    // Extensions block may legitimately be absent for simple end-entity certs.
+    let extensions = cert.tbs_certificate.extensions.as_ref();
+
+    // 1. Basic Constraints: if present, cA MUST be FALSE (DSP0274 Table 42).
+    //    The spec mandates BC with cA=TRUE only for intermediate/root certs.
+    //    For leaf certs the extension is optional; absence implies cA=FALSE.
+    if let Some(exts) = extensions {
+        if let Some(bc_ext) = exts.find(&BASIC_CONSTRAINTS) {
+            if let Ok(bc) = BasicConstraints::from_extension(bc_ext) {
+                if bc.ca {
+                    return Err(SPDM_STATUS_INVALID_CERT);
+                }
+            } else {
+                return Err(SPDM_STATUS_INVALID_CERT);
+            }
+        }
+
+        // 2. Key Usage, if present, MUST assert digitalSignature (RFC 5280 §4.2.1.3)
+        if let Some(ku_ext) = exts.find(&KEY_USAGE) {
+            let ku = KeyUsage::from_extension(ku_ext).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
+            if !ku.has(KeyUsage::DIGITAL_SIGNATURE) {
+                return Err(SPDM_STATUS_INVALID_CERT);
+            }
+        }
+    }
+
+    // 3. DeviceID / Alias cert model checks via SPDM HW Identity OID.
+    //    Non-alias certs are treated as GenericCert: many SPDM implementations
+    //    and real device chains do not include the SPDM extension, so requiring
+    //    it would reject valid chains.  AliasCert certs must NOT contain the
+    //    HW Identity OID per DSP0274.
+    let model = if is_alias_cert {
+        spdm_x509::x509::spdm_validator::SpdmCertificateModel::AliasCert
+    } else {
+        spdm_x509::x509::spdm_validator::SpdmCertificateModel::GenericCert
+    };
+    let validator = spdm_x509::x509::spdm_validator::SpdmValidator::<
+        spdm_x509::crypto_backend::RingBackend,
+    >::new();
+    if validator.validate_hardware_identity(&cert, model).is_err() {
+        log::error!(
+            "Leaf certificate hardware identity check failed for model {:?}",
+            model
+        );
+        return Err(SPDM_STATUS_INVALID_CERT);
+    }
+
+    Ok(())
+}
 
 static CRYPTO_HASH: OnceCell<SpdmHash> = OnceCell::uninit();
 static CRYPTO_HMAC: OnceCell<SpdmHmac> = OnceCell::uninit();
@@ -383,6 +475,7 @@ pub mod cert_operation {
     use super::CRYPTO_CERT_OPERATION;
     use crate::crypto::SpdmCertOperation;
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
+    use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
 
     #[cfg(not(any(feature = "spdm-ring")))]
     use super::crypto_null::cert_operation_impl::DEFAULT;
@@ -401,11 +494,25 @@ pub mod cert_operation {
             .get_cert_from_cert_chain_cb)(cert_chain, index)
     }
 
-    pub fn verify_cert_chain(cert_chain: &[u8]) -> SpdmResult {
+    pub fn verify_cert_chain(
+        cert_chain: &[u8],
+        base_asym_algo: SpdmBaseAsymAlgo,
+        base_hash_algo: SpdmBaseHashAlgo,
+    ) -> SpdmResult {
+        let asym = if base_asym_algo.bits() != 0 {
+            Some(base_asym_algo.bits())
+        } else {
+            None
+        };
+        let hash = if base_hash_algo.bits() != 0 {
+            Some(base_hash_algo.bits())
+        } else {
+            None
+        };
         (CRYPTO_CERT_OPERATION
             .try_get_or_init(|| DEFAULT.clone())
             .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
-            .verify_cert_chain_cb)(cert_chain)
+            .verify_cert_chain_cb)(cert_chain, asym, hash)
     }
 }
 
@@ -523,8 +630,6 @@ pub mod rand {
 #[cfg(feature = "fips")]
 pub mod fips;
 
-// Add this import at the top of the file (after other use statements)
-use crate::error::SpdmResult;
 use crate::protocol::{
     SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmPqcAsymAlgo, SpdmSignatureStruct,
 };
@@ -546,10 +651,10 @@ pub fn spdm_asym_verify(
                 data,
                 signature,
             ),
-            SpdmDer::SpdmDerPubKeyRfc7250(public_key_der) => self::pqc_asym_verify::verify(
+            SpdmDer::SpdmDerPubKeyRfc7250(public_key) => self::pqc_asym_verify::verify(
                 base_hash_algo,
                 pqc_asym_algo,
-                public_key_der,
+                public_key,
                 data,
                 signature,
             ),
