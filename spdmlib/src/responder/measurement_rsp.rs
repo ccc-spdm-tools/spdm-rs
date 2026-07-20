@@ -177,6 +177,15 @@ impl ResponderContext {
         let measurement_record = if get_measurements.measurement_operation
             == SpdmMeasurementOperation::SpdmMeasurementRequestAll
         {
+            // When SPDMRS_REJECT_REQUEST_ALL is set, reject RequestAll with
+            // UnexpectedRequest error (matching real silicon behavior where some
+            // devices do not support operation=0xFF). The session remains valid.
+            #[cfg(feature = "std")]
+            if std::env::var("SPDMRS_REJECT_REQUEST_ALL").is_ok() {
+                self.common.reset_message_m(session_id);
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
+                return (Ok(()), Some(writer.used_slice()));
+            }
             if let Some(meas) = secret::measurement::measurement_collection(
                 spdm_version_sel,
                 measurement_specification_sel,

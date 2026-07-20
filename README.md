@@ -211,6 +211,23 @@ export SPDMRS_USE_ECDSA=false        # controls base_asym_algo (BaseAsymAlgo)
 export SPDMRS_REQ_USE_ECDSA=false    # controls req_asym_algo (ReqBaseAsymAlg)
 ```
 
+### Reject GET_MEASUREMENTS RequestAll (simulate hardware limitation)
+
+Some devices do not support `GET_MEASUREMENTS` with `operation=0xFF` (RequestAll)
+and respond with SPDM ERROR `UnexpectedRequest` (code 0x05). To simulate this
+behavior in the responder emulator:
+
+```bash
+export SPDMRS_REJECT_REQUEST_ALL=1
+
+cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
+```
+
+When set, the responder sends `SpdmErrorUnexpectedRequest` for any RequestAll
+measurement request while keeping the SPDM session alive. This forces the
+requester to fall back to individual measurement collection (querying total count,
+then requesting each index separately).
+
 ### Run emulator with raw public key (PUB_KEY_ID) mode
 
 spdm-rs supports raw public key authentication per RFC 7250 (PUB_KEY_ID) as an alternative to certificate chains. In this mode, the responder uses a SubjectPublicKeyInfo DER-encoded public key instead of a full certificate chain.
