@@ -252,25 +252,40 @@ cargo build -p spdm-requester-emu -p spdm-responder-emu --no-default-features --
 
 **Run PQC self-test (spdm-rs requester vs spdm-rs responder):**
 
-Currently PQC is supported in raw public key mode (RFC 7250). Set the following environment variables to enable PQC:
+PQC is supported in both certificate chain mode (the default) and raw public
+key mode (RFC 7250). Certificate chain validation of ML-DSA certificates is
+provided by the `spdm_x509` library together with the aws-lc-rs backend (the
+`spdm-aws-lc` feature), which recognizes the ML-DSA OIDs and verifies ML-DSA
+certificate signatures.
+
+*Certificate chain mode (default):* set the following environment variables to
+enable PQC:
 
 ```
 export SPDM_CONFIG="etc/pqc_config.json"
 export SPDMRS_USE_PQC=true
-export SPDMRS_USE_RAW_PUB_KEY=true
 ```
 
 Open one command window and run the responder:
 ```
-SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
 ```
 
 Open another command window and run the requester:
 ```
+SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+```
+
+*Raw public key mode (RFC 7250):* additionally set `SPDMRS_USE_RAW_PUB_KEY=true`
+on both peers:
+```
+SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+```
+```
 SPDM_CONFIG="etc/pqc_config.json" SPDMRS_USE_PQC=true SPDMRS_USE_RAW_PUB_KEY=true cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
 ```
 
-This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1024 for key exchange, including: GET_VERSION, GET_CAPABILITIES, NEGOTIATE_ALGORITHMS, CHALLENGE, GET_MEASUREMENTS, KEY_EXCHANGE, FINISH, HEARTBEAT, KEY_UPDATE, GET_MEASUREMENTS (in-session), END_SESSION, PSK_EXCHANGE, PSK_FINISH, and END_SESSION.
+This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1024 for key exchange, including: GET_VERSION, GET_CAPABILITIES, NEGOTIATE_ALGORITHMS, GET_DIGESTS, GET_CERTIFICATE, CHALLENGE, GET_MEASUREMENTS, KEY_EXCHANGE, FINISH, HEARTBEAT, KEY_UPDATE, GET_MEASUREMENTS (in-session), END_SESSION, PSK_EXCHANGE, PSK_FINISH, and END_SESSION. (GET_DIGESTS/GET_CERTIFICATE are exchanged in certificate chain mode; they are skipped in raw public key mode.)
 
 **Environment variables:**
 
@@ -278,9 +293,7 @@ This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1
 |---|---|
 | `SPDM_CONFIG` | Set to `"etc/pqc_config.json"` for PQC builds (larger buffers for ML-DSA signatures and cert chains) |
 | `SPDMRS_USE_PQC` | Set to `true` to enable PQC-only mode (ML-DSA-87 + ML-KEM-1024) |
-| `SPDMRS_USE_RAW_PUB_KEY` | Set to `true` to use raw public key (RFC 7250) instead of certificate chain |
-
-**Note:** PQC certificate chain mode is not yet supported because the ring/webpki library does not recognize ML-DSA OIDs. Raw public key mode must be used for PQC testing.
+| `SPDMRS_USE_RAW_PUB_KEY` | Set to `true` to use raw public key (RFC 7250) instead of the default certificate chain |
 
 ### Cross test with [spdm_emu](https://github.com/DMTF/spdm-emu)
 Open one command windows in workspace and run:

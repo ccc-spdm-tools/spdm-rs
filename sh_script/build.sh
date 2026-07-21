@@ -126,6 +126,9 @@ RUN_REQUESTER_CHUNK_CAP_FEATURES="${RUN_REQUESTER_FEATURES},chunk-cap"
 RUN_RESPONDER_CHUNK_CAP_FEATURES="${RUN_RESPONDER_FEATURES},chunk-cap"
 RUN_REQUESTER_PQC_FEATURES="${RUN_REQUESTER_FEATURES},spdm-aws-lc,chunk-cap"
 RUN_RESPONDER_PQC_FEATURES="${RUN_RESPONDER_FEATURES},spdm-aws-lc,chunk-cap"
+RUN_REQUESTER_PQC_MUTAUTH_FEATURES="${RUN_REQUESTER_PQC_FEATURES},mut-auth"
+RUN_RESPONDER_PQC_MUTAUTH_FEATURES="${RUN_RESPONDER_PQC_FEATURES},mut-auth"
+RUN_RESPONDER_PQC_MANDATORY_MUTAUTH_FEATURES="${RUN_RESPONDER_PQC_FEATURES},mandatory-mut-auth"
 
 
 run_with_spdm_emu() {
@@ -210,6 +213,16 @@ run_basic_test() {
     echo_command cargo test -p spdm_x509 -- --test-threads=1
     echo_command cargo test -p spdm_x509 --no-default-features -- --test-threads=1
     echo "Running basic spdm_x509 tests finished..."
+
+    # ML-DSA (FIPS 204) certificate-chain verification unit tests. These build
+    # the aws-lc-rs backend, so they run only where that toolchain is available
+    # (the spdm-aws-lc CI job). Covers the happy path (all ML-DSA variants
+    # validate) and fail paths (tampered signature / intermediate rejected).
+    if [[ "${RUN_REQUESTER_FEATURES}" == *"spdm-aws-lc"* ]]; then
+        echo "Running ML-DSA certificate-chain tests (spdmlib_crypto_aws_lc)..."
+        echo_command cargo test -p spdmlib_crypto_aws_lc -- --test-threads=1
+        echo "Running ML-DSA certificate-chain tests finished..."
+    fi
 
     echo "Running spdmlib-test..."
     pushd test/spdmlib-test
@@ -300,7 +313,7 @@ run_rust_spdm_emu_raw_pub_key() {
     cleanup
 }
 
-run_rust_spdm_emu_pqc() {
+run_rust_spdm_emu_pqc_raw_pub_key() {
     echo "Running requester and responder with PQC (ML-DSA + ML-KEM)..."
     echo_command export SPDM_CONFIG="etc/pqc_config.json"
     # Force build.rs to regenerate config.rs with PQC buffer sizes.
@@ -314,6 +327,152 @@ run_rust_spdm_emu_pqc() {
     echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_FEATURES"
     unset SPDMRS_USE_PQC
     unset SPDMRS_USE_RAW_PUB_KEY
+    echo_command unset SPDM_CONFIG
+    cleanup
+}
+
+run_rust_spdm_emu_pqc_cert_chain() {
+    echo "Running requester and responder with PQC (ML-DSA + ML-KEM) certificate chain..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    # Force build.rs to regenerate config.rs with PQC buffer sizes.
+    # build.rs writes to spdmlib/src/config.rs (a shared source file),
+    # which may have been overwritten by prior non-PQC test builds.
+    rm -f spdmlib/src/config.rs
+    export SPDMRS_USE_PQC=true
+    # NOTE: SPDMRS_USE_RAW_PUB_KEY is intentionally NOT set, so ML-DSA
+    # certificate chains are exchanged and validated (GET_DIGESTS /
+    # GET_CERTIFICATE + chain verification), exercising the ML-DSA
+    # certificate-signature path in spdm_x509 via the aws-lc backend.
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_FEATURES"
+    unset SPDMRS_USE_PQC
+    echo_command unset SPDM_CONFIG
+    cleanup
+}
+
+run_rust_spdm_emu_pqc_mut_auth() {
+    echo "Running requester and responder with PQC (ML-DSA + ML-KEM) mutual authentication..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    # Force build.rs to regenerate config.rs with PQC buffer sizes.
+    rm -f spdmlib/src/config.rs
+    export SPDMRS_USE_PQC=true
+    # Mutual auth requires certificate chains on both sides (raw public key not
+    # set). The Responder advertises MUT_AUTH_CAP and drives the encapsulated
+    # GET_DIGESTS/GET_CERTIFICATE flow to fetch and verify the Requester's
+    # ML-DSA certificate chain; the Requester's FINISH carries an ML-DSA
+    # signature the Responder verifies. Exercises ML-DSA cert verification on
+    # BOTH peers (leaf + encapsulated requester cert) via spdm_x509 + aws-lc.
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_MUTAUTH_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_MUTAUTH_FEATURES"
+    unset SPDMRS_USE_PQC
+    echo_command unset SPDM_CONFIG
+    cleanup
+}
+
+run_rust_spdm_emu_pqc_mandatory_mut_auth() {
+    echo "Running requester and responder with PQC (ML-DSA + ML-KEM) mandatory mutual authentication..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    rm -f spdmlib/src/config.rs
+    export SPDMRS_USE_PQC=true
+    # Responder mandates mutual auth; Requester advertises mut-auth. Same
+    # ML-DSA verification on both peers as run_rust_spdm_emu_pqc_mut_auth, but
+    # the Responder refuses the connection unless the Requester is mut-auth
+    # capable.
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_MANDATORY_MUTAUTH_FEATURES" &
+    sleep 20
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_MUTAUTH_FEATURES"
+    unset SPDMRS_USE_PQC
+    echo_command unset SPDM_CONFIG
+    cleanup
+}
+
+run_with_spdm_emu_pqc_cert_chain() {
+    echo "Running cross test with spdm-emu PQC (ML-DSA + ML-KEM) certificate chain..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    # Force build.rs to regenerate config.rs with PQC buffer sizes.
+    rm -f spdmlib/src/config.rs
+
+    # --- spdm-rs Requester <-> spdm-emu (libspdm) Responder ---
+    pushd test_key
+    chmod +x ./spdm_responder_emu
+    # spdm-emu binaries are dynamically linked against a custom OpenSSL
+    # (libcrypto.so.3) with PQC/ML-DSA support, shipped in test_key/.
+    export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH:-}
+    # CERT_CAP (not PUB_KEY_ID) so the Responder serves an ML-DSA certificate
+    # chain; the spdm-rs Requester retrieves and validates it.
+    echo_command ./spdm_responder_emu --trans PCI_DOE --cap CACHE,CERT,CHAL,MEAS_SIG,MEAS_FRESH,ENCRYPT,MAC,KEY_EX,ENCAP,HBEAT,KEY_UPD,HANDSHAKE_IN_CLEAR,CHUNK --mut_auth NO --pqc_asym ML_DSA_87 --kem ML_KEM_1024 --pqc_first TRUE &
+    popd
+    sleep 5
+    export SPDMRS_USE_PQC=true
+    # SPDMRS_USE_RAW_PUB_KEY intentionally unset -> certificate chain mode.
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_FEATURES"
+    unset SPDMRS_USE_PQC
+    cleanup
+
+    # --- spdm-rs Responder <-> spdm-emu (libspdm) Requester ---
+    export SPDMRS_USE_PQC=true
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_FEATURES" &
+    sleep 20
+    pushd test_key
+    chmod +x ./spdm_requester_emu
+    export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH:-}
+    # CERT (not PUB_KEY_ID) + DIGEST,CERT in exe_conn so the libspdm Requester
+    # fetches and validates the spdm-rs Responder's ML-DSA certificate chain.
+    # CERT_CAP is required: the spdm-rs Responder rejects a Requester that
+    # advertises CHAL_CAP without CERT_CAP or PUB_KEY_ID_CAP (DSP0274).
+    # LARGE_RESP is required: at SPDM 1.4 the libspdm Requester issues the large
+    # GET_CERTIFICATE format, which the spdm-rs Responder only accepts when
+    # LARGE_RESP_CAP is negotiated on both peers.
+    echo_command ./spdm_requester_emu --trans PCI_DOE --cap CERT,CHAL,ENCRYPT,MAC,KEY_EX,ENCAP,HBEAT,KEY_UPD,CHUNK,LARGE_RESP --mut_auth NO --pqc_asym ML_DSA_87 --kem ML_KEM_1024 --pqc_first TRUE --exe_conn DIGEST,CERT,CHAL,MEAS --exe_session KEY_EX,KEY_UPDATE,HEARTBEAT,MEAS
+    popd
+    unset SPDMRS_USE_PQC
+    unset LD_LIBRARY_PATH
+    echo_command unset SPDM_CONFIG
+    cleanup
+}
+
+run_with_spdm_emu_pqc_mut_auth() {
+    echo "Running cross test with spdm-emu PQC (ML-DSA + ML-KEM) mutual authentication..."
+    echo_command export SPDM_CONFIG="etc/pqc_config.json"
+    rm -f spdmlib/src/config.rs
+
+    # --- spdm-rs Requester <-> spdm-emu (libspdm) Responder ---
+    # The libspdm Responder requests mutual auth (--mut_auth DIGESTS) and
+    # accepts an ML-DSA Requester signing algorithm (--req_pqc_asym ML_DSA_87);
+    # the spdm-rs Requester serves and signs with its ML-DSA cert chain.
+    pushd test_key
+    chmod +x ./spdm_responder_emu
+    export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH:-}
+    echo_command ./spdm_responder_emu --trans PCI_DOE --cap CACHE,CERT,CHAL,MEAS_SIG,MEAS_FRESH,ENCRYPT,MAC,KEY_EX,ENCAP,HBEAT,KEY_UPD,HANDSHAKE_IN_CLEAR,CHUNK --mut_auth DIGESTS --basic_mut_auth NO --pqc_asym ML_DSA_87 --req_pqc_asym ML_DSA_87 --kem ML_KEM_1024 --pqc_first TRUE &
+    popd
+    sleep 5
+    export SPDMRS_USE_PQC=true
+    echo_command cargo run -p spdm-requester-emu --no-default-features --features="$RUN_REQUESTER_PQC_MUTAUTH_FEATURES"
+    unset SPDMRS_USE_PQC
+    cleanup
+
+    # --- spdm-rs Responder <-> spdm-emu (libspdm) Requester ---
+    # The spdm-rs Responder requests mutual auth; the libspdm Requester serves
+    # and signs with its ML-DSA cert chain (--req_pqc_asym ML_DSA_87), and
+    # fetches the Responder's ML-DSA chain (DIGEST,CERT in exe_conn).
+    export SPDMRS_USE_PQC=true
+    echo_command cargo run -p spdm-responder-emu --no-default-features --features="$RUN_RESPONDER_PQC_MUTAUTH_FEATURES" &
+    sleep 20
+    pushd test_key
+    chmod +x ./spdm_requester_emu
+    export LD_LIBRARY_PATH=$(pwd):${LD_LIBRARY_PATH:-}
+    # LARGE_RESP is required: at SPDM 1.4 the libspdm Requester issues the large
+    # GET_CERTIFICATE format, which the spdm-rs Responder only accepts when
+    # LARGE_RESP_CAP is negotiated on both peers.
+    # MUT_AUTH is required in --cap: the spdm-rs Responder (built with mut-auth)
+    # asserts MutAuthRequested in KEY_EXCHANGE_RSP, which the libspdm Requester
+    # only accepts (and reciprocates) when it also negotiated MUT_AUTH_CAP.
+    echo_command ./spdm_requester_emu --trans PCI_DOE --cap CERT,CHAL,ENCRYPT,MAC,KEY_EX,MUT_AUTH,ENCAP,HBEAT,KEY_UPD,CHUNK,LARGE_RESP --mut_auth DIGESTS --basic_mut_auth NO --pqc_asym ML_DSA_87 --req_pqc_asym ML_DSA_87 --kem ML_KEM_1024 --pqc_first TRUE --exe_conn DIGEST,CERT,CHAL,MEAS --exe_session KEY_EX,KEY_UPDATE,HEARTBEAT,MEAS
+    popd
+    unset SPDMRS_USE_PQC
+    unset LD_LIBRARY_PATH
     echo_command unset SPDM_CONFIG
     cleanup
 }
@@ -340,8 +499,8 @@ run_with_spdm_emu_raw_pub_key() {
     unset SPDMRS_USE_RAW_PUB_KEY
 }
 
-run_with_spdm_emu_pqc() {
-    echo "Running cross test with spdm-emu PQC (ML-DSA + ML-KEM)..."
+run_with_spdm_emu_pqc_raw_pub_key() {
+    echo "Running cross test with spdm-emu PQC (ML-DSA + ML-KEM) raw public key..."
     echo_command export SPDM_CONFIG="etc/pqc_config.json"
     # Force build.rs to regenerate config.rs with PQC buffer sizes.
     # build.rs writes to spdmlib/src/config.rs (a shared source file),
@@ -384,7 +543,10 @@ run() {
     run_rust_spdm_emu_raw_pub_key
     run_rust_spdm_emu_mut_auth
     run_rust_spdm_emu_mandatory_mut_auth
-    run_rust_spdm_emu_pqc
+    run_rust_spdm_emu_pqc_raw_pub_key
+    run_rust_spdm_emu_pqc_cert_chain
+    run_rust_spdm_emu_pqc_mut_auth
+    run_rust_spdm_emu_pqc_mandatory_mut_auth
 }
 
 CHECK_OPTION=false
@@ -442,7 +604,9 @@ main() {
             run_with_spdm_emu_raw_pub_key
             run_with_spdm_emu_mut_auth
             run_with_spdm_emu_mandatory_mut_auth
-            run_with_spdm_emu_pqc
+            run_with_spdm_emu_pqc_raw_pub_key
+            run_with_spdm_emu_pqc_cert_chain
+            run_with_spdm_emu_pqc_mut_auth
         fi
     fi
 }

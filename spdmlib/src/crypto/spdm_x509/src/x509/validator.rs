@@ -273,10 +273,23 @@ impl<B: CryptoBackend> Validator<B> {
             public_key_bytes.len()
         );
 
-        match self
-            .backend
-            .verify_signature(sig_algo, &tbs_bytes, signature, public_key_bytes)
-        {
+        // Post-quantum (e.g. ML-DSA / FIPS 204) signatures cannot be verified
+        // by the classical crypto backends (ring / mbedtls).  Dispatch them to
+        // the runtime registered PQC verifier hook so that PQC certificate
+        // chains (DSP0274 1.4) validate through the same code path.
+        let verify_result = if crate::crypto_backend::is_pqc(sig_algo) {
+            crate::crypto_backend::verify_pqc_signature(
+                sig_algo,
+                &tbs_bytes,
+                signature,
+                public_key_bytes,
+            )
+        } else {
+            self.backend
+                .verify_signature(sig_algo, &tbs_bytes, signature, public_key_bytes)
+        };
+
+        match verify_result {
             Ok(_) => {
                 log::trace!("verify_signature: SUCCESS");
                 Ok(())

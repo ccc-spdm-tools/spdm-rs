@@ -7,6 +7,7 @@
 pub mod kem_impl;
 pub mod pqc_asym_sign_impl;
 pub mod pqc_asym_verify_impl;
+pub mod pqc_cert_verify_impl;
 
 #[cfg(test)]
 mod tests {

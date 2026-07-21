@@ -10,6 +10,11 @@ spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false
 aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", features = ["unstable"] }
 log = { version = "0.4", default-features = false }
 
+[dev-dependencies]
+# Enable the ring backend + std so the ML-DSA cert-chain tests can drive
+# spdm_x509's classical chain validation and read test-key DER files.
+spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["ring-backend", "std"] }
+
 [features]
 default = []
 hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
