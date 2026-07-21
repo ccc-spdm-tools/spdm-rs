@@ -26,6 +26,7 @@ patch-ring() {
             git apply ../patches/ring/0002-Disable-checks-for-SSE-and-SSE2.patch
             git apply ../patches/ring/0003-introduce-EphemeralPrivateKey-serialization.patch
             git apply ../patches/ring/0004-Introduce-digest-de-serialization.patch
+            git apply ../patches/ring/0005-Fix-mismatched-lifetime-syntax-warnings.patch
         ;;
         *)
             echo "Unsupported target for ring, builds may not work!"
