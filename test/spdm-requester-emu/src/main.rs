@@ -179,6 +179,16 @@ async fn test_spdm(
         } else {
             SpdmPqcAsymAlgo::empty()
         },
+        // PQC Requester signing algorithm (used for mutual authentication).
+        // Advertised in PQC mode so that, when MUT_AUTH_CAP is negotiated, the
+        // ALGORITHMS exchange can select an ML-DSA ReqAsym algorithm; without a
+        // negotiated (classical or PQC) ReqAsym the response is rejected per
+        // DSP0274. Harmless when mut-auth is off (mirrors req_asym_algo).
+        pqc_req_asym_algo: if use_pqc {
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_87
+        } else {
+            SpdmPqcReqAsymAlgo::empty()
+        },
         kem_algo: if use_pqc {
             SpdmKemAlgo::ALG_MLKEM_1024
         } else {
@@ -756,6 +766,13 @@ async fn test_idekm_tdisp(
         req_capabilities
     };
 
+    // IDE_KM and TDISP are algorithm-agnostic: they run as SPDM
+    // vendor-defined messages over an already-established secure session, so
+    // they work over a PQC (ML-DSA + ML-KEM) session just as over a classical
+    // one. Mirror test_spdm's PQC algorithm/cert selection so this secondary
+    // test can run against a PQC peer.
+    let use_pqc = use_pqc();
+
     let config_info = common::SpdmConfigInfo {
         spdm_version: [
             Some(SpdmVersion::SpdmVersion10),
@@ -767,21 +784,45 @@ async fn test_idekm_tdisp(
         req_capabilities,
         req_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
-        base_asym_algo: if use_ecdsa() {
+        base_asym_algo: if use_pqc {
+            SpdmBaseAsymAlgo::empty()
+        } else if use_ecdsa() {
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         } else {
             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
         },
         base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        dhe_algo: SpdmDheAlgo::SECP_384_R1,
+        dhe_algo: if use_pqc {
+            SpdmDheAlgo::empty()
+        } else {
+            SpdmDheAlgo::SECP_384_R1
+        },
         aead_algo: SpdmAeadAlgo::AES_256_GCM,
-        req_asym_algo: if req_use_ecdsa() {
+        req_asym_algo: if use_pqc {
+            SpdmReqAsymAlgo::empty()
+        } else if req_use_ecdsa() {
             SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         } else {
             SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
         },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1,
+        pqc_asym_algo: if use_pqc {
+            SpdmPqcAsymAlgo::ALG_MLDSA_87
+        } else {
+            SpdmPqcAsymAlgo::empty()
+        },
+        // PQC Requester signing algorithm (mutual auth); mirrors test_spdm.
+        pqc_req_asym_algo: if use_pqc {
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_87
+        } else {
+            SpdmPqcReqAsymAlgo::empty()
+        },
+        kem_algo: if use_pqc {
+            SpdmKemAlgo::ALG_MLKEM_1024
+        } else {
+            SpdmKemAlgo::empty()
+        },
         data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
@@ -796,19 +837,25 @@ async fn test_idekm_tdisp(
         ..Default::default()
     };
 
-    let ca_file_path = if use_ecdsa() {
+    let ca_file_path = if use_pqc {
+        "test_key/mldsa87/ca.cert.der"
+    } else if use_ecdsa() {
         "test_key/ecp384/ca.cert.der"
     } else {
         "test_key/rsa3072/ca.cert.der"
     };
     let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
-    let inter_file_path = if use_ecdsa() {
+    let inter_file_path = if use_pqc {
+        "test_key/mldsa87/inter.cert.der"
+    } else if use_ecdsa() {
         "test_key/ecp384/inter.cert.der"
     } else {
         "test_key/rsa3072/inter.cert.der"
     };
     let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
-    let leaf_file_path = if use_ecdsa() {
+    let leaf_file_path = if use_pqc {
+        "test_key/mldsa87/end_responder.cert.der"
+    } else if use_ecdsa() {
         "test_key/ecp384/end_responder.cert.der"
     } else {
         "test_key/rsa3072/end_responder.cert.der"

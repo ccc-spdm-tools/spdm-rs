@@ -269,4 +269,8 @@ pub fn register_pqc_crypto_callbacks() {
     );
     spdmlib::crypto::kem_decap::register(spdmlib_crypto_aws_lc::kem_impl::DEFAULT_DECAP.clone());
     spdmlib::crypto::kem_encap::register(spdmlib_crypto_aws_lc::kem_impl::DEFAULT_ENCAP.clone());
+    // Enable ML-DSA (FIPS 204) certificate-chain verification in spdm_x509 so
+    // PQC certificate chain mode (DSP0274 1.4) can be used, not just raw
+    // public key mode.
+    spdmlib_crypto_aws_lc::pqc_cert_verify_impl::register();
 }

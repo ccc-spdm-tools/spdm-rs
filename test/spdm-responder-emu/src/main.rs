@@ -352,6 +352,16 @@ async fn handle_message(
         } else {
             SpdmPqcAsymAlgo::empty()
         },
+        // PQC Requester signing algorithm (used for mutual authentication).
+        // Advertised in PQC mode so that, when MUT_AUTH_CAP is negotiated, the
+        // ALGORITHMS exchange can select an ML-DSA ReqAsym algorithm; without a
+        // negotiated (classical or PQC) ReqAsym the response is rejected per
+        // DSP0274. Harmless when mut-auth is off (mirrors req_asym_algo).
+        pqc_req_asym_algo: if use_pqc {
+            SpdmPqcReqAsymAlgo::ALG_MLDSA_87
+        } else {
+            SpdmPqcReqAsymAlgo::empty()
+        },
         kem_algo: if use_pqc {
             SpdmKemAlgo::ALG_MLKEM_1024
         } else {

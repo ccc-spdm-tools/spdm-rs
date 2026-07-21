@@ -33,6 +33,16 @@ impl CryptoBackend for RingBackend {
             SignatureAlgorithm::RsaPssSha384 => &signature::RSA_PSS_2048_8192_SHA384,
             SignatureAlgorithm::RsaPssSha512 => &signature::RSA_PSS_2048_8192_SHA512,
             SignatureAlgorithm::Ed25519 => &signature::ED25519,
+            // ML-DSA (FIPS 204) is not supported by ring.  These are dispatched
+            // to the registered PQC verifier hook by `Validator::verify_signature`
+            // and never reach this backend; reject defensively if they do.
+            SignatureAlgorithm::MlDsa44
+            | SignatureAlgorithm::MlDsa65
+            | SignatureAlgorithm::MlDsa87 => {
+                return Err(Error::unsupported_algorithm(
+                    "ML-DSA is not supported by the ring backend",
+                ));
+            }
         };
 
         let pk = UnparsedPublicKey::new(ring_algo, public_key);

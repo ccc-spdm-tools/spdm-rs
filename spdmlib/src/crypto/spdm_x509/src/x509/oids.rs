@@ -137,6 +137,24 @@ pub const ED25519: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.112"
 pub const ED448: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.113");
 
 // =============================================================================
+// Post-Quantum Asymmetric Algorithm OIDs (NIST FIPS 204 ML-DSA)
+//
+// These OIDs are used both as the SubjectPublicKeyInfo algorithm OID and as
+// the certificate signatureAlgorithm OID for ML-DSA (Module-Lattice-Based
+// Digital Signature Algorithm) certificates.  They live under the NIST
+// arc 2.16.840.1.101.3.4.3.{17,18,19}.
+// =============================================================================
+
+/// ML-DSA-44 - 2.16.840.1.101.3.4.3.17
+pub const ML_DSA_44: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.17");
+
+/// ML-DSA-65 - 2.16.840.1.101.3.4.3.18
+pub const ML_DSA_65: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.18");
+
+/// ML-DSA-87 - 2.16.840.1.101.3.4.3.19
+pub const ML_DSA_87: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.19");
+
+// =============================================================================
 // Helper Functions
 // =============================================================================
 

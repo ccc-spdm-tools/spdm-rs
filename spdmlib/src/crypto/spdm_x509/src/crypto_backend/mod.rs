@@ -47,6 +47,12 @@ pub enum SignatureAlgorithm {
     RsaPssSha512,
     /// EdDSA Ed25519 (hash is built-in to the algorithm)
     Ed25519,
+    /// ML-DSA-44 (NIST FIPS 204, hash/context handled by the algorithm)
+    MlDsa44,
+    /// ML-DSA-65 (NIST FIPS 204, hash/context handled by the algorithm)
+    MlDsa65,
+    /// ML-DSA-87 (NIST FIPS 204, hash/context handled by the algorithm)
+    MlDsa87,
 }
 
 impl SignatureAlgorithm {
@@ -73,6 +79,14 @@ impl SignatureAlgorithm {
             ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.13");
         const RSA_PSS: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.10");
         const ED25519_OID: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.112");
+
+        // NIST FIPS 204 ML-DSA (2.16.840.1.101.3.4.3.{17,18,19})
+        const ML_DSA_44_OID: ObjectIdentifier =
+            ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.17");
+        const ML_DSA_65_OID: ObjectIdentifier =
+            ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.18");
+        const ML_DSA_87_OID: ObjectIdentifier =
+            ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.19");
 
         const SECP256R1: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7");
         const SECP384R1: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.132.0.34");
@@ -105,6 +119,9 @@ impl SignatureAlgorithm {
             RSA_WITH_SHA512 => Ok(SignatureAlgorithm::RsaPkcs1Sha512),
             RSA_PSS => Self::parse_rsa_pss_params(params),
             ED25519_OID => Ok(SignatureAlgorithm::Ed25519),
+            ML_DSA_44_OID => Ok(SignatureAlgorithm::MlDsa44),
+            ML_DSA_65_OID => Ok(SignatureAlgorithm::MlDsa65),
+            ML_DSA_87_OID => Ok(SignatureAlgorithm::MlDsa87),
             _ => Err(Error::unsupported_algorithm(alloc::format!(
                 "OID: {}", sig_oid
             ))),
@@ -232,6 +249,76 @@ pub trait CryptoBackend {
     ) -> Result<()>;
 }
 
+// =============================================================================
+// Post-Quantum (PQC) verifier hook
+//
+// The built-in crypto backends (ring, mbedtls) cannot verify post-quantum
+// (e.g. ML-DSA / FIPS 204) signatures.  Rather than pulling a PQC crypto
+// dependency into this crate, we expose a runtime-registered verification
+// hook.  A downstream crate that links a PQC-capable backend (e.g.
+// `spdmlib_crypto_aws_lc` over aws-lc-rs) registers a verifier once at startup
+// via [`register_pqc_verifier`], and every backend's `verify_signature`
+// transparently dispatches PQC signatures to it.  This keeps SPDM
+// certificate-chain validation backend-agnostic while enabling PQC certificate
+// chains (DSP0274 1.4).
+// =============================================================================
+
+/// A registered PQC signature-verification callback.
+///
+/// # Arguments
+/// * `algorithm`  - the PQC signature algorithm (e.g.
+///   [`SignatureAlgorithm::MlDsa44`] / `MlDsa65` / `MlDsa87`)
+/// * `tbs_data`   - the TBSCertificate bytes that were signed
+/// * `signature`  - the raw PQC signature bytes
+/// * `public_key` - the signer's public key, either the raw public key or a
+///   DER-encoded SubjectPublicKeyInfo (the callback must accept both)
+pub type PqcVerifyFn = fn(
+    algorithm: SignatureAlgorithm,
+    tbs_data: &[u8],
+    signature: &[u8],
+    public_key: &[u8],
+) -> Result<()>;
+
+static PQC_VERIFIER: conquer_once::spin::OnceCell<PqcVerifyFn> =
+    conquer_once::spin::OnceCell::uninit();
+
+/// Register the global PQC signature-verification callback.
+///
+/// Returns `true` if this call installed the verifier, `false` if one was
+/// already registered (the first registration wins, mirroring the rest of the
+/// spdm-rs crypto registration model).
+pub fn register_pqc_verifier(verifier: PqcVerifyFn) -> bool {
+    PQC_VERIFIER.try_init_once(|| verifier).is_ok()
+}
+
+/// Dispatch a PQC signature verification to the registered hook.
+///
+/// Returns an "unsupported algorithm" error if no verifier has been
+/// registered, so that PQC certificate chains fail closed when the PQC
+/// backend is absent.
+pub(crate) fn verify_pqc_signature(
+    algorithm: SignatureAlgorithm,
+    tbs_data: &[u8],
+    signature: &[u8],
+    public_key: &[u8],
+) -> Result<()> {
+    match PQC_VERIFIER.try_get() {
+        Ok(verifier) => verifier(algorithm, tbs_data, signature, public_key),
+        Err(_) => Err(Error::unsupported_algorithm(
+            "PQC signature verification requires a registered PQC verifier",
+        )),
+    }
+}
+
+/// Returns `true` if the given algorithm is a post-quantum signature algorithm
+/// handled by the PQC verifier hook rather than a built-in crypto backend.
+pub(crate) fn is_pqc(algorithm: SignatureAlgorithm) -> bool {
+    matches!(
+        algorithm,
+        SignatureAlgorithm::MlDsa44 | SignatureAlgorithm::MlDsa65 | SignatureAlgorithm::MlDsa87
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,6 +426,53 @@ mod tests {
             SignatureAlgorithm::from_oid(&oid).unwrap(),
             SignatureAlgorithm::Ed25519
         );
+    }
+
+    // ── from_oid_with_params: ML-DSA (FIPS 204) ──
+
+    #[test]
+    fn test_ml_dsa_44_oid() {
+        let oid = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.17");
+        assert_eq!(
+            SignatureAlgorithm::from_oid(&oid).unwrap(),
+            SignatureAlgorithm::MlDsa44
+        );
+    }
+
+    #[test]
+    fn test_ml_dsa_65_oid() {
+        let oid = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.18");
+        assert_eq!(
+            SignatureAlgorithm::from_oid(&oid).unwrap(),
+            SignatureAlgorithm::MlDsa65
+        );
+    }
+
+    #[test]
+    fn test_ml_dsa_87_oid() {
+        let oid = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.3.19");
+        assert_eq!(
+            SignatureAlgorithm::from_oid(&oid).unwrap(),
+            SignatureAlgorithm::MlDsa87
+        );
+    }
+
+    #[test]
+    fn test_is_pqc() {
+        assert!(super::is_pqc(SignatureAlgorithm::MlDsa44));
+        assert!(super::is_pqc(SignatureAlgorithm::MlDsa65));
+        assert!(super::is_pqc(SignatureAlgorithm::MlDsa87));
+        assert!(!super::is_pqc(SignatureAlgorithm::Ed25519));
+        assert!(!super::is_pqc(SignatureAlgorithm::EcdsaP256Sha256));
+    }
+
+    #[test]
+    fn test_pqc_verify_without_registered_hook_errors() {
+        // With no PQC verifier registered, PQC signature verification must fail
+        // closed rather than silently pass.
+        let result =
+            super::verify_pqc_signature(SignatureAlgorithm::MlDsa87, b"tbs", b"sig", b"pubkey");
+        assert!(result.is_err());
     }
 
     // ── from_oid_with_params: unknown OID ──

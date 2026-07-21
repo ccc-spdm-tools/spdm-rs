@@ -1848,6 +1848,7 @@ name = "spdm_x509"
 version = "0.1.0"
 dependencies = [
  "base64ct",
+ "conquer-once",
  "const-oid",
  "der",
  "hex",
@@ -1926,10 +1927,10 @@ dependencies = [
 name = "spdmlib_crypto_mbedtls"
 version = "0.1.0"
 dependencies = [
- "der",
  "lazy_static",
  "mbedtls",
  "mbedtls-sys-auto",
+ "spdm_x509",
  "spdmlib",
  "spin 0.9.8",
  "zeroize",

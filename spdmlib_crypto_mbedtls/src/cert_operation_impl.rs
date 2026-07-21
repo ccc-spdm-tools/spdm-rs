@@ -1,104 +1,67 @@
-// Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2023, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use mbedtls::x509::Certificate;
 use spdmlib::crypto::SpdmCertOperation;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT};
 
-use der::{Reader, SliceReader};
+// =============================================================================
+// spdm_x509 implementation
+//
+// The certificate-chain operations delegate to the spdm_x509 library (the same
+// path the ring backend uses) rather than to the mbedtls C X.509 verifier. This
+// gives the mbedtls backend ML-DSA (FIPS 204) aware chain validation: spdm_x509
+// parses the chain itself and dispatches classical (RSA/ECC) signatures to its
+// ring backend and post-quantum signatures to the registered PQC verifier hook.
+// mbedtls cannot verify ML-DSA certificate signatures, so delegating here is
+// what lets PQC certificate chains work with the mbedtls backend.
+// =============================================================================
 
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
-    get_cert_from_cert_chain_cb: get_cert_from_cert_chain,
-    verify_cert_chain_cb: verify_cert_chain,
+    get_cert_from_cert_chain_cb: get_cert_from_cert_chain_x509,
+    verify_cert_chain_cb: verify_cert_chain_x509,
 };
 
-fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)> {
-    let mut offset = 0usize;
-    let mut this_index = 0isize;
-    let cert_chain_size = cert_chain.len();
-    loop {
-        if cert_chain[offset..].len() < 4 || offset > cert_chain.len() {
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        if cert_chain[offset] != 0x30 || cert_chain[offset + 1] != 0x82 {
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        let this_cert_len =
-            ((cert_chain[offset + 2] as usize) << 8) + (cert_chain[offset + 3] as usize) + 4;
-        if this_cert_len > cert_chain_size - offset {
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        if this_index == index {
-            // return the this one
-            return Ok((offset, offset + this_cert_len));
-        }
-        this_index += 1;
-        if (offset + this_cert_len == cert_chain_size) && (index == -1) {
-            // return the last one
-            return Ok((offset, offset + this_cert_len));
-        }
-        offset += this_cert_len;
-    }
+fn get_cert_from_cert_chain_x509(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)> {
+    spdm_x509::x509::chain::get_cert_from_cert_chain(cert_chain, index)
+        .map_err(|_| SPDM_STATUS_INVALID_CERT)
 }
 
-fn verify_cert_chain(
+fn verify_cert_chain_x509(
     cert_chain: &[u8],
-    _base_asym_algo: Option<u32>,
-    _base_hash_algo: Option<u32>,
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
 ) -> SpdmResult {
-    let mut reader = SliceReader::new(cert_chain).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
-    let mut chain = mbedtls::alloc::List::new();
-    let mut ca = mbedtls::alloc::List::new();
-
-    loop {
-        let res = reader.tlv_bytes();
-        if res.is_err() {
-            break;
-        }
-        let cert = Certificate::from_der(res.unwrap()).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
-        if ca.is_empty() {
-            ca.push(cert);
-        } else {
-            chain.push(cert);
-        }
-    }
-    if chain.is_empty() && ca.is_empty() {
-        return Err(SPDM_STATUS_INVALID_CERT);
-    }
-    if chain.is_empty() {
-        chain.append(ca.clone())
-    }
-    Certificate::verify(&chain, &ca, None, None).map_err(|_| SPDM_STATUS_INVALID_CERT)
+    spdm_x509::x509::chain::verify_cert_chain_with_options(
+        cert_chain,
+        base_asym_algo,
+        base_hash_algo,
+    )
+    .map_err(|_| SPDM_STATUS_INVALID_CERT)
 }
 
-#[test]
-fn test_certificate() {
-    let cert_chain =
-        include_bytes!("../../test_key/rsa3072_Expiration/bundle_requester.certchain.der");
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let mut reader = SliceReader::new(cert_chain).unwrap();
-    let mut chain = mbedtls::alloc::List::new();
-    let mut ca = mbedtls::alloc::List::new();
-    loop {
-        let res = reader.tlv_bytes();
-        if res.is_err() {
-            break;
-        }
-        let res = res.unwrap();
-        let cert = Certificate::from_der(res).unwrap();
-        if ca.is_empty() {
-            ca.push(cert);
-        } else {
-            chain.push(cert);
-        }
-    }
-    if chain.is_empty() && ca.is_empty() {
-        panic!("SPDM_STATUS_INVALID_CERT")
-    }
-    if chain.is_empty() {
-        chain.append(ca.clone())
+    #[test]
+    fn test_verify_cert_chain_rsa3072() {
+        let cert_chain =
+            &include_bytes!("../../test_key/rsa3072/bundle_responder.certchain.der")[..];
+        assert!(verify_cert_chain_x509(cert_chain, None, None).is_ok());
     }
 
-    Certificate::verify(&chain, &ca, None, None).unwrap();
+    #[test]
+    fn test_verify_cert_chain_ecp384() {
+        let cert_chain =
+            &include_bytes!("../../test_key/ecp384/bundle_responder.certchain.der")[..];
+        assert!(verify_cert_chain_x509(cert_chain, None, None).is_ok());
+    }
+
+    #[test]
+    fn test_get_cert_from_cert_chain_leaf() {
+        let cert_chain =
+            &include_bytes!("../../test_key/ecp384/bundle_responder.certchain.der")[..];
+        assert!(get_cert_from_cert_chain_x509(cert_chain, -1).is_ok());
+    }
 }
