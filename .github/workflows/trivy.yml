@@ -37,8 +37,11 @@ jobs:
           format: sarif
           output: trivy-fs-results.sarif
           severity: CRITICAL,HIGH
-          # Skip test key material
-          skip-dirs: test_key
+          # Skip only test material: repository test keys and the vendored
+          # AWS-LC test/fuzz harnesses (which include a fuzzing test private
+          # key). The AWS-LC production C/asm source and its dependency
+          # manifests remain in scope so real supply-chain issues are reported.
+          skip-dirs: test_key,external/aws-lc-rs/aws-lc-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-sys/aws-lc/fuzz,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/fuzz
 
       - name: Upload Trivy SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
@@ -67,8 +70,11 @@ jobs:
           format: sarif
           output: trivy-config-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
-          # Skip test key material
-          skip-dirs: test_key
+          # Skip only test material: repository test keys and the vendored
+          # AWS-LC test/fuzz harnesses (which include a fuzzing test private
+          # key). The AWS-LC production C/asm source and its dependency
+          # manifests remain in scope so real supply-chain issues are reported.
+          skip-dirs: test_key,external/aws-lc-rs/aws-lc-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-sys/aws-lc/fuzz,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/fuzz
 
       - name: Upload Trivy config SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
