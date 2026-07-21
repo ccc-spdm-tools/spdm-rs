@@ -185,13 +185,13 @@ impl ResponderContext {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        // SPDM CertificateChain header: [0..2] = Length (u16 LE), [2..4] = Reserved (must be 0)
-        if peer_cert_chain.data[2] != 0 || peer_cert_chain.data[3] != 0 {
-            error!("cert_chain header Reserved field is non-zero\n");
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        let data_size_in_cert_chain =
-            peer_cert_chain.data[0] as u32 + ((peer_cert_chain.data[1] as u32) << 8);
+        // SPDM CertificateChain header: [0..4] = Length (u32 LE).
+        // Per SPDM 1.4, the certificate chain size can be larger than UINT16_MAX,
+        // so parse the full 4-byte Length field.
+        let data_size_in_cert_chain = peer_cert_chain.data[0] as u32
+            + ((peer_cert_chain.data[1] as u32) << 8)
+            + ((peer_cert_chain.data[2] as u32) << 16)
+            + ((peer_cert_chain.data[3] as u32) << 24);
         if data_size_in_cert_chain != peer_cert_chain.data_size {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
