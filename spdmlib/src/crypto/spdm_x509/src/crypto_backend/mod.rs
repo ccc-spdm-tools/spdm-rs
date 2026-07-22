@@ -310,13 +310,23 @@ pub(crate) fn verify_pqc_signature(
     }
 }
 
-/// Returns `true` if the given algorithm is a post-quantum signature algorithm
-/// handled by the PQC verifier hook rather than a built-in crypto backend.
+/// Returns `true` if the given algorithm is a post-quantum signature algorithm.
 pub(crate) fn is_pqc(algorithm: SignatureAlgorithm) -> bool {
     matches!(
         algorithm,
         SignatureAlgorithm::MlDsa44 | SignatureAlgorithm::MlDsa65 | SignatureAlgorithm::MlDsa87
     )
+}
+
+/// Returns `true` if a runtime PQC verifier hook has been registered.
+///
+/// When a PQC-capable `CryptoBackend` (e.g. the aws-lc backend, which verifies
+/// ML-DSA itself) is in use, no hook is registered and PQC signatures are
+/// dispatched to the backend directly — the runtime hook is only used when a
+/// classical backend (ring/mbedtls) that cannot do ML-DSA is paired with a
+/// separately-registered PQC verifier.
+pub(crate) fn pqc_verifier_registered() -> bool {
+    PQC_VERIFIER.try_get().is_ok()
 }
 
 #[cfg(test)]

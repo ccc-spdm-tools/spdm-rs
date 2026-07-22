@@ -115,6 +115,14 @@ build() {
     echo "Building spdm-responder-emu with PQC (spdm-aws-lc)..."
     echo_command cargo build -p spdm-responder-emu --no-default-features --features="spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
     echo_command unset SPDM_CONFIG
+
+    # Standalone aws-lc backend (no ring, no mbedtls): aws-lc-rs supplies both
+    # classical and PQC crypto. std-only. Compile-checked here on every build.
+    echo "Building spdm-requester-emu with standalone aws-lc (spdm-aws-lc, no ring/mbedtls)..."
+    echo_command cargo build -p spdm-requester-emu --no-default-features --features="spdm-aws-lc,hashed-transcript-data,async-executor"
+
+    echo "Building spdm-responder-emu with standalone aws-lc (spdm-aws-lc, no ring/mbedtls)..."
+    echo_command cargo build -p spdm-responder-emu --no-default-features --features="spdm-aws-lc,hashed-transcript-data,async-executor"
 }
 
 RUN_REQUESTER_FEATURES=${RUN_REQUESTER_FEATURES:-spdm-ring,hashed-transcript-data,async-executor}
@@ -537,6 +545,11 @@ run_with_spdm_emu_pqc_raw_pub_key() {
 }
 
 run() {
+    # Every crypto config — spdm-ring, spdm-mbedtls, spdm-ring+spdm-aws-lc,
+    # spdm-mbedtls+spdm-aws-lc, and standalone spdm-aws-lc (no ring/mbedtls) —
+    # runs the same matrix below. aws-lc is a full backend, so the standalone row
+    # exercises the classical passes too; the *_pqc_* passes append spdm-aws-lc
+    # and only do real work once PQC is negotiated.
     run_basic_test
     run_rust_spdm_emu
     run_rust_spdm_emu_supported_algs

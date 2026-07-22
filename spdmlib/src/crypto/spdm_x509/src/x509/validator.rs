@@ -273,11 +273,15 @@ impl<B: CryptoBackend> Validator<B> {
             public_key_bytes.len()
         );
 
-        // Post-quantum (e.g. ML-DSA / FIPS 204) signatures cannot be verified
-        // by the classical crypto backends (ring / mbedtls).  Dispatch them to
-        // the runtime registered PQC verifier hook so that PQC certificate
-        // chains (DSP0274 1.4) validate through the same code path.
-        let verify_result = if crate::crypto_backend::is_pqc(sig_algo) {
+        // Post-quantum (e.g. ML-DSA / FIPS 204) signatures cannot be verified by
+        // the classical crypto backends (ring / mbedtls). When such a backend is
+        // paired with a separately-registered PQC verifier hook, dispatch ML-DSA
+        // to the hook. When the active backend can verify ML-DSA itself (e.g. the
+        // aws-lc backend), no hook is registered and the signature — PQC or
+        // classical — goes straight to the backend.
+        let verify_result = if crate::crypto_backend::is_pqc(sig_algo)
+            && crate::crypto_backend::pqc_verifier_registered()
+        {
             crate::crypto_backend::verify_pqc_signature(
                 sig_algo,
                 &tbs_bytes,

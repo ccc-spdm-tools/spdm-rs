@@ -2,12 +2,31 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-//! spdm-rs crypto backend using aws-lc-rs for PQC (ML-KEM, ML-DSA) support.
+//! spdm-rs crypto backend using aws-lc-rs.
+//!
+//! Historically this crate supplied only the post-quantum primitives (ML-KEM,
+//! ML-DSA) as an overlay on the ring/mbedtls classical backends. It now also
+//! provides the traditional primitives (hash, HMAC, AEAD, ECDHE, RSA/ECDSA
+//! verify, HKDF, rand, certificate-chain verification), so aws-lc-rs can be
+//! used as a **standalone** backend for both traditional and PQC crypto on
+//! std targets (no ring, no mbedtls). See `register_crypto_callbacks` in the
+//! emulator layer.
 
+// PQC (post-quantum) primitives.
 pub mod kem_impl;
 pub mod pqc_asym_sign_impl;
 pub mod pqc_asym_verify_impl;
 pub mod pqc_cert_verify_impl;
+
+// Traditional primitives (standalone aws-lc backend).
+pub mod aead_impl;
+pub mod asym_verify_impl;
+pub mod cert_operation_impl;
+pub mod dhe_impl;
+pub mod hash_impl;
+pub mod hkdf_impl;
+pub mod hmac_impl;
+pub mod rand_impl;
 
 #[cfg(test)]
 mod tests {

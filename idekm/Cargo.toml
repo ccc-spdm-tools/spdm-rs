@@ -16,10 +16,15 @@ license = "Apache-2.0 or MIT"
 [dependencies]
 codec = { path = "../codec" }
 zeroize = { version = "1.5.0", features = ["zeroize_derive"]}
-spdmlib = { path = "../spdmlib", default-features = false, features = ["spdm-ring"]}
+spdmlib = { path = "../spdmlib", default-features = false }
 conquer-once = { version = "0.3.2", default-features = false }
 maybe-async = "0.2.7"
 
 [features]
+# spdm-ring is the default backend so `cargo build`/`cargo test` on this crate
+# alone keeps working. Dependents that select a different backend (e.g. the
+# standalone aws-lc emu) set default-features = false to avoid linking ring.
+default = ["spdm-ring"]
+spdm-ring = ["spdmlib/spdm-ring"]
 is_sync = ["spdmlib/is_sync", "maybe-async/is_sync"]
-std = []
+std = ["spdmlib/std"]

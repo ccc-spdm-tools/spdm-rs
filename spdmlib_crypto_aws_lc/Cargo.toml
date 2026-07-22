@@ -9,10 +9,15 @@ spdmlib = { path = "../spdmlib", default-features = false }
 spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false }
 aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", features = ["unstable"] }
 log = { version = "0.4", default-features = false }
+# For the streaming hash-context handle table (hashed-transcript-data).
+lazy_static = { version = "1.0", features = ["spin_no_std"] }
+spin = "0.9.8"
+# For building SpdmDheExchangeStruct via its From<BytesMut> impl.
+bytes = { version = "1", default-features = false }
 
 [dev-dependencies]
-# Enable the ring backend + std so the ML-DSA cert-chain tests can drive
-# spdm_x509's classical chain validation and read test-key DER files.
+# Enable the ring backend + std so the cert-chain tests can read test-key DER
+# files and exercise the full validator.
 spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["ring-backend", "std"] }
 
 [features]
