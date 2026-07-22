@@ -49,6 +49,14 @@ jobs:
           - runs-on: ubuntu-latest
             run_requester_features: "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
             run_responder_features: "spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc"
+          # mbedtls + aws-lc overlay: mbedtls for classical, aws-lc for PQC.
+          - runs-on: ubuntu-latest
+            run_requester_features: "spdm-mbedtls,hashed-transcript-data,async-executor,spdm-aws-lc"
+            run_responder_features: "spdm-mbedtls,hashed-transcript-data,async-executor,spdm-aws-lc"
+          # Standalone aws-lc: aws-lc-rs alone (no ring, no mbedtls), std-only.
+          - runs-on: ubuntu-latest
+            run_requester_features: "spdm-aws-lc,hashed-transcript-data,async-executor"
+            run_responder_features: "spdm-aws-lc,hashed-transcript-data,async-executor"
     # The type of runner that the job will run on
     runs-on: ${{ matrix.runs-on }}
 

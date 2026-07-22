@@ -137,13 +137,27 @@ fn emu_main() {
 fn emu_main_inner() {
     new_logger_from_env().init().unwrap();
 
+    // Crypto backend registration is decided entirely at compile time:
+    // - aws-lc present, no classical backend  -> aws-lc standalone (classical + PQC)
+    // - aws-lc present + a classical backend   -> classical backend, aws-lc PQC overlay
+    // - classical backend only                 -> classical backend (ring registers itself)
+    #[cfg(all(
+        feature = "spdm-aws-lc",
+        not(feature = "spdm-ring"),
+        not(feature = "spdm-mbedtls")
+    ))]
+    spdm_emu::crypto_callback::register_aws_lc_crypto_callbacks();
+
     #[cfg(feature = "spdm-mbedtls")]
     spdm_emu::crypto::crypto_mbedtls_register_handles();
 
     spdmlib::secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
     spdmlib::secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
 
-    #[cfg(feature = "spdm-aws-lc")]
+    #[cfg(all(
+        feature = "spdm-aws-lc",
+        any(feature = "spdm-ring", feature = "spdm-mbedtls")
+    ))]
     spdm_emu::crypto_callback::register_pqc_crypto_callbacks();
 
     let tdisp_rsp_context = DeviceContext {

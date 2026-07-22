@@ -1683,10 +1683,24 @@ fn emu_main_inner() {
 
     spdmlib::secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
 
+    // Crypto backend registration is decided entirely at compile time:
+    // - aws-lc present, no classical backend  -> aws-lc standalone (classical + PQC)
+    // - aws-lc present + a classical backend   -> classical backend, aws-lc PQC overlay
+    // - classical backend only                 -> classical backend (ring registers itself)
+    #[cfg(all(
+        feature = "spdm-aws-lc",
+        not(feature = "spdm-ring"),
+        not(feature = "spdm-mbedtls")
+    ))]
+    spdm_emu::crypto_callback::register_aws_lc_crypto_callbacks();
+
     #[cfg(feature = "spdm-mbedtls")]
     spdm_emu::crypto::crypto_mbedtls_register_handles();
 
-    #[cfg(feature = "spdm-aws-lc")]
+    #[cfg(all(
+        feature = "spdm-aws-lc",
+        any(feature = "spdm-ring", feature = "spdm-mbedtls")
+    ))]
     spdm_emu::crypto_callback::register_pqc_crypto_callbacks();
 
     let since_the_epoch = std::time::SystemTime::now()

@@ -436,123 +436,9 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
         cert: &Certificate,
         model: SpdmCertificateModel,
     ) -> Result<()> {
-        // Check if the certificate has the SPDM extension
-        let spdm_ext = match find_extension(cert, &oids::SPDM_EXTENSION) {
-            Some(ext) => ext,
-            None => {
-                // If DeviceCert, SPDM extension should be present
-                if model == SpdmCertificateModel::DeviceCert {
-                    return Err(Error::ExtensionError(
-                        ExtensionError::MissingRequiredExtension(alloc::string::String::from(
-                            "DeviceCert requires SPDM extension with Hardware Identity",
-                        )),
-                    ));
-                }
-                return Ok(());
-            }
-        };
-
-        // Parse the SPDM extension to look for Hardware Identity OID
-        // The extension value is a SEQUENCE of OIDs
-        let has_hw_identity = self.check_hardware_identity_in_extension(&spdm_ext.extn_value)?;
-
-        // Apply validation rules based on certificate model
-        match model {
-            SpdmCertificateModel::DeviceCert => {
-                if !has_hw_identity {
-                    return Err(Error::ExtensionError(
-                        ExtensionError::MissingRequiredExtension(alloc::string::String::from(
-                            "DeviceCert MUST contain Hardware Identity OID",
-                        )),
-                    ));
-                }
-            }
-            SpdmCertificateModel::AliasCert => {
-                if has_hw_identity {
-                    return Err(Error::ExtensionError(ExtensionError::InvalidValue(
-                        alloc::string::String::from(
-                            "AliasCert MUST NOT contain Hardware Identity OID",
-                        ),
-                    )));
-                }
-            }
-            SpdmCertificateModel::GenericCert => {
-                // No specific requirement for GenericCert
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Check if Hardware Identity OID is present in SPDM extension.
-    ///
-    /// The SPDM extension value is an OCTET STRING containing a DER-encoded
-    /// SEQUENCE OF ObjectIdentifier.  We parse this properly with the `der`
-    /// crate instead of doing a raw byte-pattern search (which could
-    /// false-positive on arbitrary DER content).
-    fn check_hardware_identity_in_extension(
-        &self,
-        extn_value: &der::asn1::OctetString,
-    ) -> Result<bool> {
-        use const_oid::ObjectIdentifier;
-        use der::{Decode, Header, Reader, SliceReader, Tag};
-
-        let bytes = extn_value.as_bytes();
-
-        let mut reader = SliceReader::new(bytes).map_err(|e| {
-            Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
-                alloc::format!("Invalid SPDM extension encoding: {:?}", e),
-            ))
-        })?;
-
-        // Read the outer SEQUENCE header
-        let header = Header::decode(&mut reader).map_err(|e| {
-            Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
-                alloc::format!("Invalid SPDM extension SEQUENCE header: {:?}", e),
-            ))
-        })?;
-
-        if header.tag != Tag::Sequence {
-            return Err(Error::ExtensionError(
-                crate::error::ExtensionError::InvalidEncoding(alloc::format!(
-                    "Expected SEQUENCE in SPDM extension, got {:?}",
-                    header.tag
-                )),
-            ));
-        }
-
-        // Iterate over elements within the SEQUENCE.
-        // Each element may be a bare OID or a SEQUENCE { OID, ... }.
-        let mut found = false;
-        reader
-            .read_nested(header.length, |seq_reader| {
-                while !seq_reader.is_finished() {
-                    let tag = seq_reader.peek_tag()?;
-                    let oid = if tag == Tag::Sequence {
-                        let hdr = Header::decode(seq_reader)?;
-                        seq_reader.read_nested(hdr.length, |inner| {
-                            let id = ObjectIdentifier::decode(inner)?;
-                            while !inner.is_finished() {
-                                let _: der::Any = Decode::decode(inner)?;
-                            }
-                            Ok(id)
-                        })?
-                    } else {
-                        ObjectIdentifier::decode(seq_reader)?
-                    };
-                    if oid == oids::HARDWARE_IDENTITY {
-                        found = true;
-                    }
-                }
-                Ok(())
-            })
-            .map_err(|e| {
-                Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
-                    alloc::format!("Failed to parse SPDM extension OIDs: {:?}", e),
-                ))
-            })?;
-
-        Ok(found)
+        // Hardware-identity validation is a pure extension-byte inspection with no
+        // cryptographic operation, so delegate to the backend-free free function.
+        validate_hardware_identity(cert, model)
     }
 
     /// Validate Basic Constraints per SPDM certificate model
@@ -669,6 +555,125 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
 
         Ok(())
     }
+}
+
+// =============================================================================
+// Backend-free helpers
+//
+// SPDM hardware-identity validation inspects only X.509 extension bytes and
+// performs no cryptographic operation, so it does not need a `CryptoBackend`.
+// Exposing it as a free function lets callers (e.g. spdmlib's
+// check_leaf_certificate) validate the DeviceCert/AliasCert HW-identity rules
+// without instantiating `SpdmValidator<B>` for a specific backend — which is
+// what allows a build with no classical backend (standalone aws-lc) to compile
+// without referencing `RingBackend`.
+// =============================================================================
+
+/// Validate the SPDM Hardware Identity OID rules for a certificate model
+/// (DSP0274 Section 10.6.1.4), without requiring a crypto backend.
+///
+/// - **DeviceCert**: the SPDM extension with the Hardware Identity OID MUST be present.
+/// - **AliasCert**: the Hardware Identity OID MUST NOT be present.
+/// - **GenericCert**: no requirement.
+pub fn validate_hardware_identity(cert: &Certificate, model: SpdmCertificateModel) -> Result<()> {
+    let spdm_ext = match find_extension(cert, &oids::SPDM_EXTENSION) {
+        Some(ext) => ext,
+        None => {
+            if model == SpdmCertificateModel::DeviceCert {
+                return Err(Error::ExtensionError(
+                    ExtensionError::MissingRequiredExtension(alloc::string::String::from(
+                        "DeviceCert requires SPDM extension with Hardware Identity",
+                    )),
+                ));
+            }
+            return Ok(());
+        }
+    };
+
+    let has_hw_identity = check_hardware_identity_in_extension(&spdm_ext.extn_value)?;
+
+    match model {
+        SpdmCertificateModel::DeviceCert => {
+            if !has_hw_identity {
+                return Err(Error::ExtensionError(
+                    ExtensionError::MissingRequiredExtension(alloc::string::String::from(
+                        "DeviceCert MUST contain Hardware Identity OID",
+                    )),
+                ));
+            }
+        }
+        SpdmCertificateModel::AliasCert => {
+            if has_hw_identity {
+                return Err(Error::ExtensionError(ExtensionError::InvalidValue(
+                    alloc::string::String::from("AliasCert MUST NOT contain Hardware Identity OID"),
+                )));
+            }
+        }
+        SpdmCertificateModel::GenericCert => {}
+    }
+
+    Ok(())
+}
+
+/// Returns `true` if the SPDM extension OCTET STRING (a DER SEQUENCE OF OID)
+/// contains the Hardware Identity OID.
+fn check_hardware_identity_in_extension(extn_value: &der::asn1::OctetString) -> Result<bool> {
+    use const_oid::ObjectIdentifier;
+    use der::{Decode, Header, Reader, SliceReader, Tag};
+
+    let bytes = extn_value.as_bytes();
+
+    let mut reader = SliceReader::new(bytes).map_err(|e| {
+        Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
+            alloc::format!("Invalid SPDM extension encoding: {:?}", e),
+        ))
+    })?;
+
+    let header = Header::decode(&mut reader).map_err(|e| {
+        Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
+            alloc::format!("Invalid SPDM extension SEQUENCE header: {:?}", e),
+        ))
+    })?;
+
+    if header.tag != Tag::Sequence {
+        return Err(Error::ExtensionError(
+            crate::error::ExtensionError::InvalidEncoding(alloc::format!(
+                "Expected SEQUENCE in SPDM extension, got {:?}",
+                header.tag
+            )),
+        ));
+    }
+
+    let mut found = false;
+    reader
+        .read_nested(header.length, |seq_reader| {
+            while !seq_reader.is_finished() {
+                let tag = seq_reader.peek_tag()?;
+                let oid = if tag == Tag::Sequence {
+                    let hdr = Header::decode(seq_reader)?;
+                    seq_reader.read_nested(hdr.length, |inner| {
+                        let id = ObjectIdentifier::decode(inner)?;
+                        while !inner.is_finished() {
+                            let _: der::Any = Decode::decode(inner)?;
+                        }
+                        Ok(id)
+                    })?
+                } else {
+                    ObjectIdentifier::decode(seq_reader)?
+                };
+                if oid == oids::HARDWARE_IDENTITY {
+                    found = true;
+                }
+            }
+            Ok(())
+        })
+        .map_err(|e| {
+            Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
+                alloc::format!("Failed to parse SPDM extension OIDs: {:?}", e),
+            ))
+        })?;
+
+    Ok(found)
 }
 
 #[cfg(all(test, feature = "ring-backend"))]

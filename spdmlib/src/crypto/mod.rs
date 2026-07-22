@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021-2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -30,24 +30,23 @@ use conquer_once::spin::OnceCell;
 
 /// Check if a certificate is a root certificate (self-signed).
 ///
-/// A self-signed certificate must be both self-issued (issuer == subject)
-/// and have a valid self-signature (RFC 5280).
+/// A self-signed root must be self-issued (issuer == subject) and have a valid
+/// self-signature (RFC 5280).
+///
+/// The root's self-signature is verified cryptographically by the registered
+/// `cert_operation::verify_cert_chain`, which runs before this function in the
+/// GET_CERTIFICATE / ENCAP_GET_CERTIFICATE flow: the X.509 chain walk verifies
+/// the root (last cert) against its own public key using the *active* crypto
+/// backend (ring, mbedtls, or aws-lc). This function therefore only checks the
+/// self-issued property here, avoiding a second, backend-hardcoded signature
+/// check — which is what lets a post-quantum backend (aws-lc, verifying ML-DSA)
+/// validate an ML-DSA root without a separate ring-only re-verification.
 pub fn is_root_certificate(cert_der: &[u8]) -> SpdmResult {
     let cert = spdm_x509::Certificate::from_der(cert_der).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
 
-    // Check self-issued: issuer == subject
+    // Check self-issued: issuer == subject.
     if cert.tbs_certificate.issuer != cert.tbs_certificate.subject {
         return Err(SPDM_STATUS_INVALID_CERT);
-    }
-
-    // Verify self-signature using the cert's own public key
-    #[cfg(feature = "spdm-ring")]
-    {
-        let validator =
-            spdm_x509::x509::validator::Validator::<spdm_x509::crypto_backend::RingBackend>::new();
-        validator
-            .verify_signature(&cert, &cert)
-            .map_err(|_| SPDM_STATUS_INVALID_CERT)?;
     }
 
     Ok(())
@@ -105,10 +104,10 @@ pub fn check_leaf_certificate(cert_der: &[u8], is_alias_cert: bool) -> SpdmResul
     } else {
         spdm_x509::x509::spdm_validator::SpdmCertificateModel::GenericCert
     };
-    let validator = spdm_x509::x509::spdm_validator::SpdmValidator::<
-        spdm_x509::crypto_backend::RingBackend,
-    >::new();
-    if validator.validate_hardware_identity(&cert, model).is_err() {
+    // Hardware-identity validation inspects only extension bytes (no crypto), so
+    // use the backend-free helper — this keeps check_leaf_certificate independent
+    // of any specific crypto backend (ring/mbedtls/aws-lc).
+    if spdm_x509::x509::spdm_validator::validate_hardware_identity(&cert, model).is_err() {
         log::error!(
             "Leaf certificate hardware identity check failed for model {:?}",
             model

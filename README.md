@@ -172,6 +172,20 @@ The following list shows the supported combinations for both spdm-requester-emu 
 | spdm-mbedtls,hashed-transcript-data,is_sync        | mbedtls       | Yes                            | sync                   | use mbedtls as crypto library with hashed-transcript-data enabled, sync version.                                |
 | spdm-mbedtls,hashed-transcript-data,async-executor | mbedtls       | Yes                            | executor async runtime | use mbedtls as crypto library with hashed-transcript-data enabled, async version, use executor as async runtime |
 | spdm-ring,hashed-transcript-data,async-executor,spdm-aws-lc | ring+aws-lc-rs | Yes                    | executor async runtime | use ring + aws-lc-rs for PQC (ML-DSA, ML-KEM) with hashed-transcript-data enabled, async version               |
+| spdm-mbedtls,hashed-transcript-data,async-executor,spdm-aws-lc | mbedtls+aws-lc-rs | Yes                 | executor async runtime | use mbedtls + aws-lc-rs for PQC (ML-DSA, ML-KEM) with hashed-transcript-data enabled, async version            |
+| spdm-aws-lc,hashed-transcript-data,async-executor  | aws-lc-rs (standalone) | Yes            | executor async runtime | aws-lc-rs alone (no spdm-ring/spdm-mbedtls) for BOTH classical and PQC — no ring, no mbedtls linked. std-only.  |
+
+Notes on `spdm-aws-lc`:
+* Combined with a classical backend (`spdm-ring` or `spdm-mbedtls`),
+  `spdm-aws-lc` is a **PQC overlay**: it supplies only the post-quantum
+  algorithms (ML-DSA, ML-KEM) on top of that backend, which still provides the
+  traditional algorithms (hash, HMAC, AEAD, ECDHE, RSA/ECDSA, HKDF, cert chain).
+* On its own — `spdm-aws-lc` with neither `spdm-ring` nor `spdm-mbedtls` — it is
+  the **standalone** backend: aws-lc-rs supplies *both* classical and PQC crypto,
+  with no ring and no mbedtls linked (`cargo tree -i ring` reports ring absent).
+  This mode is **std-only** — aws-lc-rs cannot serve the `no_std`
+  (`x86_64-unknown-none`) target, so ring/mbedtls remain the backends for
+  embedded/UEFI builds.
 
 
 For example, run the emulator with spdm-ring enabled and without hashed-transcript-data enabled, and use executor as async runtime. 

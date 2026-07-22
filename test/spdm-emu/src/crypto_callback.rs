@@ -1,16 +1,31 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021-2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+// PathBuf is only used by the classical backend signing paths (which read a key
+// file); a no-backend build (cargo test --features spdmlib/spdm-ring) uses none.
+#[cfg(any(
+    feature = "spdm-ring",
+    feature = "spdm-mbedtls",
+    feature = "spdm-aws-lc"
+))]
 use std::path::PathBuf;
 
 use spdmlib::common::SpdmContext;
 use spdmlib::secret::{SpdmSecretAsymSign, SpdmSecretPqcAsymSign};
 
+use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+// Only the classical backend paths (ring / aws-lc) use the RSA signature sizes
+// and the max signature buffer; gate them so a no-backend build (used by
+// `cargo test --features spdmlib/spdm-ring`) is warning-free.
+#[cfg(any(
+    feature = "spdm-ring",
+    feature = "spdm-mbedtls",
+    feature = "spdm-aws-lc"
+))]
 use spdmlib::protocol::{
-    SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct, RSAPSS_2048_SIG_SIZE,
-    RSAPSS_3072_SIG_SIZE, RSAPSS_4096_SIG_SIZE, RSASSA_2048_SIG_SIZE, RSASSA_3072_SIG_SIZE,
-    RSASSA_4096_SIG_SIZE, SPDM_MAX_ASYM_SIG_SIZE,
+    RSAPSS_2048_SIG_SIZE, RSAPSS_3072_SIG_SIZE, RSAPSS_4096_SIG_SIZE, RSASSA_2048_SIG_SIZE,
+    RSASSA_3072_SIG_SIZE, RSASSA_4096_SIG_SIZE, SPDM_MAX_ASYM_SIG_SIZE,
 };
 
 pub static SECRET_ASYM_IMPL_INSTANCE: SpdmSecretAsymSign =
@@ -20,6 +35,12 @@ pub static SECRET_PQC_ASYM_IMPL_INSTANCE: SpdmSecretPqcAsymSign = SpdmSecretPqcA
     sign_cb: pqc_asym_sign,
 };
 
+// Classical secret-signing for the emulator. Two implementations are provided:
+// a ring-based one (used by spdm-ring / spdm-mbedtls builds) and an aws-lc-based
+// one (used by a standalone spdm-aws-lc build that links no ring, i.e. spdm-aws-lc
+// without spdm-ring or spdm-mbedtls). Exactly one `asym_sign` is compiled, so
+// SECRET_ASYM_IMPL_INSTANCE resolves correctly.
+#[cfg(any(feature = "spdm-ring", feature = "spdm-mbedtls"))]
 fn asym_sign(
     _spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
@@ -93,6 +114,7 @@ fn asym_sign(
     }
 }
 
+#[cfg(any(feature = "spdm-ring", feature = "spdm-mbedtls"))]
 fn sign_ecdsa_asym_algo(
     algorithm: &'static ring::signature::EcdsaSigningAlgorithm,
     data: &[u8],
@@ -137,6 +159,7 @@ fn sign_ecdsa_asym_algo(
     })
 }
 
+#[cfg(any(feature = "spdm-ring", feature = "spdm-mbedtls"))]
 fn sign_rsa_asym_algo(
     padding_alg: &'static dyn ring::signature::RsaEncoding,
     key_len: usize,
@@ -189,6 +212,188 @@ fn sign_rsa_asym_algo(
         data_size: key_len as u16,
         data: full_sign,
     })
+}
+
+// aws-lc-rs classical secret-signing, for a standalone aws-lc build with no ring.
+// Mirrors the ring implementation above; aws-lc-rs exposes a ring-compatible
+// signing API (EcdsaKeyPair::from_pkcs8, RsaKeyPair::from_der, .sign()).
+#[cfg(all(
+    feature = "spdm-aws-lc",
+    not(feature = "spdm-ring"),
+    not(feature = "spdm-mbedtls")
+))]
+fn asym_sign(
+    _spdm_context: &SpdmContext,
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    use aws_lc_rs::signature;
+    match (base_hash_algo, base_asym_algo) {
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256) => {
+            sign_ecdsa_asym_algo_aws_lc(&signature::ECDSA_P256_SHA256_FIXED_SIGNING, data)
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
+            sign_ecdsa_asym_algo_aws_lc(&signature::ECDSA_P384_SHA384_FIXED_SIGNING, data)
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
+            sign_rsa_asym_algo_aws_lc(
+                &signature::RSA_PKCS1_SHA256,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
+            sign_rsa_asym_algo_aws_lc(
+                &signature::RSA_PSS_SHA256,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
+            sign_rsa_asym_algo_aws_lc(
+                &signature::RSA_PKCS1_SHA384,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
+            sign_rsa_asym_algo_aws_lc(
+                &signature::RSA_PSS_SHA384,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
+            sign_rsa_asym_algo_aws_lc(
+                &signature::RSA_PKCS1_SHA512,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
+            sign_rsa_asym_algo_aws_lc(
+                &signature::RSA_PSS_SHA512,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        _ => panic!(),
+    }
+}
+
+#[cfg(all(
+    feature = "spdm-aws-lc",
+    not(feature = "spdm-ring"),
+    not(feature = "spdm-mbedtls")
+))]
+fn sign_ecdsa_asym_algo_aws_lc(
+    algorithm: &'static aws_lc_rs::signature::EcdsaSigningAlgorithm,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    use aws_lc_rs::signature;
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDMRS_RSP_EMU_PRIVATE_KEY_PATH") {
+        PathBuf::from(env_key_path)
+    } else {
+        let crate_dir = get_test_key_directory();
+        if algorithm == &signature::ECDSA_P256_SHA256_FIXED_SIGNING {
+            crate_dir.join("test_key/ecp256/end_responder.key.p8")
+        } else if algorithm == &signature::ECDSA_P384_SHA384_FIXED_SIGNING {
+            crate_dir.join("test_key/ecp384/end_responder.key.p8")
+        } else {
+            panic!("not support")
+        }
+    };
+    let der_file = std::fs::read(&key_file_path)
+        .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
+    let key_pair = signature::EcdsaKeyPair::from_pkcs8(algorithm, der_file.as_slice()).ok()?;
+    let rng = aws_lc_rs::rand::SystemRandom::new();
+    let signature = key_pair.sign(&rng, data).ok()?;
+    let signature = signature.as_ref();
+
+    let mut full_signature: [u8; SPDM_MAX_ASYM_SIG_SIZE] = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
+    full_signature[..signature.len()].copy_from_slice(signature);
+    Some(SpdmSignatureStruct {
+        data_size: signature.len() as u16,
+        data: full_signature,
+    })
+}
+
+#[cfg(all(
+    feature = "spdm-aws-lc",
+    not(feature = "spdm-ring"),
+    not(feature = "spdm-mbedtls")
+))]
+fn sign_rsa_asym_algo_aws_lc(
+    padding_alg: &'static dyn aws_lc_rs::signature::RsaEncoding,
+    key_len: usize,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    use aws_lc_rs::signature;
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDMRS_RSP_EMU_PRIVATE_KEY_PATH") {
+        PathBuf::from(env_key_path)
+    } else {
+        let crate_dir = get_test_key_directory();
+        #[allow(unreachable_patterns)]
+        match key_len {
+            RSASSA_2048_SIG_SIZE | RSAPSS_2048_SIG_SIZE => {
+                crate_dir.join("test_key/rsa2048/end_responder.key.der")
+            }
+            RSASSA_3072_SIG_SIZE | RSAPSS_3072_SIG_SIZE => {
+                crate_dir.join("test_key/rsa3072/end_responder.key.der")
+            }
+            RSASSA_4096_SIG_SIZE | RSAPSS_4096_SIG_SIZE => {
+                crate_dir.join("test_key/rsa3072/end_responder.key.der")
+            }
+            _ => panic!("RSA key len not supported"),
+        }
+    };
+    let der_file = std::fs::read(&key_file_path)
+        .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
+    let key_pair = signature::RsaKeyPair::from_der(der_file.as_slice()).ok()?;
+    if key_len != key_pair.public_modulus_len() {
+        panic!();
+    }
+    let rng = aws_lc_rs::rand::SystemRandom::new();
+    let mut full_sign = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
+    key_pair
+        .sign(padding_alg, &rng, data, &mut full_sign[0..key_len])
+        .ok()?;
+    Some(SpdmSignatureStruct {
+        data_size: key_len as u16,
+        data: full_sign,
+    })
+}
+
+// Fallback used only when the emulator library is compiled with no crypto
+// backend feature at all (e.g. `cargo test --features spdmlib/spdm-ring`, which
+// enables spdmlib's backend but not spdm-emu's own spdm-ring/spdm-mbedtls/
+// spdm-aws-lc). SECRET_ASYM_IMPL_INSTANCE is unconditional, so `asym_sign` must
+// always resolve; the emu binaries always select a real backend feature.
+#[cfg(not(any(
+    feature = "spdm-ring",
+    feature = "spdm-mbedtls",
+    feature = "spdm-aws-lc"
+)))]
+fn asym_sign(
+    _spdm_context: &SpdmContext,
+    _base_hash_algo: SpdmBaseHashAlgo,
+    _base_asym_algo: SpdmBaseAsymAlgo,
+    _data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    unimplemented!("classical signing requires spdm-ring, spdm-mbedtls, or spdm-aws-lc")
 }
 
 fn pqc_asym_sign(
@@ -250,6 +455,11 @@ fn pqc_asym_sign(
     }
 }
 
+#[cfg(any(
+    feature = "spdm-ring",
+    feature = "spdm-mbedtls",
+    feature = "spdm-aws-lc"
+))]
 fn get_test_key_directory() -> PathBuf {
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let crate_dir = crate_dir
@@ -262,6 +472,11 @@ fn get_test_key_directory() -> PathBuf {
 
 /// Register PQC crypto callbacks (KEM and ML-DSA verification) using aws-lc-rs.
 /// Must be called before any PQC operations.
+///
+/// This is the PQC **overlay** registration: it adds ML-KEM, ML-DSA message
+/// verification, and the ML-DSA certificate-chain hook on top of a classical
+/// backend (ring or mbedtls) that has already been registered for the
+/// traditional primitives.
 #[cfg(feature = "spdm-aws-lc")]
 pub fn register_pqc_crypto_callbacks() {
     spdmlib::crypto::pqc_asym_verify::register(
@@ -273,4 +488,40 @@ pub fn register_pqc_crypto_callbacks() {
     // PQC certificate chain mode (DSP0274 1.4) can be used, not just raw
     // public key mode.
     spdmlib_crypto_aws_lc::pqc_cert_verify_impl::register();
+}
+
+/// Register aws-lc-rs as the **standalone** crypto backend for BOTH traditional
+/// and post-quantum algorithms — no ring, no mbedtls.
+///
+/// This installs the full aws-lc primitive set (hash, HMAC, AEAD, ECDHE,
+/// RSA/ECDSA verify, HKDF, rand, certificate-chain verification) plus ML-KEM
+/// and ML-DSA. Because the aws-lc certificate backend (`AwsLcBackend`) verifies
+/// ML-DSA itself, the runtime PQC verifier hook is intentionally NOT registered
+/// here — ML-DSA certificate signatures go through the normal cert_operation
+/// path. aws-lc-rs is std-only, so this cannot be used for no_std targets.
+#[cfg(feature = "spdm-aws-lc")]
+pub fn register_aws_lc_crypto_callbacks() {
+    // Traditional primitives.
+    spdmlib::crypto::hash::register(spdmlib_crypto_aws_lc::hash_impl::DEFAULT.clone());
+    spdmlib::crypto::hmac::register(spdmlib_crypto_aws_lc::hmac_impl::DEFAULT.clone());
+    spdmlib::crypto::aead::register(spdmlib_crypto_aws_lc::aead_impl::DEFAULT.clone());
+    spdmlib::crypto::asym_verify::register(
+        spdmlib_crypto_aws_lc::asym_verify_impl::DEFAULT.clone(),
+    );
+    spdmlib::crypto::dhe::register(spdmlib_crypto_aws_lc::dhe_impl::DEFAULT.clone());
+    spdmlib::crypto::hkdf::register(spdmlib_crypto_aws_lc::hkdf_impl::DEFAULT.clone());
+    spdmlib::crypto::rand::register(spdmlib_crypto_aws_lc::rand_impl::DEFAULT.clone());
+    spdmlib::crypto::cert_operation::register(
+        spdmlib_crypto_aws_lc::cert_operation_impl::DEFAULT.clone(),
+    );
+    // Post-quantum primitives (message signatures + KEM). No PQC cert-chain
+    // verifier hook is registered: AwsLcBackend (cert_operation, above) verifies
+    // ML-DSA certificate signatures directly, and is_root_certificate() no longer
+    // performs a separate backend-hardcoded self-signature check. The standalone
+    // aws-lc path is therefore fully hook-free for ML-DSA certificate chains.
+    spdmlib::crypto::pqc_asym_verify::register(
+        spdmlib_crypto_aws_lc::pqc_asym_verify_impl::DEFAULT.clone(),
+    );
+    spdmlib::crypto::kem_decap::register(spdmlib_crypto_aws_lc::kem_impl::DEFAULT_DECAP.clone());
+    spdmlib::crypto::kem_encap::register(spdmlib_crypto_aws_lc::kem_impl::DEFAULT_ENCAP.clone());
 }

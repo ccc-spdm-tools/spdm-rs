@@ -1918,9 +1918,12 @@ name = "spdmlib_crypto_aws_lc"
 version = "0.1.0"
 dependencies = [
  "aws-lc-rs",
+ "bytes",
+ "lazy_static",
  "log",
  "spdm_x509",
  "spdmlib",
+ "spin 0.9.8",
 ]
 
 [[package]]

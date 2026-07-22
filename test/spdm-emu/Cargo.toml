@@ -8,8 +8,11 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.13"
-ring = { version = "0.17.14" }
-untrusted = { version = "0.9.0" }
+# ring is only used for the emulator's classical secret-signing helper; optional
+# so a standalone aws-lc build (spdm-aws-lc without spdm-ring/spdm-mbedtls)
+# links no ring.
+ring = { version = "0.17.14", optional = true }
+untrusted = { version = "0.9.0", optional = true }
 codec = { path = "../../codec" }
 spdmlib = { path = "../../spdmlib", default-features = false }
 mctp_transport = { path = "../../mctp_transport" }
@@ -32,10 +35,15 @@ default = ["spdm-ring", "spdmlib/hashed-transcript-data", "async-executor"]
 mut-auth = ["spdmlib/mut-auth"]
 chunk-cap = ["spdmlib/chunk-cap"]
 mandatory-mut-auth = ["mut-auth", "spdmlib/mandatory-mut-auth"]
-spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std"]
-spdm-mbedtls = ["spdmlib_crypto_mbedtls"]
-spdm-aws-lc = ["spdmlib_crypto_aws_lc", "aws-lc-rs"]
-hashed-transcript-data = ["spdmlib/hashed-transcript-data", "spdmlib_crypto_mbedtls?/hashed-transcript-data"]
+spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std", "dep:ring", "dep:untrusted"]
+spdm-mbedtls = ["spdmlib_crypto_mbedtls", "dep:ring", "dep:untrusted"]
+# aws-lc-rs crypto (ML-DSA, ML-KEM, and the traditional primitives). Pulls
+# spdmlib/std because aws-lc-rs is std-only. Combined with spdm-ring or
+# spdm-mbedtls it is a PQC overlay on that classical backend; on its own (no
+# spdm-ring, no spdm-mbedtls) it is the standalone backend for BOTH classical
+# and PQC crypto, with no ring and no mbedtls linked. std-only (not for no_std).
+spdm-aws-lc = ["spdmlib_crypto_aws_lc", "aws-lc-rs", "spdmlib/std"]
+hashed-transcript-data = ["spdmlib/hashed-transcript-data", "spdmlib_crypto_mbedtls?/hashed-transcript-data", "spdmlib_crypto_aws_lc?/hashed-transcript-data"]
 async-executor = []
 async-tokio = []
 is_sync = ["spdmlib/is_sync", "maybe-async/is_sync", "mctp_transport/is_sync", "pcidoe_transport/is_sync"]
