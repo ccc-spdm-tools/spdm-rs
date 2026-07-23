@@ -12,6 +12,7 @@ use spdmlib::protocol::{SpdmKemAlgo, SpdmKemEncapKeyStruct};
 
 pub static DEFAULT_DECAP: SpdmKemDecap = SpdmKemDecap {
     generate_key_pair_cb: kem_generate_key_pair,
+    import_decap_key_cb: None,
 };
 
 fn kem_generate_key_pair(
