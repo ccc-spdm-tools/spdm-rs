@@ -997,7 +997,7 @@ pub fn verify_signature_with_backend<B: crate::crypto_backend::CryptoBackend>(
 ///     signature
 /// );
 /// ```
-#[cfg(feature = "ring-backend")]
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
 pub fn verify_signature(
     base_hash_algo: SpdmBaseHashAlgo,
     base_asym_algo: SpdmBaseAsymAlgo,
@@ -1011,12 +1011,12 @@ pub fn verify_signature(
         public_cert_der,
         data,
         signature,
-        &crate::crypto_backend::RingBackend,
+        &crate::crypto_backend::default_backend(),
     )
 }
 
 /// Fallback when no crypto backend is compiled in.
-#[cfg(not(feature = "ring-backend"))]
+#[cfg(not(any(feature = "ring-backend", feature = "mbedtls-backend")))]
 pub fn verify_signature(
     _base_hash_algo: SpdmBaseHashAlgo,
     _base_asym_algo: SpdmBaseAsymAlgo,
@@ -1024,5 +1024,7 @@ pub fn verify_signature(
     _data: &[u8],
     _signature: &[u8],
 ) -> Result<()> {
-    unimplemented!("verify_signature requires a crypto backend feature (e.g. ring-backend)")
+    unimplemented!(
+        "verify_signature requires a crypto backend feature (ring-backend or mbedtls-backend)"
+    )
 }

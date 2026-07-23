@@ -138,9 +138,9 @@ pub struct SpdmValidator<B: crate::crypto_backend::CryptoBackend> {
     validator: Validator<B>,
 }
 
-#[cfg(feature = "ring-backend")]
-impl SpdmValidator<crate::crypto_backend::RingBackend> {
-    /// Create a new SPDM validator using the default Ring backend.
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
+impl SpdmValidator<crate::crypto_backend::DefaultBackend> {
+    /// Create a new SPDM validator using the default crypto backend.
     pub fn new() -> Self {
         Self {
             validator: Validator::new(),
@@ -148,15 +148,15 @@ impl SpdmValidator<crate::crypto_backend::RingBackend> {
     }
 }
 
-#[cfg(feature = "ring-backend")]
-impl Default for SpdmValidator<crate::crypto_backend::RingBackend> {
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
+impl Default for SpdmValidator<crate::crypto_backend::DefaultBackend> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-// `new()` and `Default` are only available with the ring backend.
-// Without ring, callers must use `SpdmValidator::with_backend(backend)`.
+// `new()` and `Default` are only available with a default crypto backend.
+// Without one, callers must use `SpdmValidator::with_backend(backend)`.
 
 impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
     /// Create a new SPDM validator with a specific crypto backend.

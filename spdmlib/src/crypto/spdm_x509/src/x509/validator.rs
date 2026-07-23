@@ -18,8 +18,8 @@ use alloc::vec::Vec;
 
 use crate::certificate::Certificate;
 use crate::chain::CertificateChain;
-#[cfg(feature = "ring-backend")]
-use crate::crypto_backend::RingBackend;
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
+use crate::crypto_backend::{default_backend, DefaultBackend};
 use crate::crypto_backend::{CryptoBackend, SignatureAlgorithm};
 use crate::error::{Error, Result};
 use crate::x509::extensions::{
@@ -99,11 +99,11 @@ pub struct Validator<B: CryptoBackend> {
     known_extensions: Vec<ObjectIdentifier>,
 }
 
-#[cfg(feature = "ring-backend")]
-impl Validator<RingBackend> {
-    /// Create a new Validator with the Ring backend
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
+impl Validator<DefaultBackend> {
+    /// Create a new Validator with the default crypto backend
     pub fn new() -> Self {
-        Self::with_backend(RingBackend)
+        Self::with_backend(default_backend())
     }
 }
 
@@ -589,8 +589,8 @@ impl<B: CryptoBackend> Validator<B> {
     }
 }
 
-#[cfg(feature = "ring-backend")]
-impl Default for Validator<RingBackend> {
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
+impl Default for Validator<DefaultBackend> {
     fn default() -> Self {
         Self::new()
     }

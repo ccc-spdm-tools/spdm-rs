@@ -35,12 +35,13 @@ pub static SECRET_PQC_ASYM_IMPL_INSTANCE: SpdmSecretPqcAsymSign = SpdmSecretPqcA
     sign_cb: pqc_asym_sign,
 };
 
-// Classical secret-signing for the emulator. Two implementations are provided:
-// a ring-based one (used by spdm-ring / spdm-mbedtls builds) and an aws-lc-based
-// one (used by a standalone spdm-aws-lc build that links no ring, i.e. spdm-aws-lc
-// without spdm-ring or spdm-mbedtls). Exactly one `asym_sign` is compiled, so
-// SECRET_ASYM_IMPL_INSTANCE resolves correctly.
-#[cfg(any(feature = "spdm-ring", feature = "spdm-mbedtls"))]
+// Classical secret-signing for the emulator. Three implementations are provided:
+// a ring-based one (spdm-ring build), an mbedtls-based one (spdm-mbedtls build
+// with no ring), and an aws-lc-based one (standalone spdm-aws-lc build that links
+// no ring, i.e. spdm-aws-lc without spdm-ring or spdm-mbedtls). The cfg gates are
+// mutually exclusive — ring wins when spdm-ring is enabled — so exactly one
+// `asym_sign` is compiled and SECRET_ASYM_IMPL_INSTANCE resolves correctly.
+#[cfg(feature = "spdm-ring")]
 fn asym_sign(
     _spdm_context: &SpdmContext,
     base_hash_algo: SpdmBaseHashAlgo,
@@ -114,7 +115,7 @@ fn asym_sign(
     }
 }
 
-#[cfg(any(feature = "spdm-ring", feature = "spdm-mbedtls"))]
+#[cfg(feature = "spdm-ring")]
 fn sign_ecdsa_asym_algo(
     algorithm: &'static ring::signature::EcdsaSigningAlgorithm,
     data: &[u8],
@@ -159,7 +160,7 @@ fn sign_ecdsa_asym_algo(
     })
 }
 
-#[cfg(any(feature = "spdm-ring", feature = "spdm-mbedtls"))]
+#[cfg(feature = "spdm-ring")]
 fn sign_rsa_asym_algo(
     padding_alg: &'static dyn ring::signature::RsaEncoding,
     key_len: usize,
@@ -212,6 +213,239 @@ fn sign_rsa_asym_algo(
         data_size: key_len as u16,
         data: full_sign,
     })
+}
+
+// mbedtls classical secret-signing, for a spdm-mbedtls build that links no ring.
+// mbedtls signs a pre-computed digest (not the message) and, for ECDSA, emits a
+// DER-encoded signature, so this pre-hashes the data and converts the ECDSA DER
+// output back to the fixed r||s form SPDM expects. RSA-PSS padding is selected
+// via Pk::set_options; PKCS#1 v1.5 is mbedtls's default for an RSA key.
+#[cfg(all(feature = "spdm-mbedtls", not(feature = "spdm-ring")))]
+fn asym_sign(
+    _spdm_context: &SpdmContext,
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    match (base_hash_algo, base_asym_algo) {
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
+            sign_ecdsa_asym_algo_mbedtls(base_hash_algo, base_asym_algo, data)
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
+            sign_rsa_asym_algo_mbedtls(
+                base_hash_algo,
+                false,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
+        | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
+            sign_rsa_asym_algo_mbedtls(
+                base_hash_algo,
+                true,
+                base_asym_algo.get_sig_size() as usize,
+                data,
+            )
+        }
+        _ => panic!(),
+    }
+}
+
+// Map an SPDM base hash algorithm to the mbedtls message-digest type used to
+// pre-hash the data before signing.
+#[cfg(all(feature = "spdm-mbedtls", not(feature = "spdm-ring")))]
+fn mbedtls_md_type(base_hash_algo: SpdmBaseHashAlgo) -> mbedtls::hash::Type {
+    match base_hash_algo {
+        SpdmBaseHashAlgo::TPM_ALG_SHA_256 => mbedtls::hash::Type::Sha256,
+        SpdmBaseHashAlgo::TPM_ALG_SHA_384 => mbedtls::hash::Type::Sha384,
+        SpdmBaseHashAlgo::TPM_ALG_SHA_512 => mbedtls::hash::Type::Sha512,
+        _ => panic!("unsupported hash algo for mbedtls signing"),
+    }
+}
+
+#[cfg(all(feature = "spdm-mbedtls", not(feature = "spdm-ring")))]
+fn mbedtls_digest(base_hash_algo: SpdmBaseHashAlgo, data: &[u8]) -> ([u8; 64], usize) {
+    let md = mbedtls_md_type(base_hash_algo);
+    let mut out = [0u8; 64];
+    let len = mbedtls::hash::Md::hash(md, data, &mut out).expect("mbedtls digest failed");
+    (out, len)
+}
+
+#[cfg(all(feature = "spdm-mbedtls", not(feature = "spdm-ring")))]
+fn sign_ecdsa_asym_algo_mbedtls(
+    base_hash_algo: SpdmBaseHashAlgo,
+    base_asym_algo: SpdmBaseAsymAlgo,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDMRS_RSP_EMU_PRIVATE_KEY_PATH") {
+        PathBuf::from(env_key_path)
+    } else {
+        let crate_dir = get_test_key_directory();
+        match base_asym_algo {
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256 => {
+                crate_dir.join("test_key/ecp256/end_responder.key.p8")
+            }
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
+                crate_dir.join("test_key/ecp384/end_responder.key.p8")
+            }
+            _ => panic!("not support"),
+        }
+    };
+    let der_file = std::fs::read(&key_file_path)
+        .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
+
+    let mut pk = mbedtls::pk::Pk::from_private_key(der_file.as_slice(), None).ok()?;
+
+    let md = mbedtls_md_type(base_hash_algo);
+    let (digest, digest_len) = mbedtls_digest(base_hash_algo, data);
+
+    // mbedtls emits a DER-encoded ECDSA signature; sign into a scratch buffer
+    // (>= ECDSA_MAX_LEN) then convert to the fixed r||s form SPDM expects.
+    let mut der_sig = [0u8; mbedtls::pk::ECDSA_MAX_LEN];
+    let mut rng = mbedtls::rng::Rdrand;
+    let der_len = pk
+        .sign(md, &digest[..digest_len], &mut der_sig, &mut rng)
+        .ok()?;
+
+    let fixed_size = base_asym_algo.get_sig_size() as usize;
+    let mut full_signature: [u8; SPDM_MAX_ASYM_SIG_SIZE] = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
+    ecc_signature_der_to_bin(&der_sig[..der_len], &mut full_signature[..fixed_size])?;
+
+    Some(SpdmSignatureStruct {
+        data_size: fixed_size as u16,
+        data: full_signature,
+    })
+}
+
+#[cfg(all(feature = "spdm-mbedtls", not(feature = "spdm-ring")))]
+fn sign_rsa_asym_algo_mbedtls(
+    base_hash_algo: SpdmBaseHashAlgo,
+    is_pss: bool,
+    key_len: usize,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    let key_file_path = if let Ok(env_key_path) = std::env::var("SPDMRS_RSP_EMU_PRIVATE_KEY_PATH") {
+        PathBuf::from(env_key_path)
+    } else {
+        let crate_dir = get_test_key_directory();
+        #[allow(unreachable_patterns)]
+        match key_len {
+            RSASSA_2048_SIG_SIZE | RSAPSS_2048_SIG_SIZE => {
+                crate_dir.join("test_key/rsa2048/end_responder.key.der")
+            }
+            RSASSA_3072_SIG_SIZE | RSAPSS_3072_SIG_SIZE => {
+                crate_dir.join("test_key/rsa3072/end_responder.key.der")
+            }
+            RSASSA_4096_SIG_SIZE | RSAPSS_4096_SIG_SIZE => {
+                crate_dir.join("test_key/rsa3072/end_responder.key.der")
+            }
+            _ => panic!("RSA key len not supported"),
+        }
+    };
+    let der_file = std::fs::read(&key_file_path)
+        .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
+
+    let mut pk = mbedtls::pk::Pk::from_private_key(der_file.as_slice(), None).ok()?;
+
+    let md = mbedtls_md_type(base_hash_algo);
+    if is_pss {
+        // RSA-PSS with MGF1 using the same hash as the message digest.
+        pk.set_options(mbedtls::pk::Options::Rsa {
+            padding: mbedtls::pk::RsaPadding::Pkcs1V21 { mgf: md },
+        });
+    }
+
+    let (digest, digest_len) = mbedtls_digest(base_hash_algo, data);
+
+    let mut full_sign = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
+    let sig_len = pk
+        .sign(
+            md,
+            &digest[..digest_len],
+            &mut full_sign[..key_len],
+            &mut mbedtls::rng::Rdrand,
+        )
+        .ok()?;
+    if sig_len != key_len {
+        panic!(
+            "unexpected RSA signature length {} (want {})",
+            sig_len, key_len
+        );
+    }
+
+    Some(SpdmSignatureStruct {
+        data_size: key_len as u16,
+        data: full_sign,
+    })
+}
+
+// Convert a DER-encoded ECDSA signature (SEQUENCE { INTEGER r, INTEGER s }) into
+// the fixed-width r||s form SPDM uses. `fixed` must be sized to the algorithm's
+// signature length (2 * coordinate size); r and s are left-zero-padded into
+// their halves. This is the inverse of the bin->DER conversion in the mbedtls
+// asym_verify backend.
+#[cfg(all(feature = "spdm-mbedtls", not(feature = "spdm-ring")))]
+fn ecc_signature_der_to_bin(der: &[u8], fixed: &mut [u8]) -> Option<()> {
+    let half = fixed.len() / 2;
+    // SEQUENCE
+    if der.len() < 2 || der[0] != 0x30 {
+        return None;
+    }
+    // Sequence length (assume short form; ECDSA P-256/P-384 sigs fit under 128).
+    let seq_len = der[1] as usize;
+    let mut idx = 2usize;
+    if idx + seq_len != der.len() {
+        return None;
+    }
+
+    // Parse an INTEGER, returning its content bytes with any leading 0x00
+    // sign-padding removed.
+    fn read_int<'a>(buf: &'a [u8], idx: &mut usize) -> Option<&'a [u8]> {
+        if *idx + 2 > buf.len() || buf[*idx] != 0x02 {
+            return None;
+        }
+        let len = buf[*idx + 1] as usize;
+        *idx += 2;
+        if *idx + len > buf.len() {
+            return None;
+        }
+        let mut val = &buf[*idx..*idx + len];
+        *idx += len;
+        while val.len() > 1 && val[0] == 0x00 {
+            val = &val[1..];
+        }
+        Some(val)
+    }
+
+    let r = read_int(der, &mut idx)?;
+    let s = read_int(der, &mut idx)?;
+    if r.len() > half || s.len() > half {
+        return None;
+    }
+
+    for b in fixed.iter_mut() {
+        *b = 0;
+    }
+    fixed[half - r.len()..half].copy_from_slice(r);
+    fixed[2 * half - s.len()..2 * half].copy_from_slice(s);
+    Some(())
 }
 
 // aws-lc-rs classical secret-signing, for a standalone aws-lc build with no ring.
