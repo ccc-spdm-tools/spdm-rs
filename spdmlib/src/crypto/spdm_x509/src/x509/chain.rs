@@ -367,10 +367,10 @@ fn der_sequence_total_length(data: &[u8]) -> Result<usize> {
 /// - `Ok(())` if validation succeeds
 /// - `Err(Error)` if validation fails
 ///
-/// Validate an SPDM certificate chain using the default Ring backend.
+/// Validate an SPDM certificate chain using the default crypto backend.
 ///
 /// Convenience wrapper around [`validate_spdm_cert_chain_with_backend`].
-#[cfg(feature = "ring-backend")]
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
 pub fn validate_spdm_cert_chain(
     header: &SpdmCertChainHeader,
     certificates: &[Certificate],
@@ -382,19 +382,21 @@ pub fn validate_spdm_cert_chain(
         certificates,
         base_hash_algo,
         options,
-        crate::crypto_backend::RingBackend,
+        crate::crypto_backend::default_backend(),
     )
 }
 
 /// Fallback when no crypto backend is compiled in.
-#[cfg(not(feature = "ring-backend"))]
+#[cfg(not(any(feature = "ring-backend", feature = "mbedtls-backend")))]
 pub fn validate_spdm_cert_chain(
     _header: &SpdmCertChainHeader,
     _certificates: &[Certificate],
     _base_hash_algo: u32,
     _options: &ValidationOptions,
 ) -> Result<()> {
-    unimplemented!("validate_spdm_cert_chain requires a crypto backend feature (e.g. ring-backend)")
+    unimplemented!(
+        "validate_spdm_cert_chain requires a crypto backend feature (ring-backend or mbedtls-backend)"
+    )
 }
 
 /// Validate an SPDM certificate chain with SPDM-specific rules using the
@@ -500,7 +502,35 @@ fn compute_hash(data: &[u8], algo: SpdmBaseHashAlgo) -> Result<Vec<u8>> {
         Ok(hash.as_ref().to_vec())
     }
 
-    #[cfg(not(feature = "ring-backend"))]
+    #[cfg(all(feature = "mbedtls-backend", not(feature = "ring-backend")))]
+    {
+        use mbedtls::hash::{Md, Type};
+
+        let md_type = match algo {
+            SpdmBaseHashAlgo::Sha256 => Type::Sha256,
+            SpdmBaseHashAlgo::Sha384 => Type::Sha384,
+            SpdmBaseHashAlgo::Sha512 => Type::Sha512,
+            _ => {
+                return Err(Error::AlgorithmError(
+                    crate::error::AlgorithmError::Unsupported(alloc::format!(
+                        "Hash algorithm not supported by mbedtls backend: {:?}",
+                        algo
+                    )),
+                ));
+            }
+        };
+
+        // SHA-512 output (64 bytes) is the largest we compute.
+        let mut out = [0u8; 64];
+        let len = Md::hash(md_type, data, &mut out).map_err(|_| {
+            Error::AlgorithmError(crate::error::AlgorithmError::Unsupported(
+                alloc::string::String::from("mbedtls hash computation failed"),
+            ))
+        })?;
+        Ok(out[..len].to_vec())
+    }
+
+    #[cfg(not(any(feature = "ring-backend", feature = "mbedtls-backend")))]
     {
         let _ = data;
         let _ = algo;
@@ -984,24 +1014,31 @@ pub fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> Result<(usiz
 /// let cert_chain: &[u8] = &[];
 /// let _ = verify_cert_chain(cert_chain);
 /// ```
-/// Convenience wrapper using the default Ring backend.
+/// Convenience wrapper using the default crypto backend.
 ///
 /// See [`verify_cert_chain_with_backend`] for the generic version.
-#[cfg(feature = "ring-backend")]
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
 pub fn verify_cert_chain(cert_chain: &[u8]) -> Result<()> {
-    verify_cert_chain_with_backend(cert_chain, crate::crypto_backend::RingBackend, None, None)
+    verify_cert_chain_with_backend(
+        cert_chain,
+        crate::crypto_backend::default_backend(),
+        None,
+        None,
+    )
 }
 
 /// Fallback when no crypto backend is compiled in.
-#[cfg(not(feature = "ring-backend"))]
+#[cfg(not(any(feature = "ring-backend", feature = "mbedtls-backend")))]
 pub fn verify_cert_chain(_cert_chain: &[u8]) -> Result<()> {
-    unimplemented!("verify_cert_chain requires a crypto backend feature (e.g. ring-backend)")
+    unimplemented!(
+        "verify_cert_chain requires a crypto backend feature (ring-backend or mbedtls-backend)"
+    )
 }
 
-/// Convenience wrapper using the default Ring backend with algorithm options.
+/// Convenience wrapper using the default crypto backend with algorithm options.
 ///
 /// See [`verify_cert_chain_with_backend`] for the generic version.
-#[cfg(feature = "ring-backend")]
+#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
 pub fn verify_cert_chain_with_options(
     cert_chain: &[u8],
     base_asym_algo: Option<u32>,
@@ -1009,21 +1046,21 @@ pub fn verify_cert_chain_with_options(
 ) -> Result<()> {
     verify_cert_chain_with_backend(
         cert_chain,
-        crate::crypto_backend::RingBackend,
+        crate::crypto_backend::default_backend(),
         base_asym_algo,
         base_hash_algo,
     )
 }
 
 /// Fallback when no crypto backend is compiled in.
-#[cfg(not(feature = "ring-backend"))]
+#[cfg(not(any(feature = "ring-backend", feature = "mbedtls-backend")))]
 pub fn verify_cert_chain_with_options(
     _cert_chain: &[u8],
     _base_asym_algo: Option<u32>,
     _base_hash_algo: Option<u32>,
 ) -> Result<()> {
     unimplemented!(
-        "verify_cert_chain_with_options requires a crypto backend feature (e.g. ring-backend)"
+        "verify_cert_chain_with_options requires a crypto backend feature (ring-backend or mbedtls-backend)"
     )
 }
 

@@ -22,6 +22,27 @@ mod mbedtls;
 #[cfg(feature = "mbedtls-backend")]
 pub use self::mbedtls::*;
 
+// The default crypto backend used by the convenience entry points
+// (`verify_cert_chain`, `Validator::new`, etc.).  `ring` and `mbedtls` are
+// mutually exclusive in practice, but Cargo features are additive; if both are
+// enabled the ring backend wins so behavior stays deterministic.
+#[cfg(feature = "ring-backend")]
+pub type DefaultBackend = RingBackend;
+#[cfg(all(feature = "mbedtls-backend", not(feature = "ring-backend")))]
+pub type DefaultBackend = MbedtlsBackend;
+
+/// Construct the default crypto backend (see [`DefaultBackend`]).
+#[cfg(feature = "ring-backend")]
+pub fn default_backend() -> DefaultBackend {
+    RingBackend
+}
+
+/// Construct the default crypto backend (see [`DefaultBackend`]).
+#[cfg(all(feature = "mbedtls-backend", not(feature = "ring-backend")))]
+pub fn default_backend() -> DefaultBackend {
+    MbedtlsBackend
+}
+
 /// Signature algorithm identifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignatureAlgorithm {

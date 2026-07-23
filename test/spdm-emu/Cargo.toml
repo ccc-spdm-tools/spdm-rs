@@ -8,11 +8,13 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.13"
-# ring is only used for the emulator's classical secret-signing helper; optional
-# so a standalone aws-lc build (spdm-aws-lc without spdm-ring/spdm-mbedtls)
-# links no ring.
+# ring is only used for the emulator's classical secret-signing helper in the
+# spdm-ring build; optional so mbedtls/aws-lc builds link no ring.
 ring = { version = "0.17.14", optional = true }
 untrusted = { version = "0.9.0", optional = true }
+# mbedtls provides the emulator's classical secret-signing helper for the
+# spdm-mbedtls build (no ring linked). rdrand supplies the signing RNG.
+mbedtls = { version = "0.9.1", optional = true, features = ["rdrand"] }
 codec = { path = "../../codec" }
 spdmlib = { path = "../../spdmlib", default-features = false }
 mctp_transport = { path = "../../mctp_transport" }
@@ -36,7 +38,7 @@ mut-auth = ["spdmlib/mut-auth"]
 chunk-cap = ["spdmlib/chunk-cap"]
 mandatory-mut-auth = ["mut-auth", "spdmlib/mandatory-mut-auth"]
 spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std", "dep:ring", "dep:untrusted"]
-spdm-mbedtls = ["spdmlib_crypto_mbedtls", "dep:ring", "dep:untrusted"]
+spdm-mbedtls = ["spdmlib_crypto_mbedtls", "dep:mbedtls"]
 # aws-lc-rs crypto (ML-DSA, ML-KEM, and the traditional primitives). Pulls
 # spdmlib/std because aws-lc-rs is std-only. Combined with spdm-ring or
 # spdm-mbedtls it is a PQC overlay on that classical backend; on its own (no

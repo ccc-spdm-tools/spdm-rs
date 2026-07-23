@@ -8,13 +8,14 @@ use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT};
 // =============================================================================
 // spdm_x509 implementation
 //
-// The certificate-chain operations delegate to the spdm_x509 library (the same
-// path the ring backend uses) rather than to the mbedtls C X.509 verifier. This
-// gives the mbedtls backend ML-DSA (FIPS 204) aware chain validation: spdm_x509
-// parses the chain itself and dispatches classical (RSA/ECC) signatures to its
-// ring backend and post-quantum signatures to the registered PQC verifier hook.
-// mbedtls cannot verify ML-DSA certificate signatures, so delegating here is
-// what lets PQC certificate chains work with the mbedtls backend.
+// The certificate-chain operations delegate to the spdm_x509 library rather
+// than to the mbedtls C X.509 verifier. spdm_x509 is built here with its
+// mbedtls backend, so classical (RSA/ECC) certificate signatures are verified
+// by mbedtls and no ring is linked. spdm_x509 parses the chain itself and
+// dispatches classical signatures to that mbedtls backend and post-quantum
+// (ML-DSA / FIPS 204) signatures to the registered PQC verifier hook — mbedtls
+// cannot verify ML-DSA, so delegating here is what lets PQC certificate chains
+// work with the mbedtls backend.
 // =============================================================================
 
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {

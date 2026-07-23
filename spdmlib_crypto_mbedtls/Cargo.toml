@@ -7,10 +7,11 @@ license = "Apache-2.0 or MIT"
 [dependencies]
 spdmlib = { path = "../spdmlib", default-features = false}
 # spdm_x509 provides ML-DSA (FIPS 204) aware certificate-chain validation via
-# its ring-backed validator plus the runtime PQC verifier hook. Delegate to it
-# (as the ring cert operation does) so PQC certificate chains work with the
-# mbedtls backend too. ring-backend matches how spdmlib already builds spdm_x509.
-spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["ring-backend"] }
+# its pluggable crypto backend plus the runtime PQC verifier hook. Use the
+# mbedtls backend so classical (RSA/ECC) certificate signatures are verified by
+# mbedtls and no ring is linked; post-quantum signatures still dispatch to the
+# registered PQC verifier hook, so PQC certificate chains keep working.
+spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["mbedtls-backend"] }
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
 spin = "0.9.8"
 zeroize = { version = "1.5.0", features = ["zeroize_derive"]}
