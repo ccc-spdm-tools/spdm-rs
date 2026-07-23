@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Intel Corporation
+// Copyright (c) 2025, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -15,6 +15,7 @@ use spdmlib::protocol::{
 
 pub static DEFAULT_DECAP: SpdmKemDecap = SpdmKemDecap {
     generate_key_pair_cb: kem_generate_key_pair,
+    import_decap_key_cb: Some(kem_import_decap_key),
 };
 
 pub static DEFAULT_ENCAP: SpdmKemEncap = SpdmKemEncap {
@@ -56,6 +57,12 @@ impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
         result.data[..len].copy_from_slice(&ss_bytes[..len]);
         result.data_size = len as u16;
         Some(result)
+    }
+
+    fn export_decap_key(&self) -> Option<Vec<u8>> {
+        // Raw decapsulation (private) key bytes, the same encoding accepted by
+        // `kem_import_decap_key` (and by `DecapsulationKey::new`).
+        Some(self.decap_key_bytes.clone())
     }
 }
 
@@ -144,6 +151,33 @@ fn kem_generate_key_pair(
     Some((ek_struct, exchange))
 }
 
+fn kem_import_decap_key(
+    kem_algo: SpdmKemAlgo,
+    decap_key_bytes: &[u8],
+) -> Option<Box<dyn SpdmKemEncapKeyExchange + Send>> {
+    // Validate that the bytes reconstruct a decapsulation key for this
+    // algorithm; defer the actual decapsulation to `decap_key`, which rebuilds
+    // the key the same way (matching the DHE import path). This rejects
+    // mismatched sizes / wrong algorithms up front.
+    match kem_algo {
+        SpdmKemAlgo::ALG_MLKEM_512 => {
+            DecapsulationKey::new(&ML_KEM_512, decap_key_bytes).ok()?;
+        }
+        SpdmKemAlgo::ALG_MLKEM_768 => {
+            DecapsulationKey::new(&ML_KEM_768, decap_key_bytes).ok()?;
+        }
+        SpdmKemAlgo::ALG_MLKEM_1024 => {
+            DecapsulationKey::new(&ML_KEM_1024, decap_key_bytes).ok()?;
+        }
+        _ => return None,
+    }
+
+    Some(Box::new(AwsLcKemDecapKey {
+        kem_algo,
+        decap_key_bytes: Vec::from(decap_key_bytes),
+    }))
+}
+
 fn kem_new_key(
     kem_algo: SpdmKemAlgo,
     kem_encap_key: &SpdmKemEncapKeyStruct,
@@ -155,4 +189,86 @@ fn kem_new_key(
         kem_algo,
         encap_key_bytes,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Full KEM round-trip: the encapsulator (responder) produces a ciphertext
+    /// and shared secret from the encap key; the decapsulator (requester) must
+    /// recover the same shared secret from that ciphertext.
+    fn roundtrip(kem_algo: SpdmKemAlgo) {
+        let (encap_key, decap) = kem_generate_key_pair(kem_algo).unwrap();
+        let encap = kem_new_key(kem_algo, &encap_key).unwrap();
+
+        let (ciphertext, secret_encap) = encap.encap_key().unwrap();
+        let secret_decap = decap.decap_key(&ciphertext).unwrap();
+
+        assert_eq!(secret_encap.data_size, secret_decap.data_size);
+        assert_eq!(
+            &secret_encap.data[..secret_encap.data_size as usize],
+            &secret_decap.data[..secret_decap.data_size as usize]
+        );
+    }
+
+    #[test]
+    fn test_kem_mlkem512() {
+        roundtrip(SpdmKemAlgo::ALG_MLKEM_512);
+    }
+
+    #[test]
+    fn test_kem_mlkem768() {
+        roundtrip(SpdmKemAlgo::ALG_MLKEM_768);
+    }
+
+    #[test]
+    fn test_kem_mlkem1024() {
+        roundtrip(SpdmKemAlgo::ALG_MLKEM_1024);
+    }
+
+    /// Exported decapsulation key bytes must re-import and recover the same
+    /// shared secret from the same ciphertext — the checkpoint/resume property.
+    fn export_import_roundtrip(kem_algo: SpdmKemAlgo) {
+        let (encap_key, decap) = kem_generate_key_pair(kem_algo).unwrap();
+        let exported = decap.export_decap_key().expect("export supported");
+
+        // Encapsulate against the generated encap key.
+        let encap = kem_new_key(kem_algo, &encap_key).unwrap();
+        let (ciphertext, secret_encap) = encap.encap_key().unwrap();
+
+        // A freshly imported decap key must decapsulate to the same secret.
+        let decap_imported = kem_import_decap_key(kem_algo, &exported).unwrap();
+        let secret_imported = decap_imported.decap_key(&ciphertext).unwrap();
+
+        assert_eq!(
+            &secret_encap.data[..secret_encap.data_size as usize],
+            &secret_imported.data[..secret_imported.data_size as usize],
+            "imported decap key must recover the same shared secret"
+        );
+    }
+
+    #[test]
+    fn test_kem_export_import_mlkem512() {
+        export_import_roundtrip(SpdmKemAlgo::ALG_MLKEM_512);
+    }
+
+    #[test]
+    fn test_kem_export_import_mlkem768() {
+        export_import_roundtrip(SpdmKemAlgo::ALG_MLKEM_768);
+    }
+
+    #[test]
+    fn test_kem_export_import_mlkem1024() {
+        export_import_roundtrip(SpdmKemAlgo::ALG_MLKEM_1024);
+    }
+
+    /// Bad decap-key bytes (wrong length) must be rejected by import.
+    #[test]
+    fn test_kem_import_rejects_invalid() {
+        let invalid = [0u8; 8];
+        assert!(kem_import_decap_key(SpdmKemAlgo::ALG_MLKEM_512, &invalid).is_none());
+        assert!(kem_import_decap_key(SpdmKemAlgo::ALG_MLKEM_768, &invalid).is_none());
+        assert!(kem_import_decap_key(SpdmKemAlgo::ALG_MLKEM_1024, &invalid).is_none());
+    }
 }

@@ -157,9 +157,15 @@ type KemGenerateKeyPairCb = fn(
     Box<dyn SpdmKemEncapKeyExchange + Send>,
 )>;
 
+type KemImportDecapKeyCb = fn(
+    kem_algo: SpdmKemAlgo,
+    decap_key_data: &[u8],
+) -> Option<Box<dyn SpdmKemEncapKeyExchange + Send>>;
+
 #[derive(Clone)]
 pub struct SpdmKemDecap {
     pub generate_key_pair_cb: KemGenerateKeyPairCb,
+    pub import_decap_key_cb: Option<KemImportDecapKeyCb>,
 }
 
 type NewKeyCb = fn(
@@ -177,6 +183,12 @@ pub trait SpdmKemEncapKeyExchange {
         self: Box<Self>,
         kem_cipher_text: &SpdmKemCipherTextStruct,
     ) -> Option<SpdmSharedSecretFinalKeyStruct>;
+
+    /// Export decapsulation (private) key bytes for serialization (checkpoint
+    /// support). Returns algorithm-specific decapsulation key data.
+    fn export_decap_key(&self) -> Option<alloc::vec::Vec<u8>> {
+        None // Default: not supported
+    }
 }
 
 pub trait SpdmKemCipherTextExchange {

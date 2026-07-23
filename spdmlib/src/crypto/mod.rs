@@ -439,6 +439,19 @@ pub mod kem_decap {
             .ok()?
             .generate_key_pair_cb)(kem_algo)
     }
+
+    /// Import a decapsulation (private) key from serialized bytes for
+    /// checkpoint/resume
+    pub fn import_decap_key(
+        kem_algo: SpdmKemAlgo,
+        decap_key_bytes: &[u8],
+    ) -> Option<Box<dyn SpdmKemEncapKeyExchange + Send>> {
+        let crypto_kem_decap = CRYPTO_KEM_DECAP
+            .try_get_or_init(|| DEFAULT_DECAP.clone())
+            .ok()?;
+        let import_cb = crypto_kem_decap.import_decap_key_cb?;
+        import_cb(kem_algo, decap_key_bytes)
+    }
 }
 
 pub mod kem_encap {
