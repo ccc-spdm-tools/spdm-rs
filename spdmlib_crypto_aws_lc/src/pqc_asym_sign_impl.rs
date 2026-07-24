@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Intel Corporation
+// Copyright (c) 2025, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -15,7 +15,7 @@ const MLDSA_65_SIG_SIZE: usize = 3309;
 const MLDSA_87_SIG_SIZE: usize = 4627;
 
 extern "C" {
-    #[link_name = "aws_lc_0_39_0_ml_dsa_44_sign"]
+    #[link_name = "aws_lc_0_43_0_ml_dsa_44_sign"]
     fn ml_dsa_44_sign(
         private_key: *const c_uchar,
         sig: *mut c_uchar,
@@ -26,7 +26,7 @@ extern "C" {
         ctx_string_len: usize,
     ) -> c_int;
 
-    #[link_name = "aws_lc_0_39_0_ml_dsa_65_sign"]
+    #[link_name = "aws_lc_0_43_0_ml_dsa_65_sign"]
     fn ml_dsa_65_sign(
         private_key: *const c_uchar,
         sig: *mut c_uchar,
@@ -37,7 +37,7 @@ extern "C" {
         ctx_string_len: usize,
     ) -> c_int;
 
-    #[link_name = "aws_lc_0_39_0_ml_dsa_87_sign"]
+    #[link_name = "aws_lc_0_43_0_ml_dsa_87_sign"]
     fn ml_dsa_87_sign(
         private_key: *const c_uchar,
         sig: *mut c_uchar,

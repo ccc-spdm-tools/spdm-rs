@@ -77,6 +77,10 @@ resolver = "2"
 # The dev profile used for `cargo build`
 [profile.dev]
 opt-level = 3
+# aws-lc-sys must be opt-level 0 when AWS_LC_SYS_NO_ASM=1 (builder guard);
+# the ML-KEM AVX2 asm otherwise fails to link (pre-existing aws-lc-sys bug).
+[profile.dev.package.aws-lc-sys]
+opt-level = 0
 # The release profile used for `cargo build --release`
 [profile.release]
 opt-level = 3
