@@ -44,7 +44,7 @@ jobs:
           skip-dirs: test_key,external/aws-lc-rs/aws-lc-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-sys/aws-lc/fuzz,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/fuzz
 
       - name: Upload Trivy SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         if: always()
         with:
           sarif_file: trivy-fs-results.sarif
@@ -77,7 +77,7 @@ jobs:
           skip-dirs: test_key,external/aws-lc-rs/aws-lc-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/tests,external/aws-lc-rs/aws-lc-sys/aws-lc/fuzz,external/aws-lc-rs/aws-lc-fips-sys/aws-lc/fuzz
 
       - name: Upload Trivy config SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
         if: always()
         with:
           sarif_file: trivy-config-results.sarif
