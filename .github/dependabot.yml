@@ -16,3 +16,11 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
+    # Group all GitHub Actions bumps into a single PR per run so that
+    # sub-actions of the same repo (e.g. github/codeql-action/init,
+    # /analyze, /autobuild) are updated together, avoiding redundant PRs,
+    # merge conflicts, and version drift between them.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
