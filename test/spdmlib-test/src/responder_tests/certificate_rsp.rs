@@ -19,6 +19,7 @@ use {
     alloc::sync::Arc,
     codec::{Codec, Writer},
     spdmlib::common::*,
+    spdmlib::error::SPDM_STATUS_INVALID_MSG_FIELD,
     spdmlib::message::*,
     spdmlib::protocol::*,
     spdmlib::{config, responder, secret},
@@ -92,6 +93,14 @@ fn test_case0_handle_spdm_certificate() {
             .handle_spdm_certificate(bytes, None, &mut writer)
             .0
             .is_ok());
+
+        bytes[2] = 1;
+        let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut response_buffer);
+        assert_eq!(
+            context.handle_spdm_certificate(bytes, None, &mut writer).0,
+            Err(SPDM_STATUS_INVALID_MSG_FIELD)
+        );
 
         #[cfg(not(feature = "hashed-transcript-data"))]
         {
