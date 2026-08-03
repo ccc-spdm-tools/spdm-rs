@@ -102,7 +102,7 @@ impl ResponderContext {
         if self.common.provision_info.my_cert_chain[slot_id].is_none() {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
             return (
-                Err(SPDM_STATUS_INVALID_STATE_LOCAL),
+                Err(SPDM_STATUS_INVALID_MSG_FIELD),
                 Some(writer.used_slice()),
             );
         }
