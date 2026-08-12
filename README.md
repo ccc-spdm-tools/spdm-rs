@@ -249,13 +249,15 @@ Both `spdm-ring` and `spdm-mbedtls` crypto backends support raw public key verif
 
 SPDM 1.4 introduces Post-Quantum Cryptography (PQC) support. spdm-rs supports ML-DSA for signature and ML-KEM for key exchange via the [aws-lc-rs](https://github.com/aws/aws-lc-rs) crypto backend.
 
-**Note:** PQC support with aws-lc-rs currently only works for std build. It does not work for no-std build.
+The patched aws-lc-rs dependency supports both hosted builds and the
+`x86_64-unknown-none` freestanding target.
 
 **Prerequisites:**
 
-1. Initialize the aws-lc-rs submodule:
+1. Initialize the aws-lc-rs submodule and apply its pinned patch stack:
 ```
-git submodule update --init --recursive external/aws-lc-rs
+git submodule update --init external/aws-lc-rs
+bash external/patches/aws-lc-rs/setup-aws-lc-rs.sh
 ```
 
 2. Build with the `spdm-aws-lc` feature and `pqc_config.json` (PQC signatures and key exchanges require larger buffer sizes than the default configuration):

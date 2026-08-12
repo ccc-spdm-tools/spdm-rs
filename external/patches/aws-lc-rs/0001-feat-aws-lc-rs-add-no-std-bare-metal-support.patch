@@ -1,0 +1,2586 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index a044c6d83572582605877f3ebfc1e415b427ef18..6591f3c330a19f895583481b04f06bb75740da13 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -4,6 +4,7 @@ members = [
+     "aws-lc-sys",
+     "aws-lc-fips-sys",
+     "aws-lc-rs-testing",
++    "no-std-runtime-test",
+     "links-testing",
+     "builder-test",
+ ]
+@@ -12,7 +13,9 @@ exclude = [
+     "scripts/tools/semver.rs",
+     "scripts/tools/target-platform.rs",
+     "scripts/tests/assert_cpu_jitter_entropy.rs",
+-    "scripts/tests/prefix_test.rs"
++    "scripts/tests/prefix_test.rs",
++    "feature-tests/ml-dsa-disabled",
++    "feature-tests/ml-kem-disabled",
+ ]
+ resolver = "2"
+ 
+diff --git a/aws-lc-rs/Cargo.toml b/aws-lc-rs/Cargo.toml
+index f4e55e359fce97cb3cf0e5aecada3d5139e99331..a7fea081fd6cb018e044ba69e7fd148071669ea1 100644
+--- a/aws-lc-rs/Cargo.toml
++++ b/aws-lc-rs/Cargo.toml
+@@ -30,11 +30,24 @@ features = ["unstable", "legacy-des"]
+ 
+ [features]
+ alloc = []
+-default = ["aws-lc-sys", "alloc", "ring-io", "ring-sig-verify"]
++std = ["alloc"]
++default = [
++    "aws-lc-sys",
++    "alloc",
++    "std",
++    "ring-io",
++    "ring-sig-verify",
++    "ml-kem",
++    "ml-dsa",
++]
+ ring-io = ["dep:untrusted"]
+ ring-sig-verify = ["dep:untrusted"]
+ bindgen = ["aws-lc-sys?/bindgen", "aws-lc-fips-sys?/bindgen"]
+ asan = ["aws-lc-sys?/asan", "aws-lc-fips-sys?/asan"]
++ml-kem = ["aws-lc-sys?/ml-kem"]
++ml-dsa = ["aws-lc-sys?/ml-dsa"]
++pqc = ["ml-kem", "ml-dsa"]
++small = ["aws-lc-sys?/small"]
+ test_logging = []
+ unstable = []
+ prebuilt-nasm = ["aws-lc-sys?/prebuilt-nasm"]
+@@ -45,13 +58,14 @@ legacy-des = ["aws-lc-sys?/all-bindings"]
+ non-fips = ["aws-lc-sys"]
+ 
+ # require FIPS
+-fips = ["dep:aws-lc-fips-sys"]
++fips = ["dep:aws-lc-fips-sys", "ml-kem", "std"]
+ 
+ [dependencies]
+ untrusted = { workspace = true, optional = true }
+ aws-lc-sys = { version = "0.43.0", path = "../aws-lc-sys", default-features = false, optional = true }
+ aws-lc-fips-sys = { version = "0.13.16", path = "../aws-lc-fips-sys", optional = true }
+ zeroize.workspace = true
++spin = { version = "0.9", default-features = false, features = ["once"] }
+ 
+ [dev-dependencies]
+ paste.workspace = true
+diff --git a/aws-lc-rs/README.md b/aws-lc-rs/README.md
+index c5dcc5a8fe3ba0d1dde8677bca8ffa2990ef5ce4..e8434ecf4fa4ca3b460f3cc2474289df91cf8ef5 100644
+--- a/aws-lc-rs/README.md
++++ b/aws-lc-rs/README.md
+@@ -37,6 +37,36 @@ See our [User Guide](https://aws.github.io/aws-lc-rs/) for guidance on installin
+ Allows implementation to allocate values of arbitrary size. (The meaning of this feature differs
+ from the "alloc" feature of *ring*.) Currently, this is required by the `io::writer` module.
+ 
++##### ml-kem and ml-dsa (default)
++
++Enable the ML-KEM and ML-DSA implementations, respectively. `pqc` is a
++convenience alias that enables both. Algorithm features are additive.
++
++Consumers that do not need both algorithms must disable default features and
++select the required algorithm explicitly:
++
++```toml
++[dependencies]
++aws-lc-rs = { version = "1", default-features = false, features = [
++    "aws-lc-sys",
++    "alloc",
++    "std",
++    "ml-kem",
++] }
++```
++
++Omitting an algorithm removes its native implementation and Rust API. ML-DSA
++is also an unstable API and requires the `unstable` feature.
++
++##### Bare-metal targets
++
++Targets with `target_os = "none"` automatically use the freestanding C runtime
++adapter provided by `aws-lc-sys`. A no-std consumer must also disable default
++features and provide the platform hooks documented in the
++[`aws-lc-sys` README](../aws-lc-sys/README.md#no-std-runtime).
++Consumers that select `alloc` must additionally install a Rust global
++allocator.
++
+ ##### ring-io (default)
+ 
+ Enable feature to access the  `io`  module.
+@@ -188,8 +218,9 @@ that the NASM objects newly built from source match the NASM objects currently i
+ Although this library attempts to be fully compatible with *ring* (v0.16.x), there are a few places where our
+ behavior is observably different.
+ 
+-* Our implementation requires the `std` library. We currently do not support a
+-  [`#![no_std]`](https://docs.rust-embedded.org/book/intro/no-std.html) build.
++* Freestanding [`#![no_std]`](https://docs.rust-embedded.org/book/intro/no-std.html)
++  builds are selected by `target_os = "none"` and require platform-provided
++  allocation, entropy, time, and abort hooks.
+ * `aws-lc-rs` supports the platforms supported by `aws-lc-sys` and AWS-LC. See the
+   [Platform Support](https://aws.github.io/aws-lc-rs/platform_support.html) page in our User Guide.
+ * `Ed25519KeyPair::from_pkcs8` and `Ed25519KeyPair::from_pkcs8_maybe_unchecked` both support
+diff --git a/aws-lc-rs/src/aead.rs b/aws-lc-rs/src/aead.rs
+index d401da5a82f032137e0a7d79b22934919bd03350..393926d344281d11dd488d50d983a6ba5e9f5aac 100644
+--- a/aws-lc-rs/src/aead.rs
++++ b/aws-lc-rs/src/aead.rs
+@@ -1027,7 +1027,7 @@ impl AsRef<[u8]> for Tag {
+ }
+ 
+ impl core::fmt::Debug for Tag {
+-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> core::fmt::Result {
++    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+         f.debug_tuple("Tag").finish()
+     }
+ }
+diff --git a/aws-lc-rs/src/agreement.rs b/aws-lc-rs/src/agreement.rs
+index c0fc9c56ac4769aa0f682fca062928851c73aa79..b7d715fc64191f0466d3b6881b894ca366fae1e3 100644
+--- a/aws-lc-rs/src/agreement.rs
++++ b/aws-lc-rs/src/agreement.rs
+@@ -60,6 +60,7 @@ use crate::ec::verify_evp_key_nid;
+ use crate::ec::{evp_key_generate, validate_ec_evp_key};
+ use crate::error::{KeyRejected, Unspecified};
+ use crate::hex;
++use alloc::boxed::Box;
+ pub use ephemeral::{agree_ephemeral, EphemeralPrivateKey};
+ 
+ use crate::aws_lc::{
+@@ -547,7 +548,7 @@ unsafe impl Send for PublicKey {}
+ unsafe impl Sync for PublicKey {}
+ 
+ impl Debug for PublicKey {
+-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
++    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+         f.write_str(&format!(
+             "PublicKey {{ algorithm: {:?}, bytes: \"{}\" }}",
+             self.inner_key.algorithm(),
+diff --git a/aws-lc-rs/src/bn.rs b/aws-lc-rs/src/bn.rs
+index dbe936a1e4ea167a540eee157350352c39d266fd..1e1691a50fc0b777254daab9d652f3d2fef2b2bc 100644
+--- a/aws-lc-rs/src/bn.rs
++++ b/aws-lc-rs/src/bn.rs
+@@ -3,6 +3,7 @@
+ 
+ use crate::aws_lc::{BN_bin2bn, BN_bn2bin, BN_new, BN_num_bytes, BN_set_u64, BIGNUM};
+ use crate::ptr::{ConstPointer, DetachableLcPtr, LcPtr};
++use alloc::vec::Vec;
+ use core::ptr::null_mut;
+ 
+ impl TryFrom<&[u8]> for LcPtr<BIGNUM> {
+diff --git a/aws-lc-rs/src/buffer.rs b/aws-lc-rs/src/buffer.rs
+index 3cd5055529b3ab1eb4569bd6cd64dea46b5e8bb9..a43d01e34d2f319b2faaeb10a47e834a2b2d3b1f 100644
+--- a/aws-lc-rs/src/buffer.rs
++++ b/aws-lc-rs/src/buffer.rs
+@@ -6,7 +6,7 @@
+ 
+ #![allow(clippy::module_name_repetitions)]
+ 
+-use alloc::borrow::Cow;
++use alloc::{borrow::Cow, vec::Vec};
+ use core::fmt;
+ use core::marker::PhantomData;
+ 
+diff --git a/aws-lc-rs/src/cbb.rs b/aws-lc-rs/src/cbb.rs
+index 155bcbf80ceecb0c932913816876c3b35f23fc61..c170c05696e65103601fac07be8c04d2f49efc4b 100644
+--- a/aws-lc-rs/src/cbb.rs
++++ b/aws-lc-rs/src/cbb.rs
+@@ -4,6 +4,7 @@
+ use crate::aws_lc::{CBB_cleanup, CBB_finish, CBB_init, CBB_init_fixed, CBB};
+ use crate::error::Unspecified;
+ use crate::ptr::LcPtr;
++use alloc::vec::Vec;
+ use core::marker::PhantomData;
+ use core::mem::MaybeUninit;
+ use core::ptr::null_mut;
+@@ -29,7 +30,7 @@ impl LcCBB<'static> {
+         }
+ 
+         let out_data = LcPtr::new(out_data)?;
+-        let slice = unsafe { std::slice::from_raw_parts(out_data.as_const_ptr(), out_len) };
++        let slice = unsafe { core::slice::from_raw_parts(out_data.as_const_ptr(), out_len) };
+         // `to_vec()` copies the data into a new `Vec`
+         Ok(slice.to_vec())
+     }
+diff --git a/aws-lc-rs/src/cipher/key.rs b/aws-lc-rs/src/cipher/key.rs
+index a521f97306f12df220034bfe5c03c49de5117a47..13a8d2bad8eb67701c136a5289f8a2c172851a00 100644
+--- a/aws-lc-rs/src/cipher/key.rs
++++ b/aws-lc-rs/src/cipher/key.rs
+@@ -16,7 +16,7 @@ use core::mem::{size_of, MaybeUninit};
+ use core::ptr::copy_nonoverlapping;
+ // TODO: Uncomment when MSRV >= 1.64
+ // use core::ffi::c_uint;
+-use std::os::raw::c_uint;
++use core::ffi::c_uint;
+ use zeroize::Zeroize;
+ 
+ pub(crate) enum SymmetricCipherKey {
+diff --git a/aws-lc-rs/src/cipher/streaming.rs b/aws-lc-rs/src/cipher/streaming.rs
+index 4a01e11b80633d7d42ea01498996cb263381cc1f..84fec0bab51919ea4382153cd56e8ee3eaeee269 100644
+--- a/aws-lc-rs/src/cipher/streaming.rs
++++ b/aws-lc-rs/src/cipher/streaming.rs
+@@ -12,7 +12,7 @@ use crate::cipher::{
+ use crate::error::Unspecified;
+ use crate::fips::indicator_check;
+ use crate::ptr::LcPtr;
+-use std::ptr::{null, null_mut};
++use core::ptr::{null, null_mut};
+ 
+ use super::ConstPointer;
+ 
+diff --git a/aws-lc-rs/src/ec.rs b/aws-lc-rs/src/ec.rs
+index 3a22fbbe4fae2ef93b94f306dd7c664926074d1e..bac04a1f7bac3b9027f33997730dbd34415983fc 100644
+--- a/aws-lc-rs/src/ec.rs
++++ b/aws-lc-rs/src/ec.rs
+@@ -21,7 +21,7 @@ use crate::fips::indicator_check;
+ use crate::ptr::{ConstPointer, LcPtr};
+ use crate::signature::Signature;
+ use core::ffi::c_int;
+-use std::ptr::null;
++use core::ptr::null;
+ 
+ pub(crate) mod encoding;
+ pub(crate) mod key_pair;
+diff --git a/aws-lc-rs/src/ec/encoding.rs b/aws-lc-rs/src/ec/encoding.rs
+index 2cf40378d4a703b071d4e04904c97db2d868fb3f..737f46564bcab751a97a21f2c2593d2e7e005157 100644
+--- a/aws-lc-rs/src/ec/encoding.rs
++++ b/aws-lc-rs/src/ec/encoding.rs
+@@ -27,7 +27,8 @@ pub(crate) mod sec1 {
+     };
+     use crate::error::Unspecified;
+     use crate::ptr::{ConstPointer, DetachableLcPtr, LcPtr};
+-    use std::ptr::{null, null_mut};
++    use alloc::vec::Vec;
++    use core::ptr::{null, null_mut};
+ 
+     pub(crate) fn parse_sec1_public_point(
+         key_bytes: &[u8],
+@@ -230,6 +231,7 @@ pub(crate) mod rfc5915 {
+     use crate::ec::ec_group_from_nid;
+     use crate::error::{KeyRejected, Unspecified};
+     use crate::ptr::LcPtr;
++    use alloc::vec::Vec;
+ 
+     pub(crate) fn parse_rfc5915_private_key(
+         key_bytes: &[u8],
+diff --git a/aws-lc-rs/src/ec/signature.rs b/aws-lc-rs/src/ec/signature.rs
+index b46272ef2892564893ddc5b202f4d5228489b712..2263f748fe12314788f7eebab6302a76a61cb9fc 100644
+--- a/aws-lc-rs/src/ec/signature.rs
++++ b/aws-lc-rs/src/ec/signature.rs
+@@ -5,6 +5,7 @@ use crate::aws_lc::{
+     ECDSA_SIG_new, ECDSA_SIG_set0, ECDSA_SIG_to_bytes, NID_X9_62_prime256v1, NID_secp256k1,
+     NID_secp384r1, NID_secp521r1, BIGNUM, ECDSA_SIG, EVP_PKEY,
+ };
++use alloc::boxed::Box;
+ 
+ use crate::digest::Digest;
+ use crate::ec::compressed_public_key_size_bytes;
+@@ -20,9 +21,9 @@ use crate::signature::{ParsedPublicKey, ParsedVerificationAlgorithm, Verificatio
+ use crate::{digest, sealed};
+ use core::fmt;
+ use core::fmt::{Debug, Formatter};
+-use std::mem::MaybeUninit;
+-use std::ops::Deref;
+-use std::ptr::null_mut;
++use core::mem::MaybeUninit;
++use core::ops::Deref;
++use core::ptr::null_mut;
+ #[cfg(feature = "ring-sig-verify")]
+ use untrusted::Input;
+ 
+diff --git a/aws-lc-rs/src/ed25519.rs b/aws-lc-rs/src/ed25519.rs
+index 635237f9944caff25e6a05474eb9ed123ba56742..09c4a13d5459812cddec233494fb8bc62c363a03 100644
+--- a/aws-lc-rs/src/ed25519.rs
++++ b/aws-lc-rs/src/ed25519.rs
+@@ -3,9 +3,10 @@
+ // Modifications copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+ 
++use alloc::boxed::Box;
+ use core::fmt;
+ use core::fmt::{Debug, Formatter};
+-use std::marker::PhantomData;
++use core::marker::PhantomData;
+ 
+ #[cfg(feature = "ring-sig-verify")]
+ use untrusted::Input;
+diff --git a/aws-lc-rs/src/encoding.rs b/aws-lc-rs/src/encoding.rs
+index 84b4cbf4a45ebebdeabc963b5e68dce6eea6b0b8..e37ada84226f2023be0a9255217b82734a5bdafd 100644
+--- a/aws-lc-rs/src/encoding.rs
++++ b/aws-lc-rs/src/encoding.rs
+@@ -4,22 +4,26 @@
+ //! Serialization formats
+ 
+ use crate::buffer::Buffer;
++use alloc::vec::Vec;
+ 
+ macro_rules! generated_encodings {
+-    ($(($name:ident, $name_type:ident)),*) => {
++    ($($(#[$attr:meta])* ($name:ident, $name_type:ident)),*) => {
+         use core::fmt::{Debug, Error, Formatter};
+         use core::ops::Deref;
+         mod buffer_type {
+             $(
++                $(#[$attr])*
+                 pub struct $name_type {
+                     _priv: (),
+                 }
+             )*
+         }
+         $(
++            $(#[$attr])*
+             /// Serialized bytes
+             pub struct $name<'a>(Buffer<'a, buffer_type::$name_type>);
+ 
++            $(#[$attr])*
+             impl<'a> Deref for $name<'a> {
+                 type Target = Buffer<'a, buffer_type::$name_type>;
+ 
+@@ -28,6 +32,7 @@ macro_rules! generated_encodings {
+                 }
+             }
+ 
++            $(#[$attr])*
+             impl $name<'static> {
+                 #[allow(dead_code)]
+                 pub(crate) fn new(owned: Vec<u8>) -> Self {
+@@ -39,12 +44,14 @@ macro_rules! generated_encodings {
+                 }
+             }
+ 
++            $(#[$attr])*
+             impl Debug for $name<'_> {
+                 fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+                     f.debug_struct(stringify!($name)).finish()
+                 }
+             }
+ 
++            $(#[$attr])*
+             impl<'a> From<Buffer<'a, buffer_type::$name_type>> for $name<'a> {
+                 fn from(value: Buffer<'a, buffer_type::$name_type>) -> Self {
+                     Self(value)
+@@ -53,6 +60,7 @@ macro_rules! generated_encodings {
+         )*
+     }
+ }
++#[cfg(feature = "ml-kem")]
+ pub(crate) use generated_encodings;
+ generated_encodings!(
+     (Curve25519SeedBin, Curve25519SeedBinType),
+@@ -62,7 +70,9 @@ generated_encodings!(
+     (EcPublicKeyUncompressedBin, EcPublicKeyUncompressedBinType),
+     (Pkcs8V1Der, Pkcs8V1DerType),
+     (Pkcs8V2Der, Pkcs8V2DerType),
++    #[cfg(feature = "ml-dsa")]
+     (PqdsaPrivateKeyRaw, PqdsaPrivateKeyRawType),
++    #[cfg(feature = "ml-dsa")]
+     (PqdsaSeedRaw, PqdsaSeedRawType),
+     (PublicKeyX509Der, PublicKeyX509DerType)
+ );
+diff --git a/aws-lc-rs/src/error.rs b/aws-lc-rs/src/error.rs
+index a754ae5a35bb98362d75f5d44cfe7011babe7359..9a0a40639629d52fe708c3e2755fb57183fb9c3c 100644
+--- a/aws-lc-rs/src/error.rs
++++ b/aws-lc-rs/src/error.rs
+@@ -5,10 +5,8 @@
+ 
+ //! Error reporting.
+ 
+-extern crate std;
+-
+ use core::num::TryFromIntError;
+-// The Error trait is not in core: https://github.com/rust-lang/rust/issues/103765
++#[cfg(feature = "std")]
+ use std::error::Error;
+ 
+ /// An error with absolutely no details.
+@@ -154,6 +152,7 @@ impl KeyRejected {
+     }
+ }
+ 
++#[cfg(feature = "std")]
+ impl Error for KeyRejected {
+     fn description(&self) -> &str {
+         self.description_()
+@@ -164,6 +163,7 @@ impl Error for KeyRejected {
+     }
+ }
+ 
++#[cfg(feature = "std")]
+ impl Error for Unspecified {
+     #[allow(clippy::unnecessary_literal_bound)]
+     fn description(&self) -> &str {
+diff --git a/aws-lc-rs/src/evp_pkey.rs b/aws-lc-rs/src/evp_pkey.rs
+index f05c3427fd2bf43fdd277642ee8ace967e3fc590..2b6322eedd95b4767daf06867f59cf0c8ef5ba9f 100644
+--- a/aws-lc-rs/src/evp_pkey.rs
++++ b/aws-lc-rs/src/evp_pkey.rs
+@@ -12,7 +12,7 @@ use crate::aws_lc::{
+     EVP_parse_private_key, EVP_parse_public_key, EC_KEY, EVP_PKEY, EVP_PKEY_CTX, EVP_PKEY_ED25519,
+     RSA,
+ };
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(feature = "unstable", feature = "ml-dsa", not(feature = "fips")))]
+ use crate::aws_lc::{
+     EVP_PKEY_pqdsa_new_raw_private_key, EVP_PKEY_pqdsa_new_raw_public_key, EVP_PKEY_PQDSA,
+     NID_MLDSA44, NID_MLDSA65, NID_MLDSA87,
+@@ -25,8 +25,9 @@ use crate::fips::indicator_check;
+ use crate::pkcs8::Version;
+ use crate::ptr::{ConstPointer, LcPtr};
+ use crate::{cbs, digest};
++use alloc::{boxed::Box, vec::Vec};
+ use core::ffi::c_int;
+-use std::ptr::{null, null_mut};
++use core::ptr::{null, null_mut};
+ 
+ impl PartialEq<Self> for LcPtr<EVP_PKEY> {
+     /// Only compares params and public key
+@@ -260,7 +261,7 @@ impl LcPtr<EVP_PKEY> {
+         bytes: &[u8],
+         evp_pkey_type: c_int,
+     ) -> Result<Self, KeyRejected> {
+-        #[cfg(all(feature = "unstable", not(feature = "fips")))]
++        #[cfg(all(feature = "unstable", feature = "ml-dsa", not(feature = "fips")))]
+         if evp_pkey_type == EVP_PKEY_PQDSA {
+             return match bytes.len() {
+                 2560 => Self::new(unsafe {
+@@ -287,7 +288,7 @@ impl LcPtr<EVP_PKEY> {
+         bytes: &[u8],
+         evp_pkey_type: c_int,
+     ) -> Result<Self, KeyRejected> {
+-        #[cfg(all(feature = "unstable", not(feature = "fips")))]
++        #[cfg(all(feature = "unstable", feature = "ml-dsa", not(feature = "fips")))]
+         if evp_pkey_type == EVP_PKEY_PQDSA {
+             return match bytes.len() {
+                 1312 => Self::new(unsafe {
+diff --git a/aws-lc-rs/src/hex.rs b/aws-lc-rs/src/hex.rs
+index 9007240fbce15b5919d28fcbada55641c4e9d05f..c5be346b81771c822ab7193745bdbe4fb4ae1ea9 100644
+--- a/aws-lc-rs/src/hex.rs
++++ b/aws-lc-rs/src/hex.rs
+@@ -1,6 +1,11 @@
+ // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+ 
++use alloc::{
++    string::{String, ToString},
++    vec::Vec,
++};
++
+ /// Converts bytes to a lower-case hex string
+ #[allow(clippy::missing_panics_doc)]
+ pub fn encode<T: AsRef<[u8]>>(bytes: T) -> String {
+@@ -17,6 +22,7 @@ pub fn encode<T: AsRef<[u8]>>(bytes: T) -> String {
+ }
+ 
+ /// Converts bytes to an upper-case hex string
++#[allow(dead_code)]
+ pub fn encode_upper<T: AsRef<[u8]>>(bytes: T) -> String {
+     encode(bytes).to_ascii_uppercase()
+ }
+@@ -25,6 +31,7 @@ pub fn encode_upper<T: AsRef<[u8]>>(bytes: T) -> String {
+ /// # Errors
+ /// Returns an error if `hex_str` contains a non-hex digit.
+ #[allow(clippy::missing_panics_doc)]
++#[allow(dead_code)]
+ pub fn decode(hex_str: &str) -> Result<Vec<u8>, String> {
+     let mut bytes = Vec::<u8>::with_capacity(hex_str.len() / 2 + 1);
+     let mut current_byte = b'\0';
+@@ -60,6 +67,7 @@ pub fn decode(hex_str: &str) -> Result<Vec<u8>, String> {
+ /// It ignores any characters that are not valid hex digits.
+ #[must_use]
+ #[allow(clippy::missing_panics_doc)]
++#[allow(dead_code)]
+ pub fn decode_dirty(hex_str: &str) -> Vec<u8> {
+     let clean: String = hex_str.chars().filter(char::is_ascii_hexdigit).collect();
+     // DON'T PANIC: it should not be possible to panic because we filter out all non-hex digits.
+diff --git a/aws-lc-rs/src/hkdf.rs b/aws-lc-rs/src/hkdf.rs
+index b22558feebcd82a0dd77f2fe34e48154e061de26..600515063b9a575c1dc2229165dc1c84592e19c3 100644
+--- a/aws-lc-rs/src/hkdf.rs
++++ b/aws-lc-rs/src/hkdf.rs
+@@ -49,6 +49,7 @@ use crate::error::Unspecified;
+ use crate::fips::indicator_check;
+ use crate::{digest, hmac};
+ use alloc::sync::Arc;
++use alloc::{boxed::Box, vec::Vec};
+ use core::fmt;
+ use zeroize::Zeroize;
+ 
+diff --git a/aws-lc-rs/src/iv.rs b/aws-lc-rs/src/iv.rs
+index 0115e04fa7ee71a0e445b7d203cda86548fde914..56a1f39214310330538c60553f912fc9dc7cf951 100644
+--- a/aws-lc-rs/src/iv.rs
++++ b/aws-lc-rs/src/iv.rs
+@@ -8,6 +8,7 @@
+ 
+ use crate::error::Unspecified;
+ use crate::rand;
++use alloc::borrow::ToOwned;
+ use zeroize::Zeroize;
+ 
+ /// Length of a 64-bit IV in bytes (used by DES/3DES).
+diff --git a/aws-lc-rs/src/kem.rs b/aws-lc-rs/src/kem.rs
+index fe03301bf76407adf99a8f4f0834a931f87ffd2b..c3c50d87ef1b591df1e5fa16dd205b698d739503 100644
+--- a/aws-lc-rs/src/kem.rs
++++ b/aws-lc-rs/src/kem.rs
+@@ -54,6 +54,8 @@ use crate::encoding::generated_encodings;
+ use crate::error::{KeyRejected, Unspecified};
+ use crate::ptr::LcPtr;
+ use alloc::borrow::Cow;
++use alloc::boxed::Box;
++use alloc::vec::Vec;
+ use core::cmp::Ordering;
+ use zeroize::Zeroize;
+ 
+diff --git a/aws-lc-rs/src/key_wrap.rs b/aws-lc-rs/src/key_wrap.rs
+index 73aa2d6a2e09db42b3c310951b0f355df982d3ae..37bb7c6f4f6ff00541f97bf94a1bc67091a92ad0 100644
+--- a/aws-lc-rs/src/key_wrap.rs
++++ b/aws-lc-rs/src/key_wrap.rs
+@@ -39,6 +39,7 @@ use crate::aws_lc::{
+ use crate::error::Unspecified;
+ use crate::fips::indicator_check;
+ use crate::sealed::Sealed;
++use alloc::{boxed::Box, vec::Vec};
+ use core::fmt::Debug;
+ use core::mem::MaybeUninit;
+ use core::ptr::null;
+diff --git a/aws-lc-rs/src/lib.rs b/aws-lc-rs/src/lib.rs
+index c68a178a82b62cfe31f7f00f7c8f9464a24769c1..bede61a148e7a81ad254e7187d9340180a680a1d 100644
+--- a/aws-lc-rs/src/lib.rs
++++ b/aws-lc-rs/src/lib.rs
+@@ -39,6 +39,20 @@
+ //! Allows implementation to allocate values of arbitrary size. (The meaning of this feature differs
+ //! from the "alloc" feature of *ring*.) Currently, this is required by the `io::writer` module.
+ //!
++//! #### ml-kem and ml-dsa (default)
++//!
++//! Enable the ML-KEM and ML-DSA implementations, respectively. `pqc` enables
++//! both. Consumers selecting only one algorithm must disable default features.
++//! Omitting an algorithm removes its native implementation and Rust API.
++//! ML-DSA also requires the `unstable` feature.
++//!
++//! #### `target_os = "none"`
++//!
++//! Bare-metal targets automatically use the freestanding C runtime adapter.
++//! No-std consumers must disable default features and provide the platform
++//! hooks documented by `aws-lc-sys`. Consumers that select `alloc` must also
++//! install a Rust global allocator.
++//!
+ //! #### ring-io (default)
+ //!
+ //! Enable feature to access the  `io`  module.
+@@ -211,8 +225,9 @@
+ //! Although this library attempts to be fully compatible with *ring* (v0.16.x), there are a few places where our
+ //! behavior is observably different.
+ //!
+-//! * Our implementation requires the `std` library. We currently do not support a
+-//!   [`#![no_std]`](https://docs.rust-embedded.org/book/intro/no-std.html) build.
++//! * Freestanding [`#![no_std]`](https://docs.rust-embedded.org/book/intro/no-std.html)
++//!   builds are selected by `target_os = "none"` and require platform-provided
++//!   allocation, entropy, time, and abort hooks.
+ //! * `aws-lc-rs` supports the platforms supported by `aws-lc-sys` and AWS-LC. See the
+ //!   [Platform Support](https://aws.github.io/aws-lc-rs/platform_support.html) page in our User Guide.
+ //! * `Ed25519KeyPair::from_pkcs8` and `Ed25519KeyPair::from_pkcs8_maybe_unchecked` both support
+@@ -239,7 +254,9 @@
+ #![warn(missing_docs)]
+ #![warn(clippy::exhaustive_enums)]
+ #![cfg_attr(aws_lc_rs_docsrs, feature(doc_cfg))]
++#![cfg_attr(not(feature = "std"), no_std)]
+ 
++#[macro_use]
+ extern crate alloc;
+ #[cfg(feature = "fips")]
+ extern crate aws_lc_fips_sys as aws_lc;
+@@ -261,6 +278,7 @@ pub mod pbkdf2;
+ pub mod pkcs8;
+ pub mod rand;
+ pub mod signature;
++#[cfg(feature = "std")]
+ pub mod test;
+ 
+ mod bn;
+@@ -279,26 +297,29 @@ mod hex;
+ pub mod iv;
+ pub mod kdf;
+ #[allow(clippy::module_name_repetitions)]
++#[cfg(feature = "ml-kem")]
+ pub mod kem;
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(feature = "unstable", feature = "ml-dsa", not(feature = "fips")))]
+ mod pqdsa;
+ mod ptr;
+ pub mod rsa;
+ pub mod tls_prf;
+ pub mod unstable;
+ 
++use crate::aws_lc::{CRYPTO_library_init, FIPS_mode, OpenSSL_version, OPENSSL_VERSION};
++#[cfg(feature = "std")]
++use crate::aws_lc::{ERR_error_string, ERR_get_error, ERR_GET_FUNC, ERR_GET_LIB, ERR_GET_REASON};
++use core::ffi::CStr;
+ pub(crate) use debug::derive_debug_via_id;
+-// TODO: Uncomment when MSRV >= 1.64
+-// use core::ffi::CStr;
+-use std::ffi::CStr;
+-
+-use crate::aws_lc::{
+-    CRYPTO_library_init, ERR_error_string, ERR_get_error, FIPS_mode, OpenSSL_version, ERR_GET_FUNC,
+-    ERR_GET_LIB, ERR_GET_REASON, OPENSSL_VERSION,
+-};
++#[cfg(not(feature = "std"))]
++use spin::Once;
++#[cfg(feature = "std")]
+ use std::sync::Once;
+ 
++#[cfg(feature = "std")]
+ static START: Once = Once::new();
++#[cfg(not(feature = "std"))]
++static START: Once<()> = Once::new();
+ 
+ #[inline]
+ /// Initialize the *AWS-LC* library. (This should generally not be needed.)
+@@ -394,6 +415,7 @@ pub fn try_fips_cpu_jitter_entropy() -> Result<(), &'static str> {
+ }
+ 
+ #[allow(dead_code)]
++#[cfg(feature = "std")]
+ unsafe fn dump_error() {
+     let err = ERR_get_error();
+     let lib = ERR_GET_LIB(err);
+diff --git a/aws-lc-rs/src/pkcs8.rs b/aws-lc-rs/src/pkcs8.rs
+index 36906cb5b65776329942c1c58ab4d98a6b8f8aa7..2f402201994eb2ae17845d6bf4244cf2825079db 100644
+--- a/aws-lc-rs/src/pkcs8.rs
++++ b/aws-lc-rs/src/pkcs8.rs
+@@ -7,6 +7,7 @@
+ //!
+ //! [RFC 5208]: https://tools.ietf.org/html/rfc5208.
+ 
++use alloc::vec::Vec;
+ use zeroize::Zeroize;
+ 
+ /// A generated PKCS#8 document.
+diff --git a/aws-lc-rs/src/pqdsa/key_pair.rs b/aws-lc-rs/src/pqdsa/key_pair.rs
+index 2255cd25c49b0bcdfcb2c0b15bb4a9f6d3267085..b781134418f133d29de635a830961fa5d0f64a5f 100644
+--- a/aws-lc-rs/src/pqdsa/key_pair.rs
++++ b/aws-lc-rs/src/pqdsa/key_pair.rs
+@@ -13,8 +13,8 @@ use crate::pqdsa::signature::{PqdsaSigningAlgorithm, PublicKey};
+ use crate::pqdsa::validate_pqdsa_evp_key;
+ use crate::ptr::LcPtr;
+ use crate::signature::KeyPair;
++use core::ffi::c_int;
+ use core::fmt::{Debug, Formatter};
+-use std::ffi::c_int;
+ 
+ /// A PQDSA (Post-Quantum Digital Signature Algorithm) key pair, used for signing and verification.
+ #[allow(clippy::module_name_repetitions)]
+@@ -26,7 +26,7 @@ pub struct PqdsaKeyPair {
+ 
+ #[allow(clippy::missing_fields_in_debug)]
+ impl Debug for PqdsaKeyPair {
+-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
++    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+         f.debug_struct("PqdsaKeyPair")
+             .field("algorithm", &self.algorithm)
+             .finish()
+diff --git a/aws-lc-rs/src/pqdsa/signature.rs b/aws-lc-rs/src/pqdsa/signature.rs
+index e7b1f2f4d3dc4035d7fed1bc50ef39b68fd2d3bd..d6fbb8dbeecc41b92d070782cf8639c0de60254e 100644
+--- a/aws-lc-rs/src/pqdsa/signature.rs
++++ b/aws-lc-rs/src/pqdsa/signature.rs
+@@ -11,6 +11,7 @@ use crate::pqdsa::{parse_pqdsa_public_key, AlgorithmID};
+ use crate::ptr::LcPtr;
+ use crate::signature::{ParsedPublicKey, ParsedVerificationAlgorithm, VerificationAlgorithm};
+ use crate::{digest, sealed};
++use alloc::boxed::Box;
+ use core::fmt;
+ use core::fmt::{Debug, Formatter};
+ #[cfg(feature = "ring-sig-verify")]
+diff --git a/aws-lc-rs/src/ptr.rs b/aws-lc-rs/src/ptr.rs
+index 3b0fdd1c9bbc0e1a7f18a4a0b561d187663153cf..89c828d3781d6d1dd242a660801d69c42d07b5bc 100644
+--- a/aws-lc-rs/src/ptr.rs
++++ b/aws-lc-rs/src/ptr.rs
+@@ -7,7 +7,7 @@ use crate::aws_lc::{
+     RSA_free, BIGNUM, CMAC_CTX, ECDSA_SIG, EC_GROUP, EC_KEY, EC_POINT, EVP_AEAD_CTX,
+     EVP_CIPHER_CTX, EVP_PKEY, EVP_PKEY_CTX, RSA,
+ };
+-use std::marker::PhantomData;
++use core::marker::PhantomData;
+ 
+ pub(crate) type LcPtr<T> = ManagedPointer<*mut T>;
+ pub(crate) type DetachableLcPtr<T> = DetachablePointer<*mut T>;
+diff --git a/aws-lc-rs/src/rsa/encoding.rs b/aws-lc-rs/src/rsa/encoding.rs
+index af69fd0612f83c35a864097c291af64aa77ca6af..6e4cb813c4a68eb8031d447aa57681493a4affa5 100644
+--- a/aws-lc-rs/src/rsa/encoding.rs
++++ b/aws-lc-rs/src/rsa/encoding.rs
+@@ -12,7 +12,8 @@ pub(in crate::rsa) mod rfc8017 {
+     use crate::cbs;
+     use crate::error::{KeyRejected, Unspecified};
+     use crate::ptr::{DetachableLcPtr, LcPtr};
+-    use std::ptr::null_mut;
++    use alloc::{boxed::Box, vec::Vec};
++    use core::ptr::null_mut;
+ 
+     /// DER encode a RSA public key to `RSAPublicKey` structure.
+     pub(in crate::rsa) fn encode_public_key_der(
+diff --git a/aws-lc-rs/src/rsa/key.rs b/aws-lc-rs/src/rsa/key.rs
+index 0459efcb2ad83b7c076428e09acc39a9d14c5f2f..052037deeebbaa9b241e7df7f07d70dde6b26bb5 100644
+--- a/aws-lc-rs/src/rsa/key.rs
++++ b/aws-lc-rs/src/rsa/key.rs
+@@ -19,6 +19,7 @@ use crate::ptr::{DetachableLcPtr, LcPtr};
+ use crate::rsa::PublicEncryptingKey;
+ use crate::sealed::Sealed;
+ use crate::{hex, rand};
++use alloc::boxed::Box;
+ #[cfg(feature = "fips")]
+ use aws_lc::RSA_check_fips;
+ use core::fmt::{self, Debug, Formatter};
+@@ -26,7 +27,7 @@ use core::ptr::null_mut;
+ 
+ // TODO: Uncomment when MSRV >= 1.64
+ // use core::ffi::c_int;
+-use std::os::raw::c_int;
++use core::ffi::c_int;
+ 
+ use crate::digest::{match_digest_type, Digest};
+ use crate::pkcs8::Version;
+diff --git a/aws-lc-rs/src/rsa/signature.rs b/aws-lc-rs/src/rsa/signature.rs
+index 510adbf953bd1daf334b49d1b4c8efe64ee4bcce..3deb2dfe29e75a8a967f2153d4dd8dfde8cb5cb0 100644
+--- a/aws-lc-rs/src/rsa/signature.rs
++++ b/aws-lc-rs/src/rsa/signature.rs
+@@ -1,8 +1,8 @@
+ // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+ 
+-use std::fmt::{self, Debug, Formatter};
+-use std::ops::RangeInclusive;
++use core::fmt::{self, Debug, Formatter};
++use core::ops::RangeInclusive;
+ 
+ use crate::aws_lc::{
+     EVP_PKEY_CTX_set_rsa_padding, EVP_PKEY_CTX_set_rsa_pss_saltlen, EVP_PKEY_CTX_set_signature_md,
+diff --git a/aws-lc-rs/src/signature.rs b/aws-lc-rs/src/signature.rs
+index 143810a9ca72868f94153182234084292fd54d40..19d2403f57a3344b5ffa3e190b4dba2378c69607 100644
+--- a/aws-lc-rs/src/signature.rs
++++ b/aws-lc-rs/src/signature.rs
+@@ -241,8 +241,9 @@ pub use crate::rsa::{
+     KeyPair as RsaKeyPair, PublicKey as RsaSubjectPublicKey,
+     PublicKeyComponents as RsaPublicKeyComponents, RsaParameters,
+ };
++use alloc::boxed::Box;
++use core::any::{Any, TypeId};
+ use core::fmt::{Debug, Formatter};
+-use std::any::{Any, TypeId};
+ #[cfg(feature = "ring-sig-verify")]
+ use untrusted::Input;
+ 
+@@ -264,7 +265,7 @@ use crate::ec::encoding::parse_ec_public_key;
+ use crate::ed25519::parse_ed25519_public_key;
+ use crate::encoding::{AsDer, PublicKeyX509Der};
+ use crate::error::{KeyRejected, Unspecified};
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(feature = "unstable", feature = "ml-dsa", not(feature = "fips")))]
+ use crate::pqdsa::{parse_pqdsa_public_key, signature::PqdsaVerificationAlgorithm};
+ use crate::ptr::LcPtr;
+ use crate::rsa::key::parse_rsa_public_key;
+@@ -673,7 +674,7 @@ pub(crate) fn parse_public_key(
+         parsed_algorithm = rsa_alg;
+         parse_rsa_public_key(bytes)?
+     } else {
+-        #[cfg(all(feature = "unstable", not(feature = "fips")))]
++        #[cfg(all(feature = "unstable", feature = "ml-dsa", not(feature = "fips")))]
+         if algorithm.type_id() == TypeId::of::<PqdsaVerificationAlgorithm>() {
+             #[allow(clippy::cast_ptr_alignment)]
+             let pqdsa_alg = unsafe {
+@@ -685,7 +686,7 @@ pub(crate) fn parse_public_key(
+         } else {
+             unreachable!()
+         }
+-        #[cfg(any(not(feature = "unstable"), feature = "fips"))]
++        #[cfg(any(not(feature = "unstable"), not(feature = "ml-dsa"), feature = "fips"))]
+         unreachable!()
+     };
+ 
+diff --git a/aws-lc-rs/src/signature/parsed_public_key_tests.rs b/aws-lc-rs/src/signature/parsed_public_key_tests.rs
+index 73ab3dadf717421e06abf1ff8f6bc6566a914618..64f65672947bbf41b24d11e1e13cddf4a3841323 100644
+--- a/aws-lc-rs/src/signature/parsed_public_key_tests.rs
++++ b/aws-lc-rs/src/signature/parsed_public_key_tests.rs
+@@ -12,7 +12,11 @@ use crate::signature::{
+ use crate::{rand, test};
+ use std::any::Any;
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ use crate::unstable::signature::{
+     PqdsaKeyPair, ML_DSA_44, ML_DSA_44_SIGNING, ML_DSA_65, ML_DSA_65_SIGNING, ML_DSA_87,
+     ML_DSA_87_SIGNING,
+@@ -367,7 +371,11 @@ fn test_parsed_public_key_cross_verification() {
+     }
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_ml_dsa_44() {
+     let key_pair = PqdsaKeyPair::generate(&ML_DSA_44_SIGNING).unwrap();
+@@ -386,7 +394,11 @@ fn test_parsed_public_key_ml_dsa_44() {
+     assert!(parsed.verify_sig(b"wrong message", &signature).is_err());
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_ml_dsa_65() {
+     let key_pair = PqdsaKeyPair::generate(&ML_DSA_65_SIGNING).unwrap();
+@@ -405,7 +417,11 @@ fn test_parsed_public_key_ml_dsa_65() {
+     assert!(parsed.verify_sig(b"wrong message", &signature).is_err());
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_ml_dsa_87() {
+     let key_pair = PqdsaKeyPair::generate(&ML_DSA_87_SIGNING).unwrap();
+@@ -424,7 +440,11 @@ fn test_parsed_public_key_ml_dsa_87() {
+     assert!(parsed.verify_sig(b"wrong message", &signature).is_err());
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_pqdsa_with_x509_der() {
+     use crate::encoding::AsDer;
+@@ -442,7 +462,11 @@ fn test_parsed_public_key_pqdsa_with_x509_der() {
+     assert!(parsed.verify_sig(message, &signature).is_ok());
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_pqdsa_invalid_key() {
+     // Test with wrong size key for ML-DSA-44 (expects 1312 bytes)
+@@ -453,7 +477,11 @@ fn test_parsed_public_key_pqdsa_invalid_key() {
+     assert!(ParsedPublicKey::new(&ML_DSA_44, invalid_key).is_err());
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_pqdsa_algorithm_mismatch() {
+     let key_pair = PqdsaKeyPair::generate(&ML_DSA_44_SIGNING).unwrap();
+@@ -466,7 +494,11 @@ fn test_parsed_public_key_pqdsa_algorithm_mismatch() {
+     assert!(ParsedPublicKey::new(&ED25519, public_key_bytes).is_err());
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_pqdsa_cross_verification() {
+     let key_pair = PqdsaKeyPair::generate(&ML_DSA_44_SIGNING).unwrap();
+@@ -493,7 +525,11 @@ fn test_parsed_public_key_pqdsa_cross_verification() {
+     );
+ }
+ 
+-#[cfg(all(feature = "unstable", not(feature = "fips")))]
++#[cfg(all(
++    feature = "unstable",
++    feature = "ml-dsa",
++    not(feature = "fips")
++))]
+ #[test]
+ fn test_parsed_public_key_pqdsa_verify_digest() {
+     let key_pair = PqdsaKeyPair::generate(&ML_DSA_44_SIGNING).unwrap();
+diff --git a/aws-lc-rs/src/tls_prf.rs b/aws-lc-rs/src/tls_prf.rs
+index 39600a7c5fc098061b1722bbdb5997b0483da367..148e5abd50323d937a9bffb409a96cfea8e9eb7f 100644
+--- a/aws-lc-rs/src/tls_prf.rs
++++ b/aws-lc-rs/src/tls_prf.rs
+@@ -25,6 +25,7 @@
+ //! # }
+ //! ```
+ 
++use alloc::{boxed::Box, vec::Vec};
+ use core::fmt::Debug;
+ 
+ use crate::digest::{match_digest_type, AlgorithmID};
+diff --git a/aws-lc-rs/src/unstable.rs b/aws-lc-rs/src/unstable.rs
+index 59e5daf6b11348b48f554482ef90c375f7a3b199..3d521873de8259083176a0ad3d451a56e58f4486 100644
+--- a/aws-lc-rs/src/unstable.rs
++++ b/aws-lc-rs/src/unstable.rs
+@@ -9,5 +9,5 @@
+ //! The APIs under this module are not stable and may change in the future.
+ //! They are not covered by semver guarantees.
+ //!
+-#[cfg(not(feature = "fips"))]
++#[cfg(all(feature = "ml-dsa", not(feature = "fips")))]
+ pub mod signature;
+diff --git a/aws-lc-rs/tests/pqdsa_test.rs b/aws-lc-rs/tests/pqdsa_test.rs
+index 12bc5b0055191d5eb577c938c9ca6002ee639974..7935134091dc1e29c3960001db185759924a4fbc 100644
+--- a/aws-lc-rs/tests/pqdsa_test.rs
++++ b/aws-lc-rs/tests/pqdsa_test.rs
+@@ -1,6 +1,6 @@
+ // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+-#![cfg(all(not(feature = "fips"), feature = "unstable"))]
++#![cfg(all(not(feature = "fips"), feature = "ml-dsa", feature = "unstable"))]
+ 
+ use aws_lc_rs::encoding::{AsDer, AsRawBytes};
+ use aws_lc_rs::signature::{KeyPair, ParsedPublicKey, VerificationAlgorithm};
+diff --git a/aws-lc-sys/Cargo.toml b/aws-lc-sys/Cargo.toml
+index 863c1ca0649e440363a7b7727854bd046d3398b6..4b19fc0e74cf03b602b09ac9abffde352ae23df2 100644
+--- a/aws-lc-sys/Cargo.toml
++++ b/aws-lc-sys/Cargo.toml
+@@ -54,6 +54,7 @@ include = [
+     "/Cargo.toml",
+     "/generated-include/**",
+     "/include/**",
++    "/no-std/**",
+     "/src/**/*.rs",
+     "/tests/**/*.rs",
+ ]
+@@ -66,7 +67,11 @@ bindgen = ["dep:bindgen"] # Generate the bindings on the targeted platform as a
+ disable-prebuilt-nasm = []
+ prebuilt-nasm = []
+ all-bindings = []
+-default = ['all-bindings']
++ml-kem = []
++ml-dsa = []
++pqc = ["ml-kem", "ml-dsa"]
++small = []
++default = ["all-bindings", "ml-kem", "ml-dsa"]
+ fips = ['dep:bindgen']
+ 
+ [build-dependencies]
+diff --git a/aws-lc-sys/README.md b/aws-lc-sys/README.md
+index cd3caa6f041042942f14fc49d7eee69f71696d96..5a09291634114c48e04d4a1e8610fa3e1939920a 100644
+--- a/aws-lc-sys/README.md
++++ b/aws-lc-sys/README.md
+@@ -215,6 +215,46 @@ available at [aws-lc-fips-sys](https://crates.io/crates/aws-lc-fips-sys).
+ Details on the post-quantum algorithms supported by aws-lc-sys can be found at
+ [PQREADME](https://github.com/aws/aws-lc/tree/main/crypto/fipsmodule/PQREADME.md).
+ 
++`ml-kem` and `ml-dsa` are enabled by default. Disable default features and
++select either feature directly to build only that implementation. `pqc` is a
++convenience alias for both:
++
++```toml
++[dependencies]
++aws-lc-sys = { version = "0.43", default-features = false, features = ["ml-kem"] }
++```
++
++Disabling an algorithm removes its implementation, method tables, and
++algorithm self-tests. Public C declarations, generated Rust bindings, object
++identifiers, and generic EVP type metadata remain stable. They do not provide
++key generation, signing, verification, encapsulation, or decapsulation when
++the corresponding implementation feature is disabled.
++
++## No-Std Runtime
++
++Targets with `target_os = "none"` automatically use the freestanding adapter.
++The target remains unchanged when compiling AWS-LC. The adapter is not a
++general-purpose libc and assumes ownership of the C runtime symbols it
++provides. It configures AWS-LC for single-threaded operation; concurrent use
++is unsupported. The adapter supplies the libc subset needed by AWS-LC and
++delegates platform policy through these required hooks:
++
++| Hook | Contract |
++|------|----------|
++| `aws_lc_nostd_alloc` | Allocate the requested size and power-of-two alignment, or return null. |
++| `aws_lc_nostd_dealloc` | Release an allocation using its original size and alignment. |
++| `aws_lc_nostd_realloc` | Preserve the shorter of the old and new sizes; failure leaves the old allocation valid. |
++| `aws_lc_nostd_entropy` | Fill the complete output with cryptographically secure random bytes and return one, or return zero without exposing partial output. |
++| `aws_lc_nostd_time` | Return seconds since the Unix epoch. A fixed value is permitted only when the consumer does not rely on time validation. |
++| `aws_lc_nostd_abort` | Terminate execution and never return. |
++
++The authoritative declarations are in
++`no-std/include/aws_lc/no_std_runtime.h`. Rust consumers that enable `alloc`
++must separately install a Rust
++[`GlobalAlloc`](https://doc.rust-lang.org/core/alloc/trait.GlobalAlloc.html).
++The `no-std-runtime-test` workspace package is a final-linked bare-metal
++example.
++
+ ## Security Notification Process
+ 
+ If you discover a potential security issue in *AWS-LC* or *aws-lc-sys*, we ask that you notify AWS
+diff --git a/aws-lc-sys/no-std/include/assert.h b/aws-lc-sys/no-std/include/assert.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..df058427dbaead9906a2c095d85074c3c2509651
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/assert.h
+@@ -0,0 +1,16 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_ASSERT_H
++#define AWS_LC_SYS_NO_STD_ASSERT_H
++
++void __assert_fail(const char *expression, const char *file, unsigned int line,
++                   const char *function) __attribute__((noreturn));
++
++#ifdef NDEBUG
++#define assert(expression) ((void)0)
++#else
++#define assert(expression)                                                     \
++  ((expression) ? (void)0                                                      \
++                : __assert_fail(#expression, __FILE__, __LINE__, __func__))
++#endif
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/aws_lc/no_std_runtime.h b/aws-lc-sys/no-std/include/aws_lc/no_std_runtime.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..68b8f3e90fc5a7aa350764644c69858e8d8518d9
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/aws_lc/no_std_runtime.h
+@@ -0,0 +1,44 @@
++// Copyright (c) 2026 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++
++#ifndef AWS_LC_NO_STD_RUNTIME_H
++#define AWS_LC_NO_STD_RUNTIME_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++#if defined(__cplusplus)
++extern "C" {
++#endif
++
++// Allocates |size| bytes aligned to |align|, or returns NULL. |align| is a
++// non-zero power of two. The returned allocation remains valid until passed to
++// aws_lc_nostd_dealloc or aws_lc_nostd_realloc.
++void *aws_lc_nostd_alloc(size_t size, size_t align);
++
++// Releases an allocation returned by aws_lc_nostd_alloc or
++// aws_lc_nostd_realloc. |size| and |align| equal the values used to create the
++// current allocation.
++void aws_lc_nostd_dealloc(void *ptr, size_t size, size_t align);
++
++// Resizes an allocation while preserving min(|old_size|, |new_size|) bytes.
++// Returns NULL without releasing |ptr| on failure.
++void *aws_lc_nostd_realloc(void *ptr, size_t old_size, size_t new_size,
++                           size_t align);
++
++// Fills exactly |len| bytes with cryptographically secure random data. Returns
++// one on success and zero without exposing partial output on failure.
++int aws_lc_nostd_entropy(uint8_t *out, size_t len);
++
++// Returns seconds since the Unix epoch. Platforms without a trusted wall clock
++// may return a fixed value, but time-dependent validation will then fail.
++int64_t aws_lc_nostd_time(void);
++
++// Terminates execution and never returns.
++void aws_lc_nostd_abort(void) __attribute__((noreturn));
++
++#if defined(__cplusplus)
++}
++#endif
++
++#endif  // AWS_LC_NO_STD_RUNTIME_H
+diff --git a/aws-lc-sys/no-std/include/ctype.h b/aws-lc-sys/no-std/include/ctype.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..a10f16ac7852b296416afc2c74ba84a5c5adc3b0
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/ctype.h
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_CTYPE_H
++#define AWS_LC_SYS_NO_STD_CTYPE_H
++
++int isalnum(int character);
++int isalpha(int character);
++int isdigit(int character);
++int isprint(int character);
++int isspace(int character);
++int isxdigit(int character);
++int tolower(int character);
++int toupper(int character);
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/errno.h b/aws-lc-sys/no-std/include/errno.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..bf6e6e424071aebac9092b0c740b62dc37201dcc
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/errno.h
+@@ -0,0 +1,13 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_ERRNO_H
++#define AWS_LC_SYS_NO_STD_ERRNO_H
++
++#define ENOENT 2
++#define ENOMEM 12
++#define EINVAL 22
++#define ERANGE 34
++
++int *__errno_location(void);
++#define errno (*__errno_location())
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/inttypes.h b/aws-lc-sys/no-std/include/inttypes.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..df1f17a19620e2fa7195d399de2b9f7a8d6ae810
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/inttypes.h
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_INTTYPES_H
++#define AWS_LC_SYS_NO_STD_INTTYPES_H
++
++#include <stdint.h>
++
++#define PRIX32 "X"
++#define PRIu32 "u"
++#define PRIx32 "x"
++#define PRId64 "ld"
++#define PRIu64 "lu"
++#define PRIx64 "lx"
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/stdio.h b/aws-lc-sys/no-std/include/stdio.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..838a4f0cc654757cf756f5041746fde6ac5d5ebf
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/stdio.h
+@@ -0,0 +1,34 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_STDIO_H
++#define AWS_LC_SYS_NO_STD_STDIO_H
++
++#include <stdarg.h>
++#include <stddef.h>
++
++typedef struct aws_lc_sys_no_std_file FILE;
++
++extern FILE *stderr;
++extern FILE *stdout;
++
++int fclose(FILE *stream);
++int feof(FILE *stream);
++int ferror(FILE *stream);
++int fflush(FILE *stream);
++char *fgets(char *buffer, int size, FILE *stream);
++int fprintf(FILE *stream, const char *format, ...);
++int fputs(const char *string, FILE *stream);
++size_t fread(void *buffer, size_t size, size_t count, FILE *stream);
++int fseek(FILE *stream, long offset, int origin);
++long ftell(FILE *stream);
++size_t fwrite(const void *buffer, size_t size, size_t count, FILE *stream);
++int printf(const char *format, ...);
++int snprintf(char *buffer, size_t size, const char *format, ...);
++int sscanf(const char *input, const char *format, ...);
++int vsnprintf(char *buffer, size_t size, const char *format, va_list args);
++
++#define EOF (-1)
++#define SEEK_CUR 1
++#define SEEK_END 2
++#define SEEK_SET 0
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/stdlib.h b/aws-lc-sys/no-std/include/stdlib.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..7994655a2777f6bcc956139d1ca2ed14ac2d54f2
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/stdlib.h
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_STDLIB_H
++#define AWS_LC_SYS_NO_STD_STDLIB_H
++
++#include <stddef.h>
++
++#define EXIT_FAILURE 1
++#define EXIT_SUCCESS 0
++#define RAND_MAX 2147483647
++
++void abort(void) __attribute__((noreturn));
++void *bsearch(const void *key, const void *base, size_t count, size_t size,
++              int (*compare)(const void *, const void *));
++void *calloc(size_t count, size_t size);
++void free(void *pointer);
++char *getenv(const char *name);
++void *malloc(size_t size);
++void qsort(void *base, size_t count, size_t size,
++           int (*compare)(const void *, const void *));
++void *realloc(void *pointer, size_t size);
++long strtol(const char *string, char **end, int base);
++unsigned long strtoul(const char *string, char **end, int base);
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/string.h b/aws-lc-sys/no-std/include/string.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..306edc1c1f072100f1c75eff936865f1a08f23fe
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/string.h
+@@ -0,0 +1,18 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_STRING_H
++#define AWS_LC_SYS_NO_STD_STRING_H
++
++#include <stddef.h>
++
++void *memchr(const void *buffer, int character, size_t size);
++int memcmp(const void *left, const void *right, size_t size);
++void *memcpy(void *destination, const void *source, size_t size);
++void *memmove(void *destination, const void *source, size_t size);
++void *memset(void *destination, int value, size_t size);
++char *strchr(const char *string, int character);
++int strcmp(const char *left, const char *right);
++char *strerror(int error);
++size_t strlen(const char *string);
++int strncmp(const char *left, const char *right, size_t size);
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/sys/stat.h b/aws-lc-sys/no-std/include/sys/stat.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..c6adc1ea5ac7bd7f027e50f2906d9d91dc703c27
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/sys/stat.h
+@@ -0,0 +1,9 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_SYS_STAT_H
++#define AWS_LC_SYS_NO_STD_SYS_STAT_H
++
++struct stat {
++  unsigned char unused;
++};
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/sys/types.h b/aws-lc-sys/no-std/include/sys/types.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..38a9b1d1ad9a611ef102cbd8c57dbbdd796377d0
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/sys/types.h
+@@ -0,0 +1,11 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_SYS_TYPES_H
++#define AWS_LC_SYS_NO_STD_SYS_TYPES_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++typedef intptr_t ssize_t;
++typedef int64_t time_t;
++
++#endif
+diff --git a/aws-lc-sys/no-std/include/time.h b/aws-lc-sys/no-std/include/time.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..4bda191674323de9c98f073d4428d9c7f267e580
+--- /dev/null
++++ b/aws-lc-sys/no-std/include/time.h
+@@ -0,0 +1,21 @@
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++#ifndef AWS_LC_SYS_NO_STD_TIME_H
++#define AWS_LC_SYS_NO_STD_TIME_H
++
++#include <sys/types.h>
++
++struct tm {
++  int tm_sec;
++  int tm_min;
++  int tm_hour;
++  int tm_mday;
++  int tm_mon;
++  int tm_year;
++  int tm_wday;
++  int tm_yday;
++  int tm_isdst;
++};
++
++time_t time(time_t *result);
++
++#endif
+diff --git a/aws-lc-sys/no-std/runtime.c b/aws-lc-sys/no-std/runtime.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..5898bc7f3bcf9e0e5a9f5d1c080155c789245168
+--- /dev/null
++++ b/aws-lc-sys/no-std/runtime.c
+@@ -0,0 +1,367 @@
++// Copyright (c) 2026 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0 OR ISC
++
++#include <openssl/rand.h>
++
++#include <aws_lc/no_std_runtime.h>
++#include <stdarg.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#define ALLOC_ALIGNMENT 16
++#define ALLOC_HEADER_SIZE 16
++
++FILE *stderr;
++FILE *stdout;
++static int nostd_errno;
++
++int *__errno_location(void) { return &nostd_errno; }
++
++void *malloc(size_t size) {
++  if (size > SIZE_MAX - ALLOC_HEADER_SIZE) {
++    return NULL;
++  }
++  const size_t allocation_size = size + ALLOC_HEADER_SIZE;
++  uint8_t *allocation = aws_lc_nostd_alloc(allocation_size, ALLOC_ALIGNMENT);
++  if (allocation == NULL) {
++    return NULL;
++  }
++  *(size_t *)allocation = size;
++  return allocation + ALLOC_HEADER_SIZE;
++}
++
++void free(void *ptr) {
++  if (ptr == NULL) {
++    return;
++  }
++  uint8_t *allocation = (uint8_t *)ptr - ALLOC_HEADER_SIZE;
++  const size_t allocation_size = *(size_t *)allocation + ALLOC_HEADER_SIZE;
++  aws_lc_nostd_dealloc(allocation, allocation_size, ALLOC_ALIGNMENT);
++}
++
++void *calloc(size_t count, size_t size) {
++  if (size != 0 && count > SIZE_MAX / size) {
++    return NULL;
++  }
++  const size_t total = count * size;
++  void *ptr = malloc(total);
++  if (ptr != NULL) {
++    __builtin_memset(ptr, 0, total);
++  }
++  return ptr;
++}
++
++void *realloc(void *ptr, size_t size) {
++  if (ptr == NULL) {
++    return malloc(size);
++  }
++  if (size == 0) {
++    free(ptr);
++    return NULL;
++  }
++  if (size > SIZE_MAX - ALLOC_HEADER_SIZE) {
++    return NULL;
++  }
++  uint8_t *allocation = (uint8_t *)ptr - ALLOC_HEADER_SIZE;
++  const size_t old_size = *(size_t *)allocation + ALLOC_HEADER_SIZE;
++  const size_t new_size = size + ALLOC_HEADER_SIZE;
++  allocation =
++      aws_lc_nostd_realloc(allocation, old_size, new_size, ALLOC_ALIGNMENT);
++  if (allocation == NULL) {
++    return NULL;
++  }
++  *(size_t *)allocation = size;
++  return allocation + ALLOC_HEADER_SIZE;
++}
++
++int strcmp(const char *left, const char *right) {
++  while (*left != '\0' && *left == *right) {
++    left++;
++    right++;
++  }
++  return (unsigned char)*left - (unsigned char)*right;
++}
++
++char *strchr(const char *string, int character) {
++  do {
++    if (*string == (char)character) {
++      return (char *)string;
++    }
++  } while (*string++ != '\0');
++  return NULL;
++}
++
++void *memchr(const void *buffer, int character, size_t size) {
++  const unsigned char *bytes = buffer;
++  for (size_t index = 0; index < size; index++) {
++    if (bytes[index] == (unsigned char)character) {
++      return (void *)&bytes[index];
++    }
++  }
++  return NULL;
++}
++
++void *bsearch(const void *key, const void *base, size_t count, size_t size,
++              int (*compare)(const void *, const void *)) {
++  size_t low = 0;
++  size_t high = count;
++  while (low < high) {
++    const size_t middle = low + (high - low) / 2;
++    const void *element = (const uint8_t *)base + middle * size;
++    const int ordering = compare(key, element);
++    if (ordering < 0) {
++      high = middle;
++    } else if (ordering > 0) {
++      low = middle + 1;
++    } else {
++      return (void *)element;
++    }
++  }
++  return NULL;
++}
++
++void qsort(void *base, size_t count, size_t size,
++           int (*compare)(const void *, const void *)) {
++  uint8_t *bytes = base;
++  for (size_t index = 1; index < count; index++) {
++    size_t current = index;
++    while (current > 0) {
++      uint8_t *left = bytes + (current - 1) * size;
++      uint8_t *right = bytes + current * size;
++      if (compare(left, right) <= 0) {
++        break;
++      }
++      for (size_t offset = 0; offset < size; offset++) {
++        uint8_t value = left[offset];
++        left[offset] = right[offset];
++        right[offset] = value;
++      }
++      current--;
++    }
++  }
++}
++
++static unsigned long parse_unsigned(const char *string, char **end, int base,
++                                    int *negative) {
++  const char *cursor = string;
++  unsigned long value = 0;
++  while (*cursor == ' ' || (*cursor >= '\t' && *cursor <= '\r')) {
++    cursor++;
++  }
++  *negative = 0;
++  if (*cursor == '+' || *cursor == '-') {
++    *negative = *cursor++ == '-';
++  }
++  if ((base == 0 || base == 16) && cursor[0] == '0' &&
++      (cursor[1] == 'x' || cursor[1] == 'X')) {
++    base = 16;
++    cursor += 2;
++  } else if (base == 0) {
++    base = cursor[0] == '0' ? 8 : 10;
++  }
++  const char *digits = cursor;
++  for (;;) {
++    unsigned int digit;
++    if (*cursor >= '0' && *cursor <= '9') {
++      digit = (unsigned int)(*cursor - '0');
++    } else if (*cursor >= 'a' && *cursor <= 'z') {
++      digit = (unsigned int)(*cursor - 'a') + 10;
++    } else if (*cursor >= 'A' && *cursor <= 'Z') {
++      digit = (unsigned int)(*cursor - 'A') + 10;
++    } else {
++      break;
++    }
++    if (digit >= (unsigned int)base) {
++      break;
++    }
++    value = value * (unsigned int)base + digit;
++    cursor++;
++  }
++  if (end != NULL) {
++    *end = (char *)(cursor == digits ? string : cursor);
++  }
++  return value;
++}
++
++long strtol(const char *string, char **end, int base) {
++  int negative;
++  unsigned long value = parse_unsigned(string, end, base, &negative);
++  return negative ? -(long)value : (long)value;
++}
++
++unsigned long strtoul(const char *string, char **end, int base) {
++  int negative;
++  unsigned long value = parse_unsigned(string, end, base, &negative);
++  return negative ? 0 - value : value;
++}
++
++char *getenv(const char *name) {
++  (void)name;
++  return NULL;
++}
++
++int vsnprintf(char *buffer, size_t size, const char *format, va_list args) {
++  (void)format;
++  (void)args;
++  if (size != 0) {
++    buffer[0] = '\0';
++  }
++  return -1;
++}
++
++int snprintf(char *buffer, size_t size, const char *format, ...) {
++  va_list args;
++  va_start(args, format);
++  int result = vsnprintf(buffer, size, format, args);
++  va_end(args);
++  return result;
++}
++
++int sscanf(const char *input, const char *format, ...) {
++  (void)input;
++  (void)format;
++  return EOF;
++}
++
++int fclose(FILE *stream) {
++  (void)stream;
++  return EOF;
++}
++
++int feof(FILE *stream) {
++  (void)stream;
++  return 1;
++}
++
++int ferror(FILE *stream) {
++  (void)stream;
++  return 1;
++}
++
++int fflush(FILE *stream) {
++  (void)stream;
++  return 0;
++}
++
++char *fgets(char *buffer, int size, FILE *stream) {
++  (void)buffer;
++  (void)size;
++  (void)stream;
++  return NULL;
++}
++
++int fputs(const char *string, FILE *stream) {
++  (void)string;
++  (void)stream;
++  return EOF;
++}
++
++size_t fread(void *buffer, size_t size, size_t count, FILE *stream) {
++  (void)buffer;
++  (void)size;
++  (void)count;
++  (void)stream;
++  return 0;
++}
++
++int fseek(FILE *stream, long offset, int origin) {
++  (void)stream;
++  (void)offset;
++  (void)origin;
++  return -1;
++}
++
++long ftell(FILE *stream) {
++  (void)stream;
++  return -1;
++}
++
++size_t fwrite(const void *buffer, size_t size, size_t count, FILE *stream) {
++  (void)buffer;
++  (void)size;
++  (void)count;
++  (void)stream;
++  return 0;
++}
++
++int printf(const char *format, ...) {
++  (void)format;
++  return EOF;
++}
++
++int fprintf(FILE *stream, const char *format, ...) {
++  (void)stream;
++  (void)format;
++  aws_lc_nostd_abort();
++}
++
++char *strerror(int error) {
++  (void)error;
++  return "no-std runtime error";
++}
++
++static int ascii_is_upper(int character) {
++  return character >= 'A' && character <= 'Z';
++}
++
++static int ascii_is_lower(int character) {
++  return character >= 'a' && character <= 'z';
++}
++
++int isalpha(int character) {
++  return ascii_is_upper(character) || ascii_is_lower(character);
++}
++
++int isdigit(int character) { return character >= '0' && character <= '9'; }
++
++int isalnum(int character) { return isalpha(character) || isdigit(character); }
++
++int isprint(int character) { return character >= 0x20 && character <= 0x7e; }
++
++int isspace(int character) {
++  return character == ' ' || (character >= '\t' && character <= '\r');
++}
++
++int isxdigit(int character) {
++  return isdigit(character) || (character >= 'a' && character <= 'f') ||
++         (character >= 'A' && character <= 'F');
++}
++
++int tolower(int character) {
++  return ascii_is_upper(character) ? character + ('a' - 'A') : character;
++}
++
++int toupper(int character) {
++  return ascii_is_lower(character) ? character - ('a' - 'A') : character;
++}
++
++time_t time(time_t *result) {
++  time_t value = (time_t)aws_lc_nostd_time();
++  if (result != NULL) {
++    *result = value;
++  }
++  return value;
++}
++
++void abort(void) { aws_lc_nostd_abort(); }
++
++void __assert_fail(const char *assertion, const char *file, unsigned int line,
++                   const char *function) {
++  (void)assertion;
++  (void)file;
++  (void)line;
++  (void)function;
++  aws_lc_nostd_abort();
++}
++
++void CRYPTO_sysrand(uint8_t *out, size_t requested) {
++  if (!aws_lc_nostd_entropy(out, requested)) {
++    aws_lc_nostd_abort();
++  }
++}
++
++int CRYPTO_sysrand_if_available(uint8_t *out, size_t requested) {
++  return aws_lc_nostd_entropy(out, requested);
++}
+diff --git a/aws-lc-sys/src/lib.rs b/aws-lc-sys/src/lib.rs
+index d22ed1380a0009648913b86ca32b4190e1bcd492..def74cb4d89fdc0b310695ec20d3df1743af86ea 100644
+--- a/aws-lc-sys/src/lib.rs
++++ b/aws-lc-sys/src/lib.rs
+@@ -3,6 +3,7 @@
+ 
+ #![cfg_attr(not(clippy), allow(unexpected_cfgs))]
+ #![cfg_attr(not(clippy), allow(unknown_lints))]
++#![no_std]
+ 
+ #[allow(unused_macros)]
+ macro_rules! use_bindings {
+@@ -95,7 +96,7 @@ pub fn ERR_GET_FUNC(_packed_error: u32) -> i32 {
+ }
+ 
+ #[cfg(feature = "all-bindings")]
+-use std::os::raw::{c_char, c_long, c_void};
++use core::ffi::{c_char, c_long, c_void};
+ 
+ #[cfg(feature = "all-bindings")]
+ #[allow(non_snake_case, clippy::not_unsafe_ptr_arg_deref)]
+diff --git a/builder/cc_builder.rs b/builder/cc_builder.rs
+index 2cc833938abeae18a1c2211fec42b30bfc090073..b7d031d9d7f72eea0ccf0e42403454de6b9c398e 100644
+--- a/builder/cc_builder.rs
++++ b/builder/cc_builder.rs
+@@ -20,10 +20,10 @@ mod win_x86_64;
+ use crate::nasm_builder::NasmBuilder;
+ use crate::{
+     cargo_env, compiler_is_cl_like, emit_warning, env_var_to_bool, execute_command, find_clang_cl,
+-    get_crate_cc, get_crate_cflags, get_crate_cxx, is_cross_compiling, is_link_whole_archive,
+-    is_no_asm, out_dir, requested_c_std, set_env_for_target, should_build_jitter_entropy, target,
+-    target_arch, target_env, target_is_msvc, target_os, target_vendor, CStdRequested, EnvGuard,
+-    OutputLibType,
++    get_crate_cc, get_crate_cflags, get_crate_cxx, is_cross_compiling, is_freestanding_target,
++    is_link_whole_archive, is_ml_dsa_enabled, is_ml_kem_enabled, is_no_asm, is_small_enabled,
++    out_dir, requested_c_std, set_env_for_target, should_build_jitter_entropy, target, target_arch,
++    target_env, target_is_msvc, target_os, target_vendor, CStdRequested, EnvGuard, OutputLibType,
+ };
+ use std::cell::Cell;
+ use std::collections::HashMap;
+@@ -49,6 +49,18 @@ use std::fs;
+ fn identify_sources() -> Vec<&'static str> {
+     let mut source_files: Vec<&'static str> = vec![];
+     source_files.append(&mut Vec::from(universal::CRYPTO_LIBRARY));
++    if is_freestanding_target() {
++        source_files.retain(|source| {
++            !matches!(
++                *source,
++                "crypto/console/console.c"
++                    | "crypto/rand_extra/ccrandomgeneratebytes.c"
++                    | "crypto/rand_extra/getentropy.c"
++                    | "crypto/rand_extra/urandom.c"
++                    | "crypto/rand_extra/windows.c"
++            )
++        });
++    }
+     let mut target_specific_source_found = true;
+     if target_os() == "windows" {
+         if target_arch() == "x86_64" {
+@@ -89,6 +101,14 @@ fn identify_sources() -> Vec<&'static str> {
+         ));
+     }
+ 
++    source_files.retain(|source| {
++        (is_ml_kem_enabled()
++            || (!source.contains("/ml_kem/") && *source != "crypto/evp_extra/p_kem_asn1.c"))
++            && (is_ml_dsa_enabled()
++                || ((!source.contains("/ml_dsa/") && !source.contains("/mldsa/"))
++                    && *source != "crypto/evp_extra/p_pqdsa_asn1.c"))
++    });
++
+     source_files
+ }
+ 
+@@ -286,12 +306,26 @@ impl CcBuilder {
+ 
+     pub fn collect_cc_only_build_options(&self) -> Vec<BuildOption> {
+         let mut build_options: Vec<BuildOption> = Vec::new();
+-        let is_cl_like = compiler_is_cl_like(&cc::Build::new().get_compiler());
++        let cc_build = cc::Build::new();
++        let is_cl_like = compiler_is_cl_like(&cc_build.get_compiler());
++        build_options.push(BuildOption::define(
++            "AWSLC_ENABLE_ML_KEM",
++            if is_ml_kem_enabled() { "1" } else { "0" },
++        ));
++        build_options.push(BuildOption::define(
++            "AWSLC_ENABLE_ML_DSA",
++            if is_ml_dsa_enabled() { "1" } else { "0" },
++        ));
++        if is_freestanding_target() {
++            build_options.push(BuildOption::define("AWSLC_NO_STD", "1"));
++            build_options.push(BuildOption::flag("-nostdlibinc"));
++            build_options.push(BuildOption::flag("-ffreestanding"));
++        }
+         if !is_cl_like {
+             build_options.push(BuildOption::flag("-Wno-unused-parameter"));
+             // On emscripten, `-pthread` forces a shared-memory wasm module
+             // (requires SharedArrayBuffer); build single-threaded instead.
+-            if target_os() != "emscripten" {
++            if target_os() != "emscripten" && !is_freestanding_target() {
+                 build_options.push(BuildOption::flag("-pthread"));
+             }
+             if target_os() == "linux" || target_os() == "emscripten" {
+@@ -304,6 +338,14 @@ impl CcBuilder {
+         if !should_build_jitter_entropy() {
+             build_options.push(BuildOption::define("DISABLE_CPU_JITTER_ENTROPY", "1"));
+         }
++        if is_small_enabled() {
++            build_options.push(BuildOption::define("OPENSSL_SMALL", "1"));
++            for flag in ["-ffunction-sections", "-fdata-sections"] {
++                if let Some(option) = BuildOption::flag_if_supported(&cc_build, flag) {
++                    build_options.push(option);
++                }
++            }
++        }
+         self.add_includes(&mut build_options);
+         self.add_defines(&mut build_options, is_cl_like);
+ 
+@@ -320,6 +362,11 @@ impl CcBuilder {
+             ));
+         }
+         build_options.push(BuildOption::include(self.manifest_dir.join("include")));
++        if is_freestanding_target() {
++            build_options.push(BuildOption::include(
++                self.manifest_dir.join("no-std").join("include"),
++            ));
++        }
+         build_options.push(BuildOption::include(
+             self.manifest_dir.join("aws-lc").join("include"),
+         ));
+@@ -687,6 +734,9 @@ impl CcBuilder {
+                 cc_build.file(source_path);
+             }
+         }
++        if is_freestanding_target() {
++            cc_build.file(self.manifest_dir.join("no-std").join("runtime.c"));
++        }
+         self.compiler_features.set(compiler_features);
+         let s2n_bignum_object_files = s2n_bignum_builder.compile_intermediates();
+         for object in s2n_bignum_object_files {
+@@ -770,6 +820,12 @@ impl CcBuilder {
+             .file(source_file)
+             .warnings_into_errors(true)
+             .out_dir(&output_dir);
++        if is_freestanding_target() {
++            cc_build
++                .flag("-nostdlibinc")
++                .flag("-ffreestanding")
++                .include(self.manifest_dir.join("no-std").join("include"));
++        }
+         for flag in extra_flags {
+             let flag = flag.as_ref();
+             cc_build.flag(flag);
+diff --git a/builder/cc_builder/apple_x86_64.rs b/builder/cc_builder/apple_x86_64.rs
+index 6113ac33b7d396e7fd179fe6752a91c9177d3365..cb3fcd5bd8a622dfadf597cf36c21f071d3609d5 100644
+--- a/builder/cc_builder/apple_x86_64.rs
++++ b/builder/cc_builder/apple_x86_64.rs
+@@ -72,9 +72,6 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_scalarmulbase_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_scalarmuldouble.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_scalarmuldouble_alt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/mldsa/mldsa_intt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/mldsa/mldsa_ntt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/mldsa/mldsa_reduce.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p256/bignum_montinv_p256.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p256/p256_montjscalarmul.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p256/p256_montjscalarmul_alt.S",
+@@ -110,7 +107,6 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p521/p521_jdouble_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p521/p521_jscalarmul.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p521/p521_jscalarmul_alt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/sha3/sha3_keccak4_f1600.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/sha3/sha3_keccak4_f1600_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/sha3/sha3_keccak_f1600.S",
+ ];
+diff --git a/builder/cc_builder/linux_x86_64.rs b/builder/cc_builder/linux_x86_64.rs
+index 68265c3d361c2792959cf8e61b7de130af753389..0c6ed745cc42f4aba14e851dfa430e60d30d5881 100644
+--- a/builder/cc_builder/linux_x86_64.rs
++++ b/builder/cc_builder/linux_x86_64.rs
+@@ -1,11 +1,11 @@
+ // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+-// Wed Jul 15 15:34:27 UTC 2026
++// Fri Aug  7 13:47:33 UTC 2026
+ 
+ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/intt_avx2_asm.S",
+-    "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/nttunpack_avx2_asm.S",
+     "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/ntt_avx2_asm.S",
++    "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/nttunpack_avx2_asm.S",
+     "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/pointwise_acc_l4_avx2_asm.S",
+     "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/pointwise_acc_l5_avx2_asm.S",
+     "crypto/fipsmodule/ml_dsa/mldsa/native/x86_64/src/pointwise_acc_l7_avx2_asm.S",
+@@ -17,9 +17,6 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/nttfrombytes.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/ntttobytes.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/nttunpack.S",
+-    "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/polyvec_basemul_acc_montgomery_cached_asm_k2.S",
+-    "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/polyvec_basemul_acc_montgomery_cached_asm_k3.S",
+-    "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/polyvec_basemul_acc_montgomery_cached_asm_k4.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/poly_compress_d10.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/poly_compress_d11.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/poly_compress_d4.S",
+@@ -28,6 +25,9 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/poly_decompress_d11.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/poly_decompress_d4.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/poly_decompress_d5.S",
++    "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/polyvec_basemul_acc_montgomery_cached_asm_k2.S",
++    "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/polyvec_basemul_acc_montgomery_cached_asm_k3.S",
++    "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/polyvec_basemul_acc_montgomery_cached_asm_k4.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/reduce.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/rej_uniform_asm.S",
+     "crypto/fipsmodule/ml_kem/mlkem/native/x86_64/src/tomont.S",
+@@ -63,9 +63,9 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/bignum_mod_n25519.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/bignum_neg_p25519.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/curve25519_x25519.S",
++    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/curve25519_x25519_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/curve25519_x25519base.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/curve25519_x25519base_alt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/curve25519_x25519_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_decode.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_decode_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_encode.S",
+@@ -73,9 +73,6 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_scalarmulbase_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_scalarmuldouble.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/curve25519/edwards25519_scalarmuldouble_alt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/mldsa/mldsa_intt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/mldsa/mldsa_ntt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/mldsa/mldsa_reduce.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p256/bignum_montinv_p256.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p256/p256_montjscalarmul.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p256/p256_montjscalarmul_alt.S",
+@@ -111,7 +108,6 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p521/p521_jdouble_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p521/p521_jscalarmul.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/p521/p521_jscalarmul_alt.S",
+-    "third_party/s2n-bignum/s2n-bignum-imported/x86_att/sha3/sha3_keccak4_f1600.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/sha3/sha3_keccak4_f1600_alt.S",
+     "third_party/s2n-bignum/s2n-bignum-imported/x86_att/sha3/sha3_keccak_f1600.S",
+ ];
+diff --git a/builder/cc_builder/universal.rs b/builder/cc_builder/universal.rs
+index 8dccbbfd8a5854cc491049877979d8197866c41c..057f8c2757f51110385712705fa563a38749cf78 100644
+--- a/builder/cc_builder/universal.rs
++++ b/builder/cc_builder/universal.rs
+@@ -1,11 +1,8 @@
+ // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+-// Wed Jul 15 15:34:27 UTC 2026
++// Fri Aug  7 13:47:33 UTC 2026
+ 
+ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+-    "crypto/asn1/asn1_lib.c",
+-    "crypto/asn1/asn1_par.c",
+-    "crypto/asn1/asn_pack.c",
+     "crypto/asn1/a_bitstr.c",
+     "crypto/asn1/a_bool.c",
+     "crypto/asn1/a_d2i_fp.c",
+@@ -22,6 +19,9 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/asn1/a_type.c",
+     "crypto/asn1/a_utctm.c",
+     "crypto/asn1/a_utf8.c",
++    "crypto/asn1/asn1_lib.c",
++    "crypto/asn1/asn1_par.c",
++    "crypto/asn1/asn_pack.c",
+     "crypto/asn1/f_int.c",
+     "crypto/asn1/f_string.c",
+     "crypto/asn1/posix_time.c",
+@@ -59,10 +59,10 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/cipher_extra/cipher_extra.c",
+     "crypto/cipher_extra/cts.c",
+     "crypto/cipher_extra/derive_key.c",
+-    "crypto/cipher_extra/e_aesctrhmac.c",
+-    "crypto/cipher_extra/e_aesgcmsiv.c",
+     "crypto/cipher_extra/e_aes_cbc_hmac_sha1.c",
+     "crypto/cipher_extra/e_aes_cbc_hmac_sha256.c",
++    "crypto/cipher_extra/e_aesctrhmac.c",
++    "crypto/cipher_extra/e_aesgcmsiv.c",
+     "crypto/cipher_extra/e_chacha20poly1305.c",
+     "crypto/cipher_extra/e_des.c",
+     "crypto/cipher_extra/e_null.c",
+@@ -90,15 +90,14 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/digest_extra/digest_extra.c",
+     "crypto/dsa/dsa.c",
+     "crypto/dsa/dsa_asn1.c",
+-    "crypto/ecdh_extra/ecdh_extra.c",
+-    "crypto/ecdsa_extra/ecdsa_asn1.c",
+     "crypto/ec_extra/ec_asn1.c",
+     "crypto/ec_extra/ec_derive.c",
+     "crypto/ec_extra/hash_to_curve.c",
++    "crypto/ecdh_extra/ecdh_extra.c",
++    "crypto/ecdsa_extra/ecdsa_asn1.c",
+     "crypto/engine/engine.c",
+     "crypto/err/err.c",
+     "crypto/evp_extra/evp_asn1.c",
+-    "crypto/evp_extra/print.c",
+     "crypto/evp_extra/p_dh.c",
+     "crypto/evp_extra/p_dh_asn1.c",
+     "crypto/evp_extra/p_dsa.c",
+@@ -112,11 +111,13 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/evp_extra/p_rsa_asn1.c",
+     "crypto/evp_extra/p_x25519.c",
+     "crypto/evp_extra/p_x25519_asn1.c",
++    "crypto/evp_extra/print.c",
+     "crypto/evp_extra/scrypt.c",
+     "crypto/evp_extra/sign.c",
+     "crypto/ex_data.c",
+     "crypto/fipsmodule/bcm.c",
+     "crypto/fipsmodule/cpucap/cpucap.c",
++    "crypto/fipsmodule/fips_shared_support.c",
+     "crypto/hpke/hpke.c",
+     "crypto/hrss/hrss.c",
+     "crypto/lhash/lhash.c",
+@@ -162,10 +163,10 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/refcount_c11.c",
+     "crypto/refcount_lock.c",
+     "crypto/refcount_win.c",
+-    "crypto/rsa_extra/rsassa_pss_asn1.c",
+     "crypto/rsa_extra/rsa_asn1.c",
+     "crypto/rsa_extra/rsa_crypt.c",
+     "crypto/rsa_extra/rsa_print.c",
++    "crypto/rsa_extra/rsassa_pss_asn1.c",
+     "crypto/siphash/siphash.c",
+     "crypto/spake25519/spake25519.c",
+     "crypto/stack/stack.c",
+@@ -180,11 +181,11 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/ube/ube.c",
+     "crypto/ube/vm_ube_detect.c",
+     "crypto/ui/ui.c",
+-    "crypto/x509/algorithm.c",
+-    "crypto/x509/asn1_gen.c",
+     "crypto/x509/a_digest.c",
+     "crypto/x509/a_sign.c",
+     "crypto/x509/a_verify.c",
++    "crypto/x509/algorithm.c",
++    "crypto/x509/asn1_gen.c",
+     "crypto/x509/by_dir.c",
+     "crypto/x509/by_file.c",
+     "crypto/x509/i2d_pr.c",
+@@ -219,10 +220,6 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/x509/v3_skey.c",
+     "crypto/x509/v3_utl.c",
+     "crypto/x509/x509.c",
+-    "crypto/x509/x509cset.c",
+-    "crypto/x509/x509name.c",
+-    "crypto/x509/x509rset.c",
+-    "crypto/x509/x509spki.c",
+     "crypto/x509/x509_att.c",
+     "crypto/x509/x509_cmp.c",
+     "crypto/x509/x509_d2.c",
+@@ -237,6 +234,10 @@ pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+     "crypto/x509/x509_v3.c",
+     "crypto/x509/x509_vfy.c",
+     "crypto/x509/x509_vpm.c",
++    "crypto/x509/x509cset.c",
++    "crypto/x509/x509name.c",
++    "crypto/x509/x509rset.c",
++    "crypto/x509/x509spki.c",
+     "crypto/x509/x_algor.c",
+     "crypto/x509/x_all.c",
+     "crypto/x509/x_attrib.c",
+diff --git a/builder/cmake_builder.rs b/builder/cmake_builder.rs
+index f9c1cc9f3c912b7b080a64066d4a54c355046b74..d7fc421f77617e5708d830145faee4d6e6064870 100644
+--- a/builder/cmake_builder.rs
++++ b/builder/cmake_builder.rs
+@@ -5,8 +5,9 @@ use crate::cc_builder::CcBuilder;
+ use crate::OutputLib::{Crypto, Ssl};
+ use crate::{
+     allow_prebuilt_nasm, cargo_env, effective_target, emit_warning, execute_command,
+-    get_crate_cflags, is_crt_static, is_fips_build, is_no_asm, is_no_pregenerated_src,
+-    optional_env, optional_env_optional_crate_target, sanitizer, set_env, set_env_for_target,
++    get_crate_cflags, is_crt_static, is_fips_build, is_ml_dsa_enabled, is_ml_kem_enabled,
++    is_no_asm, is_no_pregenerated_src, is_small_enabled, optional_env,
++    optional_env_optional_crate_target, sanitizer, set_env, set_env_for_target,
+     should_build_jitter_entropy, target, target_arch, target_env, target_is_msvc, target_os,
+     test_clang_cl_command, test_nasm_command, use_prebuilt_nasm, OutputLibType,
+ };
+@@ -171,6 +172,17 @@ impl CmakeBuilder {
+         cmake_cfg.define("BUILD_TESTING", "OFF");
+         cmake_cfg.define("BUILD_TOOL", "OFF");
+         cmake_cfg.define("ENABLE_SOURCE_MODIFICATION", "OFF");
++        cmake_cfg.define(
++            "AWSLC_ENABLE_ML_KEM",
++            if is_ml_kem_enabled() { "ON" } else { "OFF" },
++        );
++        cmake_cfg.define(
++            "AWSLC_ENABLE_ML_DSA",
++            if is_ml_dsa_enabled() { "ON" } else { "OFF" },
++        );
++        if is_small_enabled() {
++            cmake_cfg.define("OPENSSL_SMALL", "1");
++        }
+         if cfg!(feature = "ssl") {
+             cmake_cfg.define("BUILD_LIBSSL", "ON");
+         } else {
+diff --git a/builder/main.rs b/builder/main.rs
+index 2296f8b733bd110cf1e60b9188b09d2a3b76ee0d..9f828f873c19e67270c037bdbf8ce0f97e9f3d29 100644
+--- a/builder/main.rs
++++ b/builder/main.rs
+@@ -131,6 +131,30 @@ fn is_fips_crate() -> bool {
+     crate_name().contains("fips")
+ }
+ 
++fn cargo_feature_enabled(feature: &str) -> bool {
++    env::var_os(format!(
++        "CARGO_FEATURE_{}",
++        feature.replace('-', "_").to_ascii_uppercase()
++    ))
++    .is_some()
++}
++
++pub(crate) fn is_ml_kem_enabled() -> bool {
++    is_fips_build() || cargo_feature_enabled("ml-kem")
++}
++
++pub(crate) fn is_ml_dsa_enabled() -> bool {
++    is_fips_build() || cargo_feature_enabled("ml-dsa")
++}
++
++pub(crate) fn is_freestanding_target() -> bool {
++    !is_fips_build() && target_os() == "none"
++}
++
++pub(crate) fn is_small_enabled() -> bool {
++    cargo_feature_enabled("small")
++}
++
+ fn is_all_bindings() -> bool {
+     is_fips_crate() || env::var("CARGO_FEATURE_ALL_BINDINGS").is_ok()
+ }
+@@ -388,7 +412,6 @@ fn target_chokes_on_u1() -> bool {
+     target_arch() == "mips" || target_arch() == "mips64" || is_cranelift_backend()
+ }
+ 
+-#[cfg(any(feature = "bindgen", feature = "fips"))]
+ fn target_platform_prefix(name: &str) -> String {
+     if is_all_bindings() {
+         format!("{}_{}", effective_target().replace('-', "_"), name)
+@@ -1005,6 +1028,9 @@ fn should_build_jitter_entropy() -> bool {
+     }
+ 
+     *AVAILABLE.get_or_init(|| {
++        if is_freestanding_target() {
++            return false;
++        }
+         // wasm/emscripten targets do not support CPU jitter entropy.
+         if target_arch().starts_with("wasm") {
+             return false;
+@@ -1199,6 +1225,36 @@ fn is_crt_static() -> bool {
+     features.contains("crt-static")
+ }
+ 
++fn prepare_core_bindings(manifest_dir: &Path) -> bool {
++    if !has_pregenerated() {
++        return false;
++    }
++
++    let src_bindings_path = manifest_dir
++        .join("src")
++        .join(format!("{}.rs", target_platform_prefix("crypto")));
++    let mut bindings = std::fs::read_to_string(&src_bindings_path)
++        .unwrap_or_else(|error| panic!("failed to read {}: {error}", src_bindings_path.display()))
++        .replace("::std::os::raw::", "::core::ffi::")
++        .replace(":: std :: os :: raw ::", ":: core :: ffi ::")
++        .replace("::std::", "::core::")
++        .replace(":: std ::", ":: core ::");
++    if let Some(start) = bindings.find("#![allow(") {
++        let end = bindings[start..].find(")]").unwrap_or_else(|| {
++            panic!(
++                "unterminated allow attribute in {}",
++                src_bindings_path.display()
++            )
++        });
++        bindings.replace_range(start..start + end + 2, "");
++    }
++    let gen_bindings_path = out_dir().join("bindings.rs");
++    std::fs::write(&gen_bindings_path, bindings)
++        .unwrap_or_else(|error| panic!("failed to write {}: {error}", gen_bindings_path.display()));
++    emit_rustc_cfg("use_bindgen_pregenerated");
++    true
++}
++
+ #[cfg(any(feature = "bindgen", feature = "fips"))]
+ fn handle_bindgen(manifest_dir: &Path, prefix: &Option<String>) -> bool {
+     if internal_bindgen_supported() && !is_external_bindgen_requested().unwrap_or(false) {
+@@ -1299,6 +1355,8 @@ fn main() {
+             }
+             bindings_available = true;
+         }
++    } else if prepare_core_bindings(&manifest_dir) {
++        bindings_available = true;
+     } else if is_bindgen_required() {
+         assert!(
+             use_no_u1_bindings() != Some(true),
+diff --git a/builder/sys_bindgen.rs b/builder/sys_bindgen.rs
+index 8d5d5eff57086e58f4817bbf25c63c0e64489529..4fce3148268854846e8000dbfcfd0d3c55191eed 100644
+--- a/builder/sys_bindgen.rs
++++ b/builder/sys_bindgen.rs
+@@ -83,6 +83,7 @@ fn prepare_bindings_builder(manifest_dir: &Path, options: &BindingOptions) -> bi
+     let clang_args = crate::prepare_clang_args(manifest_dir, options);
+ 
+     let mut builder = bindgen::Builder::default()
++        .use_core()
+         .derive_copy(true)
+         .derive_debug(true)
+         .derive_default(true)
+diff --git a/feature-tests/.gitignore b/feature-tests/.gitignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..35709a7c97d3d22822a2a85a729d77718ebd1eba
+--- /dev/null
++++ b/feature-tests/.gitignore
+@@ -0,0 +1,2 @@
++*/Cargo.lock
++*/target/
+diff --git a/feature-tests/ml-dsa-disabled/Cargo.toml b/feature-tests/ml-dsa-disabled/Cargo.toml
+new file mode 100644
+index 0000000000000000000000000000000000000000..76478fe71c527d9fb80612a2730a3f3fdbc456d8
+--- /dev/null
++++ b/feature-tests/ml-dsa-disabled/Cargo.toml
+@@ -0,0 +1,13 @@
++[package]
++name = "ml-dsa-disabled"
++version = "0.0.0"
++edition = "2021"
++publish = false
++
++[dependencies]
++aws-lc-rs = { path = "../../aws-lc-rs", default-features = false, features = [
++    "aws-lc-sys",
++    "unstable",
++] }
++
++[workspace]
+diff --git a/feature-tests/ml-dsa-disabled/src/main.rs b/feature-tests/ml-dsa-disabled/src/main.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a0506fef05ab7eda1f08bdfb5869a3d7b8c82809
+--- /dev/null
++++ b/feature-tests/ml-dsa-disabled/src/main.rs
+@@ -0,0 +1,3 @@
++fn main() {
++    let _ = aws_lc_rs::unstable::signature::ML_DSA_44;
++}
+diff --git a/feature-tests/ml-kem-disabled/Cargo.toml b/feature-tests/ml-kem-disabled/Cargo.toml
+new file mode 100644
+index 0000000000000000000000000000000000000000..dd73a7eec910aeb5bc5e4791ec752628e2211fd2
+--- /dev/null
++++ b/feature-tests/ml-kem-disabled/Cargo.toml
+@@ -0,0 +1,12 @@
++[package]
++name = "ml-kem-disabled"
++version = "0.0.0"
++edition = "2021"
++publish = false
++
++[dependencies]
++aws-lc-rs = { path = "../../aws-lc-rs", default-features = false, features = [
++    "aws-lc-sys",
++] }
++
++[workspace]
+diff --git a/feature-tests/ml-kem-disabled/src/main.rs b/feature-tests/ml-kem-disabled/src/main.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..de39c7d6e1eee6656b195436d2475ba93cb92db2
+--- /dev/null
++++ b/feature-tests/ml-kem-disabled/src/main.rs
+@@ -0,0 +1,3 @@
++fn main() {
++    let _ = aws_lc_rs::kem::ML_KEM_512;
++}
+diff --git a/no-std-runtime-test/Cargo.toml b/no-std-runtime-test/Cargo.toml
+new file mode 100644
+index 0000000000000000000000000000000000000000..db540864b265cff15d18b1fc118fdb8a7e72a63c
+--- /dev/null
++++ b/no-std-runtime-test/Cargo.toml
+@@ -0,0 +1,14 @@
++[package]
++name = "no-std-runtime-test"
++version = "0.0.0"
++edition = "2021"
++publish = false
++
++[dependencies]
++aws-lc-rs = { path = "../aws-lc-rs", default-features = false, features = [
++    "alloc",
++    "aws-lc-sys",
++    "small",
++] }
++
++[build-dependencies]
+diff --git a/no-std-runtime-test/build.rs b/no-std-runtime-test/build.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..7fc7432276c70f19f4f4f07c8e31d35904eb23a4
+--- /dev/null
++++ b/no-std-runtime-test/build.rs
+@@ -0,0 +1,16 @@
++use std::env;
++use std::path::PathBuf;
++
++fn main() {
++    let target = env::var("TARGET").expect("Cargo must set TARGET");
++    if target != "x86_64-unknown-none" {
++        panic!("no-std-runtime-test must target x86_64-unknown-none");
++    }
++
++    let linker_script = PathBuf::from(
++        env::var_os("CARGO_MANIFEST_DIR").expect("Cargo must set CARGO_MANIFEST_DIR"),
++    )
++    .join("link.x");
++    println!("cargo:rustc-link-arg=-T{}", linker_script.display());
++    println!("cargo:rerun-if-changed=link.x");
++}
+diff --git a/no-std-runtime-test/link.x b/no-std-runtime-test/link.x
+new file mode 100644
+index 0000000000000000000000000000000000000000..512e066ae34c247f021310f107fec17436b375ac
+--- /dev/null
++++ b/no-std-runtime-test/link.x
+@@ -0,0 +1,10 @@
++ENTRY(_start)
++
++SECTIONS
++{
++  . = 1M;
++  .text : { *(.text .text.*) }
++  .rodata : { *(.rodata .rodata.*) }
++  .data : { *(.data .data.*) }
++  .bss : { *(.bss .bss.*) *(COMMON) }
++}
+diff --git a/no-std-runtime-test/src/main.rs b/no-std-runtime-test/src/main.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..3edb81a276fd22c9d909c3f0f895acce5afbed7a
+--- /dev/null
++++ b/no-std-runtime-test/src/main.rs
+@@ -0,0 +1,115 @@
++#![no_main]
++#![no_std]
++
++use aws_lc_rs::digest;
++use core::alloc::{GlobalAlloc, Layout};
++use core::cmp::min;
++use core::panic::PanicInfo;
++use core::ptr::{copy_nonoverlapping, null_mut};
++
++const HEAP_SIZE: usize = 256 * 1024;
++
++#[repr(align(16))]
++struct AlignedHeap([u8; HEAP_SIZE]);
++
++static mut HEAP: AlignedHeap = AlignedHeap([0; HEAP_SIZE]);
++static mut NEXT: usize = 0;
++static mut ENTROPY_STATE: u64 = 0x4d59_5df4_d0f3_3173;
++
++struct PlatformAllocator;
++
++unsafe impl GlobalAlloc for PlatformAllocator {
++    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
++        aws_lc_nostd_alloc(layout.size(), layout.align())
++    }
++
++    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
++        aws_lc_nostd_dealloc(ptr, layout.size(), layout.align());
++    }
++
++    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
++        aws_lc_nostd_realloc(ptr, layout.size(), new_size, layout.align())
++    }
++}
++
++#[global_allocator]
++static ALLOCATOR: PlatformAllocator = PlatformAllocator;
++
++#[no_mangle]
++extern "C" fn aws_lc_nostd_alloc(size: usize, align: usize) -> *mut u8 {
++    let Ok(layout) = Layout::from_size_align(size, align) else {
++        return null_mut();
++    };
++
++    unsafe {
++        let Some(start) = NEXT
++            .checked_add(layout.align() - 1)
++            .map(|value| value & !(layout.align() - 1))
++        else {
++            return null_mut();
++        };
++        let Some(end) = start.checked_add(layout.size()) else {
++            return null_mut();
++        };
++        if end > HEAP_SIZE {
++            return null_mut();
++        }
++        NEXT = end;
++        core::ptr::addr_of_mut!(HEAP).cast::<u8>().add(start)
++    }
++}
++
++#[no_mangle]
++extern "C" fn aws_lc_nostd_dealloc(_ptr: *mut u8, _size: usize, _align: usize) {}
++
++#[no_mangle]
++unsafe extern "C" fn aws_lc_nostd_realloc(
++    ptr: *mut u8,
++    old_size: usize,
++    new_size: usize,
++    align: usize,
++) -> *mut u8 {
++    let replacement = aws_lc_nostd_alloc(new_size, align);
++    if !replacement.is_null() {
++        copy_nonoverlapping(ptr, replacement, min(old_size, new_size));
++    }
++    replacement
++}
++
++#[no_mangle]
++unsafe extern "C" fn aws_lc_nostd_entropy(out: *mut u8, len: usize) -> i32 {
++    // Deterministic test data proves the hook is linked; it is not production entropy.
++    for index in 0..len {
++        ENTROPY_STATE ^= ENTROPY_STATE << 13;
++        ENTROPY_STATE ^= ENTROPY_STATE >> 7;
++        ENTROPY_STATE ^= ENTROPY_STATE << 17;
++        out.add(index).write(ENTROPY_STATE as u8);
++    }
++    1
++}
++
++#[no_mangle]
++extern "C" fn aws_lc_nostd_time() -> i64 {
++    0
++}
++
++#[no_mangle]
++extern "C" fn aws_lc_nostd_abort() -> ! {
++    loop {
++        unsafe { core::arch::asm!("hlt") };
++    }
++}
++
++#[panic_handler]
++fn panic(_info: &PanicInfo<'_>) -> ! {
++    aws_lc_nostd_abort()
++}
++
++#[no_mangle]
++extern "C" fn _start() -> ! {
++    let value = digest::digest(&digest::SHA256, b"aws-lc-rs no-std link test");
++    unsafe {
++        core::ptr::write_volatile(&raw mut NEXT, NEXT ^ usize::from(value.as_ref()[0]));
++    }
++    aws_lc_nostd_abort()
++}
+diff --git a/scripts/build/collect_build_src.sh b/scripts/build/collect_build_src.sh
+index 03a1a77f7ca5c68f99f0eef3670a9e302e56f2f1..a992dadaf7e9147dbc397e443287fcc370d088e8 100755
+--- a/scripts/build/collect_build_src.sh
++++ b/scripts/build/collect_build_src.sh
+@@ -3,15 +3,15 @@
+ # SPDX-License-Identifier: Apache-2.0 OR ISC
+ 
+ # This shell script performs a target-specific CMake static build of libcrypto. It extracts from that build artifact
+-# debug information on the complete set of source files utilized for the build and then generates a target-specific
+-# Rust source file (e.g., `x86_64_unknown_linux_gnu.rs`) that lists the files for subsequent use by the `cc_builder`
+-# module for consumer builds where CMake might not be available.
++# debug information on the complete set of source files utilized for the build and then generates Rust source files
++# containing the universal C sources and target-specific assembly sources used by cc_builder when CMake is
++# unavailable.
+ 
+ set -ex
+ set -o pipefail
+ 
+ if [[ ${BASH_VERSINFO[0]} -lt 4 ]]; then
+-    echo Must use bash 4 or later: ${BASH_VERSION}
++    echo Must use bash 4 or later: "${BASH_VERSION}"
+     exit 1
+ fi
+ 
+@@ -38,16 +38,28 @@ mkdir -p "${BUILD_CFG_DIR}"
+ 
+ function find_target() {
+   if [[ -z "${CROSS_TARGET_ARCH}" ]]; then
+-    rustc -vV | grep host | sed -e 's/host: *\(\w*\)/\1/'
++    rustc -vV | sed -n 's/^host: //p'
+   else
+     echo "${CROSS_TARGET_ARCH}"
+   fi
+ }
+ 
+-function target_filename() {
++function platform_filename() {
+   local target
+   target=$(find_target)
+-  echo "${target//-/_}"
++  case "${target}" in
++    x86_64*-linux-*) echo "linux_x86_64" ;;
++    i?86*-linux-*) echo "linux_x86" ;;
++    aarch64*-linux-*) echo "linux_aarch64" ;;
++    arm*-linux-*) echo "linux_arm" ;;
++    powerpc64le*-linux-*) echo "linux_ppc64le" ;;
++    x86_64*-apple-*) echo "apple_x86_64" ;;
++    aarch64*-apple-*) echo "apple_aarch64" ;;
++    *)
++      echo "Unsupported source-list target: ${target}" >&2
++      return 1
++      ;;
++  esac
+ }
+ 
+ function collect_source_files() {
+@@ -163,20 +175,13 @@ function generate_output() {
+ // SPDX-License-Identifier: Apache-2.0 OR ISC
+ // $TIMESTAMP
+ 
+-use crate::cc_builder::Library;
+-
+-pub(super) const CRYPTO_LIBRARY: Library = Library {
+-    name: "crypto",
+-    // This attribute is intentionally let blank
+-    flags: &[],
+-    sources: &[
++pub(super) const CRYPTO_LIBRARY: &[&str] = &[
+ EOF
+     for FILE in "${@}"; do
+-        echo "        \"${FILE}\","
++        echo "    \"${FILE}\","
+     done
+     cat << EOF
+-    ],
+-};
++];
+ EOF
+ }
+ 
+@@ -189,7 +194,7 @@ AWS_LC_SYS_CMAKE_BUILDER=1 AWS_LC_SYS_CC_SRC_COLLECTOR=1 cargo build --package a
+ else
+ # Install cross
+ cargo install cross --locked --git https://github.com/cross-rs/cross
+-AWS_LC_SYS_CMAKE_BUILDER=1 AWS_LC_SYS_CC_SRC_COLLECTOR=1 cross build --package aws-lc-sys --profile dev --target ${CROSS_TARGET_ARCH} --features bindgen
++AWS_LC_SYS_CMAKE_BUILDER=1 AWS_LC_SYS_CC_SRC_COLLECTOR=1 cross build --package aws-lc-sys --profile dev --target "${CROSS_TARGET_ARCH}" --features bindgen
+ fi
+ 
+ if [[ -z "${CROSS_TARGET_ARCH}" ]]; then
+@@ -199,31 +204,39 @@ LIB_CRYPTO_PATH=$(find target/"${CROSS_TARGET_ARCH}" -name "libaws_lc_0_*crypto.
+ fi
+ LIB_CRYPTO_PATH="${REPO_ROOT}/${LIB_CRYPTO_PATH}"
+ 
+-SOURCE_FILES=($(collect_source_files "${LIB_CRYPTO_PATH}"))
+-if [ $? -eq 1 ]; then
+-  echo "Error: collect_source_files failed"
+-  exit 1
+-fi
++SOURCE_FILES_OUTPUT=$(collect_source_files "${LIB_CRYPTO_PATH}")
++mapfile -t SOURCE_FILES <<< "${SOURCE_FILES_OUTPUT}"
+ 
+ # Both "refcount_lock.c" and "refcount_c11.c" should always be listed, even though only one may provide implementations
+ SOURCE_FILES+=("crypto/refcount_lock.c")
+ SOURCE_FILES+=("crypto/refcount_c11.c")
+ 
+-PROCESSED_SRC_FILES=($(process_source_files "${SOURCE_FILES[@]}"))
+-if [ $? -eq 1 ]; then
+-  echo "Error: process_source_files failed"
+-  exit 1
+-fi
++PROCESSED_SRC_FILES_OUTPUT=$(process_source_files "${SOURCE_FILES[@]}")
++mapfile -t PROCESSED_SRC_FILES <<< "${PROCESSED_SRC_FILES_OUTPUT}"
+ 
+ verify_source_files "${PROCESSED_SRC_FILES[@]}"
+ 
+-RUST_TRIPLE=$(target_filename)
+-BUILD_CFG_PATH="${BUILD_CFG_DIR}/${RUST_TRIPLE}.rs"
++UNIVERSAL_SOURCE_FILES=()
++TARGET_SOURCE_FILES=()
++for FILE in "${PROCESSED_SRC_FILES[@]}"; do
++  if [[ "${FILE}" == *.c ]]; then
++    UNIVERSAL_SOURCE_FILES+=("${FILE}")
++  else
++    TARGET_SOURCE_FILES+=("${FILE}")
++  fi
++done
++
++PLATFORM=$(platform_filename)
++UNIVERSAL_BUILD_CFG_PATH="${BUILD_CFG_DIR}/universal.rs"
++TARGET_BUILD_CFG_PATH="${BUILD_CFG_DIR}/${PLATFORM}.rs"
+ 
+-generate_output ${PROCESSED_SRC_FILES[@]} > ${BUILD_CFG_PATH}
++generate_output "${UNIVERSAL_SOURCE_FILES[@]}" > "${UNIVERSAL_BUILD_CFG_PATH}"
++generate_output "${TARGET_SOURCE_FILES[@]}" > "${TARGET_BUILD_CFG_PATH}"
+ 
+ echo
+-echo Build configuration written to: ${BUILD_CFG_PATH}
++echo Build configurations written to:
++echo "  ${UNIVERSAL_BUILD_CFG_PATH}"
++echo "  ${TARGET_BUILD_CFG_PATH}"
+ echo
+ 
+ cargo clean
+@@ -231,8 +244,8 @@ if [[ -z "${CROSS_TARGET_ARCH}" ]]; then
+   AWS_LC_SYS_CMAKE_BUILDER=0 cargo test --package aws-lc-sys --profile dev
+   AWS_LC_SYS_CMAKE_BUILDER=0 cargo test --package aws-lc-rs --profile dev
+ else
+-  AWS_LC_SYS_CMAKE_BUILDER=0 cross test --package aws-lc-sys --profile dev --target ${CROSS_TARGET_ARCH}
+-  AWS_LC_SYS_CMAKE_BUILDER=0 cross test --package aws-lc-rs --profile dev --target ${CROSS_TARGET_ARCH}
++  AWS_LC_SYS_CMAKE_BUILDER=0 cross test --package aws-lc-sys --profile dev --target "${CROSS_TARGET_ARCH}"
++  AWS_LC_SYS_CMAKE_BUILDER=0 cross test --package aws-lc-rs --profile dev --target "${CROSS_TARGET_ARCH}"
+ fi
+ popd
+ 
