@@ -1,5 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
+
 TARGET_OPTION="x86_64-unknown-none"
 process_args() {
     while getopts ":t:" option; do
@@ -36,7 +41,7 @@ patch-ring() {
 }
 
 setup-aws-lc-rs() {
-    # setup aws-lc-rs: init nested submodule and fix symlinks
+    # Apply the pinned AWS-LC patch stack and fix platform-specific symlinks.
     bash external/patches/aws-lc-rs/setup-aws-lc-rs.sh
 }
 
