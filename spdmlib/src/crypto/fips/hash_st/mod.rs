@@ -10,11 +10,14 @@ use crate::protocol::SpdmBaseHashAlgo;
 
 use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
 
+#[cfg(feature = "sha256")]
 use crate::crypto::fips::cavs_vectors::sha256_short_msg;
+#[cfg(feature = "sha384")]
 use crate::crypto::fips::cavs_vectors::sha384_short_msg;
 
 pub fn run_self_tests() -> SpdmResult {
     // SHA2-256
+    #[cfg(feature = "sha256")]
     {
         let cavs_vectors = sha256_short_msg::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
@@ -27,6 +30,7 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // SHA2-384
+    #[cfg(feature = "sha384")]
     {
         let cavs_vectors = sha384_short_msg::get_cavs_vectors();
         for cv in cavs_vectors.iter() {

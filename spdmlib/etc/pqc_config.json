@@ -18,6 +18,7 @@
         "receiver_buffer_size": 8256
     },
     "max_spdm_msg_size": 8192,
+    "max_spdm_context_size": 1048576,
     "heartbeat_period_value": 240,
     "max_root_cert_support": 10
 }

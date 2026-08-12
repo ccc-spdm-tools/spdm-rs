@@ -12,12 +12,16 @@ use crate::protocol::{SpdmBaseHashAlgo, SpdmDigestStruct, SPDM_MAX_HASH_SIZE};
 
 use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
 
+#[cfg(feature = "sha256")]
 use crate::crypto::fips::cavs_vectors::hmac_sha256;
+#[cfg(feature = "sha384")]
 use crate::crypto::fips::cavs_vectors::hmac_sha384;
+#[cfg(feature = "sha512")]
 use crate::crypto::fips::cavs_vectors::hmac_sha512;
 
 pub fn run_self_tests() -> SpdmResult {
     // SHA2-256
+    #[cfg(feature = "sha256")]
     {
         let cavs_vectors = hmac_sha256::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
@@ -37,6 +41,7 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // SHA2-384
+    #[cfg(feature = "sha384")]
     {
         let cavs_vectors = hmac_sha384::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
@@ -56,6 +61,7 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // SHA2-512
+    #[cfg(feature = "sha512")]
     {
         let cavs_vectors = hmac_sha512::get_cavs_vectors();
         for cv in cavs_vectors.iter() {

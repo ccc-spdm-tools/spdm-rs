@@ -18,6 +18,7 @@ struct SpdmConfig {
     max_session_count: usize,
     transport_config: SpdmBufferConfig,
     max_spdm_msg_size: usize,
+    max_spdm_context_size: usize,
     heartbeat_period_value: u8,
     max_root_cert_support: usize,
 }
@@ -39,6 +40,7 @@ impl SpdmConfig {
                 >= SPDM_MIN_DATA_TRANSFER_SIZE
         );
         assert!(self.max_spdm_msg_size >= SPDM_MIN_DATA_TRANSFER_SIZE);
+        assert!(self.max_spdm_context_size > 0);
 
         // Reserve some space for transport overhead.
         // 24 is miniaml requirement: session_id (4) + len (2) + app_len (2) + mac (16)
@@ -184,6 +186,9 @@ pub const SPDM_SENDER_DATA_TRANSFER_SIZE: usize = {snd_buf_sz} - TRANSPORT_OVERH
 /// This is max individual SPDM message size defined in SPDM 1.2.
 pub const MAX_SPDM_MSG_SIZE: usize = {max_spdm_mgs_sz};
 
+/// This is the workspace used to serialize an SPDM context for checkpointing.
+pub const MAX_SPDM_CONTEXT_SIZE: usize = {max_spdm_context_sz};
+
 /// This is min size of data transfer defined in SPDM 1.2.
 pub const SPDM_MIN_DATA_TRANSFER_SIZE: usize = {min_data_trans_sz};
 
@@ -233,6 +238,7 @@ fn main() {
         snd_buf_sz = spdm_config.transport_config.sender_buffer_size,
         rcv_buf_sz = spdm_config.transport_config.receiver_buffer_size,
         max_spdm_mgs_sz = spdm_config.max_spdm_msg_size,
+        max_spdm_context_sz = spdm_config.max_spdm_context_size,
         min_data_trans_sz = SPDM_MIN_DATA_TRANSFER_SIZE,
         trans_overhead_sz = TRANSPORT_OVERHEAD_SIZE,
         heartbeat_period = spdm_config.heartbeat_period_value,
