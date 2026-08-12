@@ -1,0 +1,394 @@
+From 2b2717ffedc9aad254e58b2e390824702b84ca13 Mon Sep 17 00:00:00 2001
+From: Stanislaw Grams <stanislaw.grams@intel.com>
+Date: Fri, 7 Aug 2026 16:39:18 +0200
+Subject: [PATCH] build: add no_std bare-metal target support
+
+---
+ CMakeLists.txt                            | 15 ++++++++++++
+ crypto/CMakeLists.txt                     | 30 ++++++++++++++++++-----
+ crypto/evp_extra/evp_asn1.c               |  8 +++++-
+ crypto/evp_extra/evp_extra_test.cc        |  4 +++
+ crypto/evp_extra/p_kem_test.cc            |  2 ++
+ crypto/evp_extra/p_methods.c              | 28 ++++++++++-----------
+ crypto/fips_callback_test.cc              |  8 ++++++
+ crypto/fipsmodule/CMakeLists.txt          |  6 ++---
+ crypto/fipsmodule/bcm.c                   | 12 +++++++++
+ crypto/fipsmodule/evp/evp.c               |  2 +-
+ crypto/fipsmodule/evp/evp_ctx.c           | 11 ++++++++-
+ crypto/fipsmodule/self_check/self_check.c | 18 +++++++++++---
+ crypto/internal.h                         | 18 ++++++++++++++
+ crypto/x509/x509_test.cc                  |  4 +++
+ include/openssl/target.h                  | 11 +++++++++
+ ssl/extensions.cc                         |  6 +++++
+ ssl/ssl_key_share.cc                      | 18 ++++++++++++++
+ ssl/ssl_privkey.cc                        |  2 ++
+ 18 files changed, 172 insertions(+), 31 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2305bdd7f..22ebd2224 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -621,0 +622,15 @@ option(MY_ASSEMBLER_IS_TOO_OLD_FOR_512AVX "Exclude AVX512 code from the build" O
++option(AWSLC_ENABLE_ML_KEM "Build ML-KEM support" ON)
++option(AWSLC_ENABLE_ML_DSA "Build ML-DSA support" ON)
++
++if(AWSLC_ENABLE_ML_KEM)
++  add_definitions(-DAWSLC_ENABLE_ML_KEM=1)
++else()
++  add_definitions(-DAWSLC_ENABLE_ML_KEM=0)
++endif()
++
++if(AWSLC_ENABLE_ML_DSA)
++  add_definitions(-DAWSLC_ENABLE_ML_DSA=1)
++else()
++  add_definitions(-DAWSLC_ENABLE_ML_DSA=0)
++endif()
++
+diff --git a/crypto/CMakeLists.txt b/crypto/CMakeLists.txt
+index ade407902..df00bac83 100644
+--- a/crypto/CMakeLists.txt
++++ b/crypto/CMakeLists.txt
+@@ -319,0 +320,8 @@ endif()
++set(PQC_CRYPTO_SOURCES "")
++if(AWSLC_ENABLE_ML_KEM)
++  list(APPEND PQC_CRYPTO_SOURCES evp_extra/p_kem_asn1.c)
++endif()
++if(AWSLC_ENABLE_ML_DSA)
++  list(APPEND PQC_CRYPTO_SOURCES evp_extra/p_pqdsa_asn1.c)
++endif()
++
+@@ -415,2 +423 @@ add_library(
+-  evp_extra/p_kem_asn1.c
+-  evp_extra/p_pqdsa_asn1.c
++  ${PQC_CRYPTO_SOURCES}
+@@ -726,0 +734,14 @@ if(BUILD_TESTING)
++  set(PQC_CRYPTO_TEST_SOURCES "")
++  if(AWSLC_ENABLE_ML_KEM)
++    list(APPEND PQC_CRYPTO_TEST_SOURCES
++      evp_extra/p_kem_test.cc
++      fipsmodule/ml_kem/ml_kem_test.cc
++    )
++  endif()
++  if(AWSLC_ENABLE_ML_DSA)
++    list(APPEND PQC_CRYPTO_TEST_SOURCES
++      evp_extra/mldsa_test.cc
++      evp_extra/p_pqdsa_test.cc
++    )
++  endif()
++
+@@ -797,2 +817,0 @@ if(BUILD_TESTING)
+-    evp_extra/p_pqdsa_test.cc
+-    evp_extra/p_kem_test.cc
+@@ -800 +818,0 @@ if(BUILD_TESTING)
+-    evp_extra/mldsa_test.cc
+@@ -814 +831,0 @@ if(BUILD_TESTING)
+-    fipsmodule/ml_kem/ml_kem_test.cc
+@@ -865,0 +883 @@ if(BUILD_TESTING)
++    ${PQC_CRYPTO_TEST_SOURCES}
+diff --git a/crypto/evp_extra/evp_asn1.c b/crypto/evp_extra/evp_asn1.c
+index b3b84cb98..bb1f5a2cf 100644
+--- a/crypto/evp_extra/evp_asn1.c
++++ b/crypto/evp_extra/evp_asn1.c
+@@ -42 +42 @@ static const EVP_PKEY_ASN1_METHOD *parse_key_type(CBS *cbs, CBS *out_oid) {
+-  for (size_t i = 0; i < ASN1_EVP_PKEY_METHODS; i++) {
++  for (size_t i = 0; i < asn1_evp_pkey_methods_size; i++) {
+@@ -63,0 +64 @@ static const EVP_PKEY_ASN1_METHOD *parse_key_type(CBS *cbs, CBS *out_oid) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -67,0 +69,2 @@ static const EVP_PKEY_ASN1_METHOD *parse_key_type(CBS *cbs, CBS *out_oid) {
++#endif
++#if AWSLC_ENABLE_ML_KEM
+@@ -68,0 +72,3 @@ static const EVP_PKEY_ASN1_METHOD *parse_key_type(CBS *cbs, CBS *out_oid) {
++#else
++  return NULL;
++#endif
+diff --git a/crypto/evp_extra/evp_extra_test.cc b/crypto/evp_extra/evp_extra_test.cc
+index f7be3db2e..23b7ba963 100644
+--- a/crypto/evp_extra/evp_extra_test.cc
++++ b/crypto/evp_extra/evp_extra_test.cc
+@@ -1509,0 +1510 @@ TEST(EVPExtraTest, d2i_PrivateKey) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -1511,0 +1513 @@ TEST(EVPExtraTest, d2i_PrivateKey) {
++#endif
+@@ -2390,0 +2393 @@ INSTANTIATE_TEST_SUITE_P(All, EVPRsaPssBadKeyTest,
++#if AWSLC_ENABLE_ML_KEM
+@@ -3222,0 +3226 @@ TEST_P(PerMLKEMTest, InputValidation) {
++#endif  // AWSLC_ENABLE_ML_KEM
+diff --git a/crypto/evp_extra/p_kem_test.cc b/crypto/evp_extra/p_kem_test.cc
+index e65f7d854..519e2b86c 100644
+--- a/crypto/evp_extra/p_kem_test.cc
++++ b/crypto/evp_extra/p_kem_test.cc
+@@ -729,0 +730 @@ TEST(KEMTest, GetTypeWrongKeyType) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -742,0 +744 @@ TEST(KEMTest, GetTypeWrongKeyType) {
++#endif  // AWSLC_ENABLE_ML_DSA
+diff --git a/crypto/evp_extra/p_methods.c b/crypto/evp_extra/p_methods.c
+index 203596590..91c34c32b 100644
+--- a/crypto/evp_extra/p_methods.c
++++ b/crypto/evp_extra/p_methods.c
+@@ -17,12 +17,9 @@ const EVP_PKEY_ASN1_METHOD *const asn1_evp_pkey_methods[] = {
+-  &rsa_asn1_meth,
+-  &rsa_pss_asn1_meth,
+-  &ec_asn1_meth,
+-  &dsa_asn1_meth,
+-  &ed25519_asn1_meth,
+-  &x25519_asn1_meth,
+-  &pqdsa_asn1_meth,
+-  &kem_asn1_meth,
+-  &hmac_asn1_meth,
+-  &dh_asn1_meth,
+-  &ed25519ph_asn1_meth
+-};
++    &rsa_asn1_meth,   &rsa_pss_asn1_meth, &ec_asn1_meth,
++    &dsa_asn1_meth,   &ed25519_asn1_meth, &x25519_asn1_meth,
++#if AWSLC_ENABLE_ML_DSA
++    &pqdsa_asn1_meth,
++#endif
++#if AWSLC_ENABLE_ML_KEM
++    &kem_asn1_meth,
++#endif
++    &hmac_asn1_meth,  &dh_asn1_meth,      &ed25519ph_asn1_meth};
+@@ -34,3 +31,4 @@ OPENSSL_STATIC_ASSERT(
+-OPENSSL_STATIC_ASSERT(
+-  ASN1_EVP_PKEY_METHODS == OPENSSL_ARRAY_SIZE(asn1_evp_pkey_methods),
+-  ASN1_EVP_PKEY_METHODS_does_not_have_the_expected_value)
++OPENSSL_STATIC_ASSERT(ASN1_EVP_PKEY_METHODS - !AWSLC_ENABLE_ML_DSA -
++                              !AWSLC_ENABLE_ML_KEM ==
++                          OPENSSL_ARRAY_SIZE(asn1_evp_pkey_methods),
++                      ASN1_EVP_PKEY_METHODS_does_not_have_the_expected_value)
+diff --git a/crypto/fips_callback_test.cc b/crypto/fips_callback_test.cc
+index 82de6ff13..f73180cc7 100644
+--- a/crypto/fips_callback_test.cc
++++ b/crypto/fips_callback_test.cc
+@@ -99,0 +100 @@ TEST(FIPSCallback, PowerOnSelfTests) {
++#if AWSLC_ENABLE_ML_KEM
+@@ -106,0 +108 @@ TEST(FIPSCallback, PowerOnSelfTests) {
++#endif  // AWSLC_ENABLE_ML_KEM
+@@ -116,0 +119 @@ TEST(FIPSCallback, PowerOnSelfTests) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -123,0 +127 @@ TEST(FIPSCallback, PowerOnSelfTests) {
++#endif  // AWSLC_ENABLE_ML_DSA
+@@ -160,0 +165 @@ TEST(FIPSCallback, PWCT) {
++#if AWSLC_ENABLE_ML_KEM
+@@ -171,0 +177 @@ TEST(FIPSCallback, PWCT) {
++#endif  // AWSLC_ENABLE_ML_KEM
+@@ -172,0 +179 @@ TEST(FIPSCallback, PWCT) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -184,0 +192 @@ TEST(FIPSCallback, PWCT) {
++#endif  // AWSLC_ENABLE_ML_DSA
+diff --git a/crypto/fipsmodule/CMakeLists.txt b/crypto/fipsmodule/CMakeLists.txt
+index cee9476d8..4d2fae65a 100644
+--- a/crypto/fipsmodule/CMakeLists.txt
++++ b/crypto/fipsmodule/CMakeLists.txt
+@@ -407 +407 @@ endif()
+-if((ARCH STREQUAL "aarch64") AND UNIX)
++if(AWSLC_ENABLE_ML_KEM AND (ARCH STREQUAL "aarch64") AND UNIX)
+@@ -430 +430 @@ endif()
+-if((ARCH STREQUAL "x86_64") AND UNIX AND NOT MY_ASSEMBLER_IS_TOO_OLD_FOR_AVX)
++if(AWSLC_ENABLE_ML_KEM AND (ARCH STREQUAL "x86_64") AND UNIX AND NOT MY_ASSEMBLER_IS_TOO_OLD_FOR_AVX)
+@@ -467 +467 @@ endif()
+-if(UNIX AND ((ARCH STREQUAL "x86_64" AND NOT MY_ASSEMBLER_IS_TOO_OLD_FOR_AVX) OR (ARCH STREQUAL "aarch64")))
++if(AWSLC_ENABLE_ML_DSA AND UNIX AND ((ARCH STREQUAL "x86_64" AND NOT MY_ASSEMBLER_IS_TOO_OLD_FOR_AVX) OR (ARCH STREQUAL "aarch64")))
+diff --git a/crypto/fipsmodule/bcm.c b/crypto/fipsmodule/bcm.c
+index 00a58c284..f102311d4 100644
+--- a/crypto/fipsmodule/bcm.c
++++ b/crypto/fipsmodule/bcm.c
+@@ -115,0 +116 @@
++#if AWSLC_ENABLE_ML_KEM
+@@ -116,0 +118,2 @@
++#endif
++#if AWSLC_ENABLE_ML_DSA
+@@ -117,0 +121 @@
++#endif
+@@ -122,0 +127 @@
++#if AWSLC_ENABLE_ML_KEM
+@@ -123,0 +129 @@
++#endif
+@@ -124,0 +131 @@
++#if AWSLC_ENABLE_ML_DSA
+@@ -125,0 +133,2 @@
++#endif
++#if AWSLC_ENABLE_ML_KEM
+@@ -126,0 +136 @@
++#endif
+@@ -135,0 +146 @@
++#if AWSLC_ENABLE_ML_DSA
+@@ -136,0 +148 @@
++#endif
+diff --git a/crypto/fipsmodule/evp/evp.c b/crypto/fipsmodule/evp/evp.c
+index 9dce9f37f..fffe62e1b 100644
+--- a/crypto/fipsmodule/evp/evp.c
++++ b/crypto/fipsmodule/evp/evp.c
+@@ -305 +305 @@ static const EVP_PKEY_ASN1_METHOD *evp_pkey_asn1_find(int nid) {
+-  for (size_t i = 0; i < ASN1_EVP_PKEY_METHODS; i++) {
++  for (size_t i = 0; i < asn1_evp_pkey_methods_size; i++) {
+diff --git a/crypto/fipsmodule/evp/evp_ctx.c b/crypto/fipsmodule/evp/evp_ctx.c
+index c90a99731..6b80b3152 100644
+--- a/crypto/fipsmodule/evp/evp_ctx.c
++++ b/crypto/fipsmodule/evp/evp_ctx.c
+@@ -23,0 +24 @@ DEFINE_LOCAL_DATA(struct fips_evp_pkey_methods, AWSLC_fips_evp_pkey_methods) {
++#if AWSLC_ENABLE_ML_KEM
+@@ -24,0 +26,4 @@ DEFINE_LOCAL_DATA(struct fips_evp_pkey_methods, AWSLC_fips_evp_pkey_methods) {
++#else
++  out->methods[6] = NULL;
++#endif
++#if AWSLC_ENABLE_ML_DSA
+@@ -25,0 +31,3 @@ DEFINE_LOCAL_DATA(struct fips_evp_pkey_methods, AWSLC_fips_evp_pkey_methods) {
++#else
++  out->methods[7] = NULL;
++#endif
+@@ -35 +43,2 @@ static const EVP_PKEY_METHOD *evp_pkey_meth_find(int type) {
+-    if (fips_methods->methods[i]->pkey_id == type) {
++    if (fips_methods->methods[i] != NULL &&
++        fips_methods->methods[i]->pkey_id == type) {
+diff --git a/crypto/fipsmodule/self_check/self_check.c b/crypto/fipsmodule/self_check/self_check.c
+index f86f1f957..e5b10eb3b 100644
+--- a/crypto/fipsmodule/self_check/self_check.c
++++ b/crypto/fipsmodule/self_check/self_check.c
+@@ -800,0 +801 @@ err:
++#if AWSLC_ENABLE_ML_KEM
+@@ -1500,0 +1502 @@ err:
++#endif  // AWSLC_ENABLE_ML_KEM
+@@ -1501,0 +1504 @@ err:
++#if AWSLC_ENABLE_ML_DSA
+@@ -2305,0 +2309 @@ static OPENSSL_NOINLINE int boringssl_self_test_ml_dsa(void) {
++#endif  // AWSLC_ENABLE_ML_DSA
+@@ -2479,0 +2484 @@ void boringssl_ensure_ffdh_self_test(void) {
++#if AWSLC_ENABLE_ML_KEM
+@@ -2490,0 +2496 @@ void boringssl_ensure_ml_kem_self_test(void) {
++#endif  // AWSLC_ENABLE_ML_KEM
+@@ -2491,0 +2498 @@ void boringssl_ensure_ml_kem_self_test(void) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -2502,0 +2510 @@ void boringssl_ensure_ml_dsa_self_test(void) {
++#endif  // AWSLC_ENABLE_ML_DSA
+@@ -3025,2 +3033 @@ int BORINGSSL_self_test(void) {
+-      !boringssl_self_test_rsa() ||
+-      !boringssl_self_test_ecc() ||
++      !boringssl_self_test_rsa() || !boringssl_self_test_ecc() ||
+@@ -3027,0 +3035 @@ int BORINGSSL_self_test(void) {
++#if AWSLC_ENABLE_ML_KEM
+@@ -3028,0 +3037,2 @@ int BORINGSSL_self_test(void) {
++#endif
++#if AWSLC_ENABLE_ML_DSA
+@@ -3030,2 +3040,2 @@ int BORINGSSL_self_test(void) {
+-      !boringssl_self_test_eddsa() ||
+-      !boringssl_self_test_hasheddsa()) {
++#endif
++      !boringssl_self_test_eddsa() || !boringssl_self_test_hasheddsa()) {
+diff --git a/crypto/internal.h b/crypto/internal.h
+index 1f7ad6781..dc9394510 100644
+--- a/crypto/internal.h
++++ b/crypto/internal.h
+@@ -16,0 +17,10 @@
++// Build systems may disable individual post-quantum algorithms. Default to
++// the full AWS-LC algorithm set when no selection is provided.
++#if !defined(AWSLC_ENABLE_ML_KEM)
++#define AWSLC_ENABLE_ML_KEM 1
++#endif
++
++#if !defined(AWSLC_ENABLE_ML_DSA)
++#define AWSLC_ENABLE_ML_DSA 1
++#endif
++
+@@ -1234,0 +1245 @@ void boringssl_ensure_ffdh_self_test(void);
++#if AWSLC_ENABLE_ML_KEM
+@@ -1238,0 +1250 @@ void boringssl_ensure_ml_kem_self_test(void);
++#endif
+@@ -1239,0 +1252 @@ void boringssl_ensure_ml_kem_self_test(void);
++#if AWSLC_ENABLE_ML_DSA
+@@ -1243,0 +1257 @@ void boringssl_ensure_ml_dsa_self_test(void);
++#endif
+@@ -1261,0 +1276 @@ OPENSSL_INLINE void boringssl_ensure_ffdh_self_test(void) {}
++#if AWSLC_ENABLE_ML_KEM
+@@ -1262,0 +1278,2 @@ OPENSSL_INLINE void boringssl_ensure_ml_kem_self_test(void) {}
++#endif
++#if AWSLC_ENABLE_ML_DSA
+@@ -1263,0 +1281 @@ OPENSSL_INLINE void boringssl_ensure_ml_dsa_self_test(void) {}
++#endif
+diff --git a/crypto/x509/x509_test.cc b/crypto/x509/x509_test.cc
+index 21ae71da7..aadf0d077 100644
+--- a/crypto/x509/x509_test.cc
++++ b/crypto/x509/x509_test.cc
+@@ -3621,0 +3622 @@ TEST(X509Test, SignCSR) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -3677,0 +3679 @@ TEST(X509Test, PqdsaCSR) {
++#endif  // AWSLC_ENABLE_ML_DSA
+@@ -3695,0 +3698 @@ TEST(X509Test, Ed25519Sign) {
++#if AWSLC_ENABLE_ML_DSA
+@@ -3764,0 +3768 @@ TEST(X509Test, TestBadParamsMLDSA65) {
++#endif  // AWSLC_ENABLE_ML_DSA
+diff --git a/include/openssl/target.h b/include/openssl/target.h
+index 022d3d181..9a1ab42ae 100644
+--- a/include/openssl/target.h
++++ b/include/openssl/target.h
+@@ -136,0 +137,11 @@
++// AWSLC_NO_STD selects the platform-independent subset needed by freestanding
++// integrations. The embedding runtime remains responsible for providing the C
++// allocation, abort, and entropy interfaces used by AWS-LC.
++#if defined(AWSLC_NO_STD)
++#define OPENSSL_NO_FILESYSTEM
++#define OPENSSL_NO_POSIX_IO
++#define OPENSSL_NO_SOCK
++#define OPENSSL_NO_TTY
++#define OPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED
++#endif
++
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index ac8ac14ea..99176d4ce 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -205,0 +206 @@ static const uint16_t kDefaultGroups[] = {
++#if AWSLC_ENABLE_ML_KEM
+@@ -208,0 +210 @@ static const uint16_t kDefaultGroups[] = {
++#endif
+@@ -301,0 +304 @@ static const uint16_t kVerifySignatureAlgorithms[] = {
++#if AWSLC_ENABLE_ML_DSA
+@@ -308,0 +312 @@ static const uint16_t kVerifySignatureAlgorithms[] = {
++#endif
+@@ -333,0 +338 @@ static const uint16_t kSignSignatureAlgorithms[] = {
++#if AWSLC_ENABLE_ML_DSA
+@@ -338,0 +344 @@ static const uint16_t kSignSignatureAlgorithms[] = {
++#endif
+diff --git a/ssl/ssl_key_share.cc b/ssl/ssl_key_share.cc
+index 06ad2f717..1d94ae3eb 100644
+--- a/ssl/ssl_key_share.cc
++++ b/ssl/ssl_key_share.cc
+@@ -25,0 +26 @@
++#if AWSLC_ENABLE_ML_KEM
+@@ -26,0 +28 @@
++#endif
+@@ -168,0 +171 @@ class X25519KeyShare : public SSLKeyShare {
++#if AWSLC_ENABLE_ML_KEM
+@@ -671,0 +675 @@ class HybridKeyShare : public SSLKeyShare {
++#endif  // AWSLC_ENABLE_ML_KEM
+@@ -678,0 +683 @@ CONSTEXPR_ARRAY NamedGroup kNamedGroups[] = {
++#if AWSLC_ENABLE_ML_KEM
+@@ -684,0 +690 @@ CONSTEXPR_ARRAY NamedGroup kNamedGroups[] = {
++#endif
+@@ -686,0 +693 @@ CONSTEXPR_ARRAY NamedGroup kNamedGroups[] = {
++#if AWSLC_ENABLE_ML_KEM
+@@ -720,0 +728 @@ CONSTEXPR_ARRAY HybridGroup kHybridGroups[] = {
++#endif  // AWSLC_ENABLE_ML_KEM
+@@ -728,0 +737 @@ Span<const HybridGroup> HybridGroups() {
++#if AWSLC_ENABLE_ML_KEM
+@@ -729,0 +739,3 @@ Span<const HybridGroup> HybridGroups() {
++#else
++  return {};
++#endif
+@@ -732,0 +745 @@ Span<const uint16_t> PQGroups() {
++#if AWSLC_ENABLE_ML_KEM
+@@ -733,0 +747,3 @@ Span<const uint16_t> PQGroups() {
++#else
++  return {};
++#endif
+@@ -747,0 +764 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
++#if AWSLC_ENABLE_ML_KEM
+@@ -759,0 +777 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
++#endif
+diff --git a/ssl/ssl_privkey.cc b/ssl/ssl_privkey.cc
+index 6d3e204e1..2021bc8ce 100644
+--- a/ssl/ssl_privkey.cc
++++ b/ssl/ssl_privkey.cc
+@@ -93,0 +94 @@ static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
++#if AWSLC_ENABLE_ML_DSA
+@@ -96,0 +98 @@ static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
++#endif
