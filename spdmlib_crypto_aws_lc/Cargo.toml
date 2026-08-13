@@ -17,6 +17,7 @@ spin = "0.9.8"
 bytes = { version = "1", default-features = false }
 
 [dev-dependencies]
+spdmlib = { path = "../spdmlib", default-features = false, features = ["fips"] }
 # Enable std so certificate tests can read test-key DER files.
 spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["std"] }
 
