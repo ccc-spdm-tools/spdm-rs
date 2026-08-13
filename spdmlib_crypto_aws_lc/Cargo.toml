@@ -7,7 +7,8 @@ license = "Apache-2.0 or MIT"
 [dependencies]
 spdmlib = { path = "../spdmlib", default-features = false }
 spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false }
-aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", features = ["unstable"] }
+aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", default-features = false, features = ["alloc", "aws-lc-sys", "unstable"] }
+aws-lc-sys = { path = "../external/aws-lc-rs/aws-lc-sys", default-features = false }
 log = { version = "0.4", default-features = false }
 # For the streaming hash-context handle table (hashed-transcript-data).
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
@@ -16,10 +17,50 @@ spin = "0.9.8"
 bytes = { version = "1", default-features = false }
 
 [dev-dependencies]
-# Enable the ring backend + std so the cert-chain tests can read test-key DER
-# files and exercise the full validator.
-spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["ring-backend", "std"] }
+# Enable std so certificate tests can read test-key DER files.
+spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["std"] }
 
 [features]
-default = []
+default = ["full"]
+small = ["aws-lc-rs/small", "aws-lc-sys/small"]
+full = [
+	"sha256",
+	"sha384",
+	"sha512",
+	"aes-128-gcm",
+	"aes-256-gcm",
+	"chacha20-poly1305",
+	"ecdsa-p256",
+	"ecdsa-p384",
+	"rsa-pkcs1",
+	"rsa-pss",
+	"ed25519",
+	"ecdh-p256",
+	"ecdh-p384",
+	"ml-kem-512",
+	"ml-kem-768",
+	"ml-kem-1024",
+	"ml-dsa-44",
+	"ml-dsa-65",
+	"ml-dsa-87",
+]
 hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
+sha256 = ["spdmlib/sha256"]
+sha384 = ["spdmlib/sha384"]
+sha512 = ["spdmlib/sha512"]
+aes-128-gcm = []
+aes-256-gcm = ["spdmlib/aes-256-gcm"]
+chacha20-poly1305 = []
+ecdsa-p256 = ["spdmlib/ecdsa-p256"]
+ecdsa-p384 = ["spdmlib/ecdsa-p384"]
+rsa-pkcs1 = ["spdmlib/rsa-pkcs1"]
+rsa-pss = []
+ed25519 = []
+ecdh-p256 = ["spdmlib/ecdh-p256"]
+ecdh-p384 = ["spdmlib/ecdh-p384"]
+ml-kem-512 = ["aws-lc-rs/ml-kem", "aws-lc-sys/ml-kem"]
+ml-kem-768 = ["aws-lc-rs/ml-kem", "aws-lc-sys/ml-kem"]
+ml-kem-1024 = ["aws-lc-rs/ml-kem", "aws-lc-sys/ml-kem"]
+ml-dsa-44 = ["aws-lc-rs/ml-dsa", "aws-lc-sys/ml-dsa"]
+ml-dsa-65 = ["aws-lc-rs/ml-dsa", "aws-lc-sys/ml-dsa"]
+ml-dsa-87 = ["aws-lc-rs/ml-dsa", "aws-lc-sys/ml-dsa"]

@@ -31,34 +31,59 @@ impl CryptoBackend for AwsLcBackend {
     ) -> Result<()> {
         // ML-DSA: aws-lc-rs accepts a raw or SPKI-DER public key; empty context
         // for X.509 certificate signatures.
-        use aws_lc_rs::unstable::signature::{ML_DSA_44, ML_DSA_65, ML_DSA_87};
+        #[cfg(feature = "ml-dsa-44")]
+        use aws_lc_rs::unstable::signature::ML_DSA_44;
+        #[cfg(feature = "ml-dsa-65")]
+        use aws_lc_rs::unstable::signature::ML_DSA_65;
+        #[cfg(feature = "ml-dsa-87")]
+        use aws_lc_rs::unstable::signature::ML_DSA_87;
 
+        #[allow(unreachable_patterns)]
         let classical: &dyn signature::VerificationAlgorithm = match algorithm {
+            #[cfg(all(feature = "ecdsa-p256", feature = "sha256"))]
             SignatureAlgorithm::EcdsaP256Sha256 => &signature::ECDSA_P256_SHA256_ASN1,
+            #[cfg(all(feature = "ecdsa-p256", feature = "sha384"))]
             SignatureAlgorithm::EcdsaP256Sha384 => &signature::ECDSA_P256_SHA384_ASN1,
+            #[cfg(all(feature = "ecdsa-p384", feature = "sha256"))]
             SignatureAlgorithm::EcdsaP384Sha256 => &signature::ECDSA_P384_SHA256_ASN1,
+            #[cfg(all(feature = "ecdsa-p384", feature = "sha384"))]
             SignatureAlgorithm::EcdsaP384Sha384 => &signature::ECDSA_P384_SHA384_ASN1,
+            #[cfg(all(feature = "rsa-pkcs1", feature = "sha256"))]
             SignatureAlgorithm::RsaPkcs1Sha256 => &signature::RSA_PKCS1_2048_8192_SHA256,
+            #[cfg(all(feature = "rsa-pkcs1", feature = "sha384"))]
             SignatureAlgorithm::RsaPkcs1Sha384 => &signature::RSA_PKCS1_2048_8192_SHA384,
+            #[cfg(all(feature = "rsa-pkcs1", feature = "sha512"))]
             SignatureAlgorithm::RsaPkcs1Sha512 => &signature::RSA_PKCS1_2048_8192_SHA512,
+            #[cfg(all(feature = "rsa-pss", feature = "sha256"))]
             SignatureAlgorithm::RsaPssSha256 => &signature::RSA_PSS_2048_8192_SHA256,
+            #[cfg(all(feature = "rsa-pss", feature = "sha384"))]
             SignatureAlgorithm::RsaPssSha384 => &signature::RSA_PSS_2048_8192_SHA384,
+            #[cfg(all(feature = "rsa-pss", feature = "sha512"))]
             SignatureAlgorithm::RsaPssSha512 => &signature::RSA_PSS_2048_8192_SHA512,
+            #[cfg(feature = "ed25519")]
             SignatureAlgorithm::Ed25519 => &signature::ED25519,
-            SignatureAlgorithm::MlDsa44
-            | SignatureAlgorithm::MlDsa65
-            | SignatureAlgorithm::MlDsa87 => {
-                let algo = match algorithm {
-                    SignatureAlgorithm::MlDsa44 => &ML_DSA_44,
-                    SignatureAlgorithm::MlDsa65 => &ML_DSA_65,
-                    SignatureAlgorithm::MlDsa87 => &ML_DSA_87,
-                    _ => unreachable!(),
-                };
-                let pk = UnparsedPublicKey::new(algo, public_key);
+            #[cfg(feature = "ml-dsa-44")]
+            SignatureAlgorithm::MlDsa44 => {
+                let pk = UnparsedPublicKey::new(&ML_DSA_44, public_key);
                 return pk.verify(tbs_data, signature).map_err(|_| {
                     Error::SignatureError(spdm_x509::error::SignatureError::VerificationFailed)
                 });
             }
+            #[cfg(feature = "ml-dsa-65")]
+            SignatureAlgorithm::MlDsa65 => {
+                let pk = UnparsedPublicKey::new(&ML_DSA_65, public_key);
+                return pk.verify(tbs_data, signature).map_err(|_| {
+                    Error::SignatureError(spdm_x509::error::SignatureError::VerificationFailed)
+                });
+            }
+            #[cfg(feature = "ml-dsa-87")]
+            SignatureAlgorithm::MlDsa87 => {
+                let pk = UnparsedPublicKey::new(&ML_DSA_87, public_key);
+                return pk.verify(tbs_data, signature).map_err(|_| {
+                    Error::SignatureError(spdm_x509::error::SignatureError::VerificationFailed)
+                });
+            }
+            _ => return Err(Error::unsupported_algorithm("signature algorithm")),
         };
 
         let pk = UnparsedPublicKey::new(classical, public_key);
@@ -96,18 +121,21 @@ fn verify_cert_chain(
 mod tests {
     use super::*;
 
+    #[cfg(feature = "ecdsa-p384")]
     #[test]
     fn test_verify_cert_chain_ecp384() {
         let chain = &include_bytes!("../../test_key/ecp384/bundle_responder.certchain.der")[..];
         assert!(verify_cert_chain(chain, None, None).is_ok());
     }
 
+    #[cfg(feature = "rsa-pkcs1")]
     #[test]
     fn test_verify_cert_chain_rsa3072() {
         let chain = &include_bytes!("../../test_key/rsa3072/bundle_responder.certchain.der")[..];
         assert!(verify_cert_chain(chain, None, None).is_ok());
     }
 
+    #[cfg(feature = "ml-dsa-87")]
     #[test]
     fn test_verify_cert_chain_mldsa87() {
         let chain = &include_bytes!("../../test_key/mldsa87/bundle_responder.certchain.der")[..];
