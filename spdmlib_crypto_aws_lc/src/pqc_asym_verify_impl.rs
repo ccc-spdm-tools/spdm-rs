@@ -2,15 +2,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use alloc::vec::Vec;
 use core::ffi::{c_int, c_uchar};
-use log::error;
+use log::{debug, error};
 use spdmlib::crypto::SpdmPqcAsymVerify;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_VERIF_FAIL};
 use spdmlib::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
 
 // Raw public key sizes for ML-DSA variants (without SPKI DER header)
+#[cfg(feature = "ml-dsa-44")]
 const MLDSA_44_KEY_SIZE: usize = 1312;
+#[cfg(feature = "ml-dsa-65")]
 const MLDSA_65_KEY_SIZE: usize = 1952;
+#[cfg(feature = "ml-dsa-87")]
 const MLDSA_87_KEY_SIZE: usize = 2592;
 
 // SPDM signing prefix is 64 bytes, followed by 36 bytes of (zeropad + context_string).
@@ -18,6 +22,7 @@ const SPDM_SIGNING_PREFIX_LEN: usize = 64;
 const SPDM_SIGNING_CONTEXT_FIELD_LEN: usize = 36;
 
 extern "C" {
+    #[cfg(feature = "ml-dsa-44")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_44_verify"]
     fn ml_dsa_44_verify(
         public_key: *const c_uchar,
@@ -29,6 +34,7 @@ extern "C" {
         ctx_string_len: usize,
     ) -> c_int;
 
+    #[cfg(feature = "ml-dsa-65")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_65_verify"]
     fn ml_dsa_65_verify(
         public_key: *const c_uchar,
@@ -40,6 +46,7 @@ extern "C" {
         ctx_string_len: usize,
     ) -> c_int;
 
+    #[cfg(feature = "ml-dsa-87")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_87_verify"]
     fn ml_dsa_87_verify(
         public_key: *const c_uchar,
@@ -142,6 +149,7 @@ fn extract_signing_context(data: &[u8]) -> &[u8] {
     &[]
 }
 
+#[cfg(any(feature = "ml-dsa-44", feature = "ml-dsa-65", feature = "ml-dsa-87"))]
 fn pqc_asym_verify(
     _base_hash_algo: SpdmBaseHashAlgo,
     pqc_asym_algo: SpdmPqcAsymAlgo,
@@ -153,8 +161,11 @@ fn pqc_asym_verify(
     let ctx_string = extract_signing_context(data);
 
     let expected_key_size = match pqc_asym_algo {
+        #[cfg(feature = "ml-dsa-44")]
         SpdmPqcAsymAlgo::ALG_MLDSA_44 => MLDSA_44_KEY_SIZE,
+        #[cfg(feature = "ml-dsa-65")]
         SpdmPqcAsymAlgo::ALG_MLDSA_65 => MLDSA_65_KEY_SIZE,
+        #[cfg(feature = "ml-dsa-87")]
         SpdmPqcAsymAlgo::ALG_MLDSA_87 => MLDSA_87_KEY_SIZE,
         _ => return Err(SPDM_STATUS_VERIF_FAIL),
     };
@@ -171,8 +182,11 @@ fn pqc_asym_verify(
         };
 
     let verify_fn: unsafe extern "C" fn(_, _, _, _, _, _, _) -> _ = match pqc_asym_algo {
+        #[cfg(feature = "ml-dsa-44")]
         SpdmPqcAsymAlgo::ALG_MLDSA_44 => ml_dsa_44_verify,
+        #[cfg(feature = "ml-dsa-65")]
         SpdmPqcAsymAlgo::ALG_MLDSA_65 => ml_dsa_65_verify,
+        #[cfg(feature = "ml-dsa-87")]
         SpdmPqcAsymAlgo::ALG_MLDSA_87 => ml_dsa_87_verify,
         _ => return Err(SPDM_STATUS_VERIF_FAIL),
     };
@@ -196,8 +210,20 @@ fn pqc_asym_verify(
     };
 
     if result == 1 {
+        debug!("ML-DSA signature verified: {:?}", pqc_asym_algo);
         Ok(())
     } else {
         Err(SPDM_STATUS_VERIF_FAIL)
     }
+}
+
+#[cfg(not(any(feature = "ml-dsa-44", feature = "ml-dsa-65", feature = "ml-dsa-87")))]
+fn pqc_asym_verify(
+    _base_hash_algo: SpdmBaseHashAlgo,
+    _pqc_asym_algo: SpdmPqcAsymAlgo,
+    _public_key_der: &[u8],
+    _data: &[u8],
+    _signature: &SpdmSignatureStruct,
+) -> SpdmResult {
+    Err(SPDM_STATUS_VERIF_FAIL)
 }

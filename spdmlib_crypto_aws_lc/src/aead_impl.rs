@@ -113,8 +113,11 @@ fn make_key<K: aws_lc_rs::aead::BoundKey<OneNonceSequence>>(
     nonce: aws_lc_rs::aead::Nonce,
 ) -> SpdmResult<K> {
     let algorithm = match aead_algo {
+        #[cfg(feature = "aes-128-gcm")]
         SpdmAeadAlgo::AES_128_GCM => &aws_lc_rs::aead::AES_128_GCM,
+        #[cfg(feature = "aes-256-gcm")]
         SpdmAeadAlgo::AES_256_GCM => &aws_lc_rs::aead::AES_256_GCM,
+        #[cfg(feature = "chacha20-poly1305")]
         SpdmAeadAlgo::CHACHA20_POLY1305 => &aws_lc_rs::aead::CHACHA20_POLY1305,
         _ => return Err(SPDM_STATUS_CRYPTO_ERROR),
     };

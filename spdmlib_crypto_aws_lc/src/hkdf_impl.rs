@@ -25,8 +25,11 @@ fn hkdf_extract(
     // HKDF-Extract(salt, IKM) == HMAC(salt, IKM); use HMAC to produce the PRK,
     // matching the ring backend's behavior.
     let algorithm = match hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hmac::HMAC_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hmac::HMAC_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hmac::HMAC_SHA512,
         _ => return None,
     };
@@ -44,9 +47,12 @@ fn hkdf_expand(
     if out_size as usize > SPDM_MAX_HKDF_OKM_SIZE {
         return None;
     }
-    let algo = match hash_algo {
+    let algo: aws_lc_rs::hkdf::Algorithm = match hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hkdf::HKDF_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hkdf::HKDF_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hkdf::HKDF_SHA512,
         _ => return None,
     };

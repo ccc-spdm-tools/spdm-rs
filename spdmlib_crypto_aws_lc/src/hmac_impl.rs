@@ -15,8 +15,11 @@ pub static DEFAULT: SpdmHmac = SpdmHmac {
 
 fn hmac(base_hash_algo: SpdmBaseHashAlgo, key: &[u8], data: &[u8]) -> Option<SpdmDigestStruct> {
     let algorithm = match base_hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hmac::HMAC_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hmac::HMAC_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hmac::HMAC_SHA512,
         _ => return None,
     };
@@ -32,8 +35,11 @@ fn hmac_verify(
     hmac: &SpdmDigestStruct,
 ) -> SpdmResult {
     let algorithm = match base_hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hmac::HMAC_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hmac::HMAC_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hmac::HMAC_SHA512,
         _ => return Err(SPDM_STATUS_VERIF_FAIL),
     };

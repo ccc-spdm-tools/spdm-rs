@@ -87,15 +87,18 @@ fn asym_verify(
 
             // RFC7250 uses FIXED signature format (not ASN.1 DER) for ECDSA
             match base_asym_algo {
+                #[cfg(any(feature = "ecdsa-p256", feature = "ecdsa-p384"))]
                 SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
                 | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
                     // RFC7250 uses FIXED format. Ring only supports matching curve+hash:
                     // P256+SHA256 and P384+SHA384. Cross-combinations only exist in ASN1 format.
                     let sign_algorithm = match (base_hash_algo, base_asym_algo) {
+                        #[cfg(all(feature = "ecdsa-p256", feature = "sha256"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                         ) => &signature::ECDSA_P256_SHA256_FIXED,
+                        #[cfg(all(feature = "ecdsa-p384", feature = "sha384"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
@@ -109,6 +112,7 @@ fn asym_verify(
                     pk.verify(data, &signature.data[..signature.data_size as usize])
                         .map_err(|_| SPDM_STATUS_VERIF_FAIL)
                 }
+                #[cfg(any(feature = "rsa-pkcs1", feature = "rsa-pss"))]
                 SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
                 | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
                 | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
@@ -116,6 +120,7 @@ fn asym_verify(
                 | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
                 | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => {
                     let sign_algorithm = match (base_hash_algo, base_asym_algo) {
+                        #[cfg(all(feature = "rsa-pkcs1", feature = "sha256"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
@@ -128,6 +133,7 @@ fn asym_verify(
                             SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
                         ) => &signature::RSA_PKCS1_2048_8192_SHA256,
+                        #[cfg(all(feature = "rsa-pss", feature = "sha256"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                             SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048,
@@ -140,6 +146,7 @@ fn asym_verify(
                             SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                             SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096,
                         ) => &signature::RSA_PSS_2048_8192_SHA256,
+                        #[cfg(all(feature = "rsa-pkcs1", feature = "sha384"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
@@ -152,6 +159,7 @@ fn asym_verify(
                             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
                         ) => &signature::RSA_PKCS1_2048_8192_SHA384,
+                        #[cfg(all(feature = "rsa-pss", feature = "sha384"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                             SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048,
@@ -164,6 +172,7 @@ fn asym_verify(
                             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                             SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096,
                         ) => &signature::RSA_PSS_2048_8192_SHA384,
+                        #[cfg(all(feature = "rsa-pkcs1", feature = "sha512"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_512,
                             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
@@ -176,6 +185,7 @@ fn asym_verify(
                             SpdmBaseHashAlgo::TPM_ALG_SHA_512,
                             SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
                         ) => &signature::RSA_PKCS1_2048_8192_SHA512,
+                        #[cfg(all(feature = "rsa-pss", feature = "sha512"))]
                         (
                             SpdmBaseHashAlgo::TPM_ALG_SHA_512,
                             SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048,
@@ -239,6 +249,7 @@ fn asym_verify_with_spdm_x509(
     let pub_key_bytes = pub_key_info.subject_public_key.raw_bytes();
 
     match base_asym_algo {
+        #[cfg(any(feature = "ecdsa-p256", feature = "ecdsa-p384"))]
         SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
         | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384 => {
             // For ECDSA, we need to convert the signature from FIXED format to ASN.1 DER format
@@ -250,18 +261,22 @@ fn asym_verify_with_spdm_x509(
 
             // Select the appropriate algorithm (ASN.1 versions, not FIXED)
             let sign_algorithm = match (base_hash_algo, base_asym_algo) {
+                #[cfg(all(feature = "ecdsa-p256", feature = "sha256"))]
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                 ) => &signature::ECDSA_P256_SHA256_ASN1,
+                #[cfg(all(feature = "ecdsa-p256", feature = "sha384"))]
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
                 ) => &signature::ECDSA_P256_SHA384_ASN1,
+                #[cfg(all(feature = "ecdsa-p384", feature = "sha256"))]
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_256,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
                 ) => &signature::ECDSA_P384_SHA256_ASN1,
+                #[cfg(all(feature = "ecdsa-p384", feature = "sha384"))]
                 (
                     SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                     SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
@@ -284,6 +299,7 @@ fn asym_verify_with_spdm_x509(
                 }
             }
         }
+        #[cfg(any(feature = "rsa-pkcs1", feature = "rsa-pss"))]
         SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048
         | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072
         | SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096
@@ -292,31 +308,37 @@ fn asym_verify_with_spdm_x509(
         | SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096 => {
             // For RSA, use ring signature verification
             let sign_algorithm = match (base_hash_algo, base_asym_algo) {
+                #[cfg(all(feature = "rsa-pkcs1", feature = "sha256"))]
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
                     &signature::RSA_PKCS1_2048_8192_SHA256
                 }
+                #[cfg(all(feature = "rsa-pss", feature = "sha256"))]
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
                     &signature::RSA_PSS_2048_8192_SHA256
                 }
+                #[cfg(all(feature = "rsa-pkcs1", feature = "sha384"))]
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
                     &signature::RSA_PKCS1_2048_8192_SHA384
                 }
+                #[cfg(all(feature = "rsa-pss", feature = "sha384"))]
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
                     &signature::RSA_PSS_2048_8192_SHA384
                 }
+                #[cfg(all(feature = "rsa-pkcs1", feature = "sha512"))]
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096) => {
                     &signature::RSA_PKCS1_2048_8192_SHA512
                 }
+                #[cfg(all(feature = "rsa-pss", feature = "sha512"))]
                 (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_2048)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_3072)
                 | (SpdmBaseHashAlgo::TPM_ALG_SHA_512, SpdmBaseAsymAlgo::TPM_ALG_RSAPSS_4096) => {
