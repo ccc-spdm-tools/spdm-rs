@@ -61,6 +61,10 @@ extern "C" {
 
 pub static DEFAULT: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
     verify_cb: pqc_asym_verify,
+    #[cfg(all(feature = "fips", feature = "ml-dsa-87"))]
+    fips_self_test_cb: Some(crate::fips_cavp_impl::ml_dsa_87_cavp),
+    #[cfg(not(all(feature = "fips", feature = "ml-dsa-87")))]
+    fips_self_test_cb: None,
 };
 
 /// Extract the raw ML-DSA public key from a DER-encoded certificate chain.

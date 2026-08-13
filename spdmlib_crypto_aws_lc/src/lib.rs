@@ -119,6 +119,8 @@ pub mod aead_impl;
 pub mod asym_verify_impl;
 pub mod cert_operation_impl;
 pub mod dhe_impl;
+#[cfg(feature = "fips")]
+pub mod fips_cavp_impl;
 pub mod hash_impl;
 pub mod hkdf_impl;
 pub mod hmac_impl;
@@ -159,6 +161,8 @@ mod tests {
         spdmlib::crypto::aead::register(aead_impl::DEFAULT.clone());
         spdmlib::crypto::asym_verify::register(asym_verify_impl::DEFAULT.clone());
         spdmlib::crypto::dhe::register(dhe_impl::DEFAULT.clone());
+        spdmlib::crypto::pqc_asym_verify::register(pqc_asym_verify_impl::DEFAULT.clone());
+        spdmlib::crypto::kem_decap::register(kem_impl::DEFAULT_DECAP.clone());
 
         assert!(spdmlib::crypto::fips::run_self_tests().is_ok());
     }

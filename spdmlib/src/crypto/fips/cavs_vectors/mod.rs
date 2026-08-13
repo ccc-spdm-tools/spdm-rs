@@ -26,6 +26,12 @@ pub mod hmac_sha256;
 pub mod hmac_sha384;
 #[cfg(feature = "sha512")]
 pub mod hmac_sha512;
+#[cfg(feature = "ml-dsa")]
+pub mod ml_dsa_87_key_gen;
+#[cfg(feature = "ml-dsa")]
+pub mod ml_dsa_87_sig_gen_ver;
+#[cfg(feature = "ml-kem")]
+pub mod ml_kem_1024_encap_decap;
 #[cfg(feature = "rsa-pkcs1")]
 pub mod rsa_sig_ver;
 #[cfg(feature = "sha256")]
