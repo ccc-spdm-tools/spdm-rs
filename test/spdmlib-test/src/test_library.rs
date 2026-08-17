@@ -902,6 +902,16 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
         original_context.peer_info.peer_cert_chain[slot] = Some(cert_chain_buffer);
     }
 
+    let max_cert_data = spdmlib::protocol::SpdmCertChainData {
+        data_size: spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32,
+        data: [0xCD; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+    };
+    for root_cert in &mut original_context.provision_info.peer_root_cert_data {
+        *root_cert = Some(max_cert_data);
+    }
+    original_context.provision_info.my_pub_key = Some(max_cert_data);
+    original_context.provision_info.peer_pub_key = Some(max_cert_data);
+
     // Set all slot masks
     original_context.provision_info.local_supported_slot_mask = 0xFF;
     original_context.peer_info.peer_supported_slot_mask = 0xFF;
@@ -944,6 +954,11 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
     assert!(
         !exported_data.is_empty(),
         "Exported data should not be empty"
+    );
+    const PREVIOUS_WORKSPACE_SIZE: usize = 128 * 1024;
+    assert!(
+        exported_data.len() > PREVIOUS_WORKSPACE_SIZE,
+        "Boundary fixture must exceed the previous 128 KiB workspace"
     );
 
     // Create a new context and import

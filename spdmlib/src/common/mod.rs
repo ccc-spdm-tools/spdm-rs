@@ -1316,53 +1316,61 @@ impl SpdmContext {
         Ok(used.0)
     }
 
-    /// Export all serializable data components of the SpdmContext
-    pub fn export(&self) -> SpdmResult<Vec<u8>> {
-        // Use a large heap-allocated buffer for encoding
-        let mut buffer = Box::new([0u8; 0x20000]); // 128 KiB buffer on heap
-        let mut writer = Writer::init(&mut buffer[..]);
-
+    fn encode_checkpoint_data(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
         // Serialize core data structures
-        self.config_info
-            .encode(&mut writer)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        self.negotiate_info
-            .encode(&mut writer)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        self.runtime_info
-            .encode(&mut writer)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        self.provision_info
-            .encode(&mut writer)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        self.peer_info
-            .encode(&mut writer)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        self.config_info.encode(writer)?;
+        self.negotiate_info.encode(writer)?;
+        self.runtime_info.encode(writer)?;
+        self.provision_info.encode(writer)?;
+        self.peer_info.encode(writer)?;
 
         #[cfg(feature = "mut-auth")]
         {
-            self.encap_context
-                .encode(&mut writer)
-                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            self.encap_context.encode(writer)?;
         }
 
         #[cfg(feature = "mandatory-mut-auth")]
         {
-            (self.mut_auth_done as u8)
-                .encode(&mut writer)
-                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            (self.mut_auth_done as u8).encode(writer)?;
         }
 
         // Serialize sessions
         for session in &self.session {
-            session
-                .encode(&mut writer)
-                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            session.encode(writer)?;
         }
 
-        // Convert the used portion of the buffer to a Vec
-        let used_size = writer.used();
-        Ok(buffer[..used_size].to_vec())
+        Ok(writer.used())
+    }
+
+    /// Export all serializable data components of the SpdmContext
+    pub fn export(&self) -> SpdmResult<Vec<u8>> {
+        let mut buffer = Vec::new();
+        buffer
+            .try_reserve_exact(config::MAX_SPDM_MSG_SIZE)
+            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+        buffer.resize(config::MAX_SPDM_MSG_SIZE, 0);
+
+        loop {
+            let encode_result = {
+                let mut writer = Writer::init(&mut buffer);
+                self.encode_checkpoint_data(&mut writer)
+            };
+
+            match encode_result {
+                Ok(used_size) => {
+                    buffer.truncate(used_size);
+                    return Ok(buffer);
+                }
+                Err(codec::EncodeErr) => {
+                    let current_size = buffer.len();
+                    let new_size = current_size.checked_mul(2).ok_or(SPDM_STATUS_BUFFER_FULL)?;
+                    buffer
+                        .try_reserve_exact(current_size)
+                        .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+                    buffer.resize(new_size, 0);
+                }
+            }
+        }
     }
 
     /// Import serializable data components into the SpdmContext
