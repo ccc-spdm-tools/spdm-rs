@@ -1305,9 +1305,12 @@ impl AsRef<[u8]> for SpdmCertChainData {
 
 impl Codec for SpdmCertChainData {
     fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        if self.data_size as usize > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE {
+            return Err(codec::EncodeErr);
+        }
         let mut size = 0usize;
         size += self.data_size.encode(writer)?;
-        for d in self.data.iter() {
+        for d in self.data.iter().take(self.data_size as usize) {
             size += d.encode(writer)?;
         }
         Ok(size)
@@ -1319,7 +1322,7 @@ impl Codec for SpdmCertChainData {
             return None;
         }
         let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
-        for d in data.iter_mut() {
+        for d in data.iter_mut().take(data_size as usize) {
             *d = u8::read(reader)?;
         }
         Some(SpdmCertChainData { data_size, data })
@@ -2384,6 +2387,31 @@ impl Codec for KeyExchangeContextData {
 mod tests {
     use super::*;
     use codec::{Codec, Reader, Writer};
+
+    #[test]
+    fn test_spdm_cert_chain_data_codec() {
+        let mut value = SpdmCertChainData {
+            data_size: 3,
+            ..Default::default()
+        };
+        value.data[..3].copy_from_slice(&[1, 2, 3]);
+
+        let mut encoded = [0u8; 7];
+        let mut writer = Writer::init(&mut encoded);
+        assert_eq!(value.encode(&mut writer), Ok(encoded.len()));
+
+        let mut reader = Reader::init(&encoded);
+        assert_eq!(SpdmCertChainData::read(&mut reader), Some(value));
+        assert_eq!(reader.left(), 0);
+
+        let oversized = (config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32) + 1;
+        value.data_size = oversized;
+        let mut encoded = [0u8; 4];
+        assert!(value.encode(&mut Writer::init(&mut encoded)).is_err());
+
+        oversized.encode(&mut Writer::init(&mut encoded)).unwrap();
+        assert_eq!(SpdmCertChainData::read(&mut Reader::init(&encoded)), None);
+    }
 
     #[test]
     fn test_case0_spdm_measurement_specification() {
