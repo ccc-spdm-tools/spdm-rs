@@ -18,6 +18,9 @@ const MLDSA_87_KEY_SIZE: usize = 2592;
 const SPDM_SIGNING_PREFIX_LEN: usize = 64;
 const SPDM_SIGNING_CONTEXT_FIELD_LEN: usize = 36;
 
+// These context-verification functions are not exposed by the safe aws-lc-rs
+// API. Their prefixed names are tied to the aws-lc-sys revision pinned in
+// external/patches/aws-lc-rs/README.md and must be updated with that pin.
 extern "C" {
     #[link_name = "aws_lc_0_43_0_ml_dsa_44_verify"]
     fn ml_dsa_44_verify(

@@ -184,8 +184,10 @@ pub trait SpdmKemEncapKeyExchange {
         kem_cipher_text: &SpdmKemCipherTextStruct,
     ) -> Option<SpdmSharedSecretFinalKeyStruct>;
 
-    /// Export decapsulation (private) key bytes for serialization (checkpoint
-    /// support). Returns algorithm-specific decapsulation key data.
+    /// Export decapsulation (private) key bytes for checkpoint serialization.
+    ///
+    /// The caller owns the returned secret and must move it immediately into
+    /// zeroizing storage such as `KeyExchangeContextData`.
     fn export_decap_key(&self) -> Option<alloc::vec::Vec<u8>> {
         None // Default: not supported
     }

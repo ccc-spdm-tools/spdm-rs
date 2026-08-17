@@ -57,6 +57,8 @@ unsafe fn fill_entropy_with_rdrand(
     len: usize,
     mut rdrand_step: impl FnMut(&mut u64) -> bool,
 ) -> bool {
+    use zeroize::Zeroize;
+
     const MAX_RETRIES: usize = 10;
 
     let mut offset = 0;
@@ -70,12 +72,14 @@ unsafe fn fill_entropy_with_rdrand(
             }
         }
         if !ready {
+            value.zeroize();
             core::ptr::write_bytes(output, 0, len);
             return false;
         }
 
         let count = core::cmp::min(core::mem::size_of::<u64>(), len - offset);
         core::ptr::copy_nonoverlapping(value.to_ne_bytes().as_ptr(), output.add(offset), count);
+        value.zeroize();
         offset += count;
     }
     true
