@@ -1960,6 +1960,7 @@ dependencies = [
  "spdm_x509",
  "spdmlib",
  "spin 0.9.8",
+ "zeroize",
 ]
 
 [[package]]

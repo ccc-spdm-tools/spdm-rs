@@ -13,6 +13,7 @@ use spdmlib::protocol::{
     SpdmKemAlgo, SpdmKemCipherTextStruct, SpdmKemEncapKeyStruct, SpdmSharedSecretFinalKeyStruct,
     SPDM_MAX_KEM_CIPHER_TEXT_SIZE, SPDM_MAX_KEM_ENCAP_KEY_SIZE, SPDM_MAX_KEM_SHARED_SECRET_SIZE,
 };
+use zeroize::Zeroizing;
 
 pub static DEFAULT_DECAP: SpdmKemDecap = SpdmKemDecap {
     generate_key_pair_cb: kem_generate_key_pair,
@@ -25,7 +26,7 @@ pub static DEFAULT_ENCAP: SpdmKemEncap = SpdmKemEncap {
 
 struct AwsLcKemDecapKey {
     kem_algo: SpdmKemAlgo,
-    decap_key_bytes: Vec<u8>,
+    decap_key_bytes: Zeroizing<Vec<u8>>,
 }
 
 impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
@@ -63,7 +64,7 @@ impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
     fn export_decap_key(&self) -> Option<Vec<u8>> {
         // Raw decapsulation (private) key bytes, the same encoding accepted by
         // `kem_import_decap_key` (and by `DecapsulationKey::new`).
-        Some(self.decap_key_bytes.clone())
+        Some(self.decap_key_bytes.to_vec())
     }
 }
 
@@ -146,7 +147,7 @@ fn kem_generate_key_pair(
 
     let exchange: Box<dyn SpdmKemEncapKeyExchange + Send> = Box::new(AwsLcKemDecapKey {
         kem_algo,
-        decap_key_bytes,
+        decap_key_bytes: Zeroizing::new(decap_key_bytes),
     });
 
     Some((ek_struct, exchange))
@@ -175,7 +176,7 @@ fn kem_import_decap_key(
 
     Some(Box::new(AwsLcKemDecapKey {
         kem_algo,
-        decap_key_bytes: Vec::from(decap_key_bytes),
+        decap_key_bytes: Zeroizing::new(Vec::from(decap_key_bytes)),
     }))
 }
 
