@@ -8,6 +8,7 @@ use crate::message::SpdmMessage;
 use codec::{Reader, Writer};
 use spin::Mutex;
 extern crate alloc;
+#[cfg(not(feature = "is_sync"))]
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 

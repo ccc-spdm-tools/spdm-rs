@@ -25,7 +25,7 @@ zeroize = { version = "1.5.0", features = ["zeroize_derive"]}
 maybe-async = "0.2.7"
 futures = { version = "0.3", default-features = false }
 async-trait = "0.1.71"
-spin = "0"
+spin = "0.9.8"
 
 [target.'cfg(any(target_os = "uefi", target_os = "none"))'.dependencies]
 sys_time = { path = "../sys_time" }
@@ -53,3 +53,12 @@ mandatory-mut-auth = ["mut-auth"]
 chunk-cap = []
 is_sync = ["maybe-async/is_sync"]
 fips = []
+sha256 = []
+sha384 = []
+sha512 = []
+aes-256-gcm = []
+ecdsa-p256 = []
+ecdsa-p384 = []
+rsa-pkcs1 = []
+ecdh-p256 = []
+ecdh-p384 = []
