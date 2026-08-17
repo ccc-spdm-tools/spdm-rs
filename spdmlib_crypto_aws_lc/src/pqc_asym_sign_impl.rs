@@ -17,6 +17,9 @@ const MLDSA_65_SIG_SIZE: usize = 3309;
 #[cfg(feature = "ml-dsa-87")]
 const MLDSA_87_SIG_SIZE: usize = 4627;
 
+// These context-signing functions are not exposed by the safe aws-lc-rs API.
+// Their prefixed names are tied to the aws-lc-sys revision pinned in
+// external/patches/aws-lc-rs/README.md and must be updated with that pin.
 extern "C" {
     #[cfg(feature = "ml-dsa-44")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_44_sign"]

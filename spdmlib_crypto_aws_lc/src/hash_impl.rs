@@ -152,6 +152,11 @@ mod hash_ext {
         handle
     }
 
+    /// Serialize an AWS-LC hash context for trusted local checkpointing.
+    ///
+    /// The little-endian format is tied to the pinned AWS-LC context ABI. It
+    /// is not versioned or suitable for untrusted input or cross-version
+    /// persistence.
     pub fn hash_ctx_serialize(handle: usize) -> Option<Vec<u8>> {
         let table = HASH_CTX_TABLE.lock();
         let ctx = table.get(&handle)?;
@@ -197,6 +202,10 @@ mod hash_ext {
         Some(bytes)
     }
 
+    /// Restore a context emitted by `hash_ctx_serialize` in the same build.
+    ///
+    /// Callers must treat the blob as trusted and non-portable across AWS-LC
+    /// revisions; validation here only protects structural memory safety.
     pub fn hash_ctx_deserialize(bytes: &[u8]) -> Option<usize> {
         fn take<const N: usize>(bytes: &mut &[u8]) -> Option<[u8; N]> {
             let (value, rest) = bytes.split_at_checked(N)?;

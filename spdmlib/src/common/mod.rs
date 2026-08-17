@@ -1318,8 +1318,7 @@ impl SpdmContext {
 
     /// Export all serializable data components of the SpdmContext
     pub fn export(&self) -> SpdmResult<Vec<u8>> {
-        // Use a large heap-allocated buffer for encoding
-        let mut buffer = Box::new([0u8; config::MAX_SPDM_CONTEXT_SIZE]);
+        let mut buffer = alloc::vec![0u8; config::MAX_SPDM_CONTEXT_SIZE];
         let mut writer = Writer::init(&mut buffer[..]);
 
         // Serialize core data structures

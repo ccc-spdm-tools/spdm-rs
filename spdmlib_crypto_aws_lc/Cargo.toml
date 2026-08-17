@@ -15,6 +15,7 @@ lazy_static = { version = "1.0", features = ["spin_no_std"] }
 spin = "0.9.8"
 # For building SpdmDheExchangeStruct via its From<BytesMut> impl.
 bytes = { version = "1", default-features = false }
+zeroize = { version = "1.5", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 # Enable std so certificate tests can read test-key DER files.
@@ -48,6 +49,8 @@ hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
 sha256 = ["spdmlib/sha256"]
 sha384 = ["spdmlib/sha384"]
 sha512 = ["spdmlib/sha512"]
+# spdmlib currently has no negotiation gates for these algorithms; these
+# features gate only the AWS-LC backend implementations.
 aes-128-gcm = []
 aes-256-gcm = ["spdmlib/aes-256-gcm"]
 chacha20-poly1305 = []
@@ -58,6 +61,8 @@ rsa-pss = []
 ed25519 = []
 ecdh-p256 = ["spdmlib/ecdh-p256"]
 ecdh-p384 = ["spdmlib/ecdh-p384"]
+# AWS-LC builds every parameter set for each PQC family. Per-size features
+# still trim the corresponding Rust match arms in this backend.
 ml-kem-512 = ["aws-lc-rs/ml-kem", "aws-lc-sys/ml-kem"]
 ml-kem-768 = ["aws-lc-rs/ml-kem", "aws-lc-sys/ml-kem"]
 ml-kem-1024 = ["aws-lc-rs/ml-kem", "aws-lc-sys/ml-kem"]
