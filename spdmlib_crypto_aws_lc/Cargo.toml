@@ -7,7 +7,15 @@ license = "Apache-2.0 or MIT"
 [dependencies]
 spdmlib = { path = "../spdmlib", default-features = false }
 spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false }
-aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", features = ["unstable"] }
+# alloc (not std) so the backend builds for no_std targets such as x86_64-unknown-none.
+aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", default-features = false, features = [
+    "aws-lc-sys",
+    "alloc",
+    "ring-sig-verify",
+    "ml-kem",
+    "ml-dsa",
+    "unstable",
+] }
 log = { version = "0.4", default-features = false }
 # For the streaming hash-context handle table (hashed-transcript-data).
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
