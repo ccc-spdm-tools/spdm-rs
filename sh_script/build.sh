@@ -117,12 +117,24 @@ build() {
     echo_command unset SPDM_CONFIG
 
     # Standalone aws-lc backend (no ring, no mbedtls): aws-lc-rs supplies both
-    # classical and PQC crypto. std-only. Compile-checked here on every build.
+    # classical and PQC crypto. Compile-checked here on every build.
     echo "Building spdm-requester-emu with standalone aws-lc (spdm-aws-lc, no ring/mbedtls)..."
     echo_command cargo build -p spdm-requester-emu --no-default-features --features="spdm-aws-lc,hashed-transcript-data,async-executor"
 
     echo "Building spdm-responder-emu with standalone aws-lc (spdm-aws-lc, no ring/mbedtls)..."
     echo_command cargo build -p spdm-responder-emu --no-default-features --features="spdm-aws-lc,hashed-transcript-data,async-executor"
+
+    # no_std target: compile-check the standalone aws-lc backend for bare metal
+    # (x86_64-unknown-none) so the crate's #![no_std] path stays buildable.
+    # aws-lc-sys' no-std build passes clang-only flags (e.g. -nostdlibinc), so
+    # force clang/llvm-ar for this target unless the caller already set them.
+    if [ -z "$RUSTFLAGS" ]; then
+        : "${CC_x86_64_unknown_none:=clang}"
+        : "${AR_x86_64_unknown_none:=llvm-ar}"
+        export CC_x86_64_unknown_none AR_x86_64_unknown_none
+        echo "Building spdmlib_crypto_aws_lc for no_std target (${TARGET_OPTION})..."
+        echo_command cargo build -p spdmlib_crypto_aws_lc --target ${TARGET_OPTION} --release
+    fi
 }
 
 RUN_REQUESTER_FEATURES=${RUN_REQUESTER_FEATURES:-spdm-ring,hashed-transcript-data,async-executor}
