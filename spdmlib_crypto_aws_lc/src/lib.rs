@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+#![no_std]
+
 //! spdm-rs crypto backend using aws-lc-rs.
 //!
 //! Historically this crate supplied only the post-quantum primitives (ML-KEM,
@@ -9,8 +11,102 @@
 //! provides the traditional primitives (hash, HMAC, AEAD, ECDHE, RSA/ECDSA
 //! verify, HKDF, rand, certificate-chain verification), so aws-lc-rs can be
 //! used as a **standalone** backend for both traditional and PQC crypto on
-//! std targets (no ring, no mbedtls). See `register_crypto_callbacks` in the
+//! std and no-std targets (no ring, no mbedtls). See `register_crypto_callbacks` in the
 //! emulator layer.
+
+#[cfg(test)]
+extern crate std;
+
+#[macro_use]
+extern crate alloc;
+
+#[cfg(target_os = "none")]
+#[no_mangle]
+pub unsafe extern "C" fn aws_lc_nostd_alloc(size: usize, align: usize) -> *mut u8 {
+    let Ok(layout) = alloc::alloc::Layout::from_size_align(size, align) else {
+        return core::ptr::null_mut();
+    };
+    alloc::alloc::alloc(layout)
+}
+
+#[cfg(target_os = "none")]
+#[no_mangle]
+pub unsafe extern "C" fn aws_lc_nostd_dealloc(ptr: *mut u8, size: usize, align: usize) {
+    if let Ok(layout) = alloc::alloc::Layout::from_size_align(size, align) {
+        alloc::alloc::dealloc(ptr, layout);
+    }
+}
+
+#[cfg(target_os = "none")]
+#[no_mangle]
+pub unsafe extern "C" fn aws_lc_nostd_realloc(
+    ptr: *mut u8,
+    old_size: usize,
+    new_size: usize,
+    align: usize,
+) -> *mut u8 {
+    let Ok(layout) = alloc::alloc::Layout::from_size_align(old_size, align) else {
+        return core::ptr::null_mut();
+    };
+    alloc::alloc::realloc(ptr, layout, new_size)
+}
+
+#[cfg(all(target_arch = "x86_64", any(target_os = "none", test)))]
+unsafe fn fill_entropy_with_rdrand(
+    output: *mut u8,
+    len: usize,
+    mut rdrand_step: impl FnMut(&mut u64) -> bool,
+) -> bool {
+    const MAX_RETRIES: usize = 10;
+
+    let mut offset = 0;
+    while offset < len {
+        let mut value = 0u64;
+        let mut ready = false;
+        for _ in 0..MAX_RETRIES {
+            if rdrand_step(&mut value) {
+                ready = true;
+                break;
+            }
+        }
+        if !ready {
+            core::ptr::write_bytes(output, 0, len);
+            return false;
+        }
+
+        let count = core::cmp::min(core::mem::size_of::<u64>(), len - offset);
+        core::ptr::copy_nonoverlapping(value.to_ne_bytes().as_ptr(), output.add(offset), count);
+        offset += count;
+    }
+    true
+}
+
+#[cfg(all(target_os = "none", target_arch = "x86_64"))]
+#[no_mangle]
+pub unsafe extern "C" fn aws_lc_nostd_entropy(output: *mut u8, len: usize) -> i32 {
+    use core::arch::x86_64::{__cpuid, _rdrand64_step};
+
+    const RDRAND_BIT: u32 = 1 << 30;
+
+    if (__cpuid(1).ecx & RDRAND_BIT) == 0 {
+        if len != 0 {
+            core::ptr::write_bytes(output, 0, len);
+        }
+        return 0;
+    }
+
+    if fill_entropy_with_rdrand(output, len, |value| _rdrand64_step(value) == 1) {
+        1
+    } else {
+        0
+    }
+}
+
+#[cfg(target_os = "none")]
+#[no_mangle]
+pub extern "C" fn aws_lc_nostd_abort() -> ! {
+    panic!("AWS-LC terminated the no-std runtime")
+}
 
 // PQC (post-quantum) primitives.
 pub mod kem_impl;
@@ -32,6 +128,29 @@ pub mod rand_impl;
 mod tests {
     use super::*;
     use spdmlib::protocol::SpdmKemAlgo;
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn entropy_failure_clears_partial_output() {
+        let mut output = [0xa5; 16];
+        let mut calls = 0;
+
+        let result = unsafe {
+            fill_entropy_with_rdrand(output.as_mut_ptr(), output.len(), |value| {
+                calls += 1;
+                if calls == 1 {
+                    *value = u64::MAX;
+                    true
+                } else {
+                    false
+                }
+            })
+        };
+
+        assert!(!result);
+        assert_eq!(calls, 11);
+        assert_eq!(output, [0; 16]);
+    }
 
     #[test]
     fn test_kem_512_roundtrip() {

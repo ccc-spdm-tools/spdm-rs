@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use alloc::vec::Vec;
 use core::ffi::{c_int, c_uchar};
 use log::error;
 use spdmlib::crypto::SpdmPqcAsymVerify;
