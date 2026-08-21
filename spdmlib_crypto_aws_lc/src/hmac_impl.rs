@@ -13,10 +13,14 @@ pub static DEFAULT: SpdmHmac = SpdmHmac {
     hmac_verify_cb: hmac_verify,
 };
 
+#[cfg(spdm_has_hash)]
 fn hmac(base_hash_algo: SpdmBaseHashAlgo, key: &[u8], data: &[u8]) -> Option<SpdmDigestStruct> {
     let algorithm = match base_hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hmac::HMAC_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hmac::HMAC_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hmac::HMAC_SHA512,
         _ => return None,
     };
@@ -25,6 +29,12 @@ fn hmac(base_hash_algo: SpdmBaseHashAlgo, key: &[u8], data: &[u8]) -> Option<Spd
     Some(SpdmDigestStruct::from(tag.as_ref()))
 }
 
+#[cfg(not(spdm_has_hash))]
+fn hmac(_base_hash_algo: SpdmBaseHashAlgo, _key: &[u8], _data: &[u8]) -> Option<SpdmDigestStruct> {
+    None
+}
+
+#[cfg(spdm_has_hash)]
 fn hmac_verify(
     base_hash_algo: SpdmBaseHashAlgo,
     key: &[u8],
@@ -32,8 +42,11 @@ fn hmac_verify(
     hmac: &SpdmDigestStruct,
 ) -> SpdmResult {
     let algorithm = match base_hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hmac::HMAC_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hmac::HMAC_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hmac::HMAC_SHA512,
         _ => return Err(SPDM_STATUS_VERIF_FAIL),
     };
@@ -44,23 +57,43 @@ fn hmac_verify(
     }
 }
 
-#[cfg(test)]
+#[cfg(not(spdm_has_hash))]
+fn hmac_verify(
+    _base_hash_algo: SpdmBaseHashAlgo,
+    _key: &[u8],
+    _data: &[u8],
+    _hmac: &SpdmDigestStruct,
+) -> SpdmResult {
+    Err(SPDM_STATUS_VERIF_FAIL)
+}
+
+#[cfg(all(test, spdm_has_hash))]
 mod tests {
     use super::*;
 
+    fn hmac_sign_verify_roundtrip(algo: SpdmBaseHashAlgo) {
+        let key = [0x0bu8; 20];
+        let data = b"spdm-rs aws-lc hmac test";
+        let tag = hmac(algo, &key, data).unwrap();
+        assert!(hmac_verify(algo, &key, data, &tag).is_ok());
+        assert!(hmac_verify(algo, &key, b"other", &tag).is_err());
+    }
+
+    #[cfg(feature = "sha256")]
     #[test]
-    fn test_hmac_sign_verify_roundtrip() {
-        for algo in [
-            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
-            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
-        ] {
-            let key = [0x0bu8; 20];
-            let data = b"spdm-rs aws-lc hmac test";
-            let tag = hmac(algo, &key, data).unwrap();
-            assert!(hmac_verify(algo, &key, data, &tag).is_ok());
-            // Wrong data must fail.
-            assert!(hmac_verify(algo, &key, b"other", &tag).is_err());
-        }
+    fn test_hmac_sha256_sign_verify_roundtrip() {
+        hmac_sign_verify_roundtrip(SpdmBaseHashAlgo::TPM_ALG_SHA_256);
+    }
+
+    #[cfg(feature = "sha384")]
+    #[test]
+    fn test_hmac_sha384_sign_verify_roundtrip() {
+        hmac_sign_verify_roundtrip(SpdmBaseHashAlgo::TPM_ALG_SHA_384);
+    }
+
+    #[cfg(feature = "sha512")]
+    #[test]
+    fn test_hmac_sha512_sign_verify_roundtrip() {
+        hmac_sign_verify_roundtrip(SpdmBaseHashAlgo::TPM_ALG_SHA_512);
     }
 }

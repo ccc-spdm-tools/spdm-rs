@@ -17,7 +17,6 @@
 #[cfg(test)]
 extern crate std;
 
-#[macro_use]
 extern crate alloc;
 
 #[cfg(target_os = "none")]
@@ -127,6 +126,11 @@ pub mod rand_impl;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(any(
+        feature = "ml-kem-512",
+        feature = "ml-kem-768",
+        feature = "ml-kem-1024"
+    ))]
     use spdmlib::protocol::SpdmKemAlgo;
 
     #[cfg(target_arch = "x86_64")]
@@ -152,21 +156,29 @@ mod tests {
         assert_eq!(output, [0; 16]);
     }
 
+    #[cfg(feature = "ml-kem-512")]
     #[test]
     fn test_kem_512_roundtrip() {
         kem_roundtrip(SpdmKemAlgo::ALG_MLKEM_512);
     }
 
+    #[cfg(feature = "ml-kem-768")]
     #[test]
     fn test_kem_768_roundtrip() {
         kem_roundtrip(SpdmKemAlgo::ALG_MLKEM_768);
     }
 
+    #[cfg(feature = "ml-kem-1024")]
     #[test]
     fn test_kem_1024_roundtrip() {
         kem_roundtrip(SpdmKemAlgo::ALG_MLKEM_1024);
     }
 
+    #[cfg(any(
+        feature = "ml-kem-512",
+        feature = "ml-kem-768",
+        feature = "ml-kem-1024"
+    ))]
     fn kem_roundtrip(algo: SpdmKemAlgo) {
         // Generate key pair (responder side)
         let (encap_key_struct, decap_exchange) =
@@ -191,6 +203,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ml-dsa-44")]
     #[test]
     fn test_mldsa_44_sign_verify() {
         mldsa_sign_verify_roundtrip(
@@ -199,6 +212,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ml-dsa-65")]
     #[test]
     fn test_mldsa_65_sign_verify() {
         mldsa_sign_verify_roundtrip(
@@ -207,6 +221,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ml-dsa-87")]
     #[test]
     fn test_mldsa_87_sign_verify() {
         mldsa_sign_verify_roundtrip(
@@ -215,6 +230,7 @@ mod tests {
         );
     }
 
+    #[cfg(spdm_has_ml_dsa)]
     fn mldsa_sign_verify_roundtrip(
         signing_algo: &'static aws_lc_rs::unstable::signature::PqdsaSigningAlgorithm,
         pqc_algo: spdmlib::protocol::SpdmPqcAsymAlgo,
@@ -230,7 +246,7 @@ mod tests {
         // Sign a message
         let message = b"SPDM PQC test message for ML-DSA";
         let sig_len = signing_algo.signature_len();
-        let mut sig_buf = vec![0u8; sig_len];
+        let mut sig_buf = alloc::vec![0u8; sig_len];
         let written = key_pair.sign(message, &mut sig_buf).expect("sign failed");
 
         // Build SpdmSignatureStruct

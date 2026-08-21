@@ -19,6 +19,48 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  aws-lc-profiles:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install NASM
+        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
+        with:
+          version: "14.0"
+          directory: ${{ runner.temp }}/llvm
+
+      - name: Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af # v1.0.7
+        with:
+          profile: ${{ env.TOOLCHAIN_PROFILE }}
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          override: true
+          components: clippy
+
+      - name: Prepare dependencies
+        run: ./sh_script/pre-build.sh
+
+      - name: Check AWS-LC profiles
+        shell: bash
+        run: |
+          cargo test -p spdmlib_crypto_aws_lc -- --test-threads=1
+          cargo clippy -p spdmlib_crypto_aws_lc --all-targets --no-default-features -- -D warnings
+
+          classical_features="hashed-transcript-data,sha256,sha384,aes-256-gcm,ecdsa-p256,ecdsa-p384,rsa-pkcs1,ecdh-p256,ecdh-p384"
+          cargo test -p spdmlib_crypto_aws_lc --no-default-features --features="${classical_features}" -- --test-threads=1
+          cargo clippy -p spdmlib_crypto_aws_lc --all-targets --no-default-features --features="${classical_features}" -- -D warnings
+
+          selected_features="small,hashed-transcript-data,sha256,sha384,aes-256-gcm,ecdsa-p256,ecdsa-p384,rsa-pkcs1,ecdh-p256,ecdh-p384,ml-dsa-87,ml-kem-1024"
+          cargo test -p spdmlib_crypto_aws_lc --no-default-features --features="${selected_features}" -- --test-threads=1
+          cargo clippy -p spdmlib_crypto_aws_lc --all-targets --no-default-features --features="${selected_features}" -- -D warnings
+
   # This workflow contains a single job called "build"
   build:
     strategy:
