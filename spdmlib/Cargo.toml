@@ -25,7 +25,7 @@ zeroize = { version = "1.5.0", features = ["zeroize_derive"]}
 maybe-async = "0.2.7"
 futures = { version = "0.3", default-features = false }
 async-trait = "0.1.71"
-spin = "0"
+spin = "0.9.8"
 
 [target.'cfg(any(target_os = "uefi", target_os = "none"))'.dependencies]
 sys_time = { path = "../sys_time" }

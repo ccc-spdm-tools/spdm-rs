@@ -26,7 +26,9 @@ pub static DEFAULT: SpdmDhe = SpdmDhe {
 
 fn algo_of(dhe_algo: SpdmDheAlgo) -> Option<&'static agreement::Algorithm> {
     match dhe_algo {
+        #[cfg(feature = "ecdh-p256")]
         SpdmDheAlgo::SECP_256_R1 => Some(&agreement::ECDH_P256),
+        #[cfg(feature = "ecdh-p384")]
         SpdmDheAlgo::SECP_384_R1 => Some(&agreement::ECDH_P384),
         _ => None,
     }
@@ -111,7 +113,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeAwsLc {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, spdm_has_ecdh))]
 mod tests {
     use super::*;
 
@@ -128,11 +130,13 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ecdh-p256")]
     #[test]
     fn test_dhe_p256() {
         roundtrip(SpdmDheAlgo::SECP_256_R1);
     }
 
+    #[cfg(feature = "ecdh-p384")]
     #[test]
     fn test_dhe_p384() {
         roundtrip(SpdmDheAlgo::SECP_384_R1);
@@ -159,11 +163,13 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ecdh-p256")]
     #[test]
     fn test_dhe_export_import_p256() {
         export_import_roundtrip(SpdmDheAlgo::SECP_256_R1);
     }
 
+    #[cfg(feature = "ecdh-p384")]
     #[test]
     fn test_dhe_export_import_p384() {
         export_import_roundtrip(SpdmDheAlgo::SECP_384_R1);

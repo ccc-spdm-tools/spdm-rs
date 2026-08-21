@@ -6,8 +6,10 @@
 //! aws-lc backend. Mirrors the ring backend's structure.
 
 extern crate alloc;
+#[cfg(spdm_has_aead)]
 use alloc::vec::Vec;
 
+#[cfg(spdm_has_aead)]
 use log::error;
 use spdmlib::crypto::SpdmAead;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_CRYPTO_ERROR};
@@ -18,6 +20,7 @@ pub static DEFAULT: SpdmAead = SpdmAead {
     decrypt_cb: decrypt,
 };
 
+#[cfg(spdm_has_aead)]
 fn encrypt(
     aead_algo: SpdmAeadAlgo,
     key: &SpdmAeadKeyStruct,
@@ -61,6 +64,20 @@ fn encrypt(
     }
 }
 
+#[cfg(not(spdm_has_aead))]
+fn encrypt(
+    _aead_algo: SpdmAeadAlgo,
+    _key: &SpdmAeadKeyStruct,
+    _iv: &SpdmAeadIvStruct,
+    _aad: &[u8],
+    _plain_text: &[u8],
+    _tag: &mut [u8],
+    _cipher_text: &mut [u8],
+) -> SpdmResult<(usize, usize)> {
+    Err(SPDM_STATUS_CRYPTO_ERROR)
+}
+
+#[cfg(spdm_has_aead)]
 fn decrypt(
     aead_algo: SpdmAeadAlgo,
     key: &SpdmAeadKeyStruct,
@@ -107,14 +124,31 @@ fn decrypt(
     }
 }
 
+#[cfg(not(spdm_has_aead))]
+fn decrypt(
+    _aead_algo: SpdmAeadAlgo,
+    _key: &SpdmAeadKeyStruct,
+    _iv: &SpdmAeadIvStruct,
+    _aad: &[u8],
+    _cipher_text: &[u8],
+    _tag: &[u8],
+    _plain_text: &mut [u8],
+) -> SpdmResult<usize> {
+    Err(SPDM_STATUS_CRYPTO_ERROR)
+}
+
+#[cfg(spdm_has_aead)]
 fn make_key<K: aws_lc_rs::aead::BoundKey<OneNonceSequence>>(
     aead_algo: SpdmAeadAlgo,
     key: &SpdmAeadKeyStruct,
     nonce: aws_lc_rs::aead::Nonce,
 ) -> SpdmResult<K> {
     let algorithm = match aead_algo {
+        #[cfg(feature = "aes-128-gcm")]
         SpdmAeadAlgo::AES_128_GCM => &aws_lc_rs::aead::AES_128_GCM,
+        #[cfg(feature = "aes-256-gcm")]
         SpdmAeadAlgo::AES_256_GCM => &aws_lc_rs::aead::AES_256_GCM,
+        #[cfg(feature = "chacha20-poly1305")]
         SpdmAeadAlgo::CHACHA20_POLY1305 => &aws_lc_rs::aead::CHACHA20_POLY1305,
         _ => return Err(SPDM_STATUS_CRYPTO_ERROR),
     };
@@ -123,24 +157,28 @@ fn make_key<K: aws_lc_rs::aead::BoundKey<OneNonceSequence>>(
     Ok(K::new(unbound, OneNonceSequence::new(nonce)))
 }
 
+#[cfg(spdm_has_aead)]
 struct OneNonceSequence(Option<aws_lc_rs::aead::Nonce>);
 
+#[cfg(spdm_has_aead)]
 impl OneNonceSequence {
     fn new(nonce: aws_lc_rs::aead::Nonce) -> Self {
         Self(Some(nonce))
     }
 }
 
+#[cfg(spdm_has_aead)]
 impl aws_lc_rs::aead::NonceSequence for OneNonceSequence {
     fn advance(&mut self) -> Result<aws_lc_rs::aead::Nonce, aws_lc_rs::error::Unspecified> {
         self.0.take().ok_or(aws_lc_rs::error::Unspecified)
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "aes-256-gcm"))]
 mod tests {
     use super::*;
 
+    #[cfg(feature = "aes-256-gcm")]
     #[test]
     fn test_aead_roundtrip_aes256() {
         let aead = SpdmAeadAlgo::AES_256_GCM;

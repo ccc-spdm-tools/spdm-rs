@@ -2,16 +2,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use alloc::{boxed::Box, vec::Vec};
-use aws_lc_rs::kem::{
-    Ciphertext, DecapsulationKey, EncapsulationKey, ML_KEM_1024, ML_KEM_512, ML_KEM_768,
-};
+use alloc::boxed::Box;
+#[cfg(spdm_has_ml_kem)]
+use alloc::vec::Vec;
+#[cfg(feature = "ml-kem-1024")]
+use aws_lc_rs::kem::ML_KEM_1024;
+#[cfg(feature = "ml-kem-512")]
+use aws_lc_rs::kem::ML_KEM_512;
+#[cfg(feature = "ml-kem-768")]
+use aws_lc_rs::kem::ML_KEM_768;
+#[cfg(spdm_has_ml_kem)]
+use aws_lc_rs::kem::{Ciphertext, DecapsulationKey, EncapsulationKey};
+#[cfg(spdm_has_ml_kem)]
+use log::debug;
 use spdmlib::crypto::{
     SpdmKemCipherTextExchange, SpdmKemDecap, SpdmKemEncap, SpdmKemEncapKeyExchange,
 };
+use spdmlib::protocol::{SpdmKemAlgo, SpdmKemEncapKeyStruct};
+#[cfg(spdm_has_ml_kem)]
 use spdmlib::protocol::{
-    SpdmKemAlgo, SpdmKemCipherTextStruct, SpdmKemEncapKeyStruct, SpdmSharedSecretFinalKeyStruct,
-    SPDM_MAX_KEM_CIPHER_TEXT_SIZE, SPDM_MAX_KEM_ENCAP_KEY_SIZE, SPDM_MAX_KEM_SHARED_SECRET_SIZE,
+    SpdmKemCipherTextStruct, SpdmSharedSecretFinalKeyStruct, SPDM_MAX_KEM_CIPHER_TEXT_SIZE,
+    SPDM_MAX_KEM_ENCAP_KEY_SIZE, SPDM_MAX_KEM_SHARED_SECRET_SIZE,
 };
 
 pub static DEFAULT_DECAP: SpdmKemDecap = SpdmKemDecap {
@@ -23,11 +34,13 @@ pub static DEFAULT_ENCAP: SpdmKemEncap = SpdmKemEncap {
     new_key_cb: kem_new_key,
 };
 
+#[cfg(spdm_has_ml_kem)]
 struct AwsLcKemDecapKey {
     kem_algo: SpdmKemAlgo,
     decap_key_bytes: Vec<u8>,
 }
 
+#[cfg(spdm_has_ml_kem)]
 impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
     fn decap_key(
         self: Box<Self>,
@@ -37,14 +50,17 @@ impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
         let ct_bytes = &kem_cipher_text.data[..ct_size];
 
         let shared_secret = match self.kem_algo {
+            #[cfg(feature = "ml-kem-512")]
             SpdmKemAlgo::ALG_MLKEM_512 => {
                 let dk = DecapsulationKey::new(&ML_KEM_512, &self.decap_key_bytes).ok()?;
                 dk.decapsulate(Ciphertext::from(ct_bytes)).ok()?
             }
+            #[cfg(feature = "ml-kem-768")]
             SpdmKemAlgo::ALG_MLKEM_768 => {
                 let dk = DecapsulationKey::new(&ML_KEM_768, &self.decap_key_bytes).ok()?;
                 dk.decapsulate(Ciphertext::from(ct_bytes)).ok()?
             }
+            #[cfg(feature = "ml-kem-1024")]
             SpdmKemAlgo::ALG_MLKEM_1024 => {
                 let dk = DecapsulationKey::new(&ML_KEM_1024, &self.decap_key_bytes).ok()?;
                 dk.decapsulate(Ciphertext::from(ct_bytes)).ok()?
@@ -57,6 +73,7 @@ impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
         let len = ss_bytes.len().min(SPDM_MAX_KEM_SHARED_SECRET_SIZE);
         result.data[..len].copy_from_slice(&ss_bytes[..len]);
         result.data_size = len as u16;
+        debug!("ML-KEM shared secret derived: {:?}", self.kem_algo);
         Some(result)
     }
 
@@ -67,24 +84,29 @@ impl SpdmKemEncapKeyExchange for AwsLcKemDecapKey {
     }
 }
 
+#[cfg(spdm_has_ml_kem)]
 struct AwsLcKemEncapKey {
     kem_algo: SpdmKemAlgo,
     encap_key_bytes: Vec<u8>,
 }
 
+#[cfg(spdm_has_ml_kem)]
 impl SpdmKemCipherTextExchange for AwsLcKemEncapKey {
     fn encap_key(
         self: Box<Self>,
     ) -> Option<(SpdmKemCipherTextStruct, SpdmSharedSecretFinalKeyStruct)> {
         let (ciphertext, shared_secret) = match self.kem_algo {
+            #[cfg(feature = "ml-kem-512")]
             SpdmKemAlgo::ALG_MLKEM_512 => {
                 let ek = EncapsulationKey::new(&ML_KEM_512, &self.encap_key_bytes).ok()?;
                 ek.encapsulate().ok()?
             }
+            #[cfg(feature = "ml-kem-768")]
             SpdmKemAlgo::ALG_MLKEM_768 => {
                 let ek = EncapsulationKey::new(&ML_KEM_768, &self.encap_key_bytes).ok()?;
                 ek.encapsulate().ok()?
             }
+            #[cfg(feature = "ml-kem-1024")]
             SpdmKemAlgo::ALG_MLKEM_1024 => {
                 let ek = EncapsulationKey::new(&ML_KEM_1024, &self.encap_key_bytes).ok()?;
                 ek.encapsulate().ok()?
@@ -108,6 +130,7 @@ impl SpdmKemCipherTextExchange for AwsLcKemEncapKey {
     }
 }
 
+#[cfg(spdm_has_ml_kem)]
 fn kem_generate_key_pair(
     kem_algo: SpdmKemAlgo,
 ) -> Option<(
@@ -115,6 +138,7 @@ fn kem_generate_key_pair(
     Box<dyn SpdmKemEncapKeyExchange + Send>,
 )> {
     let (encap_key_bytes, decap_key_bytes) = match kem_algo {
+        #[cfg(feature = "ml-kem-512")]
         SpdmKemAlgo::ALG_MLKEM_512 => {
             let dk = DecapsulationKey::generate(&ML_KEM_512).ok()?;
             let ek = dk.encapsulation_key().ok()?;
@@ -122,6 +146,7 @@ fn kem_generate_key_pair(
             let dk_bytes = dk.key_bytes().ok()?;
             (Vec::from(ek_bytes.as_ref()), Vec::from(dk_bytes.as_ref()))
         }
+        #[cfg(feature = "ml-kem-768")]
         SpdmKemAlgo::ALG_MLKEM_768 => {
             let dk = DecapsulationKey::generate(&ML_KEM_768).ok()?;
             let ek = dk.encapsulation_key().ok()?;
@@ -129,6 +154,7 @@ fn kem_generate_key_pair(
             let dk_bytes = dk.key_bytes().ok()?;
             (Vec::from(ek_bytes.as_ref()), Vec::from(dk_bytes.as_ref()))
         }
+        #[cfg(feature = "ml-kem-1024")]
         SpdmKemAlgo::ALG_MLKEM_1024 => {
             let dk = DecapsulationKey::generate(&ML_KEM_1024).ok()?;
             let ek = dk.encapsulation_key().ok()?;
@@ -152,6 +178,17 @@ fn kem_generate_key_pair(
     Some((ek_struct, exchange))
 }
 
+#[cfg(not(spdm_has_ml_kem))]
+fn kem_generate_key_pair(
+    _kem_algo: SpdmKemAlgo,
+) -> Option<(
+    SpdmKemEncapKeyStruct,
+    Box<dyn SpdmKemEncapKeyExchange + Send>,
+)> {
+    None
+}
+
+#[cfg(spdm_has_ml_kem)]
 fn kem_import_decap_key(
     kem_algo: SpdmKemAlgo,
     decap_key_bytes: &[u8],
@@ -161,12 +198,15 @@ fn kem_import_decap_key(
     // the key the same way (matching the DHE import path). This rejects
     // mismatched sizes / wrong algorithms up front.
     match kem_algo {
+        #[cfg(feature = "ml-kem-512")]
         SpdmKemAlgo::ALG_MLKEM_512 => {
             DecapsulationKey::new(&ML_KEM_512, decap_key_bytes).ok()?;
         }
+        #[cfg(feature = "ml-kem-768")]
         SpdmKemAlgo::ALG_MLKEM_768 => {
             DecapsulationKey::new(&ML_KEM_768, decap_key_bytes).ok()?;
         }
+        #[cfg(feature = "ml-kem-1024")]
         SpdmKemAlgo::ALG_MLKEM_1024 => {
             DecapsulationKey::new(&ML_KEM_1024, decap_key_bytes).ok()?;
         }
@@ -179,6 +219,15 @@ fn kem_import_decap_key(
     }))
 }
 
+#[cfg(not(spdm_has_ml_kem))]
+fn kem_import_decap_key(
+    _kem_algo: SpdmKemAlgo,
+    _decap_key_bytes: &[u8],
+) -> Option<Box<dyn SpdmKemEncapKeyExchange + Send>> {
+    None
+}
+
+#[cfg(spdm_has_ml_kem)]
 fn kem_new_key(
     kem_algo: SpdmKemAlgo,
     kem_encap_key: &SpdmKemEncapKeyStruct,
@@ -192,6 +241,14 @@ fn kem_new_key(
     }))
 }
 
+#[cfg(not(spdm_has_ml_kem))]
+fn kem_new_key(
+    _kem_algo: SpdmKemAlgo,
+    _kem_encap_key: &SpdmKemEncapKeyStruct,
+) -> Option<Box<dyn SpdmKemCipherTextExchange + Send>> {
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -199,6 +256,7 @@ mod tests {
     /// Full KEM round-trip: the encapsulator (responder) produces a ciphertext
     /// and shared secret from the encap key; the decapsulator (requester) must
     /// recover the same shared secret from that ciphertext.
+    #[cfg(spdm_has_ml_kem)]
     fn roundtrip(kem_algo: SpdmKemAlgo) {
         let (encap_key, decap) = kem_generate_key_pair(kem_algo).unwrap();
         let encap = kem_new_key(kem_algo, &encap_key).unwrap();
@@ -213,16 +271,19 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ml-kem-512")]
     #[test]
     fn test_kem_mlkem512() {
         roundtrip(SpdmKemAlgo::ALG_MLKEM_512);
     }
 
+    #[cfg(feature = "ml-kem-768")]
     #[test]
     fn test_kem_mlkem768() {
         roundtrip(SpdmKemAlgo::ALG_MLKEM_768);
     }
 
+    #[cfg(feature = "ml-kem-1024")]
     #[test]
     fn test_kem_mlkem1024() {
         roundtrip(SpdmKemAlgo::ALG_MLKEM_1024);
@@ -230,6 +291,7 @@ mod tests {
 
     /// Exported decapsulation key bytes must re-import and recover the same
     /// shared secret from the same ciphertext — the checkpoint/resume property.
+    #[cfg(spdm_has_ml_kem)]
     fn export_import_roundtrip(kem_algo: SpdmKemAlgo) {
         let (encap_key, decap) = kem_generate_key_pair(kem_algo).unwrap();
         let exported = decap.export_decap_key().expect("export supported");
@@ -249,16 +311,19 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ml-kem-512")]
     #[test]
     fn test_kem_export_import_mlkem512() {
         export_import_roundtrip(SpdmKemAlgo::ALG_MLKEM_512);
     }
 
+    #[cfg(feature = "ml-kem-768")]
     #[test]
     fn test_kem_export_import_mlkem768() {
         export_import_roundtrip(SpdmKemAlgo::ALG_MLKEM_768);
     }
 
+    #[cfg(feature = "ml-kem-1024")]
     #[test]
     fn test_kem_export_import_mlkem1024() {
         export_import_roundtrip(SpdmKemAlgo::ALG_MLKEM_1024);

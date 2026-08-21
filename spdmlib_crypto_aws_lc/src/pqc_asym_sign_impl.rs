@@ -2,19 +2,29 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+#[cfg(spdm_has_ml_dsa)]
 use core::ffi::{c_int, c_uchar};
-use spdmlib::protocol::{SpdmPqcAsymAlgo, SpdmSignatureStruct, SPDM_MAX_ASYM_SIG_SIZE};
+#[cfg(spdm_has_ml_dsa)]
+use spdmlib::protocol::SPDM_MAX_ASYM_SIG_SIZE;
+use spdmlib::protocol::{SpdmPqcAsymAlgo, SpdmSignatureStruct};
 
 // SPDM signing prefix is 64 bytes, followed by 36 bytes of (zeropad + context_string).
+#[cfg(spdm_has_ml_dsa)]
 const SPDM_SIGNING_PREFIX_LEN: usize = 64;
+#[cfg(spdm_has_ml_dsa)]
 const SPDM_SIGNING_CONTEXT_FIELD_LEN: usize = 36;
 
 // ML-DSA signature sizes
+#[cfg(feature = "ml-dsa-44")]
 const MLDSA_44_SIG_SIZE: usize = 2420;
+#[cfg(feature = "ml-dsa-65")]
 const MLDSA_65_SIG_SIZE: usize = 3309;
+#[cfg(feature = "ml-dsa-87")]
 const MLDSA_87_SIG_SIZE: usize = 4627;
 
+#[cfg(spdm_has_ml_dsa)]
 extern "C" {
+    #[cfg(feature = "ml-dsa-44")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_44_sign"]
     fn ml_dsa_44_sign(
         private_key: *const c_uchar,
@@ -26,6 +36,7 @@ extern "C" {
         ctx_string_len: usize,
     ) -> c_int;
 
+    #[cfg(feature = "ml-dsa-65")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_65_sign"]
     fn ml_dsa_65_sign(
         private_key: *const c_uchar,
@@ -37,6 +48,7 @@ extern "C" {
         ctx_string_len: usize,
     ) -> c_int;
 
+    #[cfg(feature = "ml-dsa-87")]
     #[link_name = "aws_lc_0_43_0_ml_dsa_87_sign"]
     fn ml_dsa_87_sign(
         private_key: *const c_uchar,
@@ -50,6 +62,7 @@ extern "C" {
 }
 
 /// Extract the SPDM signing context string from the data buffer.
+#[cfg(spdm_has_ml_dsa)]
 fn extract_signing_context(data: &[u8]) -> &[u8] {
     if data.len() < SPDM_SIGNING_PREFIX_LEN + SPDM_SIGNING_CONTEXT_FIELD_LEN {
         return &[];
@@ -69,6 +82,7 @@ fn extract_signing_context(data: &[u8]) -> &[u8] {
 ///
 /// `raw_private_key` is the raw ML-DSA private key bytes (not PKCS#8).
 /// `data` is the SPDM signing message (prefix + context + hash).
+#[cfg(spdm_has_ml_dsa)]
 pub fn pqc_sign_with_context(
     pqc_asym_algo: SpdmPqcAsymAlgo,
     raw_private_key: &[u8],
@@ -82,20 +96,26 @@ pub fn pqc_sign_with_context(
     };
 
     let sig_size = match pqc_asym_algo {
+        #[cfg(feature = "ml-dsa-44")]
         SpdmPqcAsymAlgo::ALG_MLDSA_44 => MLDSA_44_SIG_SIZE,
+        #[cfg(feature = "ml-dsa-65")]
         SpdmPqcAsymAlgo::ALG_MLDSA_65 => MLDSA_65_SIG_SIZE,
+        #[cfg(feature = "ml-dsa-87")]
         SpdmPqcAsymAlgo::ALG_MLDSA_87 => MLDSA_87_SIG_SIZE,
         _ => return None,
     };
 
     let sign_fn: unsafe extern "C" fn(_, _, _, _, _, _, _) -> _ = match pqc_asym_algo {
+        #[cfg(feature = "ml-dsa-44")]
         SpdmPqcAsymAlgo::ALG_MLDSA_44 => ml_dsa_44_sign,
+        #[cfg(feature = "ml-dsa-65")]
         SpdmPqcAsymAlgo::ALG_MLDSA_65 => ml_dsa_65_sign,
+        #[cfg(feature = "ml-dsa-87")]
         SpdmPqcAsymAlgo::ALG_MLDSA_87 => ml_dsa_87_sign,
         _ => return None,
     };
 
-    let mut sig_buf = vec![0u8; sig_size];
+    let mut sig_buf = alloc::vec![0u8; sig_size];
     let mut sig_len = sig_size;
 
     let result = unsafe {
@@ -121,4 +141,13 @@ pub fn pqc_sign_with_context(
         data_size: sig_len as u16,
         data: full_signature,
     })
+}
+
+#[cfg(not(spdm_has_ml_dsa))]
+pub fn pqc_sign_with_context(
+    _pqc_asym_algo: SpdmPqcAsymAlgo,
+    _raw_private_key: &[u8],
+    _data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    None
 }

@@ -15,8 +15,15 @@
 //! TBSCertificate with an empty ML-DSA context, so we use aws-lc-rs's
 //! `UnparsedPublicKey::verify` directly.
 
+#[cfg(spdm_has_ml_dsa)]
 use aws_lc_rs::signature::UnparsedPublicKey;
-use aws_lc_rs::unstable::signature::{ML_DSA_44, ML_DSA_65, ML_DSA_87};
+#[cfg(feature = "ml-dsa-44")]
+use aws_lc_rs::unstable::signature::ML_DSA_44;
+#[cfg(feature = "ml-dsa-65")]
+use aws_lc_rs::unstable::signature::ML_DSA_65;
+#[cfg(feature = "ml-dsa-87")]
+use aws_lc_rs::unstable::signature::ML_DSA_87;
+#[cfg(spdm_has_ml_dsa)]
 use log::error;
 use spdm_x509::crypto_backend::SignatureAlgorithm;
 use spdm_x509::error::{Error, Result};
@@ -26,6 +33,7 @@ use spdm_x509::error::{Error, Result};
 /// `public_key` may be either the raw FIPS 204 public key (the BIT STRING
 /// content of a SubjectPublicKeyInfo) or a DER-encoded SubjectPublicKeyInfo;
 /// aws-lc-rs's parser accepts both encodings.
+#[cfg(spdm_has_ml_dsa)]
 fn verify_pqc_dsa(
     algorithm: SignatureAlgorithm,
     tbs_data: &[u8],
@@ -33,8 +41,11 @@ fn verify_pqc_dsa(
     public_key: &[u8],
 ) -> Result<()> {
     let verification_algo: &'static _ = match algorithm {
+        #[cfg(feature = "ml-dsa-44")]
         SignatureAlgorithm::MlDsa44 => &ML_DSA_44,
+        #[cfg(feature = "ml-dsa-65")]
         SignatureAlgorithm::MlDsa65 => &ML_DSA_65,
+        #[cfg(feature = "ml-dsa-87")]
         SignatureAlgorithm::MlDsa87 => &ML_DSA_87,
         _ => {
             return Err(Error::unsupported_algorithm(
@@ -50,6 +61,16 @@ fn verify_pqc_dsa(
     })
 }
 
+#[cfg(not(spdm_has_ml_dsa))]
+fn verify_pqc_dsa(
+    _algorithm: SignatureAlgorithm,
+    _tbs_data: &[u8],
+    _signature: &[u8],
+    _public_key: &[u8],
+) -> Result<()> {
+    Err(Error::unsupported_algorithm("ML-DSA is disabled"))
+}
+
 /// Register the ML-DSA certificate verifier with `spdm_x509`.
 ///
 /// Idempotent: the first registration wins (mirroring the spdm-rs crypto
@@ -59,9 +80,16 @@ pub fn register() -> bool {
     spdm_x509::crypto_backend::register_pqc_verifier(verify_pqc_dsa)
 }
 
-#[cfg(test)]
+#[cfg(all(test, spdm_has_ml_dsa))]
 mod tests {
-    use super::*;
+    fn verify_chain(chain: &[u8]) -> spdm_x509::error::Result<()> {
+        spdm_x509::x509::chain::verify_cert_chain_with_backend(
+            chain,
+            crate::cert_operation_impl::AwsLcBackend,
+            None,
+            None,
+        )
+    }
 
     fn test_key_path(relative: &str) -> std::string::String {
         std::format!("{}/../test_key/{}", env!("CARGO_MANIFEST_DIR"), relative)
@@ -80,12 +108,12 @@ mod tests {
     /// real ML-DSA certificate chain (root self-signature + intermediate +
     /// leaf) end to end — this is the certificate-chain path exercised by the
     /// SPDM handshake in cert-chain mode.
+    #[cfg(all(feature = "ml-dsa-44", feature = "ml-dsa-65", feature = "ml-dsa-87"))]
     #[test]
     fn test_ml_dsa_cert_chain_happy_path() {
-        register();
         for dir in ["mldsa44", "mldsa65", "mldsa87"] {
             let chain = load_chain(dir);
-            let result = spdm_x509::x509::chain::verify_cert_chain(&chain);
+            let result = verify_chain(&chain);
             assert!(
                 result.is_ok(),
                 "{} ML-DSA chain should validate: {:?}",
@@ -98,9 +126,9 @@ mod tests {
     /// Fail path: a single flipped byte inside the leaf certificate's ML-DSA
     /// signature must cause chain validation to fail — proving the verifier
     /// actually checks the signature rather than accepting unconditionally.
+    #[cfg(feature = "ml-dsa-87")]
     #[test]
     fn test_ml_dsa_cert_chain_tampered_signature_rejected() {
-        register();
         let mut chain = load_chain("mldsa87");
 
         // The leaf certificate is last in the SPDM chain; its ML-DSA signature
@@ -108,7 +136,7 @@ mod tests {
         let len = chain.len();
         chain[len - 16] ^= 0xFF;
 
-        let result = spdm_x509::x509::chain::verify_cert_chain(&chain);
+        let result = verify_chain(&chain);
         assert!(
             result.is_err(),
             "tampered ML-DSA leaf signature must be rejected"
@@ -117,9 +145,9 @@ mod tests {
 
     /// Fail path: tampering with the intermediate certificate's TBS content
     /// (which is signed by the root) must be rejected during the chain walk.
+    #[cfg(feature = "ml-dsa-87")]
     #[test]
     fn test_ml_dsa_cert_chain_tampered_intermediate_rejected() {
-        register();
         let mut chain = load_chain("mldsa87");
 
         // Corrupt a byte in the first cert (root) region's later portion, which
@@ -128,7 +156,7 @@ mod tests {
         // Use an offset comfortably past the header but before the leaf.
         chain[1380] ^= 0xFF;
 
-        let result = spdm_x509::x509::chain::verify_cert_chain(&chain);
+        let result = verify_chain(&chain);
         assert!(
             result.is_err(),
             "tampered certificate in ML-DSA chain must be rejected"

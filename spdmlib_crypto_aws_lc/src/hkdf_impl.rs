@@ -5,11 +5,13 @@
 //! HKDF-SHA-256/384/512 via aws-lc-rs, for the standalone aws-lc backend.
 
 use spdmlib::crypto::SpdmHkdf;
-#[cfg(test)]
+#[cfg(all(test, feature = "sha384"))]
 use spdmlib::protocol::SpdmDigestStruct;
+#[cfg(spdm_has_hash)]
+use spdmlib::protocol::SPDM_MAX_HKDF_OKM_SIZE;
 use spdmlib::protocol::{
     SpdmBaseHashAlgo, SpdmHkdfInputKeyingMaterial, SpdmHkdfOutputKeyingMaterial,
-    SpdmHkdfPseudoRandomKey, SPDM_MAX_HKDF_OKM_SIZE,
+    SpdmHkdfPseudoRandomKey,
 };
 
 pub static DEFAULT: SpdmHkdf = SpdmHkdf {
@@ -17,6 +19,7 @@ pub static DEFAULT: SpdmHkdf = SpdmHkdf {
     hkdf_expand_cb: hkdf_expand,
 };
 
+#[cfg(spdm_has_hash)]
 fn hkdf_extract(
     hash_algo: SpdmBaseHashAlgo,
     salt: &[u8],
@@ -25,8 +28,11 @@ fn hkdf_extract(
     // HKDF-Extract(salt, IKM) == HMAC(salt, IKM); use HMAC to produce the PRK,
     // matching the ring backend's behavior.
     let algorithm = match hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hmac::HMAC_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hmac::HMAC_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hmac::HMAC_SHA512,
         _ => return None,
     };
@@ -35,6 +41,16 @@ fn hkdf_extract(
     Some(SpdmHkdfPseudoRandomKey::from(tag.as_ref()))
 }
 
+#[cfg(not(spdm_has_hash))]
+fn hkdf_extract(
+    _hash_algo: SpdmBaseHashAlgo,
+    _salt: &[u8],
+    _ikm: &SpdmHkdfInputKeyingMaterial,
+) -> Option<SpdmHkdfPseudoRandomKey> {
+    None
+}
+
+#[cfg(spdm_has_hash)]
 fn hkdf_expand(
     hash_algo: SpdmBaseHashAlgo,
     prk: &SpdmHkdfPseudoRandomKey,
@@ -44,9 +60,12 @@ fn hkdf_expand(
     if out_size as usize > SPDM_MAX_HKDF_OKM_SIZE {
         return None;
     }
-    let algo = match hash_algo {
+    let algo: aws_lc_rs::hkdf::Algorithm = match hash_algo {
+        #[cfg(feature = "sha256")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => aws_lc_rs::hkdf::HKDF_SHA256,
+        #[cfg(feature = "sha384")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => aws_lc_rs::hkdf::HKDF_SHA384,
+        #[cfg(feature = "sha512")]
         SpdmBaseHashAlgo::TPM_ALG_SHA_512 => aws_lc_rs::hkdf::HKDF_SHA512,
         _ => return None,
     };
@@ -67,9 +86,21 @@ fn hkdf_expand(
     }
 }
 
+#[cfg(not(spdm_has_hash))]
+fn hkdf_expand(
+    _hash_algo: SpdmBaseHashAlgo,
+    _prk: &SpdmHkdfPseudoRandomKey,
+    _info: &[u8],
+    _out_size: u16,
+) -> Option<SpdmHkdfOutputKeyingMaterial> {
+    None
+}
+
+#[cfg(spdm_has_hash)]
 struct SpdmCryptoHkdfKeyLen {
     out_size: usize,
 }
+#[cfg(spdm_has_hash)]
 impl SpdmCryptoHkdfKeyLen {
     pub fn new(len: u16) -> Self {
         SpdmCryptoHkdfKeyLen {
@@ -77,16 +108,18 @@ impl SpdmCryptoHkdfKeyLen {
         }
     }
 }
+#[cfg(spdm_has_hash)]
 impl aws_lc_rs::hkdf::KeyType for SpdmCryptoHkdfKeyLen {
     fn len(&self) -> usize {
         self.out_size
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "sha384"))]
 mod tests {
     use super::*;
 
+    #[cfg(feature = "sha384")]
     #[test]
     fn test_hkdf_extract_expand() {
         let algo = SpdmBaseHashAlgo::TPM_ALG_SHA_384;

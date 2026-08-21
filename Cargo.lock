@@ -158,6 +158,7 @@ name = "aws-lc-rs"
 version = "1.17.3"
 dependencies = [
  "aws-lc-sys",
+ "spin 0.9.8",
  "untrusted 0.7.1",
  "zeroize",
 ]
@@ -1954,6 +1955,7 @@ name = "spdmlib_crypto_aws_lc"
 version = "0.1.0"
 dependencies = [
  "aws-lc-rs",
+ "aws-lc-sys",
  "bytes",
  "lazy_static",
  "log",
