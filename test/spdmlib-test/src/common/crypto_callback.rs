@@ -28,6 +28,7 @@ pub static FAKE_ASYM_VERIFY: SpdmAsymVerify = SpdmAsymVerify {
 
 pub static FAKE_PQC_ASYM_VERIFY: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
     verify_cb: fake_pqc_asym_verify,
+    fips_self_test_cb: None,
 };
 
 pub static FAKE_HKDF: SpdmHkdf = SpdmHkdf {
