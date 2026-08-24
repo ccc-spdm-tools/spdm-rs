@@ -498,9 +498,8 @@ impl<B: CryptoBackend> Validator<B> {
             }
         }
 
-        // NOTE: path length constraint validation is already performed in
-        // verify_issuer_is_ca() for each CA certificate during the chain walk
-        // above.  No separate validate_path_length_constraints() call is needed.
+        // NOTE: pathLenConstraint is enforced inline by verify_issuer_is_ca()
+        // for each CA during the chain walk above; no separate pass is needed.
 
         log::trace!("validate_chain: SUCCESS all validations passed");
         Ok(())
@@ -527,6 +526,13 @@ impl<B: CryptoBackend> Validator<B> {
                     return Err(Error::ChainError(crate::error::ChainError::IssuerNotCA));
                 }
 
+                // RFC 5280 §4.2.1.9: `pathLenConstraint` bounds the number of
+                // non-self-issued intermediate CAs that may follow this issuer
+                // toward the end-entity. The chain is walked leaf->root, so
+                // `depth` (the child's index in leaf->root order) equals the
+                // count of certificates already traversed below this issuer,
+                // which is exactly that follow-on intermediate count. This is
+                // the single, authoritative pathLen enforcement for the chain.
                 if let Some(path_len) = bc.path_len_constraint {
                     if depth > path_len as usize {
                         return Err(Error::ChainError(
@@ -540,51 +546,6 @@ impl<B: CryptoBackend> Validator<B> {
         }
 
         // BasicConstraints extension not present — acceptable per SPDM 1.2.
-        Ok(())
-    }
-
-    /// Validate path length constraints in the chain.
-    ///
-    /// RFC 5280 §4.2.1.9: `pathLenConstraint` gives the maximum number of
-    /// non-self-issued intermediate certificates that may **follow** the
-    /// certificate (i.e. lie between it and the end-entity) in a valid
-    /// certification path.
-    ///
-    /// `chain.certificates` is in leaf→root order, so for the CA at position
-    /// `idx` the intermediates that follow it toward the leaf are at indices
-    /// `1..idx` (index 0 is the end-entity leaf, which is not an intermediate).
-    #[allow(dead_code)]
-    fn validate_path_length_constraints(&self, chain: &CertificateChain) -> Result<()> {
-        for (idx, cert) in chain.certificates.iter().enumerate().skip(1) {
-            let extensions = match &cert.tbs_certificate.extensions {
-                Some(exts) => exts,
-                None => continue,
-            };
-
-            for ext in &extensions.extensions {
-                if ext.extn_id == BASIC_CONSTRAINTS {
-                    use der::Decode;
-                    let bc = BasicConstraints::from_der(ext.extn_value.as_bytes())
-                        .map_err(Error::Asn1)?;
-
-                    if let Some(path_len) = bc.path_len_constraint {
-                        let intermediates_below = idx - 1;
-                        if intermediates_below > path_len as usize {
-                            log::error!(
-                                "validate_path_length_constraints: cert at idx {} has path_len={} but {} intermediates follow",
-                                idx,
-                                path_len,
-                                intermediates_below
-                            );
-                            return Err(Error::ChainError(
-                                crate::error::ChainError::PathLengthExceeded,
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-
         Ok(())
     }
 }
