@@ -44,10 +44,13 @@ pub use chain::CertificateChain;
 pub use error::{Error, Result};
 pub use x509::extensions::{BasicConstraints, ExtendedKeyUsage, Extension, Extensions, KeyUsage};
 pub use x509::{
-    parse_spdm_cert_chain, validate_spdm_cert_chain, validate_spdm_cert_chain_with_backend,
-    verify_cert_chain, verify_cert_chain_with_backend, verify_cert_chain_with_options,
-    verify_signature, verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
-    SpdmCertificateModel, SpdmCertificateRole, SpdmValidator,
+    parse_spdm_cert_chain, validate_spdm_cert_chain_with_backend, verify_cert_chain_with_backend,
+    verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmCertificateModel,
+    SpdmCertificateRole, SpdmValidator,
+};
+#[cfg(test)]
+pub use x509::{
+    validate_spdm_cert_chain, verify_cert_chain, verify_cert_chain_with_options, verify_signature,
 };
 
 /// Re-export commonly used types
@@ -58,9 +61,11 @@ pub mod prelude {
 
 /// Re-exports for spdmlib compatibility
 pub mod spdmlib {
-    pub use crate::x509::chain::{
-        get_cert_from_cert_chain, verify_cert_chain, verify_cert_chain_with_backend,
-    };
-    pub use crate::x509::signature::{verify_signature, verify_signature_with_backend};
+    #[cfg(test)]
+    pub use crate::x509::chain::verify_cert_chain;
+    pub use crate::x509::chain::{get_cert_from_cert_chain, verify_cert_chain_with_backend};
+    #[cfg(test)]
+    pub use crate::x509::signature::verify_signature;
+    pub use crate::x509::signature::verify_signature_with_backend;
     pub use crate::x509::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmValidator};
 }

@@ -138,18 +138,18 @@ pub struct SpdmValidator<B: crate::crypto_backend::CryptoBackend> {
     validator: Validator<B>,
 }
 
-#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
-impl SpdmValidator<crate::crypto_backend::DefaultBackend> {
-    /// Create a new SPDM validator using the default crypto backend.
+#[cfg(test)]
+impl SpdmValidator<crate::crypto_backend::RingBackend> {
+    /// Create a new SPDM validator using the bundled test-only ring backend.
     pub fn new() -> Self {
         Self {
-            validator: Validator::new(),
+            validator: Validator::with_backend(crate::crypto_backend::RingBackend),
         }
     }
 }
 
-#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
-impl Default for SpdmValidator<crate::crypto_backend::DefaultBackend> {
+#[cfg(test)]
+impl Default for SpdmValidator<crate::crypto_backend::RingBackend> {
     fn default() -> Self {
         Self::new()
     }
@@ -676,7 +676,7 @@ fn check_hardware_identity_in_extension(extn_value: &der::asn1::OctetString) -> 
     Ok(found)
 }
 
-#[cfg(all(test, feature = "ring-backend"))]
+#[cfg(test)]
 mod tests {
     extern crate std;
     use super::*;

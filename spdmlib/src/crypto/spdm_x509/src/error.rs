@@ -656,7 +656,7 @@ impl From<der::Error> for Error {
 }
 
 /// Convert from ring's Unspecified error
-#[cfg(feature = "ring-backend")]
+#[cfg(test)]
 impl From<ring::error::Unspecified> for Error {
     fn from(_: ring::error::Unspecified) -> Self {
         Error::SignatureError(SignatureError::RingError(
@@ -666,7 +666,7 @@ impl From<ring::error::Unspecified> for Error {
 }
 
 /// Convert from ring's KeyRejected error
-#[cfg(feature = "ring-backend")]
+#[cfg(test)]
 impl From<ring::error::KeyRejected> for Error {
     fn from(err: ring::error::KeyRejected) -> Self {
         Error::KeyError(KeyError::InvalidEncoding(err.to_string()))
