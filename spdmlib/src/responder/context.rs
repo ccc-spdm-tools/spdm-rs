@@ -85,6 +85,8 @@ impl ResponderContext {
                 self.common.chunk_context.transferred_size = 0;
                 self.common.chunk_context.chunk_status =
                     common::SpdmChunkStatus::ChunkGetAndResponse;
+                // Bind the staged response to the session it belongs to.
+                self.common.chunk_context.session_id = session_id;
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorLargeResponse, 0, &mut writer);
                 let _ = self.common.chunk_rsp_handle.encode(&mut writer);
                 writer.used_slice()
@@ -137,6 +139,7 @@ impl ResponderContext {
                 self.common.chunk_context.chunk_message_data.fill(0);
                 self.common.chunk_context.transferred_size = 0;
                 self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
+                self.common.chunk_context.session_id = None;
             }
         } else if self.common.chunk_context.chunk_status
             == common::SpdmChunkStatus::ChunkGetAndResponse
@@ -149,6 +152,7 @@ impl ResponderContext {
             self.common.chunk_context.chunk_message_data.fill(0);
             self.common.chunk_context.transferred_size = 0;
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
+            self.common.chunk_context.session_id = None;
         }
         if opcode == SpdmRequestResponseCode::SpdmResponseVersion.get_u8() {
             self.common
@@ -817,6 +821,7 @@ impl ResponderContext {
             self.common.chunk_context.chunk_message_data.fill(0);
             self.common.chunk_context.transferred_size = 0;
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
+            self.common.chunk_context.session_id = None;
         }
 
         (result, rsp_slice)
@@ -933,9 +938,17 @@ impl ResponderContext {
                 self.common.chunk_context.chunk_seq_num = chunk_send_request.chunk_seq_num;
                 self.common.chunk_context.chunk_message_size = large_message_size;
                 self.common.chunk_context.chunk_status = common::SpdmChunkStatus::ChunkSendAndAck;
+                self.common.chunk_context.session_id = session_id;
             } else if self.common.chunk_context.chunk_status
                 == common::SpdmChunkStatus::ChunkSendAndAck
             {
+                if session_id != self.common.chunk_context.session_id {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_STATE_PEER),
+                        Some(writer.used_slice()),
+                    );
+                }
                 let max_chunk_size = (config::SPDM_DATA_TRANSFER_SIZE
                     - SPDM_VERSION_1_2_OFFSET_OF_SPDM_CHUNK_IN_CHUNK_SEND)
                     as u32;
@@ -1089,6 +1102,7 @@ impl ResponderContext {
             self.common.chunk_context.chunk_message_size = 0;
             self.common.chunk_context.transferred_size = 0;
             self.common.chunk_context.chunk_message_data.fill(0);
+            self.common.chunk_context.session_id = None;
         }
 
         (result, rsp_slice)
@@ -1097,7 +1111,7 @@ impl ResponderContext {
     #[cfg(feature = "chunk-cap")]
     fn write_spdm_chunk_get_response<'a>(
         &mut self,
-        _session_id: Option<u32>,
+        session_id: Option<u32>,
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
@@ -1135,6 +1149,14 @@ impl ResponderContext {
                 && self.common.runtime_info.get_connection_state()
                     == SpdmConnectionState::SpdmConnectionAfterVersion)
         {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_PEER),
+                Some(writer.used_slice()),
+            );
+        }
+
+        if chunk_get_in_progress && session_id != self.common.chunk_context.session_id {
             self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
             return (
                 Err(SPDM_STATUS_INVALID_STATE_PEER),
@@ -1258,3 +1280,7 @@ impl ResponderContext {
         (Ok(()), Some(writer.used_slice()))
     }
 }
+
+#[cfg(all(test, feature = "chunk-cap"))]
+#[path = "context_test.rs"]
+mod context_test;

@@ -2918,6 +2918,9 @@ pub struct SpdmChunkContext {
     pub chunk_message_size: usize,
     pub chunk_message_data: [u8; config::MAX_SPDM_MSG_SIZE],
     pub transferred_size: usize,
+    // Session the staged large response belongs to (`None` when unsecured), so a
+    // CHUNK_GET can be rejected if it arrives on a different session.
+    pub session_id: Option<u32>,
 }
 
 #[cfg(feature = "chunk-cap")]
@@ -2929,6 +2932,7 @@ impl Default for SpdmChunkContext {
             chunk_message_size: 0,
             chunk_message_data: [0u8; config::MAX_SPDM_MSG_SIZE],
             transferred_size: 0,
+            session_id: None,
         }
     }
 }
