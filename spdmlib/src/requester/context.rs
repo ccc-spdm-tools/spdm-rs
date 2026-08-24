@@ -463,12 +463,12 @@ impl RequesterContext {
                 }),
             };
             let used = chunk_get_request.spdm_encode(&mut self.common, &mut writer)?;
-            self.send_single_message(None, &send_buffer[..used], false)
+            self.send_single_message(session_id, &send_buffer[..used], false)
                 .await?;
 
             let mut receive_buffer = [0u8; config::SPDM_DATA_TRANSFER_SIZE];
             let used = self
-                .receive_single_message(None, &mut receive_buffer, crypto_request)
+                .receive_single_message(session_id, &mut receive_buffer, crypto_request)
                 .await?;
 
             self.handle_spdm_chunk_response(&receive_buffer[..used], session_id)
