@@ -14,6 +14,7 @@ aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", default-features = false
     "ring-sig-verify",
     "ml-kem",
     "ml-dsa",
+    "small",
     "unstable",
 ] }
 log = { version = "0.4", default-features = false }
