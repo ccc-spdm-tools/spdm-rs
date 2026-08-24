@@ -16,9 +16,12 @@ use crate::crypto::fips::cavs_vectors::hmac_sha256;
 use crate::crypto::fips::cavs_vectors::hmac_sha384;
 use crate::crypto::fips::cavs_vectors::hmac_sha512;
 
-pub fn run_self_tests() -> SpdmResult {
+pub fn run_self_tests(configured: SpdmBaseHashAlgo) -> SpdmResult<bool> {
+    let mut tested = false;
+
     // SHA2-256
-    {
+    if configured.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_256) {
+        tested = true;
         let cavs_vectors = hmac_sha256::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let mut mac = SpdmDigestStruct {
@@ -37,7 +40,8 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // SHA2-384
-    {
+    if configured.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_384) {
+        tested = true;
         let cavs_vectors = hmac_sha384::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let mut mac = SpdmDigestStruct {
@@ -56,7 +60,8 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // SHA2-512
-    {
+    if configured.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_512) {
+        tested = true;
         let cavs_vectors = hmac_sha512::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let mut mac = SpdmDigestStruct {
@@ -74,5 +79,5 @@ pub fn run_self_tests() -> SpdmResult {
         }
     }
 
-    Ok(())
+    Ok(tested)
 }

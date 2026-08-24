@@ -16,8 +16,23 @@ extern crate alloc;
 
 #[cfg(all(test, feature = "fips"))]
 mod tests {
+    use crate::{
+        common::SpdmConfigInfo,
+        protocol::{SpdmAeadAlgo, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDheAlgo},
+    };
+
     #[test]
     fn test_spdm_fips_self_tests() {
-        assert!(crate::crypto::fips::run_self_tests().is_ok());
+        let config = SpdmConfigInfo {
+            base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256 | SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
+                | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
+                | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+            dhe_algo: SpdmDheAlgo::SECP_256_R1 | SpdmDheAlgo::SECP_384_R1,
+            aead_algo: SpdmAeadAlgo::AES_256_GCM,
+            ..Default::default()
+        };
+
+        assert!(crate::crypto::fips::run_self_tests(&config).is_ok());
     }
 }

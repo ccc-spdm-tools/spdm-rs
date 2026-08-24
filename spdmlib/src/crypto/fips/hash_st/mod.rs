@@ -13,9 +13,12 @@ use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
 use crate::crypto::fips::cavs_vectors::sha256_short_msg;
 use crate::crypto::fips::cavs_vectors::sha384_short_msg;
 
-pub fn run_self_tests() -> SpdmResult {
+pub fn run_self_tests(configured: SpdmBaseHashAlgo) -> SpdmResult<bool> {
+    let mut tested = false;
+
     // SHA2-256
-    {
+    if configured.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_256) {
+        tested = true;
         let cavs_vectors = sha256_short_msg::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let res = hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_256, cv.msg).unwrap();
@@ -27,7 +30,8 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // SHA2-384
-    {
+    if configured.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_384) {
+        tested = true;
         let cavs_vectors = sha384_short_msg::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let res = hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_384, cv.msg).unwrap();
@@ -38,5 +42,5 @@ pub fn run_self_tests() -> SpdmResult {
         }
     }
 
-    Ok(())
+    Ok(tested)
 }

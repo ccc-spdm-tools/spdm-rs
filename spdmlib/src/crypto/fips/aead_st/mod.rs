@@ -118,9 +118,13 @@ fn decrypt_self_test() -> SpdmResult {
     Ok(())
 }
 
-pub fn run_self_tests() -> SpdmResult {
+pub fn run_self_tests(configured: SpdmAeadAlgo) -> SpdmResult<bool> {
+    if !configured.contains(SpdmAeadAlgo::AES_256_GCM) {
+        return Ok(false);
+    }
+
     encrypt_self_test()?;
     decrypt_self_test()?;
 
-    Ok(())
+    Ok(true)
 }
