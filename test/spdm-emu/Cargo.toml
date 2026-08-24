@@ -39,6 +39,7 @@ chunk-cap = ["spdmlib/chunk-cap"]
 mandatory-mut-auth = ["mut-auth", "spdmlib/mandatory-mut-auth"]
 spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std", "dep:ring", "dep:untrusted"]
 spdm-mbedtls = ["spdmlib_crypto_mbedtls", "dep:mbedtls"]
+chacha20-poly1305 = ["spdmlib/chacha20-poly1305", "spdmlib_crypto_aws_lc?/chacha20-poly1305"]
 # aws-lc-rs crypto (ML-DSA, ML-KEM, and the traditional primitives). Pulls
 # spdmlib/std because aws-lc-rs is std-only. Combined with spdm-ring or
 # spdm-mbedtls it is a PQC overlay on that classical backend; on its own (no

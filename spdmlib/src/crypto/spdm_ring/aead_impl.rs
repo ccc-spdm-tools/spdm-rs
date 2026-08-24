@@ -140,10 +140,9 @@ fn make_key<K: ring::aead::BoundKey<OneNonceSequence>>(
     let algorithm = match aead_algo {
         SpdmAeadAlgo::AES_128_GCM => &ring::aead::AES_128_GCM,
         SpdmAeadAlgo::AES_256_GCM => &ring::aead::AES_256_GCM,
+        #[cfg(feature = "chacha20-poly1305")]
         SpdmAeadAlgo::CHACHA20_POLY1305 => &ring::aead::CHACHA20_POLY1305,
-        _ => {
-            panic!();
-        }
+        _ => return Err(SPDM_STATUS_CRYPTO_ERROR),
     };
 
     let key = if let Ok(k) = ring::aead::UnboundKey::new(algorithm, key.as_ref()) {
@@ -181,6 +180,7 @@ mod tests {
         let status = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text).is_ok();
         assert!(status);
     }
+    #[cfg(feature = "chacha20-poly1305")]
     #[test]
     fn test_case1_encrypt() {
         let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
@@ -201,6 +201,27 @@ mod tests {
         let status = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text).is_ok();
         assert!(status);
     }
+
+    #[cfg(not(feature = "chacha20-poly1305"))]
+    #[test]
+    fn test_chacha20_poly1305_disabled_by_default() {
+        let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
+        let key = &SpdmAeadKeyStruct {
+            data_size: 32,
+            data: Box::new([100u8; SPDM_MAX_AEAD_KEY_SIZE]),
+        };
+        let iv = &SpdmAeadIvStruct {
+            data_size: 12,
+            data: Box::new([100u8; SPDM_MAX_AEAD_IV_SIZE]),
+        };
+        let plain_text = &mut [100u8; 16];
+        let tag = &mut [0u8; 16];
+        let aad = &mut [100u8; 16];
+        let cipher_text = &mut [100u8; 16];
+
+        assert!(encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text).is_err());
+    }
+
     #[test]
     #[should_panic]
     fn test_case2_encrypt() {
@@ -217,12 +238,11 @@ mod tests {
         let tag = &mut [100u8; 16];
         let aad = &mut [100u8; 16];
         let cipher_text = &mut [100u8; 16];
-        let ret_tag_size = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
-        std::println!("ret_tag_size{:?}", ret_tag_size);
+        let _ = encrypt(aead_algo, key, iv, aad, plain_text, tag, cipher_text);
     }
     #[test]
     fn test_case3_encrypt() {
-        let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
+        let aead_algo = SpdmAeadAlgo::AES_256_GCM;
         let key = &SpdmAeadKeyStruct {
             data_size: 1,
             data: Box::new([100u8; SPDM_MAX_AEAD_KEY_SIZE]),
@@ -240,7 +260,7 @@ mod tests {
     }
     #[test]
     fn test_case4_encrypt() {
-        let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
+        let aead_algo = SpdmAeadAlgo::AES_256_GCM;
         let key = &SpdmAeadKeyStruct {
             data_size: 32,
             data: Box::new([100u8; SPDM_MAX_AEAD_KEY_SIZE]),
@@ -258,7 +278,7 @@ mod tests {
     }
     #[test]
     fn test_case5_encrypt() {
-        let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
+        let aead_algo = SpdmAeadAlgo::AES_256_GCM;
         let key = &SpdmAeadKeyStruct {
             data_size: 32,
             data: Box::new([100u8; SPDM_MAX_AEAD_KEY_SIZE]),
@@ -276,7 +296,7 @@ mod tests {
     }
     #[test]
     fn test_case6_encrypt() {
-        let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
+        let aead_algo = SpdmAeadAlgo::AES_256_GCM;
         let key = &SpdmAeadKeyStruct {
             data_size: 32,
             data: Box::new([100u8; SPDM_MAX_AEAD_KEY_SIZE]),
@@ -295,7 +315,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_case0_decrypt() {
-        let aead_algo = SpdmAeadAlgo::CHACHA20_POLY1305;
+        let aead_algo = SpdmAeadAlgo::AES_256_GCM;
         let key = &SpdmAeadKeyStruct {
             data_size: 32,
             data: Box::new([100u8; SPDM_MAX_AEAD_KEY_SIZE]),
