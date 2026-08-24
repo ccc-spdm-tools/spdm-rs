@@ -46,6 +46,7 @@ env_logger = "*"
 default = ["std", "hashed-transcript-data"]
 std = ["spdm_x509/std"]
 spdm-ring = ["ring", "untrusted", "lazy_static", "spin"]
+chacha20-poly1305 = []
 downcast = []
 hashed-transcript-data = []
 mut-auth = []

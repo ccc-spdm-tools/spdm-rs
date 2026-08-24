@@ -241,7 +241,16 @@ run_basic_test() {
     if [[ "${RUN_REQUESTER_FEATURES}" == *"spdm-aws-lc"* ]]; then
         echo "Running ML-DSA certificate-chain tests (spdmlib_crypto_aws_lc)..."
         echo_command cargo test -p spdmlib_crypto_aws_lc -- --test-threads=1
+        echo_command cargo test -p spdmlib_crypto_aws_lc \
+            --features="chacha20-poly1305" \
+            test_aead_roundtrip_chacha20_poly1305 -- --test-threads=1
         echo "Running ML-DSA certificate-chain tests finished..."
+    fi
+
+    if [[ "${RUN_REQUESTER_FEATURES}" == *"spdm-ring"* ]]; then
+        echo_command cargo test -p spdmlib \
+            --features="spdm-ring,chacha20-poly1305" \
+            test_case_chacha20_poly1305 -- --test-threads=1
     fi
 
     echo "Running spdmlib-test..."

@@ -123,6 +123,7 @@ fn test_case_gcm128() {
     assert_eq!(out_plain_text_len, plain_text.len());
 }
 
+#[cfg(all(feature = "spdm-ring", feature = "chacha20-poly1305"))]
 #[test]
 fn test_case_chacha20_poly1305() {
     // Test vector from RFC8439#section-2.8.2

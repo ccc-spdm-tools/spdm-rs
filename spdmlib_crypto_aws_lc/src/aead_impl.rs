@@ -115,6 +115,7 @@ fn make_key<K: aws_lc_rs::aead::BoundKey<OneNonceSequence>>(
     let algorithm = match aead_algo {
         SpdmAeadAlgo::AES_128_GCM => &aws_lc_rs::aead::AES_128_GCM,
         SpdmAeadAlgo::AES_256_GCM => &aws_lc_rs::aead::AES_256_GCM,
+        #[cfg(feature = "chacha20-poly1305")]
         SpdmAeadAlgo::CHACHA20_POLY1305 => &aws_lc_rs::aead::CHACHA20_POLY1305,
         _ => return Err(SPDM_STATUS_CRYPTO_ERROR),
     };
@@ -141,10 +142,9 @@ impl aws_lc_rs::aead::NonceSequence for OneNonceSequence {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_aead_roundtrip_aes256() {
-        let aead = SpdmAeadAlgo::AES_256_GCM;
-        let key = SpdmAeadKeyStruct::from(&[0x11u8; 32][..]);
+    fn assert_aead_roundtrip(aead: SpdmAeadAlgo) {
+        let key_data = alloc::vec![0x11u8; aead.get_key_size() as usize];
+        let key = SpdmAeadKeyStruct::from(key_data.as_slice());
         let iv = SpdmAeadIvStruct::from(&[0x22u8; 12][..]);
         let plain = b"spdm-rs aws-lc aead test payload";
         let mut cipher = alloc::vec![0u8; plain.len()];
@@ -158,5 +158,37 @@ mod tests {
         assert_eq!(&dec[..], &plain[..]);
         // Tampered AAD must fail.
         assert!(decrypt(aead, &key, &iv, b"bad", &cipher, &tag, &mut dec).is_err());
+    }
+
+    #[test]
+    fn test_aead_roundtrip_aes256() {
+        assert_aead_roundtrip(SpdmAeadAlgo::AES_256_GCM);
+    }
+
+    #[cfg(feature = "chacha20-poly1305")]
+    #[test]
+    fn test_aead_roundtrip_chacha20_poly1305() {
+        assert_aead_roundtrip(SpdmAeadAlgo::CHACHA20_POLY1305);
+    }
+
+    #[cfg(not(feature = "chacha20-poly1305"))]
+    #[test]
+    fn test_chacha20_poly1305_disabled_by_default() {
+        let key = SpdmAeadKeyStruct::from(&[0x11u8; 32][..]);
+        let iv = SpdmAeadIvStruct::from(&[0x22u8; 12][..]);
+        let plain = b"spdm-rs aws-lc aead test payload";
+        let mut cipher = alloc::vec![0u8; plain.len()];
+        let mut tag = [0u8; 16];
+
+        assert!(encrypt(
+            SpdmAeadAlgo::CHACHA20_POLY1305,
+            &key,
+            &iv,
+            b"aad",
+            plain,
+            &mut tag,
+            &mut cipher,
+        )
+        .is_err());
     }
 }
