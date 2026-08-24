@@ -45,7 +45,7 @@ env_logger = "*"
 [features]
 default = ["std", "hashed-transcript-data"]
 std = ["spdm_x509/std"]
-spdm-ring = ["ring", "untrusted", "lazy_static", "spin", "spdm_x509/ring-backend"]
+spdm-ring = ["ring", "untrusted", "lazy_static", "spin"]
 downcast = []
 hashed-transcript-data = []
 mut-auth = []

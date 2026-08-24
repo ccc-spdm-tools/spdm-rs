@@ -4,44 +4,26 @@
 
 //! Cryptographic backend abstraction for signature verification.
 //!
-//! This module provides a trait-based abstraction for different cryptographic backends,
-//! allowing spdm_x509 to work with multiple crypto implementations (ring, mbedtls, etc.).
+//! This module provides a trait-based abstraction for different cryptographic
+//! backends.  `spdm_x509` itself ships no production backend: each crypto crate
+//! (e.g. spdmlib's `spdm_ring`, `spdmlib_crypto_mbedtls`, `spdmlib_crypto_aws_lc`)
+//! defines its own [`CryptoBackend`] and passes it to the `*_with_backend`
+//! entry points.  The bundled `ring` backend below is gated on `cfg(test)`
+//! (with `ring` as a dev-dependency) purely so this crate's own unit tests can
+//! run signature verification; there is no feature to enable it in production.
 
 extern crate alloc;
 
 use crate::error::{Error, Result};
 use const_oid::ObjectIdentifier;
 
-#[cfg(feature = "ring-backend")]
+// Test-only backend: gated on `cfg(test)` with `ring` as a dev-dependency, so it
+// exists only in this crate's own test builds and can never be linked into a
+// production build.  Production consumers supply their own `CryptoBackend`.
+#[cfg(test)]
 mod ring;
-#[cfg(feature = "ring-backend")]
+#[cfg(test)]
 pub use self::ring::*;
-
-#[cfg(feature = "mbedtls-backend")]
-mod mbedtls;
-#[cfg(feature = "mbedtls-backend")]
-pub use self::mbedtls::*;
-
-// The default crypto backend used by the convenience entry points
-// (`verify_cert_chain`, `Validator::new`, etc.).  `ring` and `mbedtls` are
-// mutually exclusive in practice, but Cargo features are additive; if both are
-// enabled the ring backend wins so behavior stays deterministic.
-#[cfg(feature = "ring-backend")]
-pub type DefaultBackend = RingBackend;
-#[cfg(all(feature = "mbedtls-backend", not(feature = "ring-backend")))]
-pub type DefaultBackend = MbedtlsBackend;
-
-/// Construct the default crypto backend (see [`DefaultBackend`]).
-#[cfg(feature = "ring-backend")]
-pub fn default_backend() -> DefaultBackend {
-    RingBackend
-}
-
-/// Construct the default crypto backend (see [`DefaultBackend`]).
-#[cfg(all(feature = "mbedtls-backend", not(feature = "ring-backend")))]
-pub fn default_backend() -> DefaultBackend {
-    MbedtlsBackend
-}
 
 /// Signature algorithm identifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

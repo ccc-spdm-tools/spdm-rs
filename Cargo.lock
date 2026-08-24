@@ -158,6 +158,7 @@ name = "aws-lc-rs"
 version = "1.17.3"
 dependencies = [
  "aws-lc-sys",
+ "spin 0.9.8",
  "untrusted 0.7.1",
  "zeroize",
 ]
@@ -1888,7 +1889,6 @@ dependencies = [
  "der",
  "hex",
  "log",
- "mbedtls",
  "pem-rfc7468",
  "ring",
  "serde",
@@ -1966,12 +1966,16 @@ dependencies = [
 name = "spdmlib_crypto_mbedtls"
 version = "0.1.0"
 dependencies = [
+ "const-oid",
+ "der",
  "lazy_static",
+ "log",
  "mbedtls",
  "mbedtls-sys-auto",
  "spdm_x509",
  "spdmlib",
  "spin 0.9.8",
+ "spki",
  "zeroize",
 ]
 

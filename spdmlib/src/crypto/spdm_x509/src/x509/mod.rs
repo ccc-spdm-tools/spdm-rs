@@ -16,13 +16,16 @@ pub mod spdm_validator;
 pub mod validator;
 
 pub use chain::{
-    get_cert_from_cert_chain, parse_spdm_cert_chain, validate_spdm_cert_chain,
-    validate_spdm_cert_chain_with_backend, verify_cert_chain, verify_cert_chain_with_backend,
-    verify_cert_chain_with_options, SpdmCertChainHeader,
+    get_cert_from_cert_chain, parse_spdm_cert_chain, validate_spdm_cert_chain_with_backend,
+    verify_cert_chain_with_backend, SpdmCertChainHeader,
 };
+#[cfg(test)]
+pub use chain::{validate_spdm_cert_chain, verify_cert_chain, verify_cert_chain_with_options};
 pub use extensions::*;
+#[cfg(test)]
+pub use signature::verify_signature;
 pub use signature::{
-    verify_ecc_curve, verify_hash_algorithm, verify_rsa_key_size, verify_signature,
-    verify_signature_algorithm, verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
+    verify_ecc_curve, verify_hash_algorithm, verify_rsa_key_size, verify_signature_algorithm,
+    verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
 };
 pub use spdm_validator::{SpdmCertificateModel, SpdmCertificateRole, SpdmValidator};

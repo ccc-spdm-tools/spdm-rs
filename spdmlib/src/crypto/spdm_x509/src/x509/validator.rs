@@ -18,8 +18,8 @@ use alloc::vec::Vec;
 
 use crate::certificate::Certificate;
 use crate::chain::CertificateChain;
-#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
-use crate::crypto_backend::{default_backend, DefaultBackend};
+#[cfg(test)]
+use crate::crypto_backend::RingBackend;
 use crate::crypto_backend::{CryptoBackend, SignatureAlgorithm};
 use crate::error::{Error, Result};
 use crate::x509::extensions::{
@@ -99,11 +99,11 @@ pub struct Validator<B: CryptoBackend> {
     known_extensions: Vec<ObjectIdentifier>,
 }
 
-#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
-impl Validator<DefaultBackend> {
-    /// Create a new Validator with the default crypto backend
+#[cfg(test)]
+impl Validator<RingBackend> {
+    /// Create a new Validator with the bundled test-only ring backend.
     pub fn new() -> Self {
-        Self::with_backend(default_backend())
+        Self::with_backend(RingBackend)
     }
 }
 
@@ -589,8 +589,8 @@ impl<B: CryptoBackend> Validator<B> {
     }
 }
 
-#[cfg(any(feature = "ring-backend", feature = "mbedtls-backend"))]
-impl Default for Validator<DefaultBackend> {
+#[cfg(test)]
+impl Default for Validator<RingBackend> {
     fn default() -> Self {
         Self::new()
     }
@@ -600,7 +600,7 @@ impl Default for Validator<DefaultBackend> {
 // Tests
 // ============================================================================
 
-#[cfg(all(test, feature = "ring-backend"))]
+#[cfg(test)]
 mod tests {
     extern crate std;
     use super::*;

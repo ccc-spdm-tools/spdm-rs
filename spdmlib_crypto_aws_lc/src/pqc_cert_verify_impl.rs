@@ -85,7 +85,12 @@ mod tests {
         register();
         for dir in ["mldsa44", "mldsa65", "mldsa87"] {
             let chain = load_chain(dir);
-            let result = spdm_x509::x509::chain::verify_cert_chain(&chain);
+            let result = spdm_x509::x509::chain::verify_cert_chain_with_backend(
+                &chain,
+                crate::cert_operation_impl::AwsLcBackend,
+                None,
+                None,
+            );
             assert!(
                 result.is_ok(),
                 "{} ML-DSA chain should validate: {:?}",
@@ -108,7 +113,12 @@ mod tests {
         let len = chain.len();
         chain[len - 16] ^= 0xFF;
 
-        let result = spdm_x509::x509::chain::verify_cert_chain(&chain);
+        let result = spdm_x509::x509::chain::verify_cert_chain_with_backend(
+            &chain,
+            crate::cert_operation_impl::AwsLcBackend,
+            None,
+            None,
+        );
         assert!(
             result.is_err(),
             "tampered ML-DSA leaf signature must be rejected"
@@ -128,7 +138,12 @@ mod tests {
         // Use an offset comfortably past the header but before the leaf.
         chain[1380] ^= 0xFF;
 
-        let result = spdm_x509::x509::chain::verify_cert_chain(&chain);
+        let result = spdm_x509::x509::chain::verify_cert_chain_with_backend(
+            &chain,
+            crate::cert_operation_impl::AwsLcBackend,
+            None,
+            None,
+        );
         assert!(
             result.is_err(),
             "tampered certificate in ML-DSA chain must be rejected"
