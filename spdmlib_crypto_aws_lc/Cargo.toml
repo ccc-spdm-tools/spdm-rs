@@ -17,6 +17,7 @@ aws-lc-rs = { path = "../external/aws-lc-rs/aws-lc-rs", default-features = false
     "small",
     "unstable",
 ] }
+aws-lc-sys = { path = "../external/aws-lc-rs/aws-lc-sys", default-features = false }
 log = { version = "0.4", default-features = false }
 # For the streaming hash-context handle table (hashed-transcript-data).
 lazy_static = { version = "1.0", features = ["spin_no_std"] }
