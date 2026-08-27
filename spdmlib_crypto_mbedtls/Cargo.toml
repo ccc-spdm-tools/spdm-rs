@@ -25,7 +25,11 @@ spki = { version = "0.7", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.9", default-features = false }
 log = { version = "0.4", default-features = false }
 
+[dev-dependencies]
+spdmlib = { path = "../spdmlib", default-features = false }
+
 [features]
 default = ["hashed-transcript-data", "std"]
 hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
 std = []
+fips = ["spdmlib/fips"]

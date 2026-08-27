@@ -25,19 +25,33 @@ impl Drop for LogLevelGuard {
     }
 }
 
-pub fn run_self_tests() -> SpdmResult {
-    // Temporarily suppress logging during self-tests.
-    // The CAVS negative vectors intentionally trigger verification failures
-    // that produce error!() messages — those are expected
-    // and not indicative of a real problem.
+fn run_silenced<T>(test: impl FnOnce() -> SpdmResult<T>) -> SpdmResult<T> {
     let _guard = LogLevelGuard(log::max_level());
     log::set_max_level(log::LevelFilter::Off);
+    test()
+}
 
-    aead_st::run_self_tests()?;
-    asym_verify_st::run_self_tests()?;
-    dhe_st::run_self_tests()?;
-    hash_st::run_self_tests()?;
-    hmac_st::run_self_tests()?;
+pub fn run_self_tests() -> SpdmResult {
+    {
+        run_silenced(aead_st::run_self_tests)?;
+        log::info!("AES-256-GCM FIPS CAVP passed");
+    }
+    {
+        run_silenced(asym_verify_st::run_self_tests)?;
+        log::info!("Asymmetric verification FIPS CAVP passed");
+    }
+    {
+        run_silenced(dhe_st::run_self_tests)?;
+        log::info!("DHE FIPS CAVP passed");
+    }
+    {
+        run_silenced(hash_st::run_self_tests)?;
+        log::info!("Hash FIPS CAVP passed");
+    }
+    {
+        run_silenced(hmac_st::run_self_tests)?;
+        log::info!("HMAC FIPS CAVP passed");
+    }
 
     Ok(())
 }

@@ -27,6 +27,7 @@ bytes = { version = "1", default-features = false }
 zeroize = { version = "1.5", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
+spdmlib = { path = "../spdmlib", default-features = false, features = ["fips"] }
 # std so the cert-chain tests can read test-key DER files. No ring-backend: the
 # tests drive validation through AwsLcBackend (classical + ML-DSA).
 spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false, features = ["std"] }
@@ -35,3 +36,4 @@ spdm_x509 = { path = "../spdmlib/src/crypto/spdm_x509", default-features = false
 default = []
 hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
 chacha20-poly1305 = []
+fips = ["spdmlib/fips"]
