@@ -210,7 +210,12 @@ fn ecdsa_verify(
     .is_ok()
 }
 
-pub fn run_self_tests() -> SpdmResult {
+pub fn run_self_tests(
+    configured_hash: SpdmBaseHashAlgo,
+    configured_asym: SpdmBaseAsymAlgo,
+) -> SpdmResult<bool> {
+    let mut tested = false;
+
     // RSA
     {
         let cavs_vectors = rsa_sig_ver::get_cavs_vectors();
@@ -227,33 +232,39 @@ pub fn run_self_tests() -> SpdmResult {
                 512 => SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
                 _ => continue,
             };
-            let public_key = rsa_spki(cv.n, cv.e);
-            let mut signature = SpdmSignatureStruct {
-                data_size: cv.sig.len() as u16,
-                ..Default::default()
-            };
-            signature.data[..cv.sig.len()].copy_from_slice(cv.sig);
-            let verified = asym_verify::verify(
-                hash_algo,
-                asym_algo,
-                SpdmDer::SpdmDerPubKeyRfc7250(&public_key),
-                cv.msg,
-                &signature,
-            )
-            .is_ok();
-            match (cv.res, verified) {
-                // Expecting positive result but got an error
-                ("P", false) |
-                // Expecting negative result but got a success
-                ("F", true) => return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL),
-                // All other cases are ok
-                _ => continue,
+            if configured_hash.contains(hash_algo) && configured_asym.contains(asym_algo) {
+                tested = true;
+                let public_key = rsa_spki(cv.n, cv.e);
+                let mut signature = SpdmSignatureStruct {
+                    data_size: cv.sig.len() as u16,
+                    ..Default::default()
+                };
+                signature.data[..cv.sig.len()].copy_from_slice(cv.sig);
+                let verified = asym_verify::verify(
+                    hash_algo,
+                    asym_algo,
+                    SpdmDer::SpdmDerPubKeyRfc7250(&public_key),
+                    cv.msg,
+                    &signature,
+                )
+                .is_ok();
+                match (cv.res, verified) {
+                    // Expecting positive result but got an error
+                    ("P", false) |
+                    // Expecting negative result but got a success
+                    ("F", true) => return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL),
+                    // All other cases are ok
+                    _ => continue,
+                }
             }
         }
     }
 
     // ECDSA P-256, SHA-256
+    if configured_asym.contains(SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256)
+        && configured_hash.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_256)
     {
+        tested = true;
         let cavs_vectors = ecdsa_p256_sha256_sig_ver::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let ret = ecdsa_verify(
@@ -279,7 +290,10 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // ECDSA P-256, SHA-384
+    if configured_asym.contains(SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256)
+        && configured_hash.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_384)
     {
+        tested = true;
         let cavs_vectors = ecdsa_p256_sha384_sig_ver::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let ret = ecdsa_verify(
@@ -305,7 +319,10 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // ECDSA P-384, SHA-256
+    if configured_asym.contains(SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384)
+        && configured_hash.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_256)
     {
+        tested = true;
         let cavs_vectors = ecdsa_p384_sha256_sig_ver::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let ret = ecdsa_verify(
@@ -331,7 +348,10 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // ECDSA P-384, SHA-384
+    if configured_asym.contains(SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384)
+        && configured_hash.contains(SpdmBaseHashAlgo::TPM_ALG_SHA_384)
     {
+        tested = true;
         let cavs_vectors = ecdsa_p384_sha384_sig_ver::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             let ret = ecdsa_verify(
@@ -356,5 +376,5 @@ pub fn run_self_tests() -> SpdmResult {
         }
     }
 
-    Ok(())
+    Ok(tested)
 }

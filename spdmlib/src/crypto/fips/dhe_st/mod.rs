@@ -35,9 +35,12 @@ fn verify_vector(
     &secret.data[..secret.data_size as usize] == expected_secret
 }
 
-pub fn run_self_tests() -> SpdmResult {
+pub fn run_self_tests(configured: SpdmDheAlgo) -> SpdmResult<bool> {
+    let mut tested = false;
+
     // P256
-    {
+    if configured.contains(SpdmDheAlgo::SECP_256_R1) {
+        tested = true;
         let cavs_vectors = dhe_vectors_p256::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             if !verify_vector(
@@ -53,7 +56,8 @@ pub fn run_self_tests() -> SpdmResult {
     }
 
     // P384
-    {
+    if configured.contains(SpdmDheAlgo::SECP_384_R1) {
+        tested = true;
         let cavs_vectors = dhe_vectors_p384::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
             if !verify_vector(
@@ -68,5 +72,5 @@ pub fn run_self_tests() -> SpdmResult {
         }
     }
 
-    Ok(())
+    Ok(tested)
 }
