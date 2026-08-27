@@ -4,45 +4,49 @@
 //
 //
 extern crate alloc;
-use alloc::vec::Vec;
 
+use crate::crypto::dhe;
 use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
+use crate::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct};
 
 use crate::crypto::fips::cavs_vectors::dhe_vectors_p256;
 use crate::crypto::fips::cavs_vectors::dhe_vectors_p384;
 
-use ring::agreement::{
-    agree_ephemeral, EphemeralPrivateKey, UnparsedPublicKey, ECDH_P256, ECDH_P384,
-};
+fn verify_vector(
+    algo: SpdmDheAlgo,
+    private_key: &[u8],
+    peer_x: &[u8],
+    peer_y: &[u8],
+    expected_secret: &[u8],
+) -> bool {
+    let Some(key_exchange) = dhe::import_private_key(algo, private_key) else {
+        return false;
+    };
+    let mut peer_public = SpdmDheExchangeStruct {
+        data_size: (peer_x.len() + peer_y.len()) as u16,
+        ..Default::default()
+    };
+    peer_public.data[..peer_x.len()].copy_from_slice(peer_x);
+    peer_public.data[peer_x.len()..peer_x.len() + peer_y.len()].copy_from_slice(peer_y);
+
+    let Some(secret) = key_exchange.compute_final_key(&peer_public) else {
+        return false;
+    };
+    &secret.data[..secret.data_size as usize] == expected_secret
+}
 
 pub fn run_self_tests() -> SpdmResult {
     // P256
     {
         let cavs_vectors = dhe_vectors_p256::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
-            let mut qe_cavs = Vec::with_capacity(1 + cv.qe_cavs_x.len() + cv.qe_cavs_y.len());
-            qe_cavs.push(0x04);
-            qe_cavs.extend_from_slice(cv.qe_cavs_x);
-            qe_cavs.extend_from_slice(cv.qe_cavs_y);
-
-            let res;
-            if let Ok(my_private) =
-                EphemeralPrivateKey::from_private_key_bytes(&ECDH_P256, cv.de_iut)
-            {
-                let peer_public = UnparsedPublicKey::new(&ECDH_P256, &qe_cavs);
-                if let Ok(shared_secret) =
-                    agree_ephemeral(my_private, &peer_public, |key_material| {
-                        key_material.to_vec()
-                    })
-                {
-                    res = shared_secret[..] == cv.z[..];
-                } else {
-                    res = false;
-                }
-            } else {
-                res = false;
-            }
-            if !res {
+            if !verify_vector(
+                SpdmDheAlgo::SECP_256_R1,
+                cv.de_iut,
+                cv.qe_cavs_x,
+                cv.qe_cavs_y,
+                cv.z,
+            ) {
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }
@@ -52,29 +56,13 @@ pub fn run_self_tests() -> SpdmResult {
     {
         let cavs_vectors = dhe_vectors_p384::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
-            let mut qe_cavs = Vec::with_capacity(1 + cv.qe_cavs_x.len() + cv.qe_cavs_y.len());
-            qe_cavs.push(0x04);
-            qe_cavs.extend_from_slice(cv.qe_cavs_x);
-            qe_cavs.extend_from_slice(cv.qe_cavs_y);
-
-            let res;
-            if let Ok(my_private) =
-                EphemeralPrivateKey::from_private_key_bytes(&ECDH_P384, cv.de_iut)
-            {
-                let peer_public = UnparsedPublicKey::new(&ECDH_P384, &qe_cavs);
-                if let Ok(shared_secret) =
-                    agree_ephemeral(my_private, &peer_public, |key_material| {
-                        key_material.to_vec()
-                    })
-                {
-                    res = shared_secret[..] == cv.z[..];
-                } else {
-                    res = false;
-                }
-            } else {
-                res = false;
-            }
-            if !res {
+            if !verify_vector(
+                SpdmDheAlgo::SECP_384_R1,
+                cv.de_iut,
+                cv.qe_cavs_x,
+                cv.qe_cavs_y,
+                cv.z,
+            ) {
                 return Err(SPDM_STATUS_FIPS_SELF_TEST_FAIL);
             }
         }

@@ -224,10 +224,24 @@ run_basic_test() {
     echo_command cargo test --no-default-features --features "spdmlib/std,spdmlib/spdm-ring,spdm-emu/is_sync,spdmlib/is_sync,maybe-async/is_sync,idekm/is_sync,tdisp/is_sync,mctp_transport/is_sync,pcidoe_transport/is_sync,spdm-requester-emu/is_sync,spdm-responder-emu/is_sync" -- --test-threads=1
     echo "Running basic tests finished..."
 
-    echo "Running basic FIPS self-test..."
-    pushd test/spdmlib-fips-test
-    echo_command cargo test --features=fips -- --test-threads=1
-    popd
+    if [[ "${RUN_REQUESTER_FEATURES}" == *"spdm-ring"* ]]; then
+        echo "Running ring FIPS self-tests..."
+        echo_command cargo test -p spdmlib --no-default-features \
+            --features="std,spdm-ring,fips" \
+            test_spdm_fips_self_tests -- --test-threads=1
+    fi
+
+    if [[ "${RUN_REQUESTER_FEATURES}" == *"spdm-mbedtls"* ]]; then
+        echo "Running mbedTLS FIPS self-tests..."
+        echo_command cargo test -p spdmlib_crypto_mbedtls --no-default-features \
+            --features="fips" test_spdm_fips_self_tests -- --test-threads=1
+    fi
+
+    if [[ "${RUN_REQUESTER_FEATURES}" == *"spdm-aws-lc"* ]]; then
+        echo "Running AWS-LC FIPS self-tests..."
+        echo_command cargo test -p spdmlib_crypto_aws_lc --no-default-features \
+            --features="fips" test_spdm_fips_self_tests -- --test-threads=1
+    fi
 
     echo "Running basic spdm_x509 tests..."
     echo_command cargo test -p spdm_x509 -- --test-threads=1

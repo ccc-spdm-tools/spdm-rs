@@ -9,7 +9,6 @@ use alloc::{vec, vec::Vec};
 use lazy_static::lazy_static;
 
 use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
-use ring::signature::RsaPublicKeyComponents;
 
 use crate::crypto::asym_verify;
 use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
@@ -19,6 +18,64 @@ use crate::crypto::fips::cavs_vectors::ecdsa_p256_sha384_sig_ver;
 use crate::crypto::fips::cavs_vectors::ecdsa_p384_sha256_sig_ver;
 use crate::crypto::fips::cavs_vectors::ecdsa_p384_sha384_sig_ver;
 use crate::crypto::fips::cavs_vectors::rsa_sig_ver;
+
+fn append_der_length(output: &mut Vec<u8>, length: usize) {
+    if length < 0x80 {
+        output.push(length as u8);
+        return;
+    }
+
+    let bytes = length.to_be_bytes();
+    let first = bytes
+        .iter()
+        .position(|byte| *byte != 0)
+        .unwrap_or(bytes.len() - 1);
+    output.push(0x80 | (bytes.len() - first) as u8);
+    output.extend_from_slice(&bytes[first..]);
+}
+
+fn der_integer(value: &[u8]) -> Vec<u8> {
+    let first = value
+        .iter()
+        .position(|byte| *byte != 0)
+        .unwrap_or(value.len() - 1);
+    let value = &value[first..];
+    let needs_leading_zero = value[0] & 0x80 != 0;
+    let mut encoded = Vec::with_capacity(value.len() + 4);
+    encoded.push(0x02);
+    append_der_length(&mut encoded, value.len() + usize::from(needs_leading_zero));
+    if needs_leading_zero {
+        encoded.push(0);
+    }
+    encoded.extend_from_slice(value);
+    encoded
+}
+
+fn der_sequence(contents: &[u8]) -> Vec<u8> {
+    let mut encoded = Vec::with_capacity(contents.len() + 4);
+    encoded.push(0x30);
+    append_der_length(&mut encoded, contents.len());
+    encoded.extend_from_slice(contents);
+    encoded
+}
+
+fn rsa_spki(modulus: &[u8], exponent: &[u8]) -> Vec<u8> {
+    let mut rsa_key = der_integer(modulus);
+    rsa_key.extend_from_slice(&der_integer(exponent));
+    let rsa_key = der_sequence(&rsa_key);
+
+    let mut bit_string = Vec::with_capacity(rsa_key.len() + 4);
+    bit_string.push(0x03);
+    append_der_length(&mut bit_string, rsa_key.len() + 1);
+    bit_string.push(0);
+    bit_string.extend_from_slice(&rsa_key);
+
+    let mut spki = vec![
+        0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
+    ];
+    spki.extend_from_slice(&bit_string);
+    der_sequence(&spki)
+}
 
 lazy_static! {
     static ref ecdsa_256_cert_template: Vec<u8> = vec![
@@ -58,6 +115,9 @@ lazy_static! {
         0x1d, 0x06, 0x75, 0x4c, 0x99, 0x1c, 0x20, 0x96, 0x52, 0x14, 0x9d, 0xe4, 0xc5, 0x39, 0x88,
         0x9d, 0xb4, 0x29, 0xf7, 0x53, 0x6b, 0x41, 0x1f, 0x0d, 0x26, 0xef, 0x80, 0x4c, 0x49
     ];
+}
+
+lazy_static! {
     static ref ecdsa_384_cert_template: Vec<u8> = vec![
         0x30, 0x82, 0x02, 0x47, 0x30, 0x82, 0x01, 0xcc, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x01,
         0x03, 0x30, 0x0a, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x03, 0x30, 0x30,
@@ -155,18 +215,33 @@ pub fn run_self_tests() -> SpdmResult {
     {
         let cavs_vectors = rsa_sig_ver::get_cavs_vectors();
         for cv in cavs_vectors.iter() {
-            let public_key = RsaPublicKeyComponents { n: cv.n, e: cv.e };
-
-            let params = match cv.hash {
-                "SHA1" => &ring::signature::RSA_PKCS1_2048_8192_SHA1_FOR_LEGACY_USE_ONLY,
-                "SHA256" => &ring::signature::RSA_PKCS1_2048_8192_SHA256,
-                "SHA384" => &ring::signature::RSA_PKCS1_2048_8192_SHA384,
-                "SHA512" => &ring::signature::RSA_PKCS1_2048_8192_SHA512,
+            let hash_algo = match cv.hash {
+                "SHA256" => SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+                "SHA384" => SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                "SHA512" => SpdmBaseHashAlgo::TPM_ALG_SHA_512,
                 _ => continue,
             };
-
-            let ret = public_key.verify(params, cv.msg, cv.sig);
-            match (cv.res, ret.is_ok()) {
+            let asym_algo = match cv.n.len() {
+                256 => SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
+                384 => SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072,
+                512 => SpdmBaseAsymAlgo::TPM_ALG_RSASSA_4096,
+                _ => continue,
+            };
+            let public_key = rsa_spki(cv.n, cv.e);
+            let mut signature = SpdmSignatureStruct {
+                data_size: cv.sig.len() as u16,
+                ..Default::default()
+            };
+            signature.data[..cv.sig.len()].copy_from_slice(cv.sig);
+            let verified = asym_verify::verify(
+                hash_algo,
+                asym_algo,
+                SpdmDer::SpdmDerPubKeyRfc7250(&public_key),
+                cv.msg,
+                &signature,
+            )
+            .is_ok();
+            match (cv.res, verified) {
                 // Expecting positive result but got an error
                 ("P", false) |
                 // Expecting negative result but got a success
