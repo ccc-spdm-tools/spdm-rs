@@ -370,6 +370,14 @@ pub mod pqc_asym_verify {
             signature,
         )
     }
+
+    #[cfg(feature = "fips")]
+    pub(crate) fn run_fips_self_test() -> Option<SpdmResult> {
+        let context = CRYPTO_PQC_ASYM_VERIFY
+            .try_get_or_init(|| DEFAULT.clone())
+            .ok()?;
+        context.fips_self_test_cb.map(|callback| callback())
+    }
 }
 
 pub mod dhe {
@@ -451,6 +459,14 @@ pub mod kem_decap {
             .ok()?;
         let import_cb = crypto_kem_decap.import_decap_key_cb?;
         import_cb(kem_algo, decap_key_bytes)
+    }
+
+    #[cfg(feature = "fips")]
+    pub(crate) fn run_fips_self_test() -> Option<crate::error::SpdmResult> {
+        let context = CRYPTO_KEM_DECAP
+            .try_get_or_init(|| DEFAULT_DECAP.clone())
+            .ok()?;
+        context.fips_self_test_cb.map(|callback| callback())
     }
 }
 

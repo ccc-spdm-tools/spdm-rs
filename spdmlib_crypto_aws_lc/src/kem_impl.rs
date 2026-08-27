@@ -18,6 +18,10 @@ use zeroize::Zeroizing;
 pub static DEFAULT_DECAP: SpdmKemDecap = SpdmKemDecap {
     generate_key_pair_cb: kem_generate_key_pair,
     import_decap_key_cb: Some(kem_import_decap_key),
+    #[cfg(feature = "fips")]
+    fips_self_test_cb: Some(crate::fips_cavp_impl::ml_kem_1024_cavp),
+    #[cfg(not(feature = "fips"))]
+    fips_self_test_cb: None,
 };
 
 pub static DEFAULT_ENCAP: SpdmKemEncap = SpdmKemEncap {
