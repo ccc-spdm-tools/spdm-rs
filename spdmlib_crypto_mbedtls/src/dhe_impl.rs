@@ -8,6 +8,7 @@ use alloc::{boxed::Box, vec::Vec};
 #[cfg(feature = "std")]
 use std::{boxed::Box, vec::Vec};
 
+use mbedtls::bignum::Mpi;
 use mbedtls::ecp::EcPoint;
 use mbedtls::pk::{EcGroup, EcGroupId, Pk};
 use mbedtls::rng::RngCallback;
@@ -17,7 +18,7 @@ use spdmlib::crypto::{SpdmDhe, SpdmDheKeyExchange};
 use spdmlib::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmSharedSecretFinalKeyStruct};
 pub static DEFAULT: SpdmDhe = SpdmDhe {
     generate_key_pair_cb: generate_key_pair,
-    import_private_key_cb: None,
+    import_private_key_cb: Some(import_private_key),
 };
 
 fn generate_key_pair(
@@ -26,6 +27,30 @@ fn generate_key_pair(
     match dhe_algo {
         SpdmDheAlgo::SECP_256_R1 => SpdmDheKeyExchangeP256::generate_key_pair(),
         SpdmDheAlgo::SECP_384_R1 => SpdmDheKeyExchangeP384::generate_key_pair(),
+        _ => None,
+    }
+}
+
+fn import_private_key(
+    dhe_algo: SpdmDheAlgo,
+    private_key_data: &[u8],
+) -> Option<Box<dyn SpdmDheKeyExchange + Send>> {
+    let (group_id, private_key_size) = match dhe_algo {
+        SpdmDheAlgo::SECP_256_R1 => (EcGroupId::SecP256R1, 32),
+        SpdmDheAlgo::SECP_384_R1 => (EcGroupId::SecP384R1, 48),
+        _ => return None,
+    };
+    if private_key_data.len() != private_key_size {
+        return None;
+    }
+
+    let group = EcGroup::new(group_id).ok()?;
+    let private_key = Mpi::from_binary(private_key_data).ok()?;
+    let key = Pk::private_from_ec_components(group, private_key).ok()?;
+
+    match dhe_algo {
+        SpdmDheAlgo::SECP_256_R1 => Some(Box::new(SpdmDheKeyExchangeP256(key))),
+        SpdmDheAlgo::SECP_384_R1 => Some(Box::new(SpdmDheKeyExchangeP384(key))),
         _ => None,
     }
 }
@@ -67,6 +92,10 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP256 {
         final_key.data_size = len as u16;
         Some(final_key)
     }
+
+    fn export_private_key(&self) -> Option<Vec<u8>> {
+        self.0.ec_private().ok()?.to_binary_padded(32).ok()
+    }
 }
 
 pub struct SpdmDheKeyExchangeP384(Pk);
@@ -106,6 +135,10 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP384 {
         final_key.data_size = len as u16;
         Some(final_key)
     }
+
+    fn export_private_key(&self) -> Option<Vec<u8>> {
+        self.0.ec_private().ok()?.to_binary_padded(48).ok()
+    }
 }
 
 #[derive(Default)]
@@ -141,4 +174,23 @@ fn test_case0_dhe() {
 fn test_case1_dhe() {
     let dhe_algo = SpdmDheAlgo::empty();
     assert!(generate_key_pair(dhe_algo).is_none());
+}
+
+#[test]
+fn test_case2_dhe_export_import() {
+    for (dhe_algo, private_key_size) in [
+        (SpdmDheAlgo::SECP_256_R1, 32),
+        (SpdmDheAlgo::SECP_384_R1, 48),
+    ] {
+        let (_, private_key) = generate_key_pair(dhe_algo).unwrap();
+        let exported = private_key.export_private_key().unwrap();
+        assert_eq!(exported.len(), private_key_size);
+
+        let imported_key = import_private_key(dhe_algo, &exported).unwrap();
+        let (peer_public_key, _) = generate_key_pair(dhe_algo).unwrap();
+        let original_secret = private_key.compute_final_key(&peer_public_key).unwrap();
+        let imported_secret = imported_key.compute_final_key(&peer_public_key).unwrap();
+
+        assert_eq!(original_secret.as_ref(), imported_secret.as_ref());
+    }
 }
