@@ -131,7 +131,9 @@ pub mod rand_impl;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use spdmlib::protocol::SpdmKemAlgo;
+    use spdmlib::protocol::{
+        SpdmAeadAlgo, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDheAlgo, SpdmKemAlgo,
+    };
 
     #[cfg(target_arch = "x86_64")]
     #[test]
@@ -159,13 +161,23 @@ mod tests {
     #[cfg(feature = "fips")]
     #[test]
     fn test_spdm_fips_self_tests() {
+        let config = spdmlib::common::SpdmConfigInfo {
+            base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_256 | SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
+                | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
+                | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+            dhe_algo: SpdmDheAlgo::SECP_256_R1 | SpdmDheAlgo::SECP_384_R1,
+            aead_algo: SpdmAeadAlgo::AES_256_GCM,
+            ..Default::default()
+        };
+
         spdmlib::crypto::hash::register(hash_impl::DEFAULT.clone());
         spdmlib::crypto::hmac::register(hmac_impl::DEFAULT.clone());
         spdmlib::crypto::aead::register(aead_impl::DEFAULT.clone());
         spdmlib::crypto::asym_verify::register(asym_verify_impl::DEFAULT.clone());
         spdmlib::crypto::dhe::register(dhe_impl::DEFAULT.clone());
 
-        assert!(spdmlib::crypto::fips::run_self_tests().is_ok());
+        assert!(spdmlib::crypto::fips::run_self_tests(&config).is_ok());
     }
 
     #[test]

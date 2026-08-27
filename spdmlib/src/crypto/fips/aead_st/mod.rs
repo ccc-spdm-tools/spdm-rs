@@ -20,7 +20,7 @@ use crate::error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL};
 use crate::crypto::fips::cavs_vectors::gcm_decrypt256;
 use crate::crypto::fips::cavs_vectors::gcm_encrypt_ext_iv256;
 
-fn encrypt_self_test() -> SpdmResult {
+fn aes_256_gcm_encrypt_self_test() -> SpdmResult {
     let aead_algo = SpdmAeadAlgo::AES_256_GCM;
     let cavs_vectors = gcm_encrypt_ext_iv256::get_cavs_vectors();
 
@@ -70,7 +70,7 @@ fn encrypt_self_test() -> SpdmResult {
     Ok(())
 }
 
-fn decrypt_self_test() -> SpdmResult {
+fn aes_256_gcm_decrypt_self_test() -> SpdmResult {
     let aead_algo = SpdmAeadAlgo::AES_256_GCM;
     let cavs_vectors = gcm_decrypt256::get_cavs_vectors();
 
@@ -118,9 +118,14 @@ fn decrypt_self_test() -> SpdmResult {
     Ok(())
 }
 
-pub fn run_self_tests() -> SpdmResult {
-    encrypt_self_test()?;
-    decrypt_self_test()?;
+pub fn run_self_tests(configured: SpdmAeadAlgo) -> SpdmResult<bool> {
+    let mut tested = false;
 
-    Ok(())
+    if configured.contains(SpdmAeadAlgo::AES_256_GCM) {
+        tested = true;
+        aes_256_gcm_encrypt_self_test()?;
+        aes_256_gcm_decrypt_self_test()?;
+    }
+
+    Ok(tested)
 }
