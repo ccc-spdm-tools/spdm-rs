@@ -8,6 +8,7 @@ use spdmlib::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
 
 pub static DEFAULT: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
     verify_cb: pqc_asym_verify,
+    fips_self_test_cb: None,
 };
 
 fn pqc_asym_verify(

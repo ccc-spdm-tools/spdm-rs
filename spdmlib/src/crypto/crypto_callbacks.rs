@@ -92,6 +92,7 @@ pub struct SpdmPqcAsymVerify {
         data: &[u8],
         signature: &SpdmSignatureStruct,
     ) -> SpdmResult,
+    pub fips_self_test_cb: Option<fn() -> SpdmResult>,
 }
 
 #[derive(Clone)]
@@ -166,6 +167,7 @@ type KemImportDecapKeyCb = fn(
 pub struct SpdmKemDecap {
     pub generate_key_pair_cb: KemGenerateKeyPairCb,
     pub import_decap_key_cb: Option<KemImportDecapKeyCb>,
+    pub fips_self_test_cb: Option<fn() -> SpdmResult>,
 }
 
 type NewKeyCb = fn(

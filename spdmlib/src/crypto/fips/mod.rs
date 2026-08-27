@@ -8,26 +8,31 @@ use super::*;
 
 mod aead_st;
 mod asym_verify_st;
-mod cavs_vectors;
+pub mod cavs_vectors;
 mod dhe_st;
 mod hash_st;
 mod hmac_st;
+mod pqc_asym_verify_st;
+mod pqc_kem_st;
 
 use crate::{
     common::SpdmConfigInfo,
     error::{SpdmResult, SPDM_STATUS_FIPS_SELF_TEST_FAIL},
     protocol::{
-        SpdmAeadAlgo, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDheAlgo, SpdmMeasurementHashAlgo,
+        SpdmAeadAlgo, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDheAlgo, SpdmKemAlgo,
+        SpdmMeasurementHashAlgo, SpdmPqcAsymAlgo,
     },
 };
 
-/// Classical algorithms covered by startup known-answer tests.
+/// Algorithms covered by startup known-answer tests.
 struct SupportedAlgorithms {
     base_hash: SpdmBaseHashAlgo,
     measurement_hash: SpdmMeasurementHashAlgo,
     asym: SpdmBaseAsymAlgo,
+    pqc_asym: SpdmPqcAsymAlgo,
     dhe: SpdmDheAlgo,
     aead: SpdmAeadAlgo,
+    kem: SpdmKemAlgo,
 }
 
 const SUPPORTED_ALGORITHMS: SupportedAlgorithms = SupportedAlgorithms {
@@ -45,10 +50,12 @@ const SUPPORTED_ALGORITHMS: SupportedAlgorithms = SupportedAlgorithms {
             | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256.bits()
             | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384.bits(),
     ),
+    pqc_asym: SpdmPqcAsymAlgo::ALG_MLDSA_87,
     dhe: SpdmDheAlgo::from_bits_truncate(
         SpdmDheAlgo::SECP_256_R1.bits() | SpdmDheAlgo::SECP_384_R1.bits(),
     ),
     aead: SpdmAeadAlgo::AES_256_GCM,
+    kem: SpdmKemAlgo::ALG_MLKEM_1024,
 };
 
 /// Drop guard that restores the previous log level on scope exit,
@@ -96,13 +103,21 @@ fn configured_asym_algorithms(config: &SpdmConfigInfo) -> SpdmBaseAsymAlgo {
     config.base_asym_algo | config.req_asym_algo.to_base()
 }
 
+fn configured_pqc_asym_algorithms(config: &SpdmConfigInfo) -> SpdmPqcAsymAlgo {
+    config.pqc_asym_algo | config.pqc_req_asym_algo.to_base()
+}
+
 impl SupportedAlgorithms {
     fn supports(&self, config: &SpdmConfigInfo) -> bool {
         self.base_hash.contains(config.base_hash_algo)
             && self.measurement_hash.contains(config.measurement_hash_algo)
             && self.asym.contains(configured_asym_algorithms(config))
+            && self
+                .pqc_asym
+                .contains(configured_pqc_asym_algorithms(config))
             && self.dhe.contains(config.dhe_algo)
             && self.aead.contains(config.aead_algo)
+            && self.kem.contains(config.kem_algo)
     }
 }
 
@@ -114,7 +129,7 @@ fn ensure_self_test_coverage(config: &SpdmConfigInfo) -> SpdmResult {
     }
 }
 
-/// Run startup known-answer tests for the classical algorithms enabled by `config`.
+/// Run startup known-answer tests for the algorithms enabled by `config`.
 ///
 /// Requester and responder authentication capabilities are combined because
 /// they use the same verification primitives. Hash tests cover both base and
@@ -124,6 +139,7 @@ pub fn run_self_tests(config: &SpdmConfigInfo) -> SpdmResult {
 
     let hash_algorithms = configured_hash_algorithms(config);
     let asym_algorithms = configured_asym_algorithms(config);
+    let pqc_asym_algorithms = configured_pqc_asym_algorithms(config);
 
     if run_silenced(|| aead_st::run_self_tests(config.aead_algo))? {
         log::info!("AEAD FIPS CAVP passed");
@@ -141,13 +157,23 @@ pub fn run_self_tests(config: &SpdmConfigInfo) -> SpdmResult {
         log::info!("HMAC FIPS CAVP passed");
     }
 
+    let ml_dsa_tested = run_silenced(|| pqc_asym_verify_st::run_self_tests(pqc_asym_algorithms))?;
+    if ml_dsa_tested {
+        log::info!("PQC asymmetric verification FIPS CAVP passed");
+    }
+
+    let ml_kem_tested = run_silenced(|| pqc_kem_st::run_self_tests(config.kem_algo))?;
+    if ml_kem_tested {
+        log::info!("KEM FIPS CAVP passed");
+    }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::SpdmReqAsymAlgo;
+    use crate::protocol::{SpdmPqcReqAsymAlgo, SpdmReqAsymAlgo};
 
     #[test]
     fn test_empty_config_runs_no_self_tests() {
@@ -161,6 +187,8 @@ mod tests {
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
             req_asym_algo: SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+            pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
+            pqc_req_asym_algo: SpdmPqcReqAsymAlgo::ALG_MLDSA_65,
             ..Default::default()
         };
 
@@ -173,6 +201,16 @@ mod tests {
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256
                 | SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
         );
+        assert_eq!(
+            configured_pqc_asym_algorithms(&config),
+            SpdmPqcAsymAlgo::ALG_MLDSA_65 | SpdmPqcAsymAlgo::ALG_MLDSA_87
+        );
+    }
+
+    #[test]
+    fn test_configured_pqc_requires_backend_self_tests() {
+        assert!(pqc_asym_verify_st::run_self_tests(SpdmPqcAsymAlgo::ALG_MLDSA_87).is_err());
+        assert!(pqc_kem_st::run_self_tests(crate::protocol::SpdmKemAlgo::ALG_MLKEM_1024).is_err());
     }
 
     #[test]
@@ -187,6 +225,9 @@ mod tests {
             req_asym_algo: SpdmReqAsymAlgo::empty(),
             dhe_algo: SpdmDheAlgo::SECP_256_R1 | SpdmDheAlgo::SECP_384_R1,
             aead_algo: SpdmAeadAlgo::AES_256_GCM,
+            pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
+            pqc_req_asym_algo: SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
+            kem_algo: SpdmKemAlgo::ALG_MLKEM_1024,
             ..Default::default()
         };
 
@@ -194,8 +235,8 @@ mod tests {
     }
 
     /**
-    The following test ensures that each classical algorithm enabled in the configuration has a corresponding self-test implemented.
-    If a new classical algorithm is added to the configuration, this test will fail until a self-test is implemented for that algorithm.
+    The following test ensures that any algorithm enabled in the configuration has a corresponding self-test implemented.
+    If a new algorithm is added to the configuration, this test will fail until a self-test is implemented for that algorithm.
     */
     #[test]
     fn test_configured_algorithms_require_self_test_coverage() {
@@ -217,7 +258,15 @@ mod tests {
                 ..Default::default()
             },
             SpdmConfigInfo {
+                pqc_req_asym_algo: SpdmPqcReqAsymAlgo::ALG_MLDSA_65,
+                ..Default::default()
+            },
+            SpdmConfigInfo {
                 aead_algo: SpdmAeadAlgo::CHACHA20_POLY1305,
+                ..Default::default()
+            },
+            SpdmConfigInfo {
+                kem_algo: SpdmKemAlgo::ALG_MLKEM_768,
                 ..Default::default()
             },
         ];
