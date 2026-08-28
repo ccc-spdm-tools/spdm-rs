@@ -37,6 +37,7 @@ mod hash_ext {
         let hash_algo = match base_hash_algo {
             SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Some(hash::Type::Sha256),
             SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Some(hash::Type::Sha384),
+            SpdmBaseHashAlgo::TPM_ALG_SHA_512 => Some(hash::Type::Sha512),
             _ => None,
         }?;
 
@@ -108,6 +109,7 @@ fn hash_all(base_hash_algo: SpdmBaseHashAlgo, data: &[u8]) -> Option<SpdmDigestS
     let hash_algo = match base_hash_algo {
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Some(hash::Type::Sha256),
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Some(hash::Type::Sha384),
+        SpdmBaseHashAlgo::TPM_ALG_SHA_512 => Some(hash::Type::Sha512),
         _ => None,
     }?;
 
@@ -138,4 +140,21 @@ fn test_case1_hash_all() {
         res,
         "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".to_string()
     )
+}
+
+#[test]
+fn test_case2_hash_all_sha512() {
+    let digest = hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_512, b"hello").unwrap();
+
+    assert_eq!(digest.data_size, 64);
+    assert_eq!(
+        digest.as_ref(),
+        &[
+            0x9b, 0x71, 0xd2, 0x24, 0xbd, 0x62, 0xf3, 0x78, 0x5d, 0x96, 0xd4, 0x6a, 0xd3, 0xea,
+            0x3d, 0x73, 0x31, 0x9b, 0xfb, 0xc2, 0x89, 0x0c, 0xaa, 0xda, 0xe2, 0xdf, 0xf7, 0x25,
+            0x19, 0x67, 0x3c, 0xa7, 0x23, 0x23, 0xc3, 0xd9, 0x9b, 0xa5, 0xc1, 0x1d, 0x7c, 0x7a,
+            0xcc, 0x6e, 0x14, 0xb8, 0xc5, 0xda, 0x0c, 0x46, 0x63, 0x47, 0x5c, 0x2e, 0x5c, 0x3a,
+            0xde, 0xf4, 0x6f, 0x73, 0xbc, 0xde, 0xc0, 0x43,
+        ]
+    );
 }
