@@ -15,6 +15,7 @@ fn get_hash_algo(base_hash_algo: SpdmBaseHashAlgo) -> SpdmResult<hash::Type> {
     match base_hash_algo {
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Ok(hash::Type::Sha256),
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Ok(hash::Type::Sha384),
+        SpdmBaseHashAlgo::TPM_ALG_SHA_512 => Ok(hash::Type::Sha512),
         _ => Err(SPDM_STATUS_INVALID_PARAMETER),
     }
 }

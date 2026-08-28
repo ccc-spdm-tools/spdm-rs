@@ -16,6 +16,7 @@ fn hmac(base_hash_algo: SpdmBaseHashAlgo, key: &[u8], data: &[u8]) -> Option<Spd
     let hash_algo = match base_hash_algo {
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Some(hash::Type::Sha256),
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Some(hash::Type::Sha384),
+        SpdmBaseHashAlgo::TPM_ALG_SHA_512 => Some(hash::Type::Sha512),
         _ => None,
     }?;
     let mut ctx = hash::Hmac::new(hash_algo, key).ok()?;
