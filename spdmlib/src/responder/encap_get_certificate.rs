@@ -16,7 +16,7 @@ use crate::{
     message::{
         SpdmCertificateResponsePayload, SpdmGetCertificateRequestPayload, SpdmMessage,
         SpdmMessageGeneralPayload, SpdmMessageHeader, SpdmMessagePayload, SpdmRequestResponseCode,
-        MAX_SPDM_CERT_PORTION_LEN,
+        DELIVER_ENCAPSULATED_RESPONSE_HEADER_SIZE, MAX_SPDM_CERT_PORTION_LEN,
     },
     protocol::{SpdmCertChainBuffer, SpdmCertChainData},
 };
@@ -32,6 +32,14 @@ impl ResponderContext {
             self.common.peer_info.peer_cert_chain_temp = Some(SpdmCertChainBuffer::default());
         }
 
+        let data_transfer_size = if self.common.config_info.data_transfer_size == 0 {
+            config::SPDM_DATA_TRANSFER_SIZE as u32
+        } else {
+            self.common.config_info.data_transfer_size
+        };
+        let max_cert_portion_len = self.common.get_max_spdm_cert_portion_len(
+            data_transfer_size.saturating_sub(DELIVER_ENCAPSULATED_RESPONSE_HEADER_SIZE),
+        );
         let encapsulated_request = SpdmMessage {
             header: SpdmMessageHeader {
                 version: self.common.negotiate_info.spdm_version_sel,
@@ -46,7 +54,7 @@ impl ResponderContext {
                         .as_ref()
                         .unwrap()
                         .data_size,
-                    length: MAX_SPDM_CERT_PORTION_LEN as u32,
+                    length: max_cert_portion_len,
                     slot_id: self.common.encap_context.req_slot_id,
                 },
             ),

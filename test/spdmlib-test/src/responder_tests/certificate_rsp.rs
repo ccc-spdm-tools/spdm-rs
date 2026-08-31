@@ -17,7 +17,7 @@ use {
     crate::common::secret_callback::*,
     crate::common::transport::PciDoeTransportEncap,
     alloc::sync::Arc,
-    codec::{Codec, Writer},
+    codec::{Codec, Reader, Writer},
     spdmlib::common::*,
     spdmlib::error::SPDM_STATUS_INVALID_MSG_FIELD,
     spdmlib::message::*,
@@ -48,6 +48,7 @@ fn test_case0_handle_spdm_certificate() {
         );
 
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+        context.common.negotiate_info.req_data_transfer_size_sel = 256;
 
         context.common.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
@@ -76,7 +77,7 @@ fn test_case0_handle_spdm_certificate() {
         let value = SpdmGetCertificateRequestPayload {
             slot_id: 0,
             offset: 0,
-            length: 200,
+            length: 600,
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
         let bytes = &mut [0u8; 1024];
@@ -93,6 +94,13 @@ fn test_case0_handle_spdm_certificate() {
             .handle_spdm_certificate(bytes, None, &mut writer)
             .0
             .is_ok());
+        let mut reader = Reader::init(writer.used_slice());
+        let response = SpdmMessage::spdm_read(&mut context.common, &mut reader).unwrap();
+        let SpdmMessagePayload::SpdmCertificateResponse(payload) = response.payload else {
+            panic!("expected CERTIFICATE response");
+        };
+        assert_eq!(payload.portion_length, 248);
+        assert_eq!(payload.remainder_length, 264);
 
         bytes[2] = 1;
         let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
