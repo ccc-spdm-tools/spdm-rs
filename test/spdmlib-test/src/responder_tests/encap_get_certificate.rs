@@ -17,10 +17,12 @@ extern crate alloc;
 use alloc::sync::Arc;
 
 const CERT_PORTION_LEN: usize = 512;
+const TEST_DATA_TRANSFER_SIZE: u32 = 1024;
 
 #[test]
 fn test_encode_encap_requst_get_certificate() {
-    let (config_info, provision_info) = create_info();
+    let (mut config_info, provision_info) = create_info();
+    config_info.data_transfer_size = TEST_DATA_TRANSFER_SIZE;
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -57,7 +59,10 @@ fn test_encode_encap_requst_get_certificate() {
         header.request_response_code,
         SpdmRequestResponseCode::SpdmRequestGetCertificate
     );
-    assert_eq!(payload.length, CERT_PORTION_LEN as u32);
+    assert_eq!(
+        payload.length,
+        TEST_DATA_TRANSFER_SIZE - DELIVER_ENCAPSULATED_RESPONSE_HEADER_SIZE - 8
+    );
     assert_eq!(payload.offset, 0);
     assert_eq!(payload.slot_id, 0);
 }
@@ -95,7 +100,7 @@ fn test_handle_encap_response_certificate() {
             slot_id: 0,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x600,
-            cert_chain: [0xa; CERT_PORTION_LEN],
+            cert_chain: [0xa; MAX_SPDM_CERT_PORTION_LEN],
         }),
     };
     assert!(cert_rsp
@@ -132,7 +137,7 @@ fn test_handle_encap_response_certificate() {
             slot_id: 0xa,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x400,
-            cert_chain: [0xa; CERT_PORTION_LEN],
+            cert_chain: [0xa; MAX_SPDM_CERT_PORTION_LEN],
         });
     assert!(cert_rsp
         .spdm_encode(&mut context.common, &mut writer)
@@ -149,7 +154,7 @@ fn test_handle_encap_response_certificate() {
             slot_id: 0,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x400,
-            cert_chain: [0xa; CERT_PORTION_LEN],
+            cert_chain: [0xa; MAX_SPDM_CERT_PORTION_LEN],
         });
     assert!(cert_rsp
         .spdm_encode(&mut context.common, &mut writer)

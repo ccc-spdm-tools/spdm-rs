@@ -72,6 +72,10 @@ fn test_encap_handle_get_certificate() {
 
     let encap_response = &mut [0u8; config::MAX_SPDM_MSG_SIZE];
     let mut writer = Writer::init(encap_response);
+    let expected_portion_length = context
+        .common
+        .get_max_spdm_cert_portion_len(config::SPDM_SENDER_DATA_TRANSFER_SIZE as u32)
+        .min(CERT_PORTION_LEN as u32);
 
     context.encap_handle_get_certificate(encap_request, &mut writer);
     let mut reader = Reader::init(encap_response);
@@ -84,7 +88,7 @@ fn test_encap_handle_get_certificate() {
         header.request_response_code,
         SpdmRequestResponseCode::SpdmResponseCertificate
     );
-    assert_eq!(cert_rsp.portion_length, 512);
-    assert_eq!(cert_rsp.remainder_length, 512);
+    assert_eq!(cert_rsp.portion_length, expected_portion_length);
+    assert_eq!(cert_rsp.remainder_length, 1024 - expected_portion_length);
     assert_eq!(cert_rsp.slot_id, 0);
 }

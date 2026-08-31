@@ -192,7 +192,15 @@ impl RequesterContext {
         slot_id: u8,
     ) -> SpdmResult {
         let mut offset = 0u32;
-        let mut length = MAX_SPDM_CERT_PORTION_LEN as u32;
+        let data_transfer_size = if self.common.config_info.data_transfer_size == 0 {
+            config::SPDM_DATA_TRANSFER_SIZE as u32
+        } else {
+            self.common.config_info.data_transfer_size
+        };
+        let max_cert_portion_len = self
+            .common
+            .get_max_spdm_cert_portion_len(data_transfer_size);
+        let mut length = max_cert_portion_len;
         let mut total_size = 0u32;
 
         if slot_id >= SPDM_MAX_SLOT_NUMBER as u8 {
@@ -228,8 +236,8 @@ impl RequesterContext {
             }
             offset += portion_length;
             length = remainder_length;
-            if length > MAX_SPDM_CERT_PORTION_LEN as u32 {
-                length = MAX_SPDM_CERT_PORTION_LEN as u32;
+            if length > max_cert_portion_len {
+                length = max_cert_portion_len;
             }
         }
         if total_size == 0 {
