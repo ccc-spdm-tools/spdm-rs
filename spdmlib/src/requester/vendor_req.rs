@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
-use crate::error::{SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD};
+use crate::error::{
+    SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_NOT_READY_PEER,
+};
 use crate::message::*;
 use crate::requester::*;
 
@@ -50,11 +52,37 @@ impl RequesterContext {
     ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
         info!("!!! receive vendor_defined_request !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let receive_used = self
+        let mut receive_used = self
             .receive_message(session_id, &mut receive_buffer, false)
             .await?;
 
-        self.handle_spdm_vendor_defined_respond(session_id, &receive_buffer[..receive_used])
+        for _ in 0..super::handle_error_response_req::MAX_RESPOND_IF_READY_RETRY_COUNT {
+            let result = self
+                .handle_spdm_vendor_defined_respond(session_id, &receive_buffer[..receive_used]);
+            match result {
+                Err(status) if status == SPDM_STATUS_NOT_READY_PEER => {
+                    if let Some(ext_data) =
+                        self.parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+                    {
+                        let delay_us = 1usize << (ext_data.rdt_exponent as usize).min(31);
+                        crate::time::sleep(delay_us);
+                        receive_used = self
+                            .send_receive_respond_if_ready(
+                                session_id,
+                                SpdmRequestResponseCode::SpdmRequestVendorDefinedRequest,
+                                ext_data.token,
+                                &mut receive_buffer,
+                                false,
+                            )
+                            .await?;
+                        continue;
+                    }
+                    return Err(SPDM_STATUS_NOT_READY_PEER);
+                }
+                other => return other,
+            }
+        }
+        Err(SPDM_STATUS_NOT_READY_PEER)
     }
 
     #[maybe_async::maybe_async]

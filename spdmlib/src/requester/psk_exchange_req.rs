@@ -7,7 +7,8 @@ use config::MAX_SPDM_PSK_CONTEXT_SIZE;
 use crate::crypto;
 use crate::error::{
     SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_SESSION_NUMBER_EXCEED, SPDM_STATUS_VERIF_FAIL,
+    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_NOT_READY_PEER, SPDM_STATUS_SESSION_NUMBER_EXCEED,
+    SPDM_STATUS_VERIF_FAIL,
 };
 use crate::error::{SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_INVALID_STATE_LOCAL};
 use crate::message::*;
@@ -59,9 +60,38 @@ impl RequesterContext {
     ) -> SpdmResult<u32> {
         info!("!!! receive psk_exchange !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let receive_used = self
+        let mut receive_used = self
             .receive_message(None, &mut receive_buffer, false)
             .await?;
+
+        // Handle ResponseNotReady before consuming handler state
+        for _ in 0..super::handle_error_response_req::MAX_RESPOND_IF_READY_RETRY_COUNT {
+            if let Some(ext_data) =
+                self.parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+            {
+                let delay_us = 1usize << (ext_data.rdt_exponent as usize).min(31);
+                crate::time::sleep(delay_us);
+                receive_used = self
+                    .send_receive_respond_if_ready(
+                        None,
+                        SpdmRequestResponseCode::SpdmRequestPskExchange,
+                        ext_data.token,
+                        &mut receive_buffer,
+                        false,
+                    )
+                    .await?;
+            } else {
+                break;
+            }
+        }
+
+        // If still NotReady after retries, fail
+        if self
+            .parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+            .is_some()
+        {
+            return Err(SPDM_STATUS_NOT_READY_PEER);
+        }
 
         let mut target_session_id = None;
         if let Err(e) = self.handle_spdm_psk_exchange_response(
