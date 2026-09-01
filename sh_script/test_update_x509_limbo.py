@@ -30,6 +30,11 @@ class UpdateX509LimboTests(unittest.TestCase):
                             "status": "unsupported",
                             "reason": "not implemented",
                         },
+                        {
+                            "id": "case::not-applicable",
+                            "status": "not-applicable",
+                            "reason": "outside the validation profile",
+                        },
                     ],
                 }
             ],
@@ -43,6 +48,7 @@ class UpdateX509LimboTests(unittest.TestCase):
                     "expected_result": "SUCCESS",
                 },
                 {"id": "case::unsupported", "expected_result": "FAILURE"},
+                {"id": "case::not-applicable", "expected_result": "FAILURE"},
             ],
         }
 
