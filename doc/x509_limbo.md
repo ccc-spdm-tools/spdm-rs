@@ -28,3 +28,17 @@ that escape the manifest directory.
 The current Rust adapter assembles a single leaf-to-root chain. Do not classify
 path-building cases with alternate or unrelated intermediates as `supported`
 until the runner can treat untrusted intermediates as a candidate pool.
+
+## Current suites
+
+- `name_constraints` isolates Name Constraints behavior by disabling signature
+  and time validation.
+- `rfc5280_core` keeps signature and extension validation enabled for linear
+  Basic Constraints, Key Usage, and unknown critical extension cases. Its cases
+  do not specify a validation time, so the suite disables time validation.
+
+The capability manifest records known profile and implementation boundaries.
+In particular, DSP0274 permits issuer certificates without Basic Constraints,
+while RFC 5280 requires that extension for conforming CAs. Basic Constraints
+criticality enforcement remains classified as unsupported until the validator
+implements that RFC 5280 check.

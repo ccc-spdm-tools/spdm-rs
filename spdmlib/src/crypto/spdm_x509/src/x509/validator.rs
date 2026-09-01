@@ -2512,6 +2512,25 @@ mod tests {
         assert_eq!(runner.source().license, "Apache-2.0");
     }
 
+    #[test]
+    fn test_rfc5280_core_x509_limbo_conformance() {
+        let runner = LimboRunner::from_json(include_str!("../../etc/rfc5280_core_x509_limbo.json"))
+            .expect("valid x509-limbo fixture");
+        let validator = Validator::default();
+        let options = ValidationOptions {
+            check_time: false,
+            ..ValidationOptions::default()
+        };
+
+        let summary = runner.assert_conformance(|testcase| {
+            validator.validate_chain(&testcase.leaf_first_chain()?, &options)
+        });
+
+        assert_eq!(summary.total, 5);
+        assert_eq!(summary.expected_successes, 2);
+        assert_eq!(summary.expected_failures, 3);
+    }
+
     // ── Helper to load a cert from DER file ──
 
     fn load_cert(path: &str) -> Certificate {

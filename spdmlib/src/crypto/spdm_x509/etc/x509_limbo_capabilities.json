@@ -35,6 +35,42 @@
           "status": "supported"
         }
       ]
+    },
+    {
+      "name": "rfc5280_core",
+      "output": "rfc5280_core_x509_limbo.json",
+      "testcases": [
+        {
+          "id": "rfc5280::unknown-critical-extension-ee",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::unknown-critical-extension-intermediate",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::intermediate-ca-without-ca-bit",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::root-missing-basic-constraints",
+          "status": "not-applicable",
+          "reason": "DSP0274 permits an issuer certificate to omit Basic Constraints"
+        },
+        {
+          "id": "rfc5280::root-non-critical-basic-constraints",
+          "status": "unsupported",
+          "reason": "the validator does not yet enforce Basic Constraints extension criticality"
+        },
+        {
+          "id": "rfc5280::no-keyusage",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::no-basicconstraints",
+          "status": "supported"
+        }
+      ]
     }
   ]
 }
