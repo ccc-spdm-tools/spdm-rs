@@ -42,7 +42,10 @@ pub mod x509;
 pub use certificate::Certificate;
 pub use chain::CertificateChain;
 pub use error::{Error, Result};
-pub use x509::extensions::{BasicConstraints, ExtendedKeyUsage, Extension, Extensions, KeyUsage};
+pub use x509::extensions::{
+    BasicConstraints, ExtendedKeyUsage, Extension, Extensions, GeneralSubtree, KeyUsage,
+    NameConstraints,
+};
 pub use x509::{
     parse_spdm_cert_chain, validate_spdm_cert_chain_with_backend, verify_cert_chain_with_backend,
     verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmCertificateModel,

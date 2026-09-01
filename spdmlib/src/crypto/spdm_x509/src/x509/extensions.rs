@@ -23,10 +23,12 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use const_oid::ObjectIdentifier;
-use der::{Decode, DecodeValue, Encode, Header, Reader, Sequence};
+use der::{Decode, DecodeValue, Encode, Header, Reader, Sequence, Tag, TagNumber};
 
 // Re-export Extension and Extensions from certificate module
 pub use crate::certificate::{Extension, Extensions};
+// Re-use the GeneralName type already defined for SubjectAltName parsing.
+pub use crate::certificate::name::GeneralName;
 
 // ============================================================================
 // Extension OIDs - RFC 5280 Section 4.2
@@ -43,6 +45,9 @@ pub const EXTENDED_KEY_USAGE: ObjectIdentifier = ObjectIdentifier::new_unwrap("2
 
 /// Subject Alternative Name - 2.5.29.17
 pub const SUBJECT_ALT_NAME: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.5.29.17");
+
+/// Name Constraints - 2.5.29.30
+pub const NAME_CONSTRAINTS: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.5.29.30");
 
 /// Authority Key Identifier - 2.5.29.35
 pub const AUTHORITY_KEY_IDENTIFIER: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.5.29.35");
@@ -344,6 +349,187 @@ impl ExtendedKeyUsage {
 }
 
 // ============================================================================
+// Name Constraints - RFC 5280 Section 4.2.1.10
+// ============================================================================
+
+/// A single name-space restriction (`GeneralSubtree`).
+///
+/// Only the `base` GeneralName is retained. RFC 5280 §4.2.1.10 mandates that
+/// the `minimum` field be 0 and the `maximum` field be absent, so prohibited
+/// distance values are rejected while parsing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneralSubtree {
+    /// The name (or name prefix) that bounds the subtree.
+    pub base: GeneralName,
+}
+
+impl<'a> DecodeValue<'a> for GeneralSubtree {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+        let base = reader.read_nested(header.length, |reader| {
+            let base_header = Header::decode(reader)?;
+            let base = GeneralName::decode_value(reader, base_header)?;
+            if !reader.is_finished() {
+                let distance = Header::decode(reader)?;
+                match distance.tag {
+                    Tag::ContextSpecific {
+                        constructed: false,
+                        number: TagNumber::N0,
+                    } => {
+                        // BaseDistance is DEFAULT 0. DER requires default-valued
+                        // fields to be omitted, while RFC 5280 prohibits every
+                        // non-zero minimum.
+                        let value = reader.read_slice(distance.length)?;
+                        if value == [0] {
+                            return Err(der::ErrorKind::Noncanonical { tag: distance.tag }.into());
+                        }
+                        return Err(der::ErrorKind::Value { tag: distance.tag }.into());
+                    }
+                    Tag::ContextSpecific {
+                        constructed: false,
+                        number: TagNumber::N1,
+                    } => return Err(der::ErrorKind::Value { tag: distance.tag }.into()),
+                    _ => {
+                        return Err(der::ErrorKind::TagUnexpected {
+                            expected: None,
+                            actual: distance.tag,
+                        }
+                        .into())
+                    }
+                }
+            }
+            Ok(base)
+        })?;
+        Ok(Self { base })
+    }
+}
+
+impl der::FixedTag for GeneralSubtree {
+    const TAG: Tag = Tag::Sequence;
+}
+
+/// Name Constraints extension.
+///
+/// ```asn1
+/// NameConstraints ::= SEQUENCE {
+///     permittedSubtrees       [0]     GeneralSubtrees OPTIONAL,
+///     excludedSubtrees        [1]     GeneralSubtrees OPTIONAL }
+///
+/// GeneralSubtrees ::= SEQUENCE SIZE (1..MAX) OF GeneralSubtree
+///
+/// GeneralSubtree ::= SEQUENCE {
+///     base                    GeneralName,
+///     minimum         [0]     BaseDistance DEFAULT 0,
+///     maximum         [1]     BaseDistance OPTIONAL }
+/// ```
+///
+/// This extension appears only in CA certificates and constrains the name
+/// space of all subject names in subsequent certificates of the path.  It MUST
+/// be marked critical (RFC 5280 §4.2.1.10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NameConstraints {
+    /// Names within which all subject names MUST fall (when present).
+    pub permitted_subtrees: Option<Vec<GeneralSubtree>>,
+
+    /// Names that all subject names MUST avoid (when present).
+    pub excluded_subtrees: Option<Vec<GeneralSubtree>>,
+}
+
+impl NameConstraints {
+    /// Parse from the extension value bytes.
+    pub fn from_extension(ext: &Extension) -> Result<Self, der::Error> {
+        Self::from_der(ext.value())
+    }
+
+    /// Decode the `GeneralSubtrees` content of an implicitly-tagged field.
+    ///
+    /// The `[0]`/`[1]` context tag replaces the `SEQUENCE OF` tag (implicit
+    /// tagging), so the field content is a bare concatenation of
+    /// `GeneralSubtree` values.
+    fn decode_subtrees<'a, R: Reader<'a>>(
+        reader: &mut R,
+        length: der::Length,
+    ) -> der::Result<Vec<GeneralSubtree>> {
+        reader.read_nested(length, |reader| {
+            let mut subtrees = Vec::new();
+            while !reader.is_finished() {
+                subtrees
+                    .try_reserve(1)
+                    .map_err(|_| der::ErrorKind::Overlength)?;
+                subtrees.push(GeneralSubtree::decode(reader)?);
+            }
+            if subtrees.is_empty() {
+                return Err(der::ErrorKind::Length { tag: Tag::Sequence }.into());
+            }
+            Ok(subtrees)
+        })
+    }
+}
+
+impl<'a> DecodeValue<'a> for NameConstraints {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+        let mut permitted_subtrees = None;
+        let mut excluded_subtrees = None;
+
+        reader.read_nested(header.length, |reader| {
+            while !reader.is_finished() {
+                let field_header = Header::decode(reader)?;
+                let tag = field_header.tag;
+                if !matches!(
+                    tag,
+                    Tag::ContextSpecific {
+                        constructed: true,
+                        number: TagNumber::N0 | TagNumber::N1,
+                    }
+                ) {
+                    return Err(der::ErrorKind::TagUnexpected {
+                        expected: None,
+                        actual: tag,
+                    }
+                    .into());
+                }
+                match tag.number() {
+                    TagNumber::N0 => {
+                        if permitted_subtrees.is_some() || excluded_subtrees.is_some() {
+                            return Err(der::ErrorKind::Value { tag }.into());
+                        }
+                        permitted_subtrees =
+                            Some(Self::decode_subtrees(reader, field_header.length)?);
+                    }
+                    TagNumber::N1 => {
+                        if excluded_subtrees.is_some() {
+                            return Err(der::ErrorKind::Value { tag }.into());
+                        }
+                        excluded_subtrees =
+                            Some(Self::decode_subtrees(reader, field_header.length)?);
+                    }
+                    _ => {
+                        return Err(der::ErrorKind::TagUnexpected {
+                            expected: None,
+                            actual: tag,
+                        }
+                        .into());
+                    }
+                }
+            }
+            Ok(())
+        })?;
+
+        if permitted_subtrees.is_none() && excluded_subtrees.is_none() {
+            return Err(der::ErrorKind::Value { tag: Tag::Sequence }.into());
+        }
+
+        Ok(Self {
+            permitted_subtrees,
+            excluded_subtrees,
+        })
+    }
+}
+
+impl der::FixedTag for NameConstraints {
+    const TAG: Tag = Tag::Sequence;
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -351,6 +537,179 @@ impl ExtendedKeyUsage {
 mod tests {
     use super::*;
     use alloc::vec;
+
+    fn der_wrap(tag: u8, content: &[u8]) -> Vec<u8> {
+        assert!(content.len() < 128);
+        let mut der = vec![tag, content.len() as u8];
+        der.extend_from_slice(content);
+        der
+    }
+
+    fn general_subtree(base_tag: u8, base: &[u8], suffix: &[u8]) -> Vec<u8> {
+        let mut content = der_wrap(base_tag, base);
+        content.extend_from_slice(suffix);
+        der_wrap(0x30, &content)
+    }
+
+    fn name_constraints(fields: &[Vec<u8>]) -> Vec<u8> {
+        let mut content = Vec::new();
+        for field in fields {
+            content.extend_from_slice(field);
+        }
+        der_wrap(0x30, &content)
+    }
+
+    #[test]
+    fn test_name_constraints_parse_canonical_implicit_fields() {
+        use der::Decode;
+
+        let permitted = der_wrap(0xA0, &general_subtree(0x82, b"example.com", &[]));
+        let excluded = der_wrap(
+            0xA1,
+            &general_subtree(0x87, &[192, 0, 2, 0, 255, 255, 255, 0], &[]),
+        );
+        let decoded = NameConstraints::from_der(&name_constraints(&[permitted, excluded])).unwrap();
+
+        assert_eq!(decoded.permitted_subtrees.unwrap().len(), 1);
+        assert_eq!(decoded.excluded_subtrees.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_name_constraints_parse_implicit_registered_id_base() {
+        use der::Decode;
+
+        let oid = ObjectIdentifier::new_unwrap("1.2.840.113549");
+        let permitted = der_wrap(0xA0, &general_subtree(0x88, oid.as_bytes(), &[]));
+        let decoded = NameConstraints::from_der(&name_constraints(&[permitted])).unwrap();
+
+        assert!(matches!(
+            decoded.permitted_subtrees.unwrap()[0].base,
+            GeneralName::RegisteredId(value) if value == oid
+        ));
+    }
+
+    #[test]
+    fn test_name_constraints_parse_structural_unsupported_bases() {
+        use der::Decode;
+
+        for (tag, value) in [
+            (0xA0, &[0x06, 0x01, 0x2A, 0xA0, 0x02, 0x05, 0x00][..]),
+            (0xA3, &[0x30, 0x00][..]),
+            (
+                0xA5,
+                &[0xA1, 0x07, 0x0C, 0x05, b'p', b'a', b'r', b't', b'y'][..],
+            ),
+        ] {
+            let permitted = der_wrap(0xA0, &general_subtree(tag, value, &[]));
+            assert!(NameConstraints::from_der(&name_constraints(&[permitted])).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_name_constraints_reject_present_minimum_and_maximum() {
+        use der::Decode;
+
+        for suffix in [
+            &[0x80, 0x01, 0x00][..],
+            &[0x80, 0x01, 0x01][..],
+            &[0x80, 0x00][..],
+            &[0x80, 0x02, 0x00, 0x00][..],
+            &[0xA0, 0x03, 0x02, 0x01, 0x00][..],
+            &[0x81, 0x01, 0x00][..],
+            &[0x81, 0x01, 0x01][..],
+        ] {
+            let permitted = der_wrap(0xA0, &general_subtree(0x82, b"example.com", suffix));
+            assert!(NameConstraints::from_der(&name_constraints(&[permitted])).is_err());
+        }
+    }
+
+    #[test]
+    fn test_name_constraints_reject_empty_duplicate_and_out_of_order_fields() {
+        use der::Decode;
+
+        let subtree = general_subtree(0x82, b"example.com", &[]);
+        let permitted = der_wrap(0xA0, &subtree);
+        let excluded = der_wrap(0xA1, &subtree);
+
+        for malformed in [
+            der_wrap(0x30, &[]),
+            name_constraints(&[der_wrap(0xA0, &[])]),
+            name_constraints(&[der_wrap(0xA1, &[])]),
+            name_constraints(&[permitted.clone(), permitted.clone()]),
+            name_constraints(&[excluded.clone(), excluded.clone()]),
+            name_constraints(&[excluded, permitted]),
+        ] {
+            assert!(NameConstraints::from_der(&malformed).is_err());
+        }
+    }
+
+    #[test]
+    fn test_name_constraints_reject_explicit_or_wrongly_tagged_fields() {
+        use der::Decode;
+
+        let subtree = general_subtree(0x82, b"example.com", &[]);
+        let explicitly_wrapped = der_wrap(0xA0, &der_wrap(0x30, &subtree));
+        let primitive_field = der_wrap(0x80, &subtree);
+        let unknown_field = der_wrap(0xA2, &subtree);
+
+        for malformed in [explicitly_wrapped, primitive_field, unknown_field] {
+            assert!(NameConstraints::from_der(&name_constraints(&[malformed])).is_err());
+        }
+    }
+
+    #[test]
+    fn test_name_constraints_reject_malformed_general_subtree_base() {
+        use der::Decode;
+
+        let cases = [
+            der_wrap(0x30, &[]),
+            general_subtree(0xA2, b"example.com", &[]),
+            general_subtree(0x84, &[0x30, 0x00], &[]),
+            general_subtree(0xA7, &[192, 0, 2, 1], &[]),
+            general_subtree(0x87, &[192, 0, 2, 1, 0], &[]),
+            general_subtree(0x82, &[0xFF], &[]),
+            general_subtree(0x88, &[0x2A, 0x80, 0x03], &[]),
+            general_subtree(0xA0, &[], &[]),
+            general_subtree(0xA0, &[0x06, 0x01, 0x2A], &[]),
+            general_subtree(0xA3, &[], &[]),
+            general_subtree(0xA3, &[0x05, 0x00], &[]),
+            general_subtree(0xA5, &[], &[]),
+            general_subtree(0xA5, &[0xA1, 0x00], &[]),
+        ];
+
+        for subtree in cases {
+            let permitted = der_wrap(0xA0, &subtree);
+            assert!(NameConstraints::from_der(&name_constraints(&[permitted])).is_err());
+        }
+    }
+
+    #[test]
+    fn test_name_constraints_reject_subtree_and_outer_trailing_data() {
+        use der::Decode;
+
+        let trailing_base = general_subtree(0x82, b"example.com", &[0x87, 0x04, 192, 0, 2, 1]);
+        let permitted = der_wrap(0xA0, &trailing_base);
+        assert!(NameConstraints::from_der(&name_constraints(&[permitted])).is_err());
+
+        let permitted = der_wrap(0xA0, &general_subtree(0x82, b"example.com", &[]));
+        let mut trailing_outer = name_constraints(&[permitted]);
+        trailing_outer.push(0);
+        assert!(NameConstraints::from_der(&trailing_outer).is_err());
+    }
+
+    #[test]
+    fn test_name_constraints_reject_noncanonical_length_and_high_tag() {
+        use der::Decode;
+
+        let canonical = name_constraints(&[der_wrap(0xA0, &general_subtree(0x82, b"a", &[]))]);
+        let mut noncanonical_length = vec![0x30, 0x81, canonical[1]];
+        noncanonical_length.extend_from_slice(&canonical[2..]);
+        assert!(NameConstraints::from_der(&noncanonical_length).is_err());
+
+        let high_tag_subtree = der_wrap(0x30, &[0x9F, 0x02, 0x00]);
+        let permitted = der_wrap(0xA0, &high_tag_subtree);
+        assert!(NameConstraints::from_der(&name_constraints(&[permitted])).is_err());
+    }
 
     #[test]
     fn test_basic_constraints() {
