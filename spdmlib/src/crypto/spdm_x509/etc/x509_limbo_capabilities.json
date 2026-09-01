@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "source": {
+    "repository": "https://github.com/C2SP/x509-limbo",
+    "revision": "972626160c26b45426bbd8c935a605219bd93207",
+    "license": "Apache-2.0"
+  },
+  "suites": [
+    {
+      "name": "name_constraints",
+      "output": "name_constraints_x509_limbo.json",
+      "testcases": [
+        {
+          "id": "rfc5280::nc::permitted-dns-mismatch",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-dns-match-second",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-ipv4-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-dn-match-subject-san-mismatch",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-self-issued",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::invalid-dnsname-leading-period",
+          "status": "supported"
+        }
+      ]
+    }
+  ]
+}
