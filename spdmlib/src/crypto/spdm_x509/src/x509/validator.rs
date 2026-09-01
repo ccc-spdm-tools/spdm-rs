@@ -2460,24 +2460,10 @@ impl Default for Validator<RingBackend> {
 mod tests {
     extern crate std;
     use super::*;
+    use crate::x509::limbo::LimboRunner;
     use alloc::format;
     use alloc::string::String;
     use alloc::vec;
-    use serde::Deserialize;
-
-    #[derive(Deserialize)]
-    struct LimboFixture {
-        testcases: Vec<LimboTestcase>,
-    }
-
-    #[derive(Deserialize)]
-    struct LimboTestcase {
-        id: String,
-        trusted_certs: Vec<String>,
-        untrusted_intermediates: Vec<String>,
-        peer_certificate: String,
-        expected_result: String,
-    }
 
     #[test]
     fn test_validation_options() {
@@ -2501,37 +2487,29 @@ mod tests {
 
     #[test]
     fn test_name_constraints_x509_limbo_conformance() {
-        let fixture: LimboFixture =
-            serde_json::from_str(include_str!("../../etc/name_constraints_x509_limbo.json"))
+        let runner =
+            LimboRunner::from_json(include_str!("../../etc/name_constraints_x509_limbo.json"))
                 .expect("valid x509-limbo fixture");
         let validator = Validator::default();
+        let mut options = ValidationOptions::default().skip_signature_validation();
+        options.check_time = false;
 
-        for testcase in fixture.testcases {
-            let mut certificates = vec![Certificate::from_pem(&testcase.peer_certificate)
-                .unwrap_or_else(|error| panic!("{}: invalid peer: {error}", testcase.id))];
-            certificates.extend(testcase.untrusted_intermediates.iter().rev().map(|pem| {
-                Certificate::from_pem(pem).unwrap_or_else(|error| {
-                    panic!("{}: invalid intermediate: {error}", testcase.id)
-                })
-            }));
-            certificates.extend(testcase.trusted_certs.iter().map(|pem| {
-                Certificate::from_pem(pem)
-                    .unwrap_or_else(|error| panic!("{}: invalid root: {error}", testcase.id))
-            }));
+        let summary = runner.assert_conformance(|testcase| {
+            validator.validate_chain(&testcase.leaf_first_chain()?, &options)
+        });
 
-            let mut options = ValidationOptions::default().skip_signature_validation();
-            options.check_time = false;
-            let actual_success = validator
-                .validate_chain(&CertificateChain::new(certificates), &options)
-                .is_ok();
-            let expected_success = testcase.expected_result == "SUCCESS";
-
-            assert_eq!(
-                actual_success, expected_success,
-                "x509-limbo mismatch for {}",
-                testcase.id
-            );
-        }
+        assert_eq!(summary.total, 6);
+        assert_eq!(summary.expected_successes, 2);
+        assert_eq!(summary.expected_failures, 4);
+        assert_eq!(
+            runner.source().repository,
+            "https://github.com/C2SP/x509-limbo"
+        );
+        assert_eq!(
+            runner.source().revision,
+            "972626160c26b45426bbd8c935a605219bd93207"
+        );
+        assert_eq!(runner.source().license, "Apache-2.0");
     }
 
     // ── Helper to load a cert from DER file ──
