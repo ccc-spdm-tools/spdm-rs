@@ -585,6 +585,11 @@ impl<B: CryptoBackend> Validator<B> {
                     self.verify_signature(cert, issuer)?;
                 }
             } else {
+                // A singleton root never reaches verify_issuer_is_ca().
+                if chain.len() == 1 {
+                    Self::verify_ca_basic_constraints_critical(cert)?;
+                }
+
                 // Root certificate - verify self-signed
                 if options.check_signature {
                     self.verify_signature(cert, cert)?;
@@ -607,7 +612,8 @@ impl<B: CryptoBackend> Validator<B> {
     /// Verify that an issuer certificate is a CA.
     ///
     /// Per SPDM 1.2 (DSP0274), the BasicConstraints extension is not required
-    /// to be present.  If it *is* present the cA flag must be TRUE; if it is
+    /// to be present.  If it *is* present the cA flag must be TRUE, and for the
+    /// trust anchor it must also be critical (RFC 5280 §4.2.1.9); if it is
     /// absent the trust anchor is still accepted as a valid issuer, and an
     /// intermediate is accepted only when its Key Usage asserts keyCertSign.
     /// An intermediate with neither extension is an end-entity certificate.
@@ -617,6 +623,10 @@ impl<B: CryptoBackend> Validator<B> {
         depth: usize,
         is_trust_anchor: bool,
     ) -> Result<()> {
+        if is_trust_anchor {
+            Self::verify_ca_basic_constraints_critical(issuer)?;
+        }
+
         let extensions = match &issuer.tbs_certificate.extensions {
             Some(exts) => exts,
             None if is_trust_anchor => return Ok(()),
@@ -661,6 +671,34 @@ impl<B: CryptoBackend> Validator<B> {
             Err(Error::ChainError(crate::error::ChainError::IssuerNotCA))
         }
     }
+
+    /// RFC 5280 §4.2.1.9: a CA's Basic Constraints extension MUST be critical.
+    ///
+    /// An absent extension or one with cA FALSE is left to the caller.
+    fn verify_ca_basic_constraints_critical(cert: &Certificate) -> Result<()> {
+        let Some(ext) = cert.tbs_certificate.extensions.as_ref().and_then(|exts| {
+            exts.extensions
+                .iter()
+                .find(|e| e.extn_id == BASIC_CONSTRAINTS)
+        }) else {
+            return Ok(());
+        };
+
+        use der::Decode;
+        if !ext.critical
+            && BasicConstraints::from_der(ext.extn_value.as_bytes())
+                .map_err(Error::Asn1)?
+                .ca
+        {
+            return Err(Error::ExtensionError(
+                crate::error::ExtensionError::BasicConstraints(alloc::string::String::from(
+                    "Root Basic Constraints extension is not critical",
+                )),
+            ));
+        }
+        Ok(())
+    }
+
     /// Enforce RFC 5280 §4.2.1.10 Name Constraints across the chain.
     ///
     /// `chain.certificates` is in leaf→root order.  A `NameConstraints`
@@ -2749,6 +2787,62 @@ mod tests {
         let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
         let validator = Validator::new();
         assert!(validator.verify_issuer_is_ca(&ca, 0, true).is_ok());
+    }
+
+    #[test]
+    fn test_verify_issuer_is_ca_rejects_non_critical_root_basic_constraints() {
+        use der::Encode;
+
+        let mut ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let bc = BasicConstraints::new_ca(None).to_der().unwrap();
+        set_extension(&mut ca, BASIC_CONSTRAINTS, false, bc);
+        let validator = Validator::new();
+        assert!(matches!(
+            validator.verify_issuer_is_ca(&ca, 0, true),
+            Err(Error::ExtensionError(
+                crate::error::ExtensionError::BasicConstraints(_)
+            ))
+        ));
+
+        // Intermediates are not subject to the root-only check.
+        assert!(validator.verify_issuer_is_ca(&ca, 0, false).is_ok());
+    }
+
+    #[test]
+    fn test_validate_chain_singleton_root_basic_constraints() {
+        use der::Encode;
+
+        let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let validator = Validator::new();
+        let chain = CertificateChain::new(vec![ca.clone()]);
+        assert!(validator
+            .validate_chain(&chain, &ValidationOptions::default())
+            .is_ok());
+
+        // Mutating the TBS invalidates the self-signature, so skip it.
+        let opts = ValidationOptions::default().skip_signature_validation();
+
+        let mut non_critical_ca = ca.clone();
+        let bc = BasicConstraints::new_ca(None).to_der().unwrap();
+        set_extension(&mut non_critical_ca, BASIC_CONSTRAINTS, false, bc);
+        let chain = CertificateChain::new(vec![non_critical_ca]);
+        assert!(matches!(
+            validator.validate_chain(&chain, &opts),
+            Err(Error::ExtensionError(
+                crate::error::ExtensionError::BasicConstraints(_)
+            ))
+        ));
+
+        let mut end_entity = ca.clone();
+        let bc = BasicConstraints::new_end_entity().to_der().unwrap();
+        set_extension(&mut end_entity, BASIC_CONSTRAINTS, false, bc);
+        let chain = CertificateChain::new(vec![end_entity]);
+        assert!(validator.validate_chain(&chain, &opts).is_ok());
+
+        let mut without_bc = ca;
+        remove_extension(&mut without_bc, BASIC_CONSTRAINTS);
+        let chain = CertificateChain::new(vec![without_bc]);
+        assert!(validator.validate_chain(&chain, &opts).is_ok());
     }
 
     #[test]
