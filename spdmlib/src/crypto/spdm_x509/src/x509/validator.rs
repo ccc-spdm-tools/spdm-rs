@@ -576,7 +576,7 @@ impl<B: CryptoBackend> Validator<B> {
                     }
                 }
 
-                self.verify_issuer_is_ca(issuer, idx)?;
+                self.verify_issuer_is_ca(issuer, idx, idx + 2 == chain.len())?;
 
                 // Verify signature last — CA and keyCertSign checks above are
                 // cheap and may reject the issuer without incurring the cost of
@@ -585,6 +585,30 @@ impl<B: CryptoBackend> Validator<B> {
                     self.verify_signature(cert, issuer)?;
                 }
             } else {
+                // A singleton root never reaches verify_issuer_is_ca().
+                if chain.len() == 1 {
+                    if let Some(ext) = cert.tbs_certificate.extensions.as_ref().and_then(|exts| {
+                        exts.extensions
+                            .iter()
+                            .find(|e| e.extn_id == BASIC_CONSTRAINTS)
+                    }) {
+                        use der::Decode;
+                        if !ext.critical
+                            && BasicConstraints::from_der(ext.extn_value.as_bytes())
+                                .map_err(Error::Asn1)?
+                                .ca
+                        {
+                            return Err(Error::ExtensionError(
+                                crate::error::ExtensionError::BasicConstraints(
+                                    alloc::string::String::from(
+                                        "Root Basic Constraints extension is not critical",
+                                    ),
+                                ),
+                            ));
+                        }
+                    }
+                }
+
                 // Root certificate - verify self-signed
                 if options.check_signature {
                     self.verify_signature(cert, cert)?;
@@ -607,9 +631,10 @@ impl<B: CryptoBackend> Validator<B> {
     /// Verify that an issuer certificate is a CA.
     ///
     /// Per SPDM 1.2 (DSP0274), the BasicConstraints extension is not required
-    /// to be present.  If it *is* present the cA flag must be TRUE; if it is
-    /// absent the certificate is still accepted as a valid issuer.
-    fn verify_issuer_is_ca(&self, issuer: &Certificate, depth: usize) -> Result<()> {
+    /// to be present.  If it *is* present the cA flag must be TRUE; for a root
+    /// certificate it must also be critical.  If it is absent the certificate
+    /// is still accepted as a valid issuer.
+    fn verify_issuer_is_ca(&self, issuer: &Certificate, depth: usize, is_root: bool) -> Result<()> {
         let extensions = match &issuer.tbs_certificate.extensions {
             Some(exts) => exts,
             None => return Ok(()),
@@ -617,6 +642,16 @@ impl<B: CryptoBackend> Validator<B> {
 
         for ext in &extensions.extensions {
             if ext.extn_id == BASIC_CONSTRAINTS {
+                if is_root && !ext.critical {
+                    return Err(Error::ExtensionError(
+                        crate::error::ExtensionError::BasicConstraints(
+                            alloc::string::String::from(
+                                "Root Basic Constraints extension is not critical",
+                            ),
+                        ),
+                    ));
+                }
+
                 use der::Decode;
                 let bc =
                     BasicConstraints::from_der(ext.extn_value.as_bytes()).map_err(Error::Asn1)?;
@@ -2734,14 +2769,87 @@ mod tests {
     fn test_verify_issuer_is_ca_with_ca_cert() {
         let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
         let validator = Validator::new();
-        assert!(validator.verify_issuer_is_ca(&ca, 0).is_ok());
+        assert!(validator.verify_issuer_is_ca(&ca, 0, true).is_ok());
+    }
+
+    #[test]
+    fn test_verify_root_is_ca_with_non_critical_basic_constraints_fails() {
+        let mut ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let basic_constraints = ca
+            .tbs_certificate
+            .extensions
+            .as_mut()
+            .unwrap()
+            .extensions
+            .iter_mut()
+            .find(|extension| extension.extn_id == BASIC_CONSTRAINTS)
+            .unwrap();
+        basic_constraints.critical = false;
+
+        assert!(Validator::new().verify_issuer_is_ca(&ca, 0, true).is_err());
+    }
+
+    fn basic_constraints_mut(cert: &mut Certificate) -> &mut crate::certificate::Extension {
+        cert.tbs_certificate
+            .extensions
+            .as_mut()
+            .unwrap()
+            .extensions
+            .iter_mut()
+            .find(|extension| extension.extn_id == BASIC_CONSTRAINTS)
+            .unwrap()
+    }
+
+    #[test]
+    fn test_validate_chain_singleton_root_basic_constraints() {
+        use der::Encode;
+
+        let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let validator = Validator::new();
+        let chain = CertificateChain::new(vec![ca.clone()]);
+        assert!(validator
+            .validate_chain(&chain, &ValidationOptions::default())
+            .is_ok());
+
+        // Mutating the TBS invalidates the self-signature, so skip it.
+        let opts = ValidationOptions::default().skip_signature_validation();
+
+        let mut non_critical_ca = ca.clone();
+        basic_constraints_mut(&mut non_critical_ca).critical = false;
+        let chain = CertificateChain::new(vec![non_critical_ca]);
+        assert!(matches!(
+            validator.validate_chain(&chain, &opts),
+            Err(Error::ExtensionError(
+                crate::error::ExtensionError::BasicConstraints(_)
+            ))
+        ));
+
+        let mut end_entity = ca.clone();
+        let bc = basic_constraints_mut(&mut end_entity);
+        bc.critical = false;
+        bc.extn_value =
+            der::asn1::OctetString::new(BasicConstraints::new_end_entity().to_der().unwrap())
+                .unwrap();
+        let chain = CertificateChain::new(vec![end_entity]);
+        assert!(validator.validate_chain(&chain, &opts).is_ok());
+
+        let mut without_bc = ca;
+        without_bc
+            .tbs_certificate
+            .extensions
+            .as_mut()
+            .unwrap()
+            .extensions
+            .retain(|extension| extension.extn_id != BASIC_CONSTRAINTS);
+        let chain = CertificateChain::new(vec![without_bc]);
+        assert!(validator.validate_chain(&chain, &opts).is_ok());
     }
 
     #[test]
     fn test_verify_issuer_is_ca_with_leaf_fails() {
         let leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
         let validator = Validator::new();
-        assert!(validator.verify_issuer_is_ca(&leaf, 0).is_err());
+        assert!(validator.verify_issuer_is_ca(&leaf, 0, false).is_err());
     }
 
     // ── Cross-algorithm chain tests ──
