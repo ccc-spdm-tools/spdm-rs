@@ -14,6 +14,8 @@ description = "X.509 certificate parsing and validation with SPDM extensions and
 der = { version = "0.7", default-features = false, features = ["alloc", "derive", "oid"] }
 spki = { version = "0.7", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.9", default-features = false }
+focaccia = "2.0"
+unicode-normalization = { version = "0.1", default-features = false }
 
 # PEM encoding support
 pem-rfc7468 = { version = "0.7", default-features = false, features = ["alloc"] }
@@ -43,6 +45,7 @@ untrusted = "0.9"
 default = []
 std = ["der/std", "log/std", "conquer-once/std"]
 alloc = ["der/alloc"]
+fuzzing = []
 
 [lib]
 name = "spdm_x509"
