@@ -959,7 +959,10 @@ mod tests {
                 slot_id: 4,
                 portion_length: MAX_SPDM_CERT_PORTION_LEN as u32,
                 remainder_length: 100,
-                cert_chain: [100u8; MAX_SPDM_CERT_PORTION_LEN],
+                cert_chain: core::convert::TryInto::try_into(
+                    alloc::vec![100u8; MAX_SPDM_CERT_PORTION_LEN].into_boxed_slice(),
+                )
+                .unwrap(),
             }),
         };
         create_spdm_context!(context);

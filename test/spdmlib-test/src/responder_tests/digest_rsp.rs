@@ -22,7 +22,7 @@ use {
     codec::{Codec, Writer},
     spdmlib::message::*,
     spdmlib::protocol::*,
-    spdmlib::{config, responder, secret},
+    spdmlib::{responder, secret},
     spin::Mutex,
 };
 
@@ -51,7 +51,7 @@ fn test_case0_handle_spdm_digest() {
         context.common.provision_info.my_cert_chain = [
             Some(SpdmCertChainBuffer {
                 data_size: 512u32,
-                data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+                ..Default::default()
             }),
             None,
             None,

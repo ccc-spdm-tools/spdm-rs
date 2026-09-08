@@ -95,7 +95,10 @@ fn test_handle_encap_response_certificate() {
             slot_id: 0,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x600,
-            cert_chain: [0xa; CERT_PORTION_LEN],
+            cert_chain: vec![0xa; CERT_PORTION_LEN]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }),
     };
     assert!(cert_rsp
@@ -132,7 +135,10 @@ fn test_handle_encap_response_certificate() {
             slot_id: 0xa,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x400,
-            cert_chain: [0xa; CERT_PORTION_LEN],
+            cert_chain: vec![0xa; CERT_PORTION_LEN]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         });
     assert!(cert_rsp
         .spdm_encode(&mut context.common, &mut writer)
@@ -149,7 +155,10 @@ fn test_handle_encap_response_certificate() {
             slot_id: 0,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x400,
-            cert_chain: [0xa; CERT_PORTION_LEN],
+            cert_chain: vec![0xa; CERT_PORTION_LEN]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         });
     assert!(cert_rsp
         .spdm_encode(&mut context.common, &mut writer)

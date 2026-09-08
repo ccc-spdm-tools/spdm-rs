@@ -426,7 +426,7 @@ fn test_case1_spdm_context_export_import_with_cert_data() {
     // Populate provision info with mock certificate data - different for each slot
     let mut cert_chain_data_slot0 = spdmlib::protocol::SpdmCertChainData {
         data_size: 512,
-        data: [0u8; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        ..Default::default()
     };
     // Fill slot 0 with pattern starting at 0x42
     for i in 0..512 {
@@ -435,7 +435,7 @@ fn test_case1_spdm_context_export_import_with_cert_data() {
 
     let mut cert_chain_data_slot1 = spdmlib::protocol::SpdmCertChainData {
         data_size: 768, // Different size for slot 1
-        data: [0u8; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        ..Default::default()
     };
     // Fill slot 1 with different pattern starting at 0x73
     for i in 0..768 {
@@ -448,9 +448,7 @@ fn test_case1_spdm_context_export_import_with_cert_data() {
     // Populate with mock certificate chain buffer - different for each slot
     let mut cert_chain_buffer_slot0 = spdmlib::protocol::SpdmCertChainBuffer {
         data_size: 600,
-        data: [0u8; 4
-            + spdmlib::protocol::SPDM_MAX_HASH_SIZE
-            + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        ..Default::default()
     };
     // Fill slot 0 with pattern starting at 0x84
     for i in 0..600 {
@@ -459,9 +457,7 @@ fn test_case1_spdm_context_export_import_with_cert_data() {
 
     let mut cert_chain_buffer_slot1 = spdmlib::protocol::SpdmCertChainBuffer {
         data_size: 900, // Different size for slot 1
-        data: [0u8; 4
-            + spdmlib::protocol::SPDM_MAX_HASH_SIZE
-            + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        ..Default::default()
     };
     // Fill slot 1 with different pattern starting at 0xC6
     for i in 0..900 {
@@ -474,9 +470,7 @@ fn test_case1_spdm_context_export_import_with_cert_data() {
     // Populate peer info with mock peer certificate data - different for each slot
     let mut peer_cert_chain_slot0 = spdmlib::protocol::SpdmCertChainBuffer {
         data_size: 450,
-        data: [0u8; 4
-            + spdmlib::protocol::SPDM_MAX_HASH_SIZE
-            + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        ..Default::default()
     };
     // Fill slot 0 with pattern starting at 0xA1
     for i in 0..450 {
@@ -485,9 +479,7 @@ fn test_case1_spdm_context_export_import_with_cert_data() {
 
     let mut peer_cert_chain_slot1 = spdmlib::protocol::SpdmCertChainBuffer {
         data_size: 650, // Different size for slot 1
-        data: [0u8; 4
-            + spdmlib::protocol::SPDM_MAX_HASH_SIZE
-            + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        ..Default::default()
     };
     // Fill slot 1 with different pattern starting at 0xD7
     for i in 0..650 {
@@ -875,7 +867,7 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
     for slot in 0..spdmlib::protocol::SPDM_MAX_SLOT_NUMBER {
         let mut cert_chain_data = spdmlib::protocol::SpdmCertChainData {
             data_size: spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32,
-            data: [0u8; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            ..Default::default()
         };
         // Fill with pattern specific to slot
         for i in 0..spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE {
@@ -887,9 +879,7 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
             data_size: (4
                 + spdmlib::protocol::SPDM_MAX_HASH_SIZE
                 + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u32,
-            data: [0u8; 4
-                + spdmlib::protocol::SPDM_MAX_HASH_SIZE
-                + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            ..Default::default()
         };
         // Fill with pattern specific to slot
         for i in 0..(4
@@ -898,18 +888,21 @@ fn test_case3_spdm_context_export_import_boundary_conditions() {
         {
             cert_chain_buffer.data[i] = ((i + slot * 512) % 256) as u8;
         }
-        original_context.provision_info.my_cert_chain[slot] = Some(cert_chain_buffer);
+        original_context.provision_info.my_cert_chain[slot] = Some(cert_chain_buffer.clone());
         original_context.peer_info.peer_cert_chain[slot] = Some(cert_chain_buffer);
     }
 
     let max_cert_data = spdmlib::protocol::SpdmCertChainData {
         data_size: spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32,
-        data: [0xCD; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+        data: vec![0xCD; spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]
+            .into_boxed_slice()
+            .try_into()
+            .unwrap(),
     };
     for root_cert in &mut original_context.provision_info.peer_root_cert_data {
-        *root_cert = Some(max_cert_data);
+        *root_cert = Some(max_cert_data.clone());
     }
-    original_context.provision_info.my_pub_key = Some(max_cert_data);
+    original_context.provision_info.my_pub_key = Some(max_cert_data.clone());
     original_context.provision_info.peer_pub_key = Some(max_cert_data);
 
     // Set all slot masks

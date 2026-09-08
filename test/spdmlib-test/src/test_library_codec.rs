@@ -396,9 +396,9 @@ fn test_spdm_runtime_info_codec_hashed() {
 #[test]
 fn test_spdm_provision_info_codec() {
     let original = SpdmProvisionInfo {
-        my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
-        my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
-        peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+        my_cert_chain_data: [const { None }; SPDM_MAX_SLOT_NUMBER],
+        my_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
+        peer_root_cert_data: [const { None }; MAX_ROOT_CERT_SUPPORT],
         my_pub_key: None,
         peer_pub_key: None,
         local_supported_slot_mask: 0xFF,
@@ -471,9 +471,9 @@ fn test_spdm_provision_info_codec_with_populated_data() {
             None,
             None,
         ],
-        my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
+        my_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
         peer_root_cert_data: {
-            let mut arr = [None; MAX_ROOT_CERT_SUPPORT];
+            let mut arr = [const { None }; MAX_ROOT_CERT_SUPPORT];
             arr[0] = Some(peer_root_cert_1);
             arr[1] = Some(peer_root_cert_2);
             // Leave rest as None to stay within buffer limits
@@ -580,9 +580,9 @@ fn test_spdm_provision_info_codec_with_populated_data() {
 fn test_spdm_provision_info_codec_edge_cases() {
     // Test with maximum slot mask
     let original = SpdmProvisionInfo {
-        my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
-        my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
-        peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+        my_cert_chain_data: [const { None }; SPDM_MAX_SLOT_NUMBER],
+        my_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
+        peer_root_cert_data: [const { None }; MAX_ROOT_CERT_SUPPORT],
         my_pub_key: None,
         peer_pub_key: None,
         local_supported_slot_mask: 0xFF,
@@ -631,7 +631,7 @@ fn test_spdm_provision_info_codec_edge_cases() {
 #[test]
 fn test_spdm_peer_info_codec() {
     let original = SpdmPeerInfo {
-        peer_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
         peer_cert_chain_temp: None,
         peer_supported_slot_mask: 0x0F,
         peer_provisioned_slot_mask: 0x03,
@@ -706,14 +706,14 @@ fn test_spdm_peer_info_codec_with_populated_data() {
 
     let original = SpdmPeerInfo {
         peer_cert_chain: [
-            Some(cert_chain_templates[0]),
-            Some(cert_chain_templates[1]),
-            Some(cert_chain_templates[2]),
-            Some(cert_chain_templates[3]),
-            Some(cert_chain_templates[4]),
-            Some(cert_chain_templates[5]),
-            Some(cert_chain_templates[6]),
-            Some(cert_chain_templates[7]),
+            Some(cert_chain_templates[0].clone()),
+            Some(cert_chain_templates[1].clone()),
+            Some(cert_chain_templates[2].clone()),
+            Some(cert_chain_templates[3].clone()),
+            Some(cert_chain_templates[4].clone()),
+            Some(cert_chain_templates[5].clone()),
+            Some(cert_chain_templates[6].clone()),
+            Some(cert_chain_templates[7].clone()),
         ],
         peer_cert_chain_temp: None,
         peer_supported_slot_mask: 0xFF,   // All slots supported
@@ -834,7 +834,7 @@ fn test_spdm_peer_info_codec_with_populated_data() {
 fn test_spdm_peer_info_codec_edge_cases() {
     // Test with all slots enabled
     let original_full = SpdmPeerInfo {
-        peer_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
         peer_cert_chain_temp: None,
         peer_supported_slot_mask: 0xFF,
         peer_provisioned_slot_mask: 0xFF,
@@ -866,7 +866,7 @@ fn test_spdm_peer_info_codec_edge_cases() {
 
     // Test with no slots enabled
     let original_empty = SpdmPeerInfo {
-        peer_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
         peer_cert_chain_temp: None,
         peer_supported_slot_mask: 0x00,
         peer_provisioned_slot_mask: 0x00,
@@ -1219,9 +1219,9 @@ fn test_mixed_buffer_stress() {
 fn test_large_struct_memory_boundaries() {
     // Test that large structures handle memory boundaries correctly
     let provision_info = SpdmProvisionInfo {
-        my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
-        my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
-        peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+        my_cert_chain_data: [const { None }; SPDM_MAX_SLOT_NUMBER],
+        my_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
+        peer_root_cert_data: [const { None }; MAX_ROOT_CERT_SUPPORT],
         my_pub_key: None,
         peer_pub_key: None,
         local_supported_slot_mask: 0xFF,
@@ -1231,7 +1231,7 @@ fn test_large_struct_memory_boundaries() {
     };
 
     let peer_info = SpdmPeerInfo {
-        peer_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
+        peer_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
         peer_cert_chain_temp: None,
         peer_supported_slot_mask: 0xFF,
         peer_provisioned_slot_mask: 0xFF,
