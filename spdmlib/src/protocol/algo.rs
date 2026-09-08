@@ -8,6 +8,7 @@ use bytes::BytesMut;
 use codec::{enum_builder, u24, Codec, Reader, Writer};
 extern crate alloc;
 use alloc::boxed::Box;
+use core::convert::TryInto;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const SHA256_DIGEST_SIZE: usize = 32;
@@ -1283,17 +1284,20 @@ impl From<BytesMut> for SpdmSignatureStruct {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SpdmCertChainData {
     pub data_size: u32,
-    pub data: [u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+    pub data: Box<[u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]>,
 }
 
 impl Default for SpdmCertChainData {
     fn default() -> Self {
         SpdmCertChainData {
             data_size: 0u32,
-            data: [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            data: alloc::vec![0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -1321,7 +1325,7 @@ impl Codec for SpdmCertChainData {
         if data_size > config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32 {
             return None;
         }
-        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        let mut data = Self::default().data;
         for d in data.iter_mut().take(data_size as usize) {
             *d = u8::read(reader)?;
         }
@@ -1329,17 +1333,20 @@ impl Codec for SpdmCertChainData {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SpdmCertChainBuffer {
     pub data_size: u32,
-    pub data: [u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+    pub data: Box<[u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]>,
 }
 
 impl Default for SpdmCertChainBuffer {
     fn default() -> Self {
         SpdmCertChainBuffer {
             data_size: 0u32,
-            data: [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE],
+            data: alloc::vec![0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -1404,7 +1411,7 @@ impl Codec for SpdmCertChainBuffer {
         if data_size > (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u32 {
             return None;
         }
-        let mut data = [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        let mut data = Self::default().data;
         for d in data.iter_mut().take(data_size as usize) {
             *d = u8::read(r)?;
         }
@@ -2389,6 +2396,59 @@ mod tests {
     use codec::{Codec, Reader, Writer};
 
     #[test]
+    fn test_spdm_cert_chain_heap_storage() {
+        assert!(core::mem::size_of::<SpdmCertChainData>() <= 2 * core::mem::size_of::<usize>());
+        assert!(core::mem::size_of::<SpdmCertChainBuffer>() <= 2 * core::mem::size_of::<usize>());
+
+        let mut chain = SpdmCertChainData::default();
+        assert_eq!(chain.data_size, 0);
+        assert!(chain.data.iter().all(|byte| *byte == 0));
+        chain.data_size = 1;
+        chain.data[0] = 0x5a;
+        let allocation = chain.data.as_ptr();
+        let moved = Some(chain);
+        let chain = moved.unwrap();
+        assert_eq!(chain.data.as_ptr(), allocation);
+        let mut cloned = chain.clone();
+        assert_ne!(cloned.data.as_ptr(), allocation);
+        cloned.data[0] = 0xa5;
+        assert_eq!(chain.as_ref(), &[0x5a]);
+
+        let buffer = SpdmCertChainBuffer::default();
+        assert_eq!(buffer.data_size, 0);
+        assert!(buffer.data.iter().all(|byte| *byte == 0));
+        let cloned = buffer.clone();
+        assert_ne!(cloned.data.as_ptr(), buffer.data.as_ptr());
+        assert_eq!(cloned, buffer);
+    }
+
+    #[test]
+    fn test_spdm_cert_chain_buffer_codec() {
+        for data_size in [0, 3, SpdmCertChainBuffer::default().data.len()] {
+            let mut value = SpdmCertChainBuffer {
+                data_size: data_size as u32,
+                ..Default::default()
+            };
+            value.data[..data_size].fill(0x5a);
+            let mut encoded = alloc::vec![0u8; 4 + data_size];
+            assert_eq!(
+                value.encode(&mut Writer::init(&mut encoded)),
+                Ok(4 + data_size)
+            );
+            let mut reader = Reader::init(&encoded);
+            assert_eq!(SpdmCertChainBuffer::read(&mut reader), Some(value));
+            assert_eq!(reader.left(), 0);
+            assert!(
+                SpdmCertChainBuffer::read(&mut Reader::init(&encoded[..encoded.len() - 1]))
+                    .is_none()
+            );
+        }
+
+        let oversized = (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE + 1) as u32;
+        assert!(SpdmCertChainBuffer::read(&mut Reader::init(&oversized.to_le_bytes())).is_none());
+    }
+
+    #[test]
     fn test_spdm_cert_chain_data_codec() {
         let mut value = SpdmCertChainData {
             data_size: 3,
@@ -2401,7 +2461,7 @@ mod tests {
         assert_eq!(value.encode(&mut writer), Ok(encoded.len()));
 
         let mut reader = Reader::init(&encoded);
-        assert_eq!(SpdmCertChainData::read(&mut reader), Some(value));
+        assert_eq!(SpdmCertChainData::read(&mut reader), Some(value.clone()));
         assert_eq!(reader.left(), 0);
 
         let oversized = (config::MAX_SPDM_CERT_CHAIN_DATA_SIZE as u32) + 1;

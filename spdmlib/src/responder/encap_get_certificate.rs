@@ -152,7 +152,7 @@ impl ResponderContext {
 
         let result = self.verify_spdm_certificate_chain().map(|_| {
             self.common.peer_info.peer_cert_chain[self.common.encap_context.req_slot_id as usize] =
-                self.common.peer_info.peer_cert_chain_temp;
+                self.common.peer_info.peer_cert_chain_temp.take();
             false
         });
 
@@ -197,7 +197,7 @@ impl ResponderContext {
         }
 
         let data_size = peer_cert_chain.data_size - 4 - self.common.get_hash_size() as u32;
-        let mut data = [0u8; config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+        let mut data = SpdmCertChainData::default().data;
         data[0..(data_size as usize)].copy_from_slice(
             &peer_cert_chain.data[(4usize + self.common.get_hash_size() as usize)
                 ..(peer_cert_chain.data_size as usize)],

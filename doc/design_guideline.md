@@ -44,11 +44,11 @@ Threat: Tampering with data, Denial of service.
 
 ## Execution Environment
 
-1. spdmlib should only use core.
+1. spdmlib uses core and alloc for no_std environments.
 
-2. alloc is not allowed in spdmlib or the trait defined by spdmlib, such as spdm_crypt.
+2. Integrators must provide a global allocator. Certificate chain data, chain buffers, and certificate response portions use fixed-capacity boxed arrays initialized on the heap, without full-size stack temporaries. Unprovisioned certificate slots remain `None` and do not allocate certificate storage.
 
-The trait implementation may use alloc, such as ring.
+Certificate chain types are not `Copy`. Moving a value transfers ownership of its allocation; `Clone` allocates and copies the buffer. Prefer borrowing or transferring ownership when a second copy is not needed. Use `Default` and fill the data slice when constructing certificates. Buffer capacities and wire formats are unchanged.
 
 3. std is not allowed in spdmlib.
 

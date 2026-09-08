@@ -8,7 +8,10 @@ use crate::protocol::{
     SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion, SPDM_MAX_SLOT_NUMBER,
 };
 use crate::{common, error::SpdmStatus};
+extern crate alloc;
+use alloc::boxed::Box;
 use codec::{Codec, Reader, Writer};
+use core::convert::TryInto;
 
 pub const MAX_SPDM_CERT_PORTION_LEN: usize = 512;
 
@@ -112,7 +115,7 @@ pub struct SpdmCertificateResponsePayload {
     pub slot_id: u8,
     pub portion_length: u32,
     pub remainder_length: u32,
-    pub cert_chain: [u8; MAX_SPDM_CERT_PORTION_LEN],
+    pub cert_chain: Box<[u8; MAX_SPDM_CERT_PORTION_LEN]>,
 }
 impl Default for SpdmCertificateResponsePayload {
     fn default() -> SpdmCertificateResponsePayload {
@@ -120,7 +123,10 @@ impl Default for SpdmCertificateResponsePayload {
             slot_id: 0,
             portion_length: 0,
             remainder_length: 0,
-            cert_chain: [0u8; MAX_SPDM_CERT_PORTION_LEN],
+            cert_chain: alloc::vec![0u8; MAX_SPDM_CERT_PORTION_LEN]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         }
     }
 }
@@ -213,7 +219,7 @@ impl SpdmCodec for SpdmCertificateResponsePayload {
             slot_id,
             portion_length,
             remainder_length,
-            cert_chain: [0u8; MAX_SPDM_CERT_PORTION_LEN],
+            ..Default::default()
         };
 
         for data in response.cert_chain.iter_mut().take(portion_length as usize) {
@@ -233,6 +239,20 @@ mod tests {
     use crate::common::{SpdmConfigInfo, SpdmContext, SpdmProvisionInfo};
     use testlib::{create_spdm_context, DeviceIO, TransportEncap};
     extern crate alloc;
+
+    #[test]
+    fn test_spdm_certificate_response_heap_storage() {
+        assert!(
+            core::mem::size_of::<SpdmCertificateResponsePayload>()
+                <= 4 * core::mem::size_of::<usize>()
+        );
+        let response = SpdmCertificateResponsePayload::default();
+        assert!(response.cert_chain.iter().all(|byte| *byte == 0));
+        let mut cloned = response.clone();
+        assert_ne!(cloned.cert_chain.as_ptr(), response.cert_chain.as_ptr());
+        cloned.cert_chain[0] = 0x5a;
+        assert_eq!(response.cert_chain[0], 0);
+    }
 
     #[test]
     fn test_case0_spdm_get_certificate_request_payload() {
@@ -264,7 +284,10 @@ mod tests {
             slot_id: 4,
             portion_length: MAX_SPDM_CERT_PORTION_LEN as u32,
             remainder_length: 100,
-            cert_chain: [100u8; MAX_SPDM_CERT_PORTION_LEN],
+            cert_chain: alloc::vec![100u8; MAX_SPDM_CERT_PORTION_LEN]
+                .into_boxed_slice()
+                .try_into()
+                .unwrap(),
         };
 
         create_spdm_context!(context);

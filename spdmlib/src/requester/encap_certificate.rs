@@ -120,7 +120,7 @@ impl RequesterContext {
         let cert_chain_data =
             &my_cert_chain.data[(offset as usize)..(offset as usize + length as usize)];
 
-        let mut cert_chain = [0u8; MAX_SPDM_CERT_PORTION_LEN];
+        let mut cert_chain = SpdmCertificateResponsePayload::default().cert_chain;
         cert_chain[..cert_chain_data.len()].copy_from_slice(cert_chain_data);
         let response = SpdmMessage {
             header: SpdmMessageHeader {

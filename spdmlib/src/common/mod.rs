@@ -326,8 +326,7 @@ impl SpdmContext {
                     crypto::hash::hash_all(self.negotiate_info.base_hash_sel, root_cert)
                 {
                     let data_size = 4 + root_hash.data_size as u32 + cert_chain.data_size;
-                    let mut data =
-                        [0u8; 4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE];
+                    let mut data = SpdmCertChainBuffer::default().data;
                     data[0] = (data_size & 0xFF) as u8;
                     data[1] = (data_size >> 8) as u8;
                     data[2] = (data_size >> 16) as u8;
@@ -336,9 +335,9 @@ impl SpdmContext {
                         .copy_from_slice(&root_hash.data[..(root_hash.data_size as usize)]);
                     data[(4 + root_hash.data_size as usize)..(data_size as usize)]
                         .copy_from_slice(&cert_chain.data[..(cert_chain.data_size as usize)]);
+                    debug!("my_cert_chain - {:02x?}\n", &data[..(data_size as usize)]);
                     self.provision_info.my_cert_chain[slot_id] =
                         Some(SpdmCertChainBuffer { data_size, data });
-                    debug!("my_cert_chain - {:02x?}\n", &data[..(data_size as usize)]);
                 } else {
                     return Err(SPDM_STATUS_CRYPTO_ERROR);
                 }
@@ -2601,7 +2600,7 @@ impl Codec for SpdmProvisionInfo {
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        let mut my_cert_chain_data = [None; SPDM_MAX_SLOT_NUMBER];
+        let mut my_cert_chain_data = [const { None }; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
         for (i, slot) in my_cert_chain_data
             .iter_mut()
@@ -2614,7 +2613,7 @@ impl Codec for SpdmProvisionInfo {
                 *slot = None;
             }
         }
-        let mut my_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        let mut my_cert_chain = [const { None }; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
         for (i, slot) in my_cert_chain
             .iter_mut()
@@ -2627,7 +2626,7 @@ impl Codec for SpdmProvisionInfo {
                 *slot = None;
             }
         }
-        let mut peer_root_cert_data = [None; MAX_ROOT_CERT_SUPPORT];
+        let mut peer_root_cert_data = [const { None }; MAX_ROOT_CERT_SUPPORT];
         let bitmap = u32::read(reader)?;
         for (i, slot) in peer_root_cert_data
             .iter_mut()
@@ -2709,9 +2708,9 @@ impl Codec for SpdmProvisionInfo {
 impl Default for SpdmProvisionInfo {
     fn default() -> Self {
         SpdmProvisionInfo {
-            my_cert_chain_data: [None; SPDM_MAX_SLOT_NUMBER],
-            my_cert_chain: [None; SPDM_MAX_SLOT_NUMBER],
-            peer_root_cert_data: [None; MAX_ROOT_CERT_SUPPORT],
+            my_cert_chain_data: [const { None }; SPDM_MAX_SLOT_NUMBER],
+            my_cert_chain: [const { None }; SPDM_MAX_SLOT_NUMBER],
+            peer_root_cert_data: [const { None }; MAX_ROOT_CERT_SUPPORT],
             my_pub_key: None,
             peer_pub_key: None,
             local_supported_slot_mask: 0xff,
@@ -2803,7 +2802,7 @@ impl Codec for SpdmPeerInfo {
     }
 
     fn read(reader: &mut Reader) -> Option<Self> {
-        let mut peer_cert_chain = [None; SPDM_MAX_SLOT_NUMBER];
+        let mut peer_cert_chain = [const { None }; SPDM_MAX_SLOT_NUMBER];
         let bitmap = u32::read(reader)?;
         for (i, slot) in peer_cert_chain
             .iter_mut()
