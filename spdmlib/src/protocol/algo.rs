@@ -72,6 +72,10 @@ pub const MLKEM_512_ENCAP_KEY_SIZE: usize = 800;
 pub const MLKEM_768_ENCAP_KEY_SIZE: usize = 1184;
 pub const MLKEM_1024_ENCAP_KEY_SIZE: usize = 1568;
 
+pub const MLKEM_512_DECAP_KEY_SIZE: usize = 1632;
+pub const MLKEM_768_DECAP_KEY_SIZE: usize = 2400;
+pub const MLKEM_1024_DECAP_KEY_SIZE: usize = 3168;
+
 pub const MLKEM_512_CIPHER_TEXT_SIZE: usize = 768;
 pub const MLKEM_768_CIPHER_TEXT_SIZE: usize = 1088;
 pub const MLKEM_1024_CIPHER_TEXT_SIZE: usize = 1568;
@@ -622,6 +626,14 @@ impl SpdmKemAlgo {
             _ => {
                 panic!("invalid KemAlgo");
             }
+        }
+    }
+    pub fn get_decap_key_size(&self) -> u16 {
+        match *self {
+            SpdmKemAlgo::ALG_MLKEM_512 => MLKEM_512_DECAP_KEY_SIZE as u16,
+            SpdmKemAlgo::ALG_MLKEM_768 => MLKEM_768_DECAP_KEY_SIZE as u16,
+            SpdmKemAlgo::ALG_MLKEM_1024 => MLKEM_1024_DECAP_KEY_SIZE as u16,
+            _ => panic!("invalid KemAlgo"),
         }
     }
     pub fn get_cipher_text_size(&self) -> u16 {
@@ -2366,7 +2378,14 @@ impl Codec for KeyExchangeContextData {
             _ => return None,
         };
         let len = u32::read(r)? as usize;
-        if len > SPDM_MAX_REQ_KEY_EXCHANGE_SIZE {
+        let max_private_key_size = match algo {
+            KeyExchangeAlgo::Dhe(_) => SPDM_MAX_DHE_KEY_SIZE,
+            KeyExchangeAlgo::Kem(kem_algo) if kem_algo.is_valid_one_select() => {
+                kem_algo.get_decap_key_size() as usize
+            }
+            KeyExchangeAlgo::Kem(_) => return None,
+        };
+        if len > max_private_key_size {
             return None;
         }
         if len > r.left() {
