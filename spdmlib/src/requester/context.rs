@@ -253,6 +253,13 @@ impl RequesterContext {
     ) -> SpdmResult<usize> {
         info!("receive_message!\n");
 
+        #[cfg(feature = "chunk-cap")]
+        if self.common.chunk_context.chunk_status == common::SpdmChunkStatus::ChunkGetAndResponse {
+            return self
+                .complete_large_response(session_id, receive_buffer, crypto_request)
+                .await;
+        }
+
         #[cfg(not(feature = "chunk-cap"))]
         {
             self.receive_single_message(session_id, receive_buffer, crypto_request)
@@ -341,36 +348,14 @@ impl RequesterContext {
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::ChunkGetAndResponse;
-                                    // Handle large response error
-                                    let result = self
-                                        .receive_large_response(session_id, crypto_request)
-                                        .await;
-                                    if let Err(e) = result {
-                                        self.common.chunk_rsp_handle = 0;
-                                        self.common.chunk_context.chunk_seq_num = 0;
-                                        self.common.chunk_context.chunk_message_size = 0;
-                                        self.common.chunk_context.chunk_message_data.fill(0);
-                                        self.common.chunk_context.transferred_size = 0;
-                                        self.common.chunk_context.chunk_status =
-                                            common::SpdmChunkStatus::Idle;
-                                        return Err(e);
-                                    }
-                                    let message_len = self.common.chunk_context.transferred_size;
-                                    receive_buffer[..message_len].copy_from_slice(
-                                        &self.common.chunk_context.chunk_message_data
-                                            [..message_len],
-                                    );
-
-                                    self.common.chunk_rsp_handle = 0;
-                                    self.common.chunk_context.chunk_seq_num = 0;
-                                    self.common.chunk_context.chunk_message_size = 0;
-                                    self.common.chunk_context.chunk_message_data.fill(0);
-                                    self.common.chunk_context.transferred_size = 0;
-                                    self.common.chunk_context.chunk_status =
-                                        common::SpdmChunkStatus::Idle;
-
-                                    // If we have received all chunks, we can process the large message data
-                                    Ok(message_len)
+                                    self.common.chunk_context.response_pending = false;
+                                    self.common.chunk_context.session_id = session_id;
+                                    self.complete_large_response(
+                                        session_id,
+                                        receive_buffer,
+                                        crypto_request,
+                                    )
+                                    .await
                                 } else {
                                     error!("!!! receive_large_response: handle not found !!!\n");
                                     Err(SPDM_STATUS_INVALID_MSG_SIZE)
@@ -443,6 +428,32 @@ impl RequesterContext {
 
     #[cfg(feature = "chunk-cap")]
     #[maybe_async::maybe_async]
+    async fn complete_large_response(
+        &mut self,
+        session_id: Option<u32>,
+        receive_buffer: &mut [u8],
+        crypto_request: bool,
+    ) -> SpdmResult<usize> {
+        let result = if self.common.chunk_context.session_id != session_id {
+            Err(SPDM_STATUS_INVALID_STATE_LOCAL)
+        } else {
+            self.receive_large_response(session_id, crypto_request)
+                .await
+                .and_then(|used| {
+                    let output = receive_buffer
+                        .get_mut(..used)
+                        .ok_or(SPDM_STATUS_BUFFER_FULL)?;
+                    output.copy_from_slice(&self.common.chunk_context.chunk_message_data[..used]);
+                    Ok(used)
+                })
+        };
+        self.common.chunk_rsp_handle = 0;
+        self.common.chunk_context = common::SpdmChunkContext::default();
+        result
+    }
+
+    #[cfg(feature = "chunk-cap")]
+    #[maybe_async::maybe_async]
     async fn receive_large_response(
         &mut self,
         session_id: Option<u32>,
@@ -463,8 +474,11 @@ impl RequesterContext {
                 }),
             };
             let used = chunk_get_request.spdm_encode(&mut self.common, &mut writer)?;
-            self.send_single_message(session_id, &send_buffer[..used], false)
-                .await?;
+            if !self.common.chunk_context.response_pending {
+                self.common.chunk_context.response_pending = true;
+                self.send_single_message(session_id, &send_buffer[..used], false)
+                    .await?;
+            }
 
             let mut receive_buffer = [0u8; config::SPDM_DATA_TRANSFER_SIZE];
             let used = self
@@ -473,6 +487,7 @@ impl RequesterContext {
 
             self.handle_spdm_chunk_response(&receive_buffer[..used], session_id)
                 .map_err(|_| SPDM_STATUS_RECEIVE_FAIL)?;
+            self.common.chunk_context.response_pending = false;
 
             if self.common.chunk_context.transferred_size
                 >= self.common.chunk_context.chunk_message_size

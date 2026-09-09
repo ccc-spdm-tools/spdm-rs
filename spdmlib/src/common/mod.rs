@@ -1339,11 +1339,24 @@ impl SpdmContext {
             session.encode(writer)?;
         }
 
+        #[cfg(feature = "chunk-cap")]
+        {
+            self.chunk_req_handle.encode(writer)?;
+            self.chunk_rsp_handle.encode(writer)?;
+            self.chunk_context.encode(writer)?;
+        }
+
         Ok(writer.used())
     }
 
     /// Export all serializable data components of the SpdmContext
     pub fn export(&self) -> SpdmResult<Vec<u8>> {
+        #[cfg(feature = "chunk-cap")]
+        if self.chunk_context.transferred_size > self.chunk_context.chunk_message_size
+            || self.chunk_context.chunk_message_size > self.chunk_context.chunk_message_data.len()
+        {
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
+        }
         let mut buffer = Vec::new();
         buffer
             .try_reserve_exact(config::MAX_SPDM_MSG_SIZE)
@@ -1404,6 +1417,21 @@ impl SpdmContext {
         // Deserialize sessions
         for session in &mut self.session {
             *session = SpdmSession::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        }
+
+        #[cfg(feature = "chunk-cap")]
+        {
+            self.chunk_req_handle = 0;
+            self.chunk_rsp_handle = 0;
+            self.chunk_context = SpdmChunkContext::default();
+            if reader.left() != 0 {
+                self.chunk_req_handle =
+                    u8::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+                self.chunk_rsp_handle =
+                    u8::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+                self.chunk_context =
+                    SpdmChunkContext::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            }
         }
 
         Ok(())
@@ -2922,6 +2950,7 @@ pub enum SpdmChunkStatus {
 #[cfg(feature = "chunk-cap")]
 pub struct SpdmChunkContext {
     pub chunk_status: SpdmChunkStatus,
+    pub response_pending: bool,
     pub chunk_seq_num: u32,
     pub chunk_message_size: usize,
     pub chunk_message_data: [u8; config::MAX_SPDM_MSG_SIZE],
@@ -2936,11 +2965,93 @@ impl Default for SpdmChunkContext {
     fn default() -> Self {
         SpdmChunkContext {
             chunk_status: SpdmChunkStatus::Idle,
+            response_pending: false,
             chunk_seq_num: 0,
             chunk_message_size: 0,
             chunk_message_data: [0u8; config::MAX_SPDM_MSG_SIZE],
             transferred_size: 0,
             session_id: None,
         }
+    }
+}
+
+#[cfg(feature = "chunk-cap")]
+impl core::fmt::Debug for SpdmChunkContext {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("SpdmChunkContext")
+            .field("chunk_status", &self.chunk_status)
+            .field("chunk_seq_num", &self.chunk_seq_num)
+            .field("chunk_message_size", &self.chunk_message_size)
+            .field("transferred_size", &self.transferred_size)
+            .field("response_pending", &self.response_pending)
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "chunk-cap")]
+impl Codec for SpdmChunkContext {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let start = writer.used();
+        if self.transferred_size > self.chunk_message_size
+            || self.chunk_message_size > self.chunk_message_data.len()
+        {
+            return Err(codec::EncodeErr);
+        }
+        let status = match self.chunk_status {
+            SpdmChunkStatus::Idle => 0u8,
+            SpdmChunkStatus::ChunkSendAndAck => 1u8,
+            SpdmChunkStatus::ChunkGetAndResponse => 2u8,
+        };
+        status.encode(writer)?;
+        (self.response_pending as u8).encode(writer)?;
+        self.chunk_seq_num.encode(writer)?;
+        (self.chunk_message_size as u32).encode(writer)?;
+        (self.transferred_size as u32).encode(writer)?;
+        (self.session_id.is_some() as u8).encode(writer)?;
+        if let Some(session_id) = self.session_id {
+            session_id.encode(writer)?;
+        }
+        writer
+            .extend_from_slice(&self.chunk_message_data[..self.chunk_message_size])
+            .ok_or(codec::EncodeErr)?;
+        Ok(writer.used() - start)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        let chunk_status = match u8::read(reader)? {
+            0 => SpdmChunkStatus::Idle,
+            1 => SpdmChunkStatus::ChunkSendAndAck,
+            2 => SpdmChunkStatus::ChunkGetAndResponse,
+            _ => return None,
+        };
+        let response_pending = match u8::read(reader)? {
+            0 => false,
+            1 => true,
+            _ => return None,
+        };
+        let chunk_seq_num = u32::read(reader)?;
+        let chunk_message_size = u32::read(reader)? as usize;
+        let transferred_size = u32::read(reader)? as usize;
+        if transferred_size > chunk_message_size || chunk_message_size > config::MAX_SPDM_MSG_SIZE {
+            return None;
+        }
+        let session_id = match u8::read(reader)? {
+            0 => None,
+            1 => Some(u32::read(reader)?),
+            _ => return None,
+        };
+        let mut context = Self {
+            chunk_status,
+            response_pending,
+            chunk_seq_num,
+            chunk_message_size,
+            transferred_size,
+            session_id,
+            ..Self::default()
+        };
+        context.chunk_message_data[..chunk_message_size]
+            .copy_from_slice(reader.take(chunk_message_size)?);
+        Some(context)
     }
 }
