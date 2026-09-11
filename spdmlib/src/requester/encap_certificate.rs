@@ -6,6 +6,7 @@ use codec::{Codec, Reader, Writer};
 
 use crate::{
     common::SpdmCodec,
+    config,
     message::{
         SpdmCertificateResponsePayload, SpdmErrorCode, SpdmGetCertificateRequestPayload,
         SpdmMessage, SpdmMessageHeader, SpdmMessagePayload, SpdmRequestResponseCode,
@@ -95,9 +96,17 @@ impl RequesterContext {
             .as_ref()
             .unwrap();
 
+        let data_transfer_size = if self.common.negotiate_info.rsp_data_transfer_size_sel == 0 {
+            config::SPDM_SENDER_DATA_TRANSFER_SIZE as u32
+        } else {
+            self.common.negotiate_info.rsp_data_transfer_size_sel
+        };
+        let max_cert_portion_len = self.common.get_max_spdm_cert_portion_len(
+            data_transfer_size.saturating_sub(encap_response.used() as u32),
+        );
         let mut length = get_certificate.length;
-        if length > MAX_SPDM_CERT_PORTION_LEN as u32 {
-            length = MAX_SPDM_CERT_PORTION_LEN as u32;
+        if length > max_cert_portion_len {
+            length = max_cert_portion_len;
         }
 
         let offset = get_certificate.offset;

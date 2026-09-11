@@ -378,7 +378,7 @@ fn write_spdm_get_certificate_response(
             slot_id: 0,
             portion_length: CERT_PORTION_LEN as u32,
             remainder_length: 0x200,
-            cert_chain: [0xffu8; CERT_PORTION_LEN],
+            cert_chain: [0xffu8; MAX_SPDM_CERT_PORTION_LEN],
         }),
     };
     let _ = response

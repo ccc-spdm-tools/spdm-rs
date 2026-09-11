@@ -950,6 +950,8 @@ mod tests {
     }
     #[test]
     fn test_case5_spdm_message() {
+        const PORTION_LENGTH: usize = config::MAX_SPDM_MSG_SIZE - 8;
+
         let value = SpdmMessage {
             header: SpdmMessageHeader {
                 version: SpdmVersion::SpdmVersion10,
@@ -957,7 +959,7 @@ mod tests {
             },
             payload: SpdmMessagePayload::SpdmCertificateResponse(SpdmCertificateResponsePayload {
                 slot_id: 4,
-                portion_length: MAX_SPDM_CERT_PORTION_LEN as u32,
+                portion_length: PORTION_LENGTH as u32,
                 remainder_length: 100,
                 cert_chain: [100u8; MAX_SPDM_CERT_PORTION_LEN],
             }),
@@ -971,9 +973,9 @@ mod tests {
         );
         if let SpdmMessagePayload::SpdmCertificateResponse(payload) = &spdm_message.payload {
             assert_eq!(payload.slot_id, 4);
-            assert_eq!(payload.portion_length, MAX_SPDM_CERT_PORTION_LEN as u32);
+            assert_eq!(payload.portion_length, PORTION_LENGTH as u32);
             assert_eq!(payload.remainder_length, 100);
-            for i in 0..MAX_SPDM_CERT_PORTION_LEN {
+            for i in 0..PORTION_LENGTH {
                 assert_eq!(payload.cert_chain[i], 100u8);
             }
         }

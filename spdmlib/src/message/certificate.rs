@@ -7,10 +7,37 @@ use crate::error::SPDM_STATUS_BUFFER_FULL;
 use crate::protocol::{
     SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SpdmVersion, SPDM_MAX_SLOT_NUMBER,
 };
-use crate::{common, error::SpdmStatus};
+use crate::{common, config, error::SpdmStatus};
 use codec::{Codec, Reader, Writer};
 
-pub const MAX_SPDM_CERT_PORTION_LEN: usize = 512;
+pub const MAX_SPDM_CERT_PORTION_LEN: usize = config::MAX_SPDM_CERT_CHAIN_DATA_SIZE;
+
+const SPDM_CERTIFICATE_RESPONSE_HEADER_SIZE: u32 = 8;
+const SPDM_LARGE_CERTIFICATE_RESPONSE_HEADER_SIZE: u32 = 16;
+
+impl common::SpdmContext {
+    pub fn get_max_spdm_cert_portion_len(&self, data_transfer_size: u32) -> u32 {
+        let large_cert = self.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+            && self
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::LARGE_RESP_CAP)
+            && self
+                .negotiate_info
+                .req_capabilities_sel
+                .contains(SpdmRequestCapabilityFlags::LARGE_RESP_CAP);
+        let header_size = if large_cert {
+            SPDM_LARGE_CERTIFICATE_RESPONSE_HEADER_SIZE
+        } else {
+            SPDM_CERTIFICATE_RESPONSE_HEADER_SIZE
+        };
+
+        data_transfer_size
+            .min(config::MAX_SPDM_MSG_SIZE as u32)
+            .saturating_sub(header_size)
+            .min(MAX_SPDM_CERT_PORTION_LEN as u32)
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmGetCertificateRequestPayload {
@@ -283,6 +310,27 @@ mod tests {
         for i in 0..MAX_SPDM_CERT_PORTION_LEN {
             assert_eq!(spdm_get_certificate_request_payload.cert_chain[i], 100u8);
         }
+    }
+
+    #[test]
+    fn test_get_max_spdm_cert_portion_len() {
+        create_spdm_context!(context);
+
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        assert_eq!(context.get_max_spdm_cert_portion_len(1024), 1016);
+        assert_eq!(context.get_max_spdm_cert_portion_len(u32::MAX), 4088);
+
+        context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion14;
+        context
+            .negotiate_info
+            .req_capabilities_sel
+            .insert(SpdmRequestCapabilityFlags::LARGE_RESP_CAP);
+        context
+            .negotiate_info
+            .rsp_capabilities_sel
+            .insert(SpdmResponseCapabilityFlags::LARGE_RESP_CAP);
+        assert_eq!(context.get_max_spdm_cert_portion_len(1024), 1008);
+        assert_eq!(context.get_max_spdm_cert_portion_len(u32::MAX), 4080);
     }
 }
 
