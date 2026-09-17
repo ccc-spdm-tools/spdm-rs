@@ -11,6 +11,8 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 fuzzlib = { path = "../../fuzz-target/fuzzlib", default-features = false }
 serde = ">=1.0.220"
+der = { version = "0.7", default-features = false, features = ["alloc"] }
+spdm_x509 = { path = "../src/crypto/spdm_x509", default-features = false, features = ["fuzzing"] }
 
 [dependencies.spdmlib]
 path = ".."
@@ -26,6 +28,18 @@ debug = 1
 default = ["hashed-transcript-data", "use_libfuzzer"]
 hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
 use_libfuzzer = []
+
+[[bin]]
+name = "name_constraints"
+path = "fuzz_targets/name_constraints.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "name_constraints_match"
+path = "fuzz_targets/name_constraints_match.rs"
+test = false
+doc = false
 
 [[bin]]
 name = "version_rsp"
