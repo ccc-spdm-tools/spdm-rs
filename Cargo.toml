@@ -83,6 +83,9 @@ opt-level = 0
 # The release profile used for `cargo build --release`
 [profile.release]
 opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
 
 [patch.crates-io]
   ring = { path = "external/ring" }

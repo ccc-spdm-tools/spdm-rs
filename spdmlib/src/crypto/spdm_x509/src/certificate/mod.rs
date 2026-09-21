@@ -16,13 +16,10 @@
 //! ```no_run
 //! use spdm_x509::Certificate;
 //!
-//! # fn example(der_bytes: &[u8], pem_string: &str) -> spdm_x509::Result<()> {
+//! # fn example(der_bytes: &[u8]) -> spdm_x509::Result<()> {
 //! // Parse from DER
 //! let cert = Certificate::from_der(der_bytes)?;
 //! println!("Subject: {}", cert.tbs_certificate.subject);
-//!
-//! // Parse from PEM
-//! let cert = Certificate::from_pem(pem_string)?;
 //!
 //! // Convert back to DER
 //! let der_bytes = cert.to_der()?;
@@ -30,11 +27,15 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! PEM encoding/decoding (`Certificate::from_pem`/`to_pem`) is available behind
+//! the optional `pem` feature.
 
 pub mod name;
 
 extern crate alloc;
 
+#[cfg(feature = "pem")]
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::fmt;
@@ -543,6 +544,7 @@ impl Certificate {
     }
 
     /// Parse a Certificate from PEM-encoded string.
+    #[cfg(feature = "pem")]
     pub fn from_pem(pem: &str) -> Result<Self> {
         use pem_rfc7468::Decoder;
 
@@ -574,6 +576,7 @@ impl Certificate {
     }
 
     /// Encode the certificate to PEM format.
+    #[cfg(feature = "pem")]
     pub fn to_pem(&self) -> Result<alloc::string::String> {
         use pem_rfc7468::LineEnding;
 

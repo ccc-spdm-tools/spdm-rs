@@ -674,6 +674,7 @@ impl From<ring::error::KeyRejected> for Error {
 }
 
 /// Convert from PEM decoding errors
+#[cfg(feature = "pem")]
 impl From<pem_rfc7468::Error> for Error {
     fn from(err: pem_rfc7468::Error) -> Self {
         Error::EncodingError(EncodingError::InvalidPem(err.to_string()))

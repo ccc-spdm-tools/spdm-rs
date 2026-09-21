@@ -15,11 +15,10 @@ der = { version = "0.7", default-features = false, features = ["alloc", "derive"
 spki = { version = "0.7", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.9", default-features = false }
 
-# PEM encoding support
-pem-rfc7468 = { version = "0.7", default-features = false, features = ["alloc"] }
-
+# PEM encoding support (optional, see the `pem` feature)
 # base64ct 1.7+ may require edition2024; allow patch updates within 1.6.x
-base64ct = "~1.6"
+pem-rfc7468 = { version = "0.7", default-features = false, features = ["alloc"], optional = true }
+base64ct = { version = "~1.6", optional = true }
 
 # Safe no_std one-time global for the pluggable PQC (ML-DSA) verifier hook
 conquer-once = { version = "0.3.2", default-features = false }
@@ -43,6 +42,10 @@ untrusted = "0.9"
 default = []
 std = ["der/std", "log/std", "conquer-once/std"]
 alloc = ["der/alloc"]
+# Optional Certificate::from_pem/to_pem support. SPDM itself always exchanges
+# certificates as DER, so this is off by default to avoid pulling in
+# pem-rfc7468/base64ct for consumers that never parse PEM text.
+pem = ["dep:pem-rfc7468", "dep:base64ct"]
 
 [lib]
 name = "spdm_x509"
