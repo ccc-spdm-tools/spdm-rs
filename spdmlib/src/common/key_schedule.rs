@@ -87,8 +87,6 @@ impl SpdmKeySchedule {
             bin_str0,
             hash_algo.get_size(),
         )?;
-        debug!("salt_1 - {:02x?}", salt_1.as_ref());
-
         let prk = crypto::hkdf::hkdf_extract(
             hash_algo,
             salt_1.as_ref(),

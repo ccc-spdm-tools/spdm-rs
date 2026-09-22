@@ -285,7 +285,6 @@ impl ResponderContext {
             return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
         }
         let final_key = final_key.unwrap();
-        debug!("!!! final_key : {:02x?}\n", final_key.as_ref());
 
         let rsp_session_id = self.common.get_next_half_session_id(false);
         if rsp_session_id.is_err() {

@@ -280,8 +280,6 @@ impl RequesterContext {
                                     .ok_or(SPDM_STATUS_CRYPTO_ERROR)?
                             };
 
-                            debug!("!!! final_key : {:02x?}\n", final_key.as_ref());
-
                             // create session structure
                             let base_hash_algo = self.common.negotiate_info.base_hash_sel;
                             let dhe_algo = self.common.negotiate_info.dhe_sel;

@@ -641,15 +641,6 @@ impl SpdmSession {
         self.shared_secret_root.handshake_secret = handshake_secret;
         self.shared_secret_root.master_secret = master_secret;
 
-        debug!(
-            "!!! handshake_secret !!!: {:02x?}\n",
-            self.shared_secret_root.handshake_secret.as_ref()
-        );
-        debug!(
-            "!!! master_secret !!!: {:02x?}\n",
-            self.shared_secret_root.master_secret.as_ref()
-        );
-
         Ok(())
     }
 
@@ -720,10 +711,6 @@ impl SpdmSession {
         } else {
             return Err(SPDM_STATUS_CRYPTO_ERROR);
         };
-        debug!(
-            "!!! request_handshake_secret !!!: {:02x?}\n",
-            self.handshake_secret.request_handshake_secret.as_ref()
-        );
         self.handshake_secret.response_handshake_secret = if let Some(rhs) =
             self.key_schedule.derive_response_handshake_secret(
                 self.use_psk,
@@ -741,10 +728,6 @@ impl SpdmSession {
         } else {
             return Err(SPDM_STATUS_CRYPTO_ERROR);
         };
-        debug!(
-            "!!! response_handshake_secret !!!: {:02x?}\n",
-            self.handshake_secret.response_handshake_secret.as_ref()
-        );
         self.handshake_secret.request_finished_key = if let Some(rfk) =
             self.key_schedule.derive_finished_key(
                 spdm_version,
@@ -755,10 +738,6 @@ impl SpdmSession {
         } else {
             return Err(SPDM_STATUS_CRYPTO_ERROR);
         };
-        debug!(
-            "!!! request_finished_key !!!: {:02x?}\n",
-            self.handshake_secret.request_finished_key.as_ref()
-        );
         self.handshake_secret.response_finished_key = if let Some(rfk) =
             self.key_schedule.derive_finished_key(
                 spdm_version,
@@ -769,11 +748,6 @@ impl SpdmSession {
         } else {
             return Err(SPDM_STATUS_CRYPTO_ERROR);
         };
-        debug!(
-            "!!! response_finished_key !!!: {:02x?}\n",
-            self.handshake_secret.response_finished_key.as_ref()
-        );
-
         let res = if let Some(aki) = self.key_schedule.derive_aead_key_iv(
             spdm_version,
             hash_algo,
@@ -789,18 +763,6 @@ impl SpdmSession {
 
         self.handshake_secret.request_direction.encryption_key = res.0;
         self.handshake_secret.request_direction.salt = res.1;
-        debug!(
-            "!!! request_direction.encryption_key !!!: {:02x?}\n",
-            self.handshake_secret
-                .request_direction
-                .encryption_key
-                .as_ref()
-        );
-        debug!(
-            "!!! request_direction.salt !!!: {:02x?}\n",
-            self.handshake_secret.request_direction.salt.as_ref()
-        );
-
         let res = if let Some(aki) = self.key_schedule.derive_aead_key_iv(
             spdm_version,
             hash_algo,
@@ -815,18 +777,6 @@ impl SpdmSession {
         };
         self.handshake_secret.response_direction.encryption_key = res.0;
         self.handshake_secret.response_direction.salt = res.1;
-        debug!(
-            "!!! response_direction.encryption_key !!!: {:02x?}\n",
-            self.handshake_secret
-                .response_direction
-                .encryption_key
-                .as_ref()
-        );
-        debug!(
-            "!!! response_direction.salt !!!: {:02x?}\n",
-            self.handshake_secret.response_direction.salt.as_ref()
-        );
-
         Ok(())
     }
 
@@ -874,15 +824,6 @@ impl SpdmSession {
         } else {
             return Err(SPDM_STATUS_CRYPTO_ERROR);
         };
-        debug!(
-            "!!! request_data_secret !!!: {:02x?}\n",
-            self.application_secret.request_data_secret.as_ref()
-        );
-        debug!(
-            "!!! response_data_secret !!!: {:02x?}\n",
-            self.application_secret.response_data_secret.as_ref()
-        );
-
         let res = if let Some(aki) = self.key_schedule.derive_aead_key_iv(
             spdm_version,
             hash_algo,
@@ -895,18 +836,6 @@ impl SpdmSession {
         };
         self.application_secret.request_direction.encryption_key = res.0;
         self.application_secret.request_direction.salt = res.1;
-        debug!(
-            "!!! request_direction.encryption_key !!!: {:02x?}\n",
-            self.application_secret
-                .request_direction
-                .encryption_key
-                .as_ref()
-        );
-        debug!(
-            "!!! request_direction.salt !!!: {:02x?}\n",
-            self.application_secret.request_direction.salt.as_ref()
-        );
-
         let res = if let Some(aki) = self.key_schedule.derive_aead_key_iv(
             spdm_version,
             hash_algo,
@@ -921,18 +850,6 @@ impl SpdmSession {
         };
         self.application_secret.response_direction.encryption_key = res.0;
         self.application_secret.response_direction.salt = res.1;
-        debug!(
-            "!!! response_direction.encryption_key !!!: {:02x?}\n",
-            self.application_secret
-                .response_direction
-                .encryption_key
-                .as_ref()
-        );
-        debug!(
-            "!!! response_direction.salt !!!: {:02x?}\n",
-            self.application_secret.response_direction.salt.as_ref()
-        );
-
         self.application_secret.export_master_secret = if let Some(ems) =
             self.key_schedule.derive_export_master_secret(
                 self.use_psk,
@@ -983,11 +900,6 @@ impl SpdmSession {
             } else {
                 return Err(SPDM_STATUS_CRYPTO_ERROR);
             };
-            debug!(
-                "!!! request_data_secret !!!: {:02x?}\n",
-                self.application_secret.request_data_secret.as_ref()
-            );
-
             let res = if let Some(aki) = self.key_schedule.derive_aead_key_iv(
                 spdm_version,
                 hash_algo,
@@ -1002,17 +914,6 @@ impl SpdmSession {
             };
             self.application_secret.request_direction.encryption_key = res.0;
             self.application_secret.request_direction.salt = res.1;
-            debug!(
-                "!!! request_direction.encryption_key !!!: {:02x?}\n",
-                self.application_secret
-                    .request_direction
-                    .encryption_key
-                    .as_ref()
-            );
-            debug!(
-                "!!! request_direction.salt !!!: {:02x?}\n",
-                self.application_secret.request_direction.salt.as_ref()
-            );
             self.application_secret.request_direction.sequence_number = 0;
         }
 
@@ -1033,11 +934,6 @@ impl SpdmSession {
             } else {
                 return Err(SPDM_STATUS_CRYPTO_ERROR);
             };
-            debug!(
-                "!!! response_data_secret !!!: {:02x?}\n",
-                self.application_secret.response_data_secret.as_ref()
-            );
-
             let res = if let Some(aki) = self.key_schedule.derive_aead_key_iv(
                 spdm_version,
                 hash_algo,
@@ -1052,17 +948,6 @@ impl SpdmSession {
             };
             self.application_secret.response_direction.encryption_key = res.0;
             self.application_secret.response_direction.salt = res.1;
-            debug!(
-                "!!! response_direction.encryption_key !!!: {:02x?}\n",
-                self.application_secret
-                    .response_direction
-                    .encryption_key
-                    .as_ref()
-            );
-            debug!(
-                "!!! response_direction.salt !!!: {:02x?}\n",
-                self.application_secret.response_direction.salt.as_ref()
-            );
             self.application_secret.response_direction.sequence_number = 0;
         }
         Ok(())
@@ -1497,6 +1382,39 @@ impl SpdmSession {
 mod tests_session {
     extern crate std;
     use super::*;
+
+    #[test]
+    fn key_material_is_not_formatted_for_logging() {
+        let sources = [
+            include_str!("session.rs"),
+            include_str!("key_schedule.rs"),
+            include_str!("../requester/key_exchange_req.rs"),
+            include_str!("../responder/key_exchange_rsp.rs"),
+        ];
+        let hex_format = concat!("{:", "02x?}");
+        let secret_names = [
+            "final_key",
+            "handshake_secret",
+            "master_secret",
+            "finished_key",
+            "data_secret",
+            "encryption_key",
+            ".salt",
+            "salt_1",
+        ];
+
+        for source in sources {
+            for line in source.lines() {
+                for secret_name in secret_names {
+                    assert!(
+                        !(line.contains(secret_name) && line.contains(hex_format)),
+                        "key material must not be formatted for logging: {}",
+                        line
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_case0_sequence_number_overflow() {
