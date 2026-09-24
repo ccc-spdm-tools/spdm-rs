@@ -67,24 +67,10 @@ fn test_case0_handle_spdm_psk_exchange() {
                     secured_message_version_list: SecuredMessageVersionList {
                         version_count: 2,
                         versions_list: [
-                            SecuredMessageVersion {
-                                major_version: 1,
-                                minor_version: 0,
-                                update_version_number: 0,
-                                alpha: 0,
-                            },
-                            SecuredMessageVersion {
-                                major_version: 1,
-                                minor_version: 1,
-                                update_version_number: 0,
-                                alpha: 0,
-                            },
-                            SecuredMessageVersion {
-                                major_version: 1,
-                                minor_version: 2,
-                                update_version_number: 0,
-                                alpha: 0,
-                            },
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap(),
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap(),
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap(),
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap(),
                         ],
                     },
                 },
@@ -153,24 +139,10 @@ fn test_case1_handle_spdm_psk_exchange() {
                     secured_message_version_list: SecuredMessageVersionList {
                         version_count: 2,
                         versions_list: [
-                            SecuredMessageVersion {
-                                major_version: 1,
-                                minor_version: 0,
-                                update_version_number: 0,
-                                alpha: 0,
-                            },
-                            SecuredMessageVersion {
-                                major_version: 1,
-                                minor_version: 1,
-                                update_version_number: 0,
-                                alpha: 0,
-                            },
-                            SecuredMessageVersion {
-                                major_version: 1,
-                                minor_version: 2,
-                                update_version_number: 0,
-                                alpha: 0,
-                            },
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap(),
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap(),
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap(),
+                            SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap(),
                         ],
                     },
                 },

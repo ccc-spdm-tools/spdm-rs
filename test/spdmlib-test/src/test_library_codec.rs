@@ -39,7 +39,8 @@ fn test_spdm_config_info_codec() {
         max_spdm_msg_size: 2048,
         heartbeat_period: 30,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            None,
             None,
             None,
         ],
