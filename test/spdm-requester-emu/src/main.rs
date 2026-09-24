@@ -29,6 +29,10 @@ use spdm_emu::EMU_STACK_SIZE;
 use spdmlib::common;
 use spdmlib::common::SecuredMessageVersion;
 use spdmlib::common::ST1;
+use spdmlib::common::{
+    DMTF_SECURE_SPDM_VERSION_10, DMTF_SECURE_SPDM_VERSION_11, DMTF_SECURE_SPDM_VERSION_12,
+    DMTF_SECURE_SPDM_VERSION_13,
+};
 use spdmlib::config;
 use spdmlib::config::MAX_ROOT_CERT_SUPPORT;
 use spdmlib::crypto::rand::get_random;
@@ -197,9 +201,10 @@ async fn test_spdm(
         data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
         // DSP0274 1.3: request the Responder's SupportedAlgorithms block in CAPABILITIES.
         supported_algos_ext_cap: use_supported_algos_ext_cap(),
@@ -826,9 +831,10 @@ async fn test_idekm_tdisp(
         data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
         ..Default::default()
     };

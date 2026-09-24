@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -17,6 +17,10 @@ use simple_logger::SimpleLogger;
 use spdm_emu::async_runtime::block_on;
 use spdm_emu::watchdog_impl_sample::init_watchdog;
 use spdmlib::common::SecuredMessageVersion;
+use spdmlib::common::{
+    DMTF_SECURE_SPDM_VERSION_10, DMTF_SECURE_SPDM_VERSION_11, DMTF_SECURE_SPDM_VERSION_12,
+    DMTF_SECURE_SPDM_VERSION_13,
+};
 use spdmlib::config::{MAX_ROOT_CERT_SUPPORT, RECEIVER_BUFFER_SIZE};
 use spdmlib::error::*;
 use spdmlib::message::{
@@ -385,9 +389,10 @@ async fn handle_message(
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         heartbeat_period: config::HEARTBEAT_PERIOD,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
         ..Default::default()
     };

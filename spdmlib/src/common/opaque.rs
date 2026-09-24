@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -10,7 +10,7 @@ use codec::u24;
 /// It should be 1024 according to SPDM spec.
 pub const MAX_SPDM_OPAQUE_SIZE: usize = 1024;
 
-pub const MAX_SECURE_SPDM_VERSION_COUNT: usize = 0x03;
+pub const MAX_SECURE_SPDM_VERSION_COUNT: usize = 0x04;
 
 pub const DMTF_SPEC_ID: u32 = 0x444D5446;
 pub const DMTF_OPAQUE_VERSION: u8 = 0x01;
@@ -23,6 +23,8 @@ pub const SUPPORTED_VERSION_LIST_SM_DATA_ID: u8 = 0x01;
 
 pub const DMTF_SECURE_SPDM_VERSION_10: u8 = 0x10;
 pub const DMTF_SECURE_SPDM_VERSION_11: u8 = 0x11;
+pub const DMTF_SECURE_SPDM_VERSION_12: u8 = 0x12;
+pub const DMTF_SECURE_SPDM_VERSION_13: u8 = 0x13;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GeneralOpaqueDataHeader;

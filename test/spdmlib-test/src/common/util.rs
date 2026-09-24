@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2023, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -13,7 +13,7 @@ use codec::{Codec, Reader, Writer};
 use spdmlib::common::{
     SecuredMessageVersion, SpdmCodec, SpdmConfigInfo, SpdmContext, SpdmDeviceIo, SpdmProvisionInfo,
     SpdmTransportEncap, DMTF_SECURE_SPDM_VERSION_10, DMTF_SECURE_SPDM_VERSION_11,
-    MAX_SECURE_SPDM_VERSION_COUNT, ST1,
+    DMTF_SECURE_SPDM_VERSION_12, DMTF_SECURE_SPDM_VERSION_13, MAX_SECURE_SPDM_VERSION_COUNT, ST1,
 };
 use spdmlib::config::{MAX_ROOT_CERT_SUPPORT, MAX_SPDM_MSG_SIZE};
 use spdmlib::crypto;
@@ -87,9 +87,10 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
         mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
         ..Default::default()
@@ -243,9 +244,10 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         data_transfer_size: config::SPDM_DATA_TRANSFER_SIZE as u32,
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
         mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
         ..Default::default()
@@ -412,9 +414,10 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         max_spdm_msg_size: config::MAX_SPDM_MSG_SIZE as u32,
         heartbeat_period: config::HEARTBEAT_PERIOD,
         secure_spdm_version: [
-            Some(SecuredMessageVersion::try_from(0x10u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x11u8).unwrap()),
-            Some(SecuredMessageVersion::try_from(0x12u8).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_10).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_11).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
+            Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
         mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
         ..Default::default()
