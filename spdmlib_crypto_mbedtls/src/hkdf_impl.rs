@@ -6,7 +6,7 @@ use mbedtls::hash;
 use spdmlib::crypto::SpdmHkdf;
 use spdmlib::protocol::{
     SpdmBaseHashAlgo, SpdmHkdfInputKeyingMaterial, SpdmHkdfOutputKeyingMaterial,
-    SpdmHkdfPseudoRandomKey,
+    SpdmHkdfPseudoRandomKey, SPDM_MAX_HKDF_OKM_SIZE,
 };
 
 pub static DEFAULT: SpdmHkdf = SpdmHkdf {
@@ -52,6 +52,9 @@ fn hkdf_expand(
     out_size: u16,
 ) -> Option<SpdmHkdfOutputKeyingMaterial> {
     use mbedtls_sys::hkdf_expand;
+    if out_size as usize > SPDM_MAX_HKDF_OKM_SIZE {
+        return None;
+    }
     let md = match hash_algo {
         SpdmBaseHashAlgo::TPM_ALG_SHA_256 => Some(hash::Type::Sha256),
         SpdmBaseHashAlgo::TPM_ALG_SHA_384 => Some(hash::Type::Sha384),
@@ -114,6 +117,23 @@ mod tests {
         assert!(
             hkdf_expand.is_none(),
             "hkdf_expand should fail with empty base_hash_algo"
+        );
+    }
+    #[test]
+    fn test_case2_hkdf_expand() {
+        let base_hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_256;
+        let prk = SpdmHkdfPseudoRandomKey {
+            data_size: 32,
+            data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
+        };
+        let info = &mut [100u8; 64];
+        let out_size = SPDM_MAX_HASH_SIZE as u16 + 1;
+        let hkdf_expand = hkdf_expand(base_hash_algo, &prk, info, out_size);
+
+        // out_size larger than the okm buffer must be rejected.
+        assert!(
+            hkdf_expand.is_none(),
+            "hkdf_expand should fail with oversized out_size"
         );
     }
 }
