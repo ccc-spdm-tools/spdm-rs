@@ -88,7 +88,7 @@ pub struct SpdmPqcAsymVerify {
     pub verify_cb: fn(
         base_hash_algo: SpdmBaseHashAlgo,
         pqc_asym_algo: SpdmPqcAsymAlgo,
-        public_cert_der: &[u8],
+        der: SpdmDer,
         data: &[u8],
         signature: &SpdmSignatureStruct,
     ) -> SpdmResult,
