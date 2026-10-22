@@ -240,3 +240,57 @@ fn chunk_send_unsecured_matching_passes() {
     let (_res, resp) = ctx.write_spdm_chunk_send_response(None, &req, &mut w);
     assert!(!is_unexpected_request(resp.unwrap()));
 }
+
+// ── A foreign session must not disturb the owner's transfer ──
+
+#[test]
+fn chunk_get_foreign_session_does_not_reset_owner_transfer() {
+    let mut ctx = new_responder();
+    stage_get(&mut ctx, Some(0x1234));
+    let req = encode_chunk_get(7, 0);
+    let mut buf = [0u8; 1024];
+    let mut w = Writer::init(&mut buf);
+    let (res, resp) = ctx.handle_spdm_chunk_get(Some(0x9999), &req, &mut w);
+    assert!(res.is_err());
+    assert!(is_unexpected_request(resp.unwrap()));
+    assert_eq!(
+        ctx.common.chunk_context.chunk_status,
+        SpdmChunkStatus::ChunkGetAndResponse
+    );
+    assert_eq!(ctx.common.chunk_context.session_id, Some(0x1234));
+    assert_eq!(ctx.common.chunk_context.chunk_message_size, 64);
+}
+
+#[test]
+fn chunk_send_foreign_session_does_not_reset_owner_transfer() {
+    let mut ctx = new_responder();
+    stage_send(&mut ctx, Some(0x1234));
+    let req = encode_chunk_send(0, 1, 4);
+    let mut buf = [0u8; 1024];
+    let mut w = Writer::init(&mut buf);
+    let (res, resp) = ctx.handle_spdm_chunk_send(Some(0x9999), &req, &mut w);
+    assert!(res.is_err());
+    assert!(is_unexpected_request(resp.unwrap()));
+    assert_eq!(
+        ctx.common.chunk_context.chunk_status,
+        SpdmChunkStatus::ChunkSendAndAck
+    );
+    assert_eq!(ctx.common.chunk_context.session_id, Some(0x1234));
+    assert_eq!(ctx.common.chunk_context.chunk_message_size, 64);
+}
+
+#[test]
+fn chunk_send_foreign_session_cannot_start_while_get_in_progress() {
+    let mut ctx = new_responder();
+    stage_get(&mut ctx, Some(0x1234));
+    let req = encode_chunk_send(0, 0, 4);
+    let mut buf = [0u8; 1024];
+    let mut w = Writer::init(&mut buf);
+    let (res, _) = ctx.handle_spdm_chunk_send(Some(0x9999), &req, &mut w);
+    assert!(res.is_err());
+    assert_eq!(
+        ctx.common.chunk_context.chunk_status,
+        SpdmChunkStatus::ChunkGetAndResponse
+    );
+    assert_eq!(ctx.common.chunk_context.session_id, Some(0x1234));
+}

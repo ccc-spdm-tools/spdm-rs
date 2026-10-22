@@ -334,8 +334,12 @@ impl ResponderContext {
                                     let mut reader = Reader::init(&spdm_buffer[0..decode_size]);
                                     match SpdmMessageHeader::read(&mut reader) {
                                         Some(message_header) => {
-                                            if self.common.chunk_context.chunk_status
-                                                == common::SpdmChunkStatus::ChunkSendAndAck
+                                            // Only the session owning the transfer can drop it.
+                                            let owns_chunk = self.common.chunk_context.session_id
+                                                == Some(session_id);
+                                            if owns_chunk
+                                                && self.common.chunk_context.chunk_status
+                                                    == common::SpdmChunkStatus::ChunkSendAndAck
                                                 && message_header.request_response_code
                                                     != SpdmRequestResponseCode::SpdmRequestChunkSend
                                             {
@@ -349,9 +353,11 @@ impl ResponderContext {
                                                 self.common.chunk_context.transferred_size = 0;
                                                 self.common.chunk_context.chunk_status =
                                                     common::SpdmChunkStatus::Idle;
+                                                self.common.chunk_context.session_id = None;
                                             }
-                                            if self.common.chunk_context.chunk_status
-                                                == common::SpdmChunkStatus::ChunkGetAndResponse
+                                            if owns_chunk
+                                                && self.common.chunk_context.chunk_status
+                                                    == common::SpdmChunkStatus::ChunkGetAndResponse
                                                 && message_header.request_response_code
                                                     != SpdmRequestResponseCode::SpdmRequestChunkGet
                                             {
@@ -369,6 +375,7 @@ impl ResponderContext {
                                                 self.common.chunk_context.transferred_size = 0;
                                                 self.common.chunk_context.chunk_status =
                                                     common::SpdmChunkStatus::Idle;
+                                                self.common.chunk_context.session_id = None;
                                             }
                                         }
                                         None => {
@@ -434,6 +441,7 @@ impl ResponderContext {
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::Idle;
+                                    self.common.chunk_context.session_id = None;
                                 }
                                 if self.common.chunk_context.chunk_status
                                     == common::SpdmChunkStatus::ChunkGetAndResponse
@@ -448,6 +456,7 @@ impl ResponderContext {
                                     self.common.chunk_context.transferred_size = 0;
                                     self.common.chunk_context.chunk_status =
                                         common::SpdmChunkStatus::Idle;
+                                    self.common.chunk_context.session_id = None;
                                 }
                             }
                             None => {
@@ -813,6 +822,17 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
+        // A chunk transfer in progress belongs to one session. A request from another session
+        // is rejected without disturbing the owner's transfer.
+        if self.common.chunk_context.chunk_status != common::SpdmChunkStatus::Idle
+            && session_id != self.common.chunk_context.session_id
+        {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_PEER),
+                Some(writer.used_slice()),
+            );
+        }
         let (result, rsp_slice) = self.write_spdm_chunk_send_response(session_id, bytes, writer);
         if result.is_err() {
             self.common.chunk_req_handle = 0;
@@ -1034,6 +1054,8 @@ impl ResponderContext {
                         self.common.chunk_context.transferred_size = 0;
                         self.common.chunk_context.chunk_status =
                             common::SpdmChunkStatus::ChunkGetAndResponse;
+                        // The large response stays bound to the session of the large request.
+                        self.common.chunk_context.session_id = session_id;
                         self.write_spdm_error(SpdmErrorCode::SpdmErrorLargeResponse, 0, writer);
                         let _ = self.common.chunk_rsp_handle.encode(writer);
                         return (Ok(()), Some(writer.used_slice()));
@@ -1095,6 +1117,17 @@ impl ResponderContext {
         bytes: &[u8],
         writer: &'a mut Writer,
     ) -> (SpdmResult, Option<&'a [u8]>) {
+        // A chunk transfer in progress belongs to one session. A request from another session
+        // is rejected without disturbing the owner's transfer.
+        if self.common.chunk_context.chunk_status != common::SpdmChunkStatus::Idle
+            && session_id != self.common.chunk_context.session_id
+        {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnexpectedRequest, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_STATE_PEER),
+                Some(writer.used_slice()),
+            );
+        }
         let (result, rsp_slice) = self.write_spdm_chunk_get_response(session_id, bytes, writer);
         if result.is_err() {
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
