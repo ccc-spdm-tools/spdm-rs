@@ -4,7 +4,7 @@
 
 use crate::crypto::SpdmPqcAsymVerify;
 use crate::error::SpdmResult;
-use crate::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
+use crate::protocol::{SpdmBaseHashAlgo, SpdmDer, SpdmPqcAsymAlgo, SpdmSignatureStruct};
 
 pub static DEFAULT: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
     verify_cb: pqc_asym_verify,
@@ -14,7 +14,7 @@ pub static DEFAULT: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
 fn pqc_asym_verify(
     _base_hash_algo: SpdmBaseHashAlgo,
     _pqc_asym_algo: SpdmPqcAsymAlgo,
-    _public_cert_der: &[u8],
+    _der: SpdmDer,
     _data: &[u8],
     _signature: &SpdmSignatureStruct,
 ) -> SpdmResult {

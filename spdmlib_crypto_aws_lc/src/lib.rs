@@ -255,11 +255,27 @@ mod tests {
     ) {
         use aws_lc_rs::signature::KeyPair;
         use aws_lc_rs::unstable::signature::PqdsaKeyPair;
-        use spdmlib::protocol::SpdmSignatureStruct;
+        use der::Encode;
+        use spdm_x509::x509::oids;
+        use spdmlib::protocol::{SpdmDer, SpdmSignatureStruct};
 
         // Generate a signing key pair
         let key_pair = PqdsaKeyPair::generate(signing_algo).expect("keygen failed");
         let pub_key_bytes = key_pair.public_key().as_ref().to_vec();
+        let mut leaf = spdm_x509::Certificate::from_der(include_bytes!(
+            "../../test_key/mldsa87/end_responder.cert.der"
+        ))
+        .unwrap();
+        let spki = &mut leaf.tbs_certificate.subject_public_key_info;
+        spki.algorithm.oid = match pqc_algo {
+            SpdmPqcAsymAlgo::ALG_MLDSA_44 => oids::ML_DSA_44,
+            SpdmPqcAsymAlgo::ALG_MLDSA_65 => oids::ML_DSA_65,
+            SpdmPqcAsymAlgo::ALG_MLDSA_87 => oids::ML_DSA_87,
+            _ => unreachable!(),
+        };
+        spki.subject_public_key = der::asn1::BitString::from_bytes(&pub_key_bytes).unwrap();
+        let public_key_der = spki.to_der().unwrap();
+        let certificate_der = leaf.to_der().unwrap();
 
         // Sign a message
         let message = b"SPDM PQC test message for ML-DSA";
@@ -278,7 +294,7 @@ mod tests {
         let result = (pqc_asym_verify_impl::DEFAULT.verify_cb)(
             spdmlib::protocol::SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             pqc_algo,
-            &pub_key_bytes,
+            SpdmDer::SpdmDerPubKeyRfc7250(&public_key_der),
             message,
             &sig_struct,
         );
@@ -288,13 +304,21 @@ mod tests {
             pqc_algo,
             result
         );
+        assert!((pqc_asym_verify_impl::DEFAULT.verify_cb)(
+            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            pqc_algo,
+            SpdmDer::SpdmDerCertChain(&certificate_der),
+            message,
+            &sig_struct,
+        )
+        .is_ok());
 
         // Verify with wrong message should fail
         let wrong_msg = b"wrong message";
         let result_bad = (pqc_asym_verify_impl::DEFAULT.verify_cb)(
             spdmlib::protocol::SpdmBaseHashAlgo::TPM_ALG_SHA_256,
             pqc_algo,
-            &pub_key_bytes,
+            SpdmDer::SpdmDerPubKeyRfc7250(&public_key_der),
             wrong_msg,
             &sig_struct,
         );

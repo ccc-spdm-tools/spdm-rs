@@ -1957,6 +1957,7 @@ dependencies = [
  "aws-lc-rs",
  "aws-lc-sys",
  "bytes",
+ "der",
  "lazy_static",
  "log",
  "spdm_x509",
