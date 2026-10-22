@@ -4,7 +4,7 @@
 
 use crate::error::{
     SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER,
+    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_NOT_READY_PEER,
 };
 use crate::message::*;
 use crate::requester::*;
@@ -52,9 +52,37 @@ impl RequesterContext {
         session.create_data_secret_update(spdm_version_sel, update_requester, update_responder)?;
 
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
+        let mut used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
             .await?;
+
+        // Handle ResponseNotReady before final processing
+        for _ in 0..super::handle_error_response_req::MAX_RESPOND_IF_READY_RETRY_COUNT {
+            if let Some(ext_data) = self.parse_response_not_ready_ext_data(&receive_buffer[..used])
+            {
+                let delay_us = 1usize << (ext_data.rdt_exponent as usize).min(31);
+                crate::time::sleep(delay_us);
+                used = self
+                    .send_receive_respond_if_ready(
+                        Some(session_id),
+                        SpdmRequestResponseCode::SpdmRequestKeyUpdate,
+                        ext_data.token,
+                        &mut receive_buffer,
+                        false,
+                    )
+                    .await?;
+            } else {
+                break;
+            }
+        }
+
+        // If still NotReady after retries, fail
+        if self
+            .parse_response_not_ready_ext_data(&receive_buffer[..used])
+            .is_some()
+        {
+            return Err(SPDM_STATUS_NOT_READY_PEER);
+        }
 
         self.handle_spdm_key_update_op_response(
             session_id,
