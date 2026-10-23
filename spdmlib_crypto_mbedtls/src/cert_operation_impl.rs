@@ -178,6 +178,7 @@ fn build_spki_der(algorithm: SignatureAlgorithm, raw_public_key: &[u8]) -> Resul
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: get_cert_from_cert_chain_x509,
     verify_cert_chain_cb: verify_cert_chain_x509,
+    verify_cert_chain_with_role_cb: Some(verify_cert_chain_with_role_x509),
 };
 
 fn get_cert_from_cert_chain_x509(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)> {
@@ -197,6 +198,29 @@ fn verify_cert_chain_x509(
         base_hash_algo,
     )
     .map_err(|_| SPDM_STATUS_INVALID_CERT)
+}
+
+fn verify_cert_chain_with_role_x509(
+    cert_chain: &[u8],
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
+    role: spdmlib::crypto::SpdmCertificateRole,
+) -> SpdmResult {
+    spdm_x509::x509::chain::verify_cert_chain_with_backend_and_role(
+        cert_chain,
+        MbedtlsBackend,
+        base_asym_algo,
+        base_hash_algo,
+        role,
+    )
+    .map_err(|e| {
+        log::error!(
+            "Role-aware certificate validation failed for {:?}: {:?}",
+            role,
+            e
+        );
+        SPDM_STATUS_INVALID_CERT
+    })
 }
 
 #[cfg(test)]
