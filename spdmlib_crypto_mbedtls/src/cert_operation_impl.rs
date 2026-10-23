@@ -226,6 +226,12 @@ fn verify_cert_chain_with_role_x509(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use spdmlib::crypto::SpdmCertificateRole;
+
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../test/crypto_role_eku.inc.rs"
+    ));
 
     #[test]
     fn test_verify_cert_chain_rsa3072() {
