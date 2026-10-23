@@ -213,6 +213,12 @@ impl ResponderContext {
         let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
         info!("1. get runtime_peer_cert_chain_data!\n");
 
+        self.common.check_peer_certificate_fields(
+            &runtime_peer_cert_chain_data.data[..data_size as usize],
+            self.common.encap_context.req_slot_id,
+            spdm_x509::x509::spdm_validator::SpdmCertificateRole::Requester,
+        )?;
+
         //
         // 1.1 verify the integrity of the chain
         //
@@ -264,7 +270,9 @@ impl ResponderContext {
             -1,
         )?;
         let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
-        if check_leaf_certificate(leaf_cert, false, true).is_err() {
+        if self.common.negotiate_info.spdm_version_sel < crate::protocol::SpdmVersion::SpdmVersion14
+            && check_leaf_certificate(leaf_cert, false, true).is_err()
+        {
             error!("Leaf cert verification - fail!\n");
             return Err(SPDM_STATUS_INVALID_CERT);
         }

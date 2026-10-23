@@ -173,7 +173,7 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         local_supported_slot_mask: 0xff,
         local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
         local_cert_info: [
-            Some(SpdmCertificateModelType::SpdmCertModelTypeNone),
+            Some(SpdmCertificateModelType::SpdmCertModelTypeDeviceCert),
             None,
             None,
             None,
@@ -356,7 +356,7 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             local_supported_slot_mask: 0xff,
             local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
             local_cert_info: [
-                Some(SpdmCertificateModelType::SpdmCertModelTypeNone),
+                Some(SpdmCertificateModelType::SpdmCertModelTypeDeviceCert),
                 None,
                 None,
                 None,
@@ -534,7 +534,7 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         local_supported_slot_mask: 0xff,
         local_key_pair_id: [Some(0), None, None, None, None, None, None, None],
         local_cert_info: [
-            Some(SpdmCertificateModelType::SpdmCertModelTypeNone),
+            Some(SpdmCertificateModelType::SpdmCertModelTypeDeviceCert),
             None,
             None,
             None,
