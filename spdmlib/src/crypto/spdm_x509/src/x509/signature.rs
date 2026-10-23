@@ -5,8 +5,8 @@
 //! SPDM Algorithm Verification
 //!
 //! This module implements algorithm verification according to DSP0274 SPDM specification.
-//! It verifies that certificate signature and hash algorithms match the negotiated
-//! SPDM algorithms.
+//! It verifies that the leaf public key matches the negotiated authentication
+//! algorithm. Issuer certificate signatures are verified independently.
 //!
 //! # SPDM Algorithm Negotiation
 //! During SPDM session establishment, Requester and Responder negotiate:
@@ -16,12 +16,12 @@
 //!
 //! # Certificate Requirements
 //! - The certificate's public key algorithm MUST match the negotiated base_asym_algo
-//! - The certificate's signature algorithm MUST use the negotiated base_hash_algo
 //! - RSA keys must be 2048, 3072, or 4096 bits
 //! - ECC keys must use P-256, P-384, or P-521 curves
 //!
 //! # References
-//! - DSP0274 Section 10.6.1 - Certificate Requirements
+//! - DSP0274 1.2 Section 10.4 and 10.6.1
+//! - DSP0274 1.4 Section 10.7 and 10.32.1
 
 extern crate alloc;
 
@@ -229,7 +229,7 @@ impl SpdmBaseAsymAlgo {
 /// These correspond to the `BaseHashAlgo` field in SPDM ALGORITHMS response (DSP0274 Table 22).
 ///
 /// # DSP0274 Requirements
-/// - Certificate signature algorithms MUST use the negotiated base_hash_algo
+/// - The selected hash applies to SPDM transcripts, not issuer certificate signatures
 /// - Hash size determines the root certificate hash size in SPDM certificate chains
 ///
 /// # Example
@@ -332,7 +332,10 @@ impl SpdmBaseHashAlgo {
 // Algorithm Verification Functions
 // =============================================================================
 
-/// Verify that the certificate's signature algorithm matches the negotiated SPDM algorithms
+/// Legacy OID family/hash policy helper.
+///
+/// This is not an SPDM certificate acceptance requirement: negotiated algorithms
+/// describe the endpoint's authentication key, not the issuer's signature.
 ///
 /// # Arguments
 /// - `cert_sig_algo_oid`: The OID of the certificate's signature algorithm
@@ -367,10 +370,7 @@ pub fn verify_signature_algorithm(
     let hash_algos = SpdmBaseHashAlgo::from_bits(base_hash_algo);
     let asym_algos = SpdmBaseAsymAlgo::from_bits(base_asym_algo);
 
-    // ── Step 1: Verify that the signature algorithm *family* (RSA / ECDSA /
-    //    EdDSA) matches at least one negotiated base_asym_algo.  This
-    //    prevents an attacker from presenting an RSA-signed certificate when
-    //    only ECDSA was negotiated (or vice versa).
+    // Match the caller's OID policy, independently of endpoint-key validation.
     let is_rsa_sig = matches!(
         *cert_sig_algo_oid,
         SHA256_RSA | SHA384_RSA | SHA512_RSA | RSA_PSS
@@ -418,8 +418,7 @@ pub fn verify_signature_algorithm(
             .any(|h| matches!(h, SpdmBaseHashAlgo::Sha512)),
         // RSA-PSS: the hash is encoded in the algorithm parameters, not the OID
         // itself.  Accept as long as at least one hash algorithm is negotiated;
-        // the actual param-vs-negotiated check happens during signature
-        // verification via `from_oid_with_params`.
+        // this OID-only helper cannot inspect those parameters.
         RSA_PSS => !hash_algos.is_empty(),
         // EdDSA: Ed25519 intrinsically uses SHA-512.
         ED25519 => hash_algos
@@ -440,6 +439,109 @@ pub fn verify_signature_algorithm(
         )));
     }
 
+    Ok(())
+}
+
+/// Match a leaf SubjectPublicKeyInfo to exactly one selected authentication
+/// algorithm. Classical and ML-DSA masks are separate because their bits overlap.
+///
+/// This checks key type, encoding, and negotiated size/curve, not signatures,
+/// trust, or the mathematical validity of public-key material.
+pub fn verify_public_key_algorithm(
+    public_key: &crate::certificate::SubjectPublicKeyInfo,
+    base_asym_algo: u32,
+    pqc_asym_algo: u32,
+) -> Result<()> {
+    use der::{Encode, Tagged};
+
+    let invalid =
+        |message: &str| Error::AlgorithmError(AlgorithmError::InvalidParameters(message.into()));
+    if base_asym_algo.count_ones() + pqc_asym_algo.count_ones() != 1 {
+        return Err(invalid(
+            "Expected exactly one selected authentication algorithm",
+        ));
+    }
+    let key = public_key
+        .subject_public_key
+        .as_bytes()
+        .ok_or_else(|| invalid("Public key must be byte-aligned"))?;
+    let oid = public_key.algorithm.oid;
+    let parameters = &public_key.algorithm.parameters;
+    let algorithms = SpdmBaseAsymAlgo::from_bits(base_asym_algo);
+    if let Some(algorithm) = algorithms.first() {
+        if algorithm.is_rsa() {
+            if oid != oids::RSA {
+                return Err(Error::AlgorithmError(AlgorithmError::Unsupported(
+                    "Selected RSA algorithm requires an RSA public key".into(),
+                )));
+            }
+            if parameters
+                .as_ref()
+                .is_some_and(|p| p.tag() != der::Tag::Null || !p.value().is_empty())
+            {
+                return Err(invalid("Invalid rsaEncryption parameters"));
+            }
+            let encoded = public_key.to_der()?;
+            return verify_rsa_key_size(&encoded, base_asym_algo);
+        }
+        if let Some(curve) = algorithm.ecc_curve_oid() {
+            if oid != oids::ECPUBLICKEY {
+                return Err(Error::AlgorithmError(AlgorithmError::Unsupported(
+                    "Selected ECDSA algorithm requires an EC public key".into(),
+                )));
+            }
+            let actual_curve = parameters
+                .as_ref()
+                .ok_or(Error::AlgorithmError(AlgorithmError::MissingParameters))?
+                .decode_as::<ObjectIdentifier>()
+                .map_err(|_| invalid("EC parameters must contain a named-curve OID"))?;
+            verify_ecc_curve(&actual_curve, base_asym_algo)?;
+            let coordinate_size = match curve {
+                oids::ECDSA_P256 => 32,
+                oids::ECDSA_P384 => 48,
+                oids::ECDSA_P521 => 66,
+                _ => return Err(invalid("Unsupported EC curve")),
+            };
+            let valid_point_encoding = match key.first() {
+                Some(4) => key.len() == 1 + 2 * coordinate_size,
+                Some(2 | 3) => key.len() == 1 + coordinate_size,
+                _ => false,
+            };
+            return if valid_point_encoding {
+                Ok(())
+            } else {
+                Err(invalid("Invalid EC point encoding or length"))
+            };
+        }
+    }
+
+    let (expected_oid, expected_size) = match (base_asym_algo, pqc_asym_algo) {
+        (a, 0) if a == SpdmBaseAsymAlgo::Ed25519 as u32 => (oids::ED25519, 32),
+        (a, 0) if a == SpdmBaseAsymAlgo::Ed448 as u32 => (oids::ED448, 57),
+        (0, 1) => (oids::ML_DSA_44, 1312),
+        (0, 2) => (oids::ML_DSA_65, 1952),
+        (0, 4) => (oids::ML_DSA_87, 2592),
+        _ => {
+            return Err(Error::AlgorithmError(AlgorithmError::Unsupported(
+                "Unsupported selected authentication algorithm".into(),
+            )))
+        }
+    };
+    if oid != expected_oid {
+        return Err(Error::AlgorithmError(AlgorithmError::Unsupported(
+            alloc::format!(
+                "Public key {} does not match selected {}",
+                oid,
+                expected_oid
+            ),
+        )));
+    }
+    if parameters.is_some() {
+        return Err(invalid("EdDSA and ML-DSA parameters must be absent"));
+    }
+    if key.len() != expected_size {
+        return Err(invalid("Incorrect public key length"));
+    }
     Ok(())
 }
 
@@ -505,7 +607,11 @@ fn estimate_rsa_key_size(spki_der: &[u8]) -> Result<usize> {
         },
     )?;
 
-    let key_bytes = spki.subject_public_key.raw_bytes();
+    let key_bytes = spki.subject_public_key.as_bytes().ok_or_else(|| {
+        Error::AlgorithmError(AlgorithmError::InvalidParameters(
+            "RSA public key must be byte-aligned".into(),
+        ))
+    })?;
 
     // 2. Parse RSAPublicKey ::= SEQUENCE { modulus INTEGER, publicExponent INTEGER }
     //    using the der crate's SliceReader so every length check is handled
@@ -547,9 +653,15 @@ fn estimate_rsa_key_size(spki_der: &[u8]) -> Result<usize> {
             )))
         })?;
 
-    // UintRef strips the leading zero automatically; its byte length
-    // directly gives the unsigned magnitude.
-    let key_size_bits = modulus.as_bytes().len() * 8;
+    if !reader.is_finished() {
+        return Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(
+            "Trailing data after RSAPublicKey".into(),
+        )));
+    }
+    let magnitude = modulus.as_bytes();
+    let key_size_bits = magnitude.first().map_or(0, |byte| {
+        magnitude.len() * 8 - byte.leading_zeros() as usize
+    });
 
     if key_size_bits < 2048 {
         return Err(Error::KeyError(crate::error::KeyError::WeakKey {
@@ -618,6 +730,219 @@ pub fn verify_hash_algorithm(hash_oid: &ObjectIdentifier, base_hash_algo: u32) -
 mod tests {
     extern crate std;
     use super::*;
+    use der::{Decode, Encode};
+
+    fn public_key(directory: &str) -> crate::certificate::SubjectPublicKeyInfo {
+        let bytes = std::fs::read(alloc::format!(
+            "{}/../../../../test_key/{}/end_responder.cert.der",
+            env!("CARGO_MANIFEST_DIR"),
+            directory
+        ))
+        .unwrap();
+        crate::Certificate::from_der(&bytes)
+            .unwrap()
+            .tbs_certificate
+            .subject_public_key_info
+    }
+
+    #[test]
+    fn test_public_key_selected_algorithm_matrix() {
+        use SpdmBaseAsymAlgo::*;
+        let cases = [
+            ("rsa2048", RsaSsa2048 as u32, 0),
+            ("rsa3072", RsaSsa3072 as u32, 0),
+            ("rsa4096", RsaSsa4096 as u32, 0),
+            ("ecp256", EcdsaP256 as u32, 0),
+            ("ecp384", EcdsaP384 as u32, 0),
+            ("ecp521", EcdsaP521 as u32, 0),
+            ("ed25519", Ed25519 as u32, 0),
+            ("ed448", Ed448 as u32, 0),
+            ("mldsa44", 0, 1),
+            ("mldsa65", 0, 2),
+            ("mldsa87", 0, 4),
+        ];
+        for (key_index, (directory, _, _)) in cases.iter().enumerate() {
+            let key = public_key(directory);
+            for (selection_index, (_, asym, pqc)) in cases.iter().enumerate() {
+                let result = verify_public_key_algorithm(&key, *asym, *pqc);
+                if key_index == selection_index {
+                    result.unwrap();
+                } else {
+                    assert!(
+                        matches!(
+                            result,
+                            Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+                                | Err(Error::KeyError(crate::error::KeyError::WeakKey { .. }))
+                        ),
+                        "{} versus ({}, {}): {:?}",
+                        directory,
+                        asym,
+                        pqc,
+                        result
+                    );
+                }
+            }
+        }
+        for (directory, algorithm) in [
+            ("rsa2048", RsaPss2048),
+            ("rsa3072", RsaPss3072),
+            ("rsa4096", RsaPss4096),
+        ] {
+            verify_public_key_algorithm(&public_key(directory), algorithm as u32, 0).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_public_key_invalid_algorithm_selections() {
+        let key = public_key("ecp256");
+        for (asym, pqc) in [(0, 0), (0x90, 0), (0x10, 1), (0, 3)] {
+            assert!(matches!(
+                verify_public_key_algorithm(&key, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+        for (asym, pqc) in [(1 << 31, 0), (0, 1 << 31), (1 << 9, 0)] {
+            assert!(matches!(
+                verify_public_key_algorithm(&key, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+            ));
+        }
+    }
+
+    #[test]
+    fn test_public_key_ec_parameters_and_point_encoding() {
+        let key = public_key("ecp256");
+        let mut modified = key.clone();
+        modified.algorithm.parameters = None;
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::MissingParameters))
+        ));
+        for parameters in [
+            der::Any::from_der(&[5, 0]).unwrap(),
+            der::Any::new(der::Tag::ObjectIdentifier, alloc::vec![0x80]).unwrap(),
+        ] {
+            modified.algorithm.parameters = Some(parameters);
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, 1 << 4, 0),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+        modified.algorithm.parameters =
+            Some(der::Any::from_der(&oids::ECDSA_P384.to_der().unwrap()).unwrap());
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+        ));
+        modified = key.clone();
+        modified.algorithm.oid = ObjectIdentifier::new_unwrap("1.2.3.4");
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+        ));
+        for bytes in [alloc::vec![], alloc::vec![4; 64], alloc::vec![0; 65]] {
+            modified = key.clone();
+            modified.subject_public_key = der::asn1::BitString::from_bytes(&bytes).unwrap();
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, 1 << 4, 0),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+        modified = key.clone();
+        modified.subject_public_key = der::asn1::BitString::new(1, alloc::vec![0; 65]).unwrap();
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+        ));
+        let mut compressed = alloc::vec![2];
+        compressed.extend_from_slice(&key.subject_public_key.raw_bytes()[1..33]);
+        modified.subject_public_key = der::asn1::BitString::from_bytes(&compressed).unwrap();
+        verify_public_key_algorithm(&modified, 1 << 4, 0).unwrap();
+    }
+
+    #[test]
+    fn test_public_key_parameterless_algorithms_require_exact_encoding() {
+        for (directory, asym, pqc) in [
+            ("ed25519", 1 << 10, 0),
+            ("ed448", 1 << 11, 0),
+            ("mldsa44", 0, 1),
+            ("mldsa65", 0, 2),
+            ("mldsa87", 0, 4),
+        ] {
+            let key = public_key(directory);
+            let mut modified = key.clone();
+            modified.algorithm.parameters = Some(der::Any::from_der(&[5, 0]).unwrap());
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+            modified = key;
+            let mut bytes = modified.subject_public_key.raw_bytes().to_vec();
+            bytes.pop();
+            modified.subject_public_key = der::asn1::BitString::from_bytes(&bytes).unwrap();
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+    }
+
+    #[test]
+    fn test_public_key_rsa_exact_modulus_bits_and_der_boundaries() {
+        #[derive(der::Sequence)]
+        struct RsaPublicKey<'a> {
+            modulus: der::asn1::UintRef<'a>,
+            exponent: der::asn1::UintRef<'a>,
+        }
+
+        let original = public_key("rsa2048");
+        for (first, expected_bits) in [(0x80, 2048), (0x01, 2041), (0, 2040)] {
+            let mut modulus = alloc::vec![0xff; 256];
+            modulus[0] = first;
+            let encoded = RsaPublicKey {
+                modulus: der::asn1::UintRef::new(&modulus).unwrap(),
+                exponent: der::asn1::UintRef::new(&[1, 0, 1]).unwrap(),
+            }
+            .to_der()
+            .unwrap();
+            let mut key = original.clone();
+            key.subject_public_key = der::asn1::BitString::from_bytes(&encoded).unwrap();
+            let result = verify_public_key_algorithm(&key, 1, 0);
+            if expected_bits == 2048 {
+                result.unwrap();
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(Error::KeyError(crate::error::KeyError::WeakKey { bits, .. }))
+                        if bits == expected_bits
+                ));
+            }
+        }
+        let mut key = original;
+        key.subject_public_key =
+            der::asn1::BitString::from_bytes(&[0x30, 6, 2, 1, 0, 2, 1, 3]).unwrap();
+        assert!(matches!(
+            verify_public_key_algorithm(&key, 1, 0),
+            Err(Error::KeyError(crate::error::KeyError::WeakKey {
+                bits: 0,
+                ..
+            }))
+        ));
+        let mut bytes = key.subject_public_key.raw_bytes().to_vec();
+        bytes.push(0);
+        key.subject_public_key = der::asn1::BitString::from_bytes(&bytes).unwrap();
+        assert!(matches!(
+            verify_public_key_algorithm(&key, 1, 0),
+            Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+        ));
+        key = public_key("rsa2048");
+        key.algorithm.parameters =
+            Some(der::Any::from_der(&oids::ECDSA_P256.to_der().unwrap()).unwrap());
+        assert!(matches!(
+            verify_public_key_algorithm(&key, 1, 0),
+            Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+        ));
+    }
 
     #[test]
     fn test_spdm_base_asym_algo_from_bits() {

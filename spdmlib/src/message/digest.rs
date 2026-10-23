@@ -55,6 +55,24 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         context: &mut common::SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
+        self.spdm_encode_with_multi_key(context, bytes, context.negotiate_info.multi_key_conn_rsp)
+    }
+
+    fn spdm_read(
+        context: &mut common::SpdmContext,
+        r: &mut Reader,
+    ) -> Option<SpdmDigestsResponsePayload> {
+        Self::spdm_read_with_multi_key(context, r, context.negotiate_info.multi_key_conn_rsp)
+    }
+}
+
+impl SpdmDigestsResponsePayload {
+    pub(crate) fn spdm_encode_with_multi_key(
+        &self,
+        context: &mut common::SpdmContext,
+        bytes: &mut Writer,
+        multi_key: bool,
+    ) -> Result<usize, SpdmStatus> {
         let mut cnt = 0usize;
 
         if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
@@ -82,9 +100,7 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
             cnt += digest.spdm_encode(context, bytes)?;
         }
 
-        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
-            && (context.negotiate_info.multi_key_conn_rsp)
-        {
+        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13) && multi_key {
             for key_pair_id in self.key_pair_id.iter().take(count as usize) {
                 cnt += key_pair_id
                     .encode(bytes)
@@ -104,9 +120,10 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
         Ok(cnt)
     }
 
-    fn spdm_read(
+    pub(crate) fn spdm_read_with_multi_key(
         context: &mut common::SpdmContext,
         r: &mut Reader,
+        multi_key: bool,
     ) -> Option<SpdmDigestsResponsePayload> {
         let supported_slot_mask =
             if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 {
@@ -135,9 +152,7 @@ impl SpdmCodec for SpdmDigestsResponsePayload {
             SPDM_MAX_SLOT_NUMBER,
         );
         let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
-        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13)
-            && context.negotiate_info.multi_key_conn_rsp
-        {
+        if (context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13) && multi_key {
             for key_pair_id in key_pair_id.iter_mut().take(slot_count as usize) {
                 *key_pair_id = u8::read(r)?;
             }

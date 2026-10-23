@@ -14,7 +14,7 @@
 use aws_lc_rs::signature::{self, UnparsedPublicKey};
 use spdm_x509::crypto_backend::{CryptoBackend, SignatureAlgorithm};
 use spdm_x509::error::{Error, Result};
-use spdmlib::crypto::SpdmCertOperation;
+use spdmlib::crypto::{SpdmCertOperation, SpdmCertificateRole};
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT};
 
 /// aws-lc-rs implementation of spdm_x509's `CryptoBackend` — classical + ML-DSA.
@@ -71,6 +71,7 @@ impl CryptoBackend for AwsLcBackend {
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: get_cert_from_cert_chain,
     verify_cert_chain_cb: verify_cert_chain,
+    verify_cert_chain_with_role_cb: Some(verify_cert_chain_with_role),
 };
 
 fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)> {
@@ -92,9 +93,37 @@ fn verify_cert_chain(
     .map_err(|_| SPDM_STATUS_INVALID_CERT)
 }
 
+fn verify_cert_chain_with_role(
+    cert_chain: &[u8],
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
+    role: SpdmCertificateRole,
+) -> SpdmResult {
+    spdm_x509::x509::chain::verify_cert_chain_with_backend_and_role(
+        cert_chain,
+        AwsLcBackend,
+        base_asym_algo,
+        base_hash_algo,
+        role,
+    )
+    .map_err(|e| {
+        log::error!(
+            "Role-aware certificate validation failed for {:?}: {:?}",
+            role,
+            e
+        );
+        SPDM_STATUS_INVALID_CERT
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../test/crypto_role_eku.inc.rs"
+    ));
 
     #[test]
     fn test_verify_cert_chain_ecp384() {
@@ -109,8 +138,49 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_cert_chain_mldsa87() {
-        let chain = &include_bytes!("../../test_key/mldsa87/bundle_responder.certchain.der")[..];
-        assert!(verify_cert_chain(chain, None, None).is_ok());
+    fn test_verify_cert_chain_mldsa_selected_key_matrix() {
+        use spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms;
+
+        let cases: [(&[u8], u32); 3] = [
+            (
+                include_bytes!("../../test_key/mldsa44/bundle_responder.certchain.der"),
+                1,
+            ),
+            (
+                include_bytes!("../../test_key/mldsa65/bundle_responder.certchain.der"),
+                2,
+            ),
+            (
+                include_bytes!("../../test_key/mldsa87/bundle_responder.certchain.der"),
+                4,
+            ),
+        ];
+        let verify = DEFAULT.verify_cert_chain_with_role_cb.unwrap();
+        for (chain, selected) in cases {
+            validate_spdm_certificate_chain_algorithms(chain, 0, selected).unwrap();
+            for other in [1, 2, 4] {
+                if other != selected {
+                    assert!(matches!(
+                        validate_spdm_certificate_chain_algorithms(chain, 0, other),
+                        Err(Error::AlgorithmError(
+                            spdm_x509::error::AlgorithmError::Unsupported(_)
+                        ))
+                    ));
+                }
+            }
+            assert!(verify_cert_chain(chain, None, None).is_ok());
+            for role in [
+                SpdmCertificateRole::Requester,
+                SpdmCertificateRole::Responder,
+            ] {
+                assert!(verify(chain, None, None, role).is_ok());
+                let mut corrupt = chain.to_vec();
+                *corrupt.last_mut().unwrap() ^= 1;
+                assert_eq!(
+                    verify(&corrupt, None, None, role),
+                    Err(SPDM_STATUS_INVALID_CERT)
+                );
+            }
+        }
     }
 }
