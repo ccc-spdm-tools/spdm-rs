@@ -113,6 +113,31 @@ class UpdateX509LimboTests(unittest.TestCase):
             self.assertEqual(changed, [output])
             self.assertEqual(output.read_text(encoding="utf-8"), "old fixture\n")
 
+    def test_committed_fixtures_match_classifications_and_scope(self) -> None:
+        manifest_path = importer.DEFAULT_MANIFEST
+        manifest = importer.load_json(manifest_path)
+        importer.validate_manifest(manifest)
+        for suite in manifest["suites"]:
+            with self.subTest(suite=suite["name"]):
+                fixture = importer.load_json(manifest_path.parent / suite["output"])
+                supported_ids = [
+                    case["id"]
+                    for case in suite["testcases"]
+                    if case["status"] == "supported"
+                ]
+                self.assertEqual(fixture["source"], manifest["source"])
+                self.assertEqual(
+                    [case["id"] for case in fixture["testcases"]], supported_ids
+                )
+                for case in fixture["testcases"]:
+                    with self.subTest(case=case["id"]):
+                        self.assertNotIn("peer_certificate_key", case)
+                        self.assertIsNone(case["validation_time"])
+                        self.assertIsNone(case["max_chain_depth"])
+                        self.assertEqual(case["signature_algorithms"], [])
+                        self.assertEqual(case["crls"], [])
+                        self.assertEqual(len(case["trusted_certs"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

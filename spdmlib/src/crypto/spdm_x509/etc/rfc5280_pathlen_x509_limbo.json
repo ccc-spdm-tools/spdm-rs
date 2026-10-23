@@ -1,0 +1,204 @@
+{
+  "source": {
+    "repository": "https://github.com/C2SP/x509-limbo",
+    "revision": "972626160c26b45426bbd8c935a605219bd93207",
+    "license": "Apache-2.0"
+  },
+  "testcases": [
+    {
+      "id": "pathlen::ee-with-intermediate-pathlen-0",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **valid** chain:\n\n```\nroot -> intermediate (pathlen:0) -> EE\n```\n\nThis is a \"trivial\" verification: the intermediate has a `pathlen:0`\nconstraint, but the leaf is an end entity and is therefore allowed.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBkDCCATWgAwIBAgIUUzKRwo6IHekxxsyhQXdfXQeVLg0wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAARXq7QZpTnvtntgFy3De+h2JR9HA0x6c91f7ZFG\nAdX8YWbV6vB2ZdoCIAkS94h/3XQSoGaOtsUr3dtJ3G7W0LYto1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUNiTCmB40jyTnJzxDDbbSa3Rx3KowCgYIKoZIzj0EAwIDSQAwRgIh\nALqqCaUz7BVvxmsS29tMKCih8kUB0L9Z+EU8UKcNy5eOAiEAkF/42mxzsm7yRVog\nJdqC3mrdk7Ul+RXWOR9EXq5m2eU=\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIICADCCAaagAwIBAgIURM6V5OBggzGb9TIICUf+KbJd4SowCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBnMTkwNwYDVQQLDDA0NzQ5NzM5Njg3MjQwMDE2MzQwMDU5\nMTc2NjE0OTM3NTU0NjYzODY4NDg5NTE4MjExKjAoBgNVBAMMIXg1MDktbGltYm8t\naW50ZXJtZWRpYXRlLXBhdGhsZW4tMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBD4N9QqsrE6SglbkJYnSgoP4SwkIEYVqlH6rfMEoNvSWJwnBcCMNuF6MCcmBrCeO\n5HBi3OzBRcINC2+ewK393Z6jezB5MBIGA1UdEwEB/wQIMAYBAf8CAQAwCwYDVR0P\nBAQDAgIEMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMB8GA1UdIwQYMBaAFDYkwpge\nNI8k5yc8Qw220mt0cdyqMB0GA1UdDgQWBBTrzt3WU7155Q1eo8OuDX+c4MArljAK\nBggqhkjOPQQDAgNIADBFAiAh5spWDehFw2ZB3R9WwJhlOQvGxMjpy1RML655vcrg\n4QIhAP3BH5+K9jWAGGB4PxFZHwWGjyrOMHn1W1oVGQo6vPxm\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB/TCCAaOgAwIBAgIUWHcUZ1jgdFAB81EDuqdedgfL0TowCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwNDc0OTczOTY4NzI0MDAxNjM0MDA1OTE3NjYxNDkzNzU1NDY2\nMzg2ODQ4OTUxODIxMSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYxFDAS\nBgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGK1D\nAT2ROqquNZGDiJvVvguHe7CDLHUtTz5msX2pLQp4kXVgwwflVGEWZ73pPaypDBHy\nGUmu+DxgxBkTEm10maN8MHowHQYDVR0OBBYEFANzhRmyKR3g3UieU9IF64yCF+r0\nMB8GA1UdIwQYMBaAFOvO3dZTvXnlDV6jw64Nf5zgwCuWMAsGA1UdDwQEAwIHgDAT\nBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggq\nhkjOPQQDAgNIADBFAiBsU28Tb/u6jAdUqtGQwe3kww37AHACRPrbsybCvIWwNwIh\nAOYNvxrH3T6OPjJp21FhzSaZ3kXK2xTu4xnFC8w9Yme5\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "SUCCESS",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "pathlen::ee-with-intermediate-pathlen-1",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **valid** chain:\n\n```\nroot -> intermediate (pathlen:1) -> EE\n```\n\nThis is a \"trivial\" verification: the intermediate has a `pathlen:1`\nconstraint, but the leaf is an end entity and is therefore allowed.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUANpwlSTw5kWLjFNjxR3XluESpB0wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAARGo9dcU0mbdFJNL0XkNPylpG8YTexAY/K5YyJK\nuVerKg2YveWMpzTRMqHSnz7HONFycoUCytPYFw1CHDqR/s3So1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUnbWNSeK+oNzH3rSEbDnBd7JlXxEwCgYIKoZIzj0EAwIDSAAwRQIg\nIWzs+c+Bxm/bTqp5MOOgcaWiHB8H0EL/Du6z1HqcU8gCIQDKSDlCc/hKJeMtbtwG\nJnH+AFoeK2VZLGEL8u6rZC7I/g==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIIB/TCCAaSgAwIBAgIUK5Jkvj+G66Ji+VCOnvTIVjNHcEkwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBlMTcwNQYDVQQLDC40ODcxMzY5NzgwNDc5NzMzNzcwNzU1\nNzA3NzAzNTgxODA4ODY5MTc5MDQwNzk3MSowKAYDVQQDDCF4NTA5LWxpbWJvLWlu\ndGVybWVkaWF0ZS1wYXRobGVuLTEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQe\nagUV2rzOoCIUZ36hx0jiS7H7IZ/vkJp2cF5tJLC3xpCLZUZDJaMTx4ASF4G67YTZ\nUsBMMiT3t7f6uilZir8Ao3sweTASBgNVHRMBAf8ECDAGAQH/AgEBMAsGA1UdDwQE\nAwICBDAWBgNVHREEDzANggtleGFtcGxlLmNvbTAfBgNVHSMEGDAWgBSdtY1J4r6g\n3MfetIRsOcF3smVfETAdBgNVHQ4EFgQUa6Gi/PUXhjaH9aKmYwJuVsEW4OcwCgYI\nKoZIzj0EAwIDRwAwRAIgF5jyzpyww9WrGl8BlAbocWbjms+QcMsrljy8GrfyfTcC\nIEQ9KgGYlfstJ5CFTSUKIZ8XE417v5hqbkbFJ6kIyZr8\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB+zCCAaGgAwIBAgIUQmOmdR7j2Bl9Y6DIweBgXOsPa/owCgYIKoZIzj0EAwIw\nZTE3MDUGA1UECwwuNDg3MTM2OTc4MDQ3OTczMzc3MDc1NTcwNzcwMzU4MTgwODg2\nOTE3OTA0MDc5NzEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0\naGxlbi0xMCAXDTcwMDEwMTAwMDAwMVoYDzI5NjkwNTAzMDAwMDAxWjAWMRQwEgYD\nVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABKpCdkqf\n/q3uRAL847Qqsf2sDvT9k1coI0mOuOTVAbqAMVLgtiITkKeJhNgNYQoGUupFbfwj\ncE6rIMQup1oaqzCjfDB6MB0GA1UdDgQWBBTFbsLPcEIXGcLscoAscw0ecvau2TAf\nBgNVHSMEGDAWgBRroaL89ReGNof1oqZjAm5WwRbg5zALBgNVHQ8EBAMCB4AwEwYD\nVR0lBAwwCgYIKwYBBQUHAwEwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wCgYIKoZI\nzj0EAwIDSAAwRQIhAIB612rz2G0PEYp6it5/VLwsfunEoesrDxMOG2bsLbVRAiBc\nHjmfDiU8Z6sgSqiyqvoJbycJBZgrOETN1VPhpBUr4w==\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "SUCCESS",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "pathlen::ee-with-intermediate-pathlen-2",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **valid** chain:\n\n```\nroot -> intermediate (pathlen:2) -> EE\n```\n\nThis is a \"trivial\" verification: the intermediate has a `pathlen:2`\nconstraint, but the leaf is an end entity and is therefore allowed.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUCec2QiqrsfTJsXDWVtolYZxXFxswCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAARXl5+JNC8qMmbHjIev4ID7hiYHedmXBJ2BVZx+\nSQAYhqu+FaLivLkgsCRMckHGUk8tNqKzRc1xZo3t7Wz2TcBgo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUj6eap20i1uV+LJDHuWi4nrdQp68wCgYIKoZIzj0EAwIDSAAwRQIg\nWYef9N6bwdw4fbmvEkh2V3yieTvBN8+vDMMb/dxt63wCIQCNYQdtPZDqXeZdP2G9\ngQ82GjEn6V3xL9Tf2ccYWEf6Cw==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIIB/zCCAaWgAwIBAgIUdKH29gruEPAVfbraaIPphysLNHIwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBmMTgwNgYDVQQLDC81NjUzNzExNTY1NzA3MDcyOTQ2NTQx\nODk3MzgxMDEzMjY2MzY1NTQ1MTc5MzE3OTEqMCgGA1UEAwwheDUwOS1saW1iby1p\nbnRlcm1lZGlhdGUtcGF0aGxlbi0yMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\nXZUY0stPoP19EtidtG66C3KZzUhglqnfJBGsQkLi0oT1xXYdrsTsFtxbMMBIfWFB\nS1KttaZ54ZGtApxLAv75vqN7MHkwEgYDVR0TAQH/BAgwBgEB/wIBAjALBgNVHQ8E\nBAMCAgQwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUj6eap20i\n1uV+LJDHuWi4nrdQp68wHQYDVR0OBBYEFN6Y6bR8qqghwZLyHxgOlKd36nXoMAoG\nCCqGSM49BAMCA0gAMEUCIDA41+C2T3+uKa2sx7MUMETQ72GDjpb8AMHJsn+4xOu6\nAiEA2UM3s/8nZyYjg5VMz8YkfZg2Y1Y96Y7zv3S0RvG2WPg=\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB/TCCAaKgAwIBAgIUO8u2TyWQu1KTDX8XknS3b0jfPzswCgYIKoZIzj0EAwIw\nZjE4MDYGA1UECwwvNTY1MzcxMTU2NTcwNzA3Mjk0NjU0MTg5NzM4MTAxMzI2NjM2\nNTU0NTE3OTMxNzkxKjAoBgNVBAMMIXg1MDktbGltYm8taW50ZXJtZWRpYXRlLXBh\ndGhsZW4tMjAgFw03MDAxMDEwMDAwMDFaGA8yOTY5MDUwMzAwMDAwMVowFjEUMBIG\nA1UEAwwLZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATyiWMN\n5JOCWQR2wQOVMl//73qTk33FOoeY9YLBK7uUweEjGRj1YNa0JZk450B9EtTA1JGw\nOxjC3yu7+18TfeP7o3wwejAdBgNVHQ4EFgQUW26wD6orutC79dFWo1RYYlM2EkMw\nHwYDVR0jBBgwFoAU3pjptHyqqCHBkvIfGA6Up3fqdegwCwYDVR0PBAQDAgeAMBMG\nA1UdJQQMMAoGCCsGAQUFBwMBMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMAoGCCqG\nSM49BAMCA0kAMEYCIQCg+/wPwSVLuKUp6QaJAFpaQUmJ2uRL7ls9JF48BtDMJgIh\nAP7MEvSCQEKayO6hqdxYE2cEMgKLgvNYXAOYtGCbc7ts\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "SUCCESS",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "pathlen::intermediate-violates-pathlen-0",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **invalid** chain:\n\n```\nroot -> intermediate (pathlen:0) -> intermediate (pathlen:0) -> EE\n```\n\nThis violates the first intermediate's `pathlen:0` constraint,\nwhich requires that any subsequent certificate be an end-entity and not\na CA itself.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUP94UkFE7N9KMVByUM1js6HnYLL4wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAARL/lMUyh9K6tqdH3UtZL5E3lmLSfZIhBN8r9aK\nDq+MHPp/FrC1VV0LSOr5NK6IFxeFNH9EPNCYopSDSNPi56xoo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUqfO6KI3qfT/tpCWsIfDZHPHQK/0wCgYIKoZIzj0EAwIDSAAwRQIh\nAMSpPo3CUvKog8oVIrBmsXvGxcR4/JnkslDBEtzxpLzSAiBSP2KW3cczvfD9cp+l\nrkb43kXo9os6jndXrkMN02yWpw==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIIB/zCCAaagAwIBAgIUJg2hO/0Rh0n7b76PQqC7aS8hijgwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBnMTkwNwYDVQQLDDAzNjQ2MTg5NzUzNTAzMzAxMDU1NzEy\nODQzMjA0MzgzMjU2NjM2NjgxNTcwMzM2NjIxKjAoBgNVBAMMIXg1MDktbGltYm8t\naW50ZXJtZWRpYXRlLXBhdGhsZW4tMDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBMiEdAW6SMCU4jc0Is2w7ZljRwYOGvJK9sEElmMSHvzQPk3xPrfZFTaqtXsKBxD2\nsb2XcXIoJ4fT/m43SPO/UuSjezB5MBIGA1UdEwEB/wQIMAYBAf8CAQAwCwYDVR0P\nBAQDAgIEMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMB8GA1UdIwQYMBaAFKnzuiiN\n6n0/7aQlrCHw2Rzx0Cv9MB0GA1UdDgQWBBRI3i9MGth+tqzKSDL6Tl8cH0jfSDAK\nBggqhkjOPQQDAgNHADBEAiAeSlkuoPAr0z69TYWYVVFeRKREIMlJggMpoHnxAfah\nfgIgRpUwrI8b2NcDG34Iu+nuwD86JYX8gAUXcRu7GYY0o1g=\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIICTDCCAfOgAwIBAgIUeUG7UKx/k5t80IIBsFilTmkgz30wCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwMzY0NjE4OTc1MzUwMzMwMTA1NTcxMjg0MzIwNDM4MzI1NjYz\nNjY4MTU3MDMzNjYyMSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMGcxOTA3\nBgNVBAsMMDIxNzI0NTYwNDQ2OTk2NzE1NzcyMzcyNTg3NTAzNTM5MzU0NDY4MzQy\nMTUzNDc3NjEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0aGxl\nbi0wMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0mUAy6sI5yTAizvLO5qH787H\nT5kkkQCQ+/Gehto9MbFJMcFS92CJ2GcIIqaMFU6qoj475LHyjvXy6B58tRFio6N7\nMHkwEgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8EBAMCAgQwFgYDVR0RBA8wDYIL\nZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUSN4vTBrYfrasykgy+k5fHB9I30gwHQYD\nVR0OBBYEFLj3edbqAxhAJRmWMqeAxK9HJy3DMAoGCCqGSM49BAMCA0cAMEQCICnB\ncyHtVE19sIvdMSmEO8B1l/PBaVA6XC82qk3eh4nZAiBxu34oZWhr3EbY8wegsmHY\ne966lSW/v44Mli0Na1XhhA==\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB/TCCAaOgAwIBAgIUaUsyV6KV4fNP2xET4wOBPzkuT8owCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwMjE3MjQ1NjA0NDY5OTY3MTU3NzIzNzI1ODc1MDM1MzkzNTQ0\nNjgzNDIxNTM0Nzc2MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYxFDAS\nBgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJ/oz\nLXrPP24FJBZ3p7OIqng5jrcB3ZYNdllGhKVJf2WjzADObGIm8MdeuUci+p7Z5ZCs\n8X0Hx3O9aG7YWghqa6N8MHowHQYDVR0OBBYEFKFoRkVICLgR4KjBz2uME00o7ETR\nMB8GA1UdIwQYMBaAFLj3edbqAxhAJRmWMqeAxK9HJy3DMAsGA1UdDwQEAwIHgDAT\nBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggq\nhkjOPQQDAgNIADBFAiEAy2Tdk7vq9j9pSeL6mctBwbY9z2qfgHUhqhAyK4ITGNgC\nIBW+JQlOZqsAiGW8/JC/MWAS/SwUfvOolHupsqWAqTtL\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "FAILURE",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "pathlen::intermediate-pathlen-may-increase",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **valid** chain:\n\n```\nroot -> intermediate (pathlen:1) -> intermediate (pathlen:2) -> EE\n```\n\nThis is a less straightforward case as the second intermediate's `pathlen:2`\nconstraint seems to contradict the first intermediate's `pathlen:1`\nconstraint.\n\nRFC 5280 permits this as part of supporting multiple validation paths.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUG5V7huUXTQT5AKVY1OVtBjQUFHgwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAASZ6Xg0Gk4TLL7jOxg8+yUl+oBXM30F3mHTBuQZ\ncy5iuCFNOe+6nqMH5U3NUN5Zm98Kvv8HxLbyI2g0alz+SsWXo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQU7IuGs6WS7qBq/4ueSbUD23RCxGcwCgYIKoZIzj0EAwIDSAAwRQIg\nTbj7Q3Tw4FE5IZEkluA+6mk2TDmfWgZML9g014/dCGYCIQDnwNpl9CSznwP3k5In\ncNyglv+4NrtLxvqtuSe6PYCoJw==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIIB/zCCAaagAwIBAgIUPUrhJQ4w47JOKCyeuym+HJ3jIIEwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBnMTkwNwYDVQQLDDAxNTc0NzYzMjI1NjAzNDU2OTk5MjA0\nODIwNjA5OTU3NTMxNjIxNjk4OTU4ODM4OTYxKjAoBgNVBAMMIXg1MDktbGltYm8t\naW50ZXJtZWRpYXRlLXBhdGhsZW4tMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBFBztR8Hc2f0IQNKBmrCpJ31i7+jdcPrJeaDrMukLi/HKBqPYph12tWbe4ikM9TB\nQpBWWcWZsWsgbItHmmgPBZWjezB5MBIGA1UdEwEB/wQIMAYBAf8CAQEwCwYDVR0P\nBAQDAgIEMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMB8GA1UdIwQYMBaAFOyLhrOl\nku6gav+Lnkm1A9t0QsRnMB0GA1UdDgQWBBQ9AU5rAsY2RUDEUplfy99/D8LEMzAK\nBggqhkjOPQQDAgNHADBEAiBmtGvirgKc1VZVqDQQF2MVUEAZqcwXA2OA7d7aSVGf\nNAIgBFV47kkBQLodhDXZXXl0WCojOWYvUSsDSWICbT2gQvo=\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIICTjCCAfOgAwIBAgIUfDg71yuzXYv2S1WjvyttCyfCvGYwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwMTU3NDc2MzIyNTYwMzQ1Njk5OTIwNDgyMDYwOTk1NzUzMTYy\nMTY5ODk1ODgzODk2MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTEwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMGcxOTA3\nBgNVBAsMMDM0OTkxODMwNTAzODU5MDczOTY0NDg5MzkwNzE0NjIwOTI1NzIyNTEw\nMzU0ODU0NTEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0aGxl\nbi0yMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7gNPWIUeb6yJQvqM03IYBD2k\nMgD3/ub99B6qi114SvEQHggxe0zTCejrmpPxE8n700xYZEMm7XhO9K/ciljWrKN7\nMHkwEgYDVR0TAQH/BAgwBgEB/wIBAjALBgNVHQ8EBAMCAgQwFgYDVR0RBA8wDYIL\nZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUPQFOawLGNkVAxFKZX8vffw/CxDMwHQYD\nVR0OBBYEFLzT8hEdOXQRuI3uI58xAJKa1mE1MAoGCCqGSM49BAMCA0kAMEYCIQC3\nS/Viki9hXN9AhNTkrDAizliRoGUQqTHYW2rI2U0MfgIhAN/cK48Q7ED3ikPQQbcF\nzzTdXO8HDsfeXoyUwceFpLjg\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB/TCCAaOgAwIBAgIUCcWr8QldM+J0NPxLstiiuoQSVNUwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwMzQ5OTE4MzA1MDM4NTkwNzM5NjQ0ODkzOTA3MTQ2MjA5MjU3\nMjI1MTAzNTQ4NTQ1MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTIwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYxFDAS\nBgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYQN/\npUAhywbqdePdlFl16+uvDVG6SdaTmVuBNe+9v9gYW7rX5h8QFO5FnYqC6RoYvf7M\nyNe904dnJncmwYQYDKN8MHowHQYDVR0OBBYEFJ/pZpaKzdo6CLXyOlDlLNUTbpkE\nMB8GA1UdIwQYMBaAFLzT8hEdOXQRuI3uI58xAJKa1mE1MAsGA1UdDwQEAwIHgDAT\nBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggq\nhkjOPQQDAgNIADBFAiBQ5dGehdHzZiALtdqPNKkC7uqKmSO4z9sENdCmkMiwsQIh\nAOuZkO9S7GZuOivRVpfmTy8SDQ/+ZrA5XdqNLNu4cHx9\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "SUCCESS",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "pathlen::intermediate-pathlen-too-long",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **invalid** chain:\n\n```\nroot -> intermediate (pathlen:1) -> intermediate (pathlen:0) -> intermediate (pathlen:0) -> EE\n```\n\nThis violates the second intermediate's `pathlen:0` constraint, which\nforbids any subsequent issuing certificates (which the third intermediate\nis).",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUOcrN0mtn21nzZErYRXebTZmzfUowCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAARimYuPCfNNIDOw2AHXcg2RrZNq4VjClICv18LI\nMW9BPpj3B8z97Hb5kTwDoNBmh8WlfZniKccKITP/n9Iu8vGBo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUX/bUve5oDrdBF8sBvr8SkuQIjlEwCgYIKoZIzj0EAwIDSAAwRQIg\nchITbH2mxzkg9Rs077B3DXRxkmfg6VO4ZLJ/4wwee0oCIQDvvJB4m7tp6dIQ4j4H\nd2aMCUElIxRZZ+Hj+sy3Qv7bIw==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIIB/zCCAaagAwIBAgIUSctEQYGnl3QS5/A3mPh4qbim5u4wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBnMTkwNwYDVQQLDDAzMjk5MzUxNTQwODc3NDE3NTQxMDMy\nNzAxNTM4Nzg1OTA3MzM5OTI5MjYwODQ0MjYxKjAoBgNVBAMMIXg1MDktbGltYm8t\naW50ZXJtZWRpYXRlLXBhdGhsZW4tMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBHj8GRAZ+EaKw+LM6Hq/ITYqage2m/8I9iTUIlxyGPBGZQvLTc43EPl+817v0WBF\n1LfCpq+EFvpBfe5XN4bttpmjezB5MBIGA1UdEwEB/wQIMAYBAf8CAQEwCwYDVR0P\nBAQDAgIEMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMB8GA1UdIwQYMBaAFF/21L3u\naA63QRfLAb6/EpLkCI5RMB0GA1UdDgQWBBRuYqAr4+QGaBN+bpZsgCbHcl9EFTAK\nBggqhkjOPQQDAgNHADBEAiBre7PPs8fvPyqD6WRxQS+YKQcIlxRLyaEgakqGTyZJ\n7AIgXJrN97vN6XwCmJtqvC983uaLgtscCTfoykB6pDMyihA=\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIICTTCCAfOgAwIBAgIUUSua4kkImSbsoHcsZa3CPPbsexYwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwMzI5OTM1MTU0MDg3NzQxNzU0MTAzMjcwMTUzODc4NTkwNzMz\nOTkyOTI2MDg0NDI2MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTEwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMGcxOTA3\nBgNVBAsMMDQyMTI4OTMyMzQ3MTU3OTgwODE5NjMyMDk0Mjc0MzIzMzQyOTE0ODIz\nMzI5NTU5ODEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0aGxl\nbi0wMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaGgv8PGESlV19jo1x7SgeOE6\nqs2b89O+ZNMRydW8Gkve+lHwff+vNXlBzWqn3qV2zzUdCeJOiHuoqkh0rsxEfqN7\nMHkwEgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8EBAMCAgQwFgYDVR0RBA8wDYIL\nZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUbmKgK+PkBmgTfm6WbIAmx3JfRBUwHQYD\nVR0OBBYEFC75WLmWbakCH8uo9LswzY4qaFmqMAoGCCqGSM49BAMCA0gAMEUCIQD7\njwi+aHG87X2HAWK1BN21d6JI8E9X9R5g3qHk/K43+gIgB9ycJAYGfpuRYs+9QNf2\nhn5by7UxHKgzdK/iXNpyH6U=\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIICTTCCAfOgAwIBAgIUENPh5qSYsF9YZkdItXYHOCFOv4gwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwNDIxMjg5MzIzNDcxNTc5ODA4MTk2MzIwOTQyNzQzMjMzNDI5\nMTQ4MjMzMjk1NTk4MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMGcxOTA3\nBgNVBAsMMDQ2MzQwMDY3Njc3MzE5NDUyMTgyNzc4NjEzNzYxMDc0MTUyODU1MTQ2\nNzI4NTI3MDEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0aGxl\nbi0wMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErvZ4OqIUBwiYIpQy744oJ3mw\nzdCI3sy1UZZHM4tXVBypkehf5XXKgx0YSK1WZrEMeAIpD6rYuGQPgYoKNuB69aN7\nMHkwEgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8EBAMCAgQwFgYDVR0RBA8wDYIL\nZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAULvlYuZZtqQIfy6j0uzDNjipoWaowHQYD\nVR0OBBYEFJvSzeFs6SdPKN93z8/+CKq24CWSMAoGCCqGSM49BAMCA0gAMEUCIBg/\nb8xI8w3Q0vWpd5+My18y23d3U3H2wRhZJb4WQSUMAiEA5nPfv2A4C8nBQgYR+8GO\nvAk0Ft4JADg5SFEMVLiGqHY=\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB/jCCAaOgAwIBAgIUKNJwHk56kVRfzwrh9UfEj+ipXSgwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwNDYzNDAwNjc2NzczMTk0NTIxODI3Nzg2MTM3NjEwNzQxNTI4\nNTUxNDY3Mjg1MjcwMSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYxFDAS\nBgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEo9dG\nH80XFj+Y14tEwz1R3D+doR7+9eh50TGwlQpgCWzLBqCFX8K3jQHRocTLksmBQEvC\n0ixEOlTOcBB2KyCOr6N8MHowHQYDVR0OBBYEFPX3LXb6ZDzq/qvwWF1zpTk4T4jf\nMB8GA1UdIwQYMBaAFJvSzeFs6SdPKN93z8/+CKq24CWSMAsGA1UdDwQEAwIHgDAT\nBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggq\nhkjOPQQDAgNJADBGAiEA+1zWpaNWRmpWYIulJ/Rux/1YtCmqe50LTqu8UDvTvcUC\nIQCy3GDUB4+JY7C0lAbUeUZNipKe/DpH7G5xDwEdTOCqqg==\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "FAILURE",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "pathlen::self-issued-certs-pathlen",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **valid** chain:\n\n```\nroot -> ICA' (pathlen:1) -> ICA' (pathlen:1) -> ICA'' (pathlen:0) -> EE\n```\n\nThe second ICA' intermediate is a self-issued certificate. Self-issued certificates\nare certificates with identical issuers and subjects. While this chain trivially\nseems to violate the assigned path length constraints, the RFC 5280 4.2.1.9\nstates that self issued certificates should not be counted.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjzCCATWgAwIBAgIUSqEjxyim/l0WtSD+rfVLR+nZeKgwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAATgK1JFXLK+W0GHtqScjQmEsZBSQmlAkK+xskWP\nUAGy4KzOye1KqtqQLttv7/ILx9YYBM1grebT6b1Y/VHyE1IEo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUIhEoBenxOXnsaI9Tt2tRwU1DM8kwCgYIKoZIzj0EAwIDSAAwRQIg\nPRBvB5zIn8amhNIlx3doQxDYui16QKEipsVl64SYdV4CIQC0StkrzuLR3EmcD0zp\ntKt97volEuImQnSklTDy5VPeSQ==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [
+        "-----BEGIN CERTIFICATE-----\nMIICADCCAaagAwIBAgIULaOvKyXlRzbSGjYnpcRW1/ax5TkwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjBnMTkwNwYDVQQLDDA0MjYwNTg4NTM3MTgxNjIzODQyMTE2\nMjYyNTc5MDM0OTExMzE1OTM2MTY2MTk2ODgxKjAoBgNVBAMMIXg1MDktbGltYm8t\naW50ZXJtZWRpYXRlLXBhdGhsZW4tMTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBGtB02879SInwNY4b6zfafFxeD9Wl1TGHW6/Yg7YrDu11ilWuweamNtSQ7Xb63WL\npsXzVpuIy+yrkUzfmEt/2+SjezB5MBIGA1UdEwEB/wQIMAYBAf8CAQEwCwYDVR0P\nBAQDAgIEMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMB8GA1UdIwQYMBaAFCIRKAXp\n8Tl57GiPU7drUcFNQzPJMB0GA1UdDgQWBBS6ASiirbzETEhZSs5E+mKdiK6rDjAK\nBggqhkjOPQQDAgNIADBFAiEAquW+6VHed8BPEH0phgF8o+cjXfQBsG54zxnsP37Y\nBHUCIFtPAJfTPNlCt0yDpX49N6tGkT+NAe/ZVh3sKBoOEyMR\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIICTDCCAfOgAwIBAgIUZpbTb3ahMRGBKS9LOA2DWlU72agwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwNDI2MDU4ODUzNzE4MTYyMzg0MjExNjI2MjU3OTAzNDkxMTMx\nNTkzNjE2NjE5Njg4MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTEwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMGcxOTA3\nBgNVBAsMMDQyNjA1ODg1MzcxODE2MjM4NDIxMTYyNjI1NzkwMzQ5MTEzMTU5MzYx\nNjYxOTY4ODEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0aGxl\nbi0xMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEuVmqippq+yPMwh7+mdpCTlWB\npmj4gqckIH0dtPDxchKEyyH7sEVUB7Yai5OwYyEjN4NwjlWCl8ZGQpsE9IPnQqN7\nMHkwEgYDVR0TAQH/BAgwBgEB/wIBATALBgNVHQ8EBAMCAgQwFgYDVR0RBA8wDYIL\nZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUugEooq28xExIWUrORPpinYiuqw4wHQYD\nVR0OBBYEFM+/YRc4BKY+q13UQ4Uk18Z5APsuMAoGCCqGSM49BAMCA0cAMEQCIGQF\nRVtpLp/wu4VwRbyFuGHHhKz912SUYsmm0uAwFf2OAiBv8JrV8X8/p8IUP/r/dbHK\ntbmegQBKkh9zeFafUU1O4Q==\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIICTjCCAfOgAwIBAgIUX8OT9v53Tj6D+x+iJBYSOYdCVbwwCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwNDI2MDU4ODUzNzE4MTYyMzg0MjExNjI2MjU3OTAzNDkxMTMx\nNTkzNjE2NjE5Njg4MSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTEwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMGcxOTA3\nBgNVBAsMMDU4NTY4MDU4OTAyNTE3MTQxMzEwMDk4OTc5Mjg0MzE4MjEyNzY0Mzcw\nNzAzODEyMDEqMCgGA1UEAwwheDUwOS1saW1iby1pbnRlcm1lZGlhdGUtcGF0aGxl\nbi0wMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEV/v6EWRq62hXtSpgKNfBR2pV\nIAEmAqk7zvo2ZpJToVJF8PSP2WwQ/6DzsM5V8f8D93GBNOD68ib7dNJwb1fdsaN7\nMHkwEgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8EBAMCAgQwFgYDVR0RBA8wDYIL\nZXhhbXBsZS5jb20wHwYDVR0jBBgwFoAUz79hFzgEpj6rXdRDhSTXxnkA+y4wHQYD\nVR0OBBYEFIZpgqKvIl+TFCA8SKjM65X9EPqeMAoGCCqGSM49BAMCA0kAMEYCIQCN\nJq+14Mb3r3NLAFYYg8Zam80mxMSeeH7STjNFQ05OpAIhAKr7eS1sto46SX5m9j5M\nOmXQVaMHU8jdWHR2blOO5tzu\n-----END CERTIFICATE-----\n"
+      ],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB/TCCAaOgAwIBAgIUZWMUpkRKCm0FcUUQVL7FXy5jDJ0wCgYIKoZIzj0EAwIw\nZzE5MDcGA1UECwwwNTg1NjgwNTg5MDI1MTcxNDEzMTAwOTg5NzkyODQzMTgyMTI3\nNjQzNzA3MDM4MTIwMSowKAYDVQQDDCF4NTA5LWxpbWJvLWludGVybWVkaWF0ZS1w\nYXRobGVuLTAwIBcNNzAwMTAxMDAwMDAxWhgPMjk2OTA1MDMwMDAwMDFaMBYxFDAS\nBgNVBAMMC2V4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtiZo\nkphiFiIsjQB4b5Pp5wdd7EDAaI2g/6ibiZqX5gRfeLWqDfS32R/BGtsyvxnAA9c6\nN6ll1mQ35Jzkuz0hTaN8MHowHQYDVR0OBBYEFJujUglT4c9yDN18sT8BoLZ/w6Q7\nMB8GA1UdIwQYMBaAFIZpgqKvIl+TFCA8SKjM65X9EPqeMAsGA1UdDwQEAwIHgDAT\nBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggq\nhkjOPQQDAgNIADBFAiEAnbBrO2ivA2mFVNumsNr1M2Vh1Crc691G2uucAGcFdlEC\nIAeShiNn+cubPwnq2ZNda83+GCkPbxbXi7WYLt+4c/4v\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "SUCCESS",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    }
+  ]
+}

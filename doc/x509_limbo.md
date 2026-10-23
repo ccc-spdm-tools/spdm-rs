@@ -36,11 +36,47 @@ until the runner can treat untrusted intermediates as a candidate pool.
 
 ## Current suites
 
-- `name_constraints` isolates Name Constraints behavior by disabling signature
-  and time validation.
-- `rfc5280_core` keeps signature and extension validation enabled for linear
-  Basic Constraints, Key Usage, and unknown critical extension cases. Its cases
-  do not specify a validation time, so the suite disables time validation.
+All three suites enable signature and extension validation and disable
+time-based decisions. Their selected cases do not require a validation time,
+CRLs, algorithm allowlists, or the upstream logical-intermediate depth option.
+
+| Suite | Cases | Accept | Reject | Path-rule coverage |
+| --- | --- | --- | --- | --- |
+| `name_constraints` | 46 | 14 | 32 | DNS, IP, directory and email names; cumulative constraints; self-issued exceptions; malformed and unsupported constrained forms. |
+| `rfc5280_core` | 9 | 3 | 6 | CA flags and Key Usage consistency, unknown critical extensions at every position, duplicate extensions, and optional leaf extensions. |
+| `rfc5280_pathlen` | 7 | 5 | 2 | Path-length boundaries, increasing intermediate limits, and self-issued rollover certificates. |
+
+Run the 62 curated cases with:
+
+```sh
+cargo test -p spdm_x509 x509_limbo_conformance -- --nocapture
+```
+
+For each accepting chain, the tests additionally corrupt each certificate's
+signature in turn and require a signature-verification error. Rejecting chains
+must fail in the intended error category, not because of an unrelated
+unsupported algorithm, missing issuer, or certificate-decoding failure. The
+deliberately malformed IP SAN case specifically permits its ASN.1 decoding
+error. Existing signature-disabled unit tests remain useful isolation tests,
+but are not substituted for these signed chains.
+
+These are path-rule tests, not complete SPDM endpoint acceptance tests. The
+runner does not evaluate upstream TLS peer-name or client/server EKU inputs.
+In particular, the core suite's missing-leaf-extension cases establish generic
+path behavior, not permission to omit mandatory SPDM leaf fields.
+
+The manifest classifies all 48 pinned `rfc5280::nc` cases: 46 supported and two
+requiring path discovery. Across the three suites, it classifies 81 cases:
+62 supported, 11 unsupported, and eight not applicable. It does not classify
+the entire 9,786-case upstream corpus.
+
+Explicit skips include time-based acceptance, TLS-purpose EKU, alternate-path
+discovery, and CA-as-final-target cases. Unsupported entries include ML-DSA
+verification in the test-only Ring backend and upstream `max_chain_depth`,
+which counts logical intermediates rather than our total-certificate limit.
+The pinned `rfc5280::ica-ku-keycertsign` case omits the intermediate described
+by its documentation; it is not counted as successful Key Usage coverage
+merely because the supplied chain cannot link.
 
 The capability manifest records the current adapter and implementation
 boundaries. Its missing-root-Basic-Constraints skip is not a general SPDM
@@ -83,14 +119,14 @@ algorithm or parsing failure must not stand in for the rule under test.
 | ID | Requirement and normative reference | Current evidence | Status and next cases |
 | --- | --- | --- | --- |
 | C01 | Certificates are DER-encoded X.509 v3; serial numbers are positive. DSP0274 10.7 and 10.9.2, Table 48. | [Certificate parser][certificate] accepts version values; [chain tests][chain] include `test_verify_cert_chain_garbage_rejected`; [validator tests][validator] cover several malformed names and extensions. | **Gap.** Add explicit v1/v2 rejection, zero/negative serials, malformed DER, truncation, and trailing bytes through the SPDM entry point. An enum conversion test does not prove v3-only enforcement. |
-| C02 | A supplied chain has at least one certificate, is ordered toward the leaf, and each certificate after the first is signed by its predecessor. DSP0274 10.7. | [Chain tests][chain]: `test_verify_cert_chain_ecp256_real`, `test_verify_cert_chain_empty_rejected`; [validator tests][validator]: `test_validate_chain_wrong_order_rejected`, `test_validate_chain_issuer_mismatch_rejected`, `test_verify_signature_wrong_issuer_fails`. | **Partial.** Add signed mutations of each chain position, missing/reordered intermediates, and depth-boundary cases through the root-to-leaf production adapter. |
+| C02 | A supplied chain has at least one certificate, is ordered toward the leaf, and each certificate after the first is signed by its predecessor. DSP0274 10.7. | [Chain tests][chain]: `test_verify_cert_chain_ecp256_real`, `test_verify_cert_chain_empty_rejected`; [validator tests][validator]: `test_validate_chain_wrong_order_rejected`, `test_validate_chain_issuer_mismatch_rejected`, `test_verify_signature_wrong_issuer_fails`; all accepting Limbo chains reject signature corruption at each position. | **Partial.** Extend signature mutations, missing/reordered intermediates, and depth-boundary cases through the root-to-leaf production adapter. |
 | C03 | The first supplied certificate may be the root or a certificate signed by the root. The final certificate authenticates the endpoint; single-certificate model restrictions apply. DSP0274 10.7. | [Chain validation][validator] verifies the final element of its reversed chain as self-signed; [requester acceptance][requester] requires the first supplied certificate to be self-issued. | **Gap.** Represent a separately supplied/provisioned root when omitted on the wire. Add permitted and forbidden single-certificate model/capability combinations. General-purpose unordered path building is not required for these ordered-chain cases. |
 | C04 | Intermediate and root certificates contain Basic Constraints with `cA=TRUE`. DSP0274 10.9.2, after Table 48; RFC 5280 4.2.1.9. | [Validator][validator] `verify_issuer_is_ca` accepts an absent extension. `test_verify_issuer_is_ca_with_leaf_fails` and the core Limbo intermediate-CA case cover `cA=FALSE`. | **Gap.** Add missing, malformed, false-CA, and extension-criticality cases for each issuer position. Revisit the manifest's missing-root skip instead of treating current permissiveness as a normative exception. |
 | C05 | Leaf Basic Constraints is mandatory and has `cA=FALSE` for DeviceCert, AliasCert, and GenericCert. DSP0274 10.9.2, Table 48. | [SPDM tests][spdm-validator]: `test_bc_spdm_device_cert_with_ca_true_rejected`, `test_bc_spdm_alias_cert_with_ca_true_rejected`, `test_bc_spdm_no_bc_extension_passes`, and `test_bc_spdm_generic_cert_ca_true_passes`; [leaf helper][crypto] permits omission. | **Gap.** Existing permissive expectations are not 1.4 conformance tests. Add the model-by-model presence/value matrix and exercise the actual acceptance flow before changing behavior. |
 | C06 | Leaf Key Usage is mandatory for DeviceCert/AliasCert, optional for GenericCert; if present it includes `digitalSignature`. DSP0274 10.9.2, Table 48. | [Leaf helper][crypto] checks `digitalSignature` only when Key Usage is present. [Extension tests][extensions] test bit decoding. | **Gap.** Add absent, malformed, correct, and incorrect Key Usage for all three models, including production leaf validation rather than bit decoding alone. |
-| C07 | CA Key Usage and path-length limits obey the applicable RFC 5280 rules, including self-issued handling. DSP0274 10.9.2 references RFC 5280; RFC 5280 4.2.1.3, 4.2.1.9, and 6.1. | [Validator][validator] checks issuer `keyCertSign` and path length; tests include maximum chain depth and self-issued Name Constraints cases. | **Partial.** Add dedicated `keyCertSign` and path-length boundary vectors. Name Constraints self-issued tests do not establish correct path-length counting. Distinguish implementation depth limits from certificate path constraints. |
-| C08 | Process applicable critical extensions and reject malformed/duplicate extensions as required by RFC 5280. DSP0274 10.9.2; RFC 5280 4.2 and 6.1. | Core Limbo cases cover unknown critical extensions in the leaf and intermediate. [Validator tests][validator] include `test_duplicate_extension_oids_are_rejected_before_constraint_processing`. | **Partial.** Extend across root/intermediate/leaf positions; check malformed values of recognized extensions and non-critical unknown-extension acceptance with valid signatures. |
-| C09 | Enforce Name Constraints across the supplied path for each applicable name form. DSP0274 10.9.2; RFC 5280 4.2.1.10 and 6.1. | Six Limbo cases plus [validator regressions][validator], including `test_every_present_name_is_checked_and_absent_forms_are_allowed`, `test_mailbox_constraints_require_exact_san_representation`, and `test_directory_constraint_comparison_errors_fail_closed`. | **Partial.** Expand signed linear-chain cases for cumulative constraints, every supported form, excluded precedence, and self-issued boundaries. Keep signature-disabled isolation tests, but do not count them as signed end-to-end validation. |
+| C07 | CA Key Usage and path-length limits obey the applicable RFC 5280 rules, including self-issued handling. DSP0274 10.9.2 references RFC 5280; RFC 5280 4.2.1.3, 4.2.1.9, and 6.1. | [Validator][validator] checks issuer `keyCertSign` and counts non-self-issued intermediates for path length. `test_pathlen_x509_limbo_conformance` covers seven signed paths, including rollover and exceeded limits; the core suite rejects inconsistent root CA/Key Usage. | **Partial.** Add validly linked intermediate `keyCertSign` rejection vectors. Distinguish implementation depth limits from certificate path constraints; the upstream logical-depth cases remain explicitly unsupported. |
+| C08 | Process applicable critical extensions and reject malformed/duplicate extensions as required by RFC 5280. DSP0274 10.9.2; RFC 5280 4.2 and 6.1. | Core Limbo cases cover unknown critical extensions in the root, intermediate, and leaf, duplicate extensions, and non-critical AIA acceptance. [Validator tests][validator] include `test_duplicate_extension_oids_are_rejected_before_constraint_processing`. | **Partial.** Add malformed recognized-extension values at each position and extend coverage through the production SPDM acceptance flows. |
+| C09 | Enforce Name Constraints across the supplied path for each applicable name form. DSP0274 10.9.2; RFC 5280 4.2.1.10 and 6.1. | 46 signed Limbo cases plus [validator regressions][validator], including `test_every_present_name_is_checked_and_absent_forms_are_allowed`, `test_mailbox_constraints_require_exact_san_representation`, and `test_directory_constraint_comparison_errors_fail_closed`. | **Partial.** The signed cases now cover cumulative constraints, excluded precedence, self-issued boundaries, DNS/IP/directory/email names, and unsupported-name handling. Extend URI-specific signed cases and exercise the production acceptance flows. |
 
 ### SPDM purpose, model, and integration
 
@@ -125,8 +161,9 @@ algorithm or parsing failure must not stand in for the rule under test.
 
 ### Execution order and completion criteria
 
-1. Expand the linear-path Limbo vectors for C02 and C07-C09. Classify time,
-   TLS-specific, unsupported-algorithm, and path-discovery cases explicitly.
+1. The linear-path expansion for C02 and C07-C09 now contains 62 signed
+   cases with explicit exclusions. Remaining path-rule work includes URI
+   constraints and intermediate Key Usage vectors that can isolate the rule.
 2. Add native SPDM fixtures for C01 and C03-C06, then S01-S05, using the
    normative model/capability inputs rather than preserving permissive
    expectations as conformance rules.
