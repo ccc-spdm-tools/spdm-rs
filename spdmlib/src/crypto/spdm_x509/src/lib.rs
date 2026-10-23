@@ -48,8 +48,8 @@ pub use x509::extensions::{
 };
 pub use x509::{
     parse_spdm_cert_chain, validate_spdm_cert_chain_with_backend, verify_cert_chain_with_backend,
-    verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmCertificateModel,
-    SpdmCertificateRole, SpdmValidator,
+    verify_cert_chain_with_backend_and_role, verify_signature_with_backend, SpdmBaseAsymAlgo,
+    SpdmBaseHashAlgo, SpdmCertificateModel, SpdmCertificateRole, SpdmValidator,
 };
 #[cfg(test)]
 pub use x509::{
@@ -66,7 +66,10 @@ pub mod prelude {
 pub mod spdmlib {
     #[cfg(test)]
     pub use crate::x509::chain::verify_cert_chain;
-    pub use crate::x509::chain::{get_cert_from_cert_chain, verify_cert_chain_with_backend};
+    pub use crate::x509::chain::{
+        get_cert_from_cert_chain, verify_cert_chain_with_backend,
+        verify_cert_chain_with_backend_and_role,
+    };
     #[cfg(test)]
     pub use crate::x509::signature::verify_signature;
     pub use crate::x509::signature::verify_signature_with_backend;

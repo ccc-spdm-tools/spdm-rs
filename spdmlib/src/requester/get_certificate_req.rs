@@ -300,13 +300,23 @@ impl RequesterContext {
         //
         // 1.1 verify the integrity of the chain
         //
-        if crypto::cert_operation::verify_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
-            self.common.negotiate_info.base_asym_sel,
-            self.common.negotiate_info.base_hash_sel,
-        )
-        .is_err()
-        {
+        let verification =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14 {
+                crypto::cert_operation::verify_cert_chain_with_role(
+                    &runtime_peer_cert_chain_data.data[..data_size as usize],
+                    self.common.negotiate_info.base_asym_sel,
+                    self.common.negotiate_info.base_hash_sel,
+                    crypto::SpdmCertificateRole::Responder,
+                )
+            } else {
+                crypto::cert_operation::verify_cert_chain(
+                    &runtime_peer_cert_chain_data.data
+                        [..(runtime_peer_cert_chain_data.data_size as usize)],
+                    self.common.negotiate_info.base_asym_sel,
+                    self.common.negotiate_info.base_hash_sel,
+                )
+            };
+        if verification.is_err() {
             error!("cert_chain verification - fail! - TBD later\n");
             return Err(SPDM_STATUS_INVALID_CERT);
         }

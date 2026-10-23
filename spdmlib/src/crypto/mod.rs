@@ -21,6 +21,7 @@ pub use crypto_callbacks::{
     SpdmHash, SpdmHkdf, SpdmHmac, SpdmKemCipherTextExchange, SpdmKemDecap, SpdmKemEncap,
     SpdmKemEncapKeyExchange, SpdmPqcAsymVerify,
 };
+pub use spdm_x509::SpdmCertificateRole;
 
 #[cfg(feature = "hashed-transcript-data")]
 pub use self::hash::SpdmHashCtx;
@@ -34,7 +35,7 @@ use conquer_once::spin::OnceCell;
 /// self-signature (RFC 5280).
 ///
 /// The root's self-signature is verified cryptographically by the registered
-/// `cert_operation::verify_cert_chain`, which runs before this function in the
+/// certificate-chain callback (role-aware for SPDM 1.4), which runs before this function in the
 /// GET_CERTIFICATE / ENCAP_GET_CERTIFICATE flow: the X.509 chain walk verifies
 /// the root (last cert) against its own public key using the *active* crypto
 /// backend (ring, mbedtls, or aws-lc). This function therefore only checks the
@@ -485,7 +486,7 @@ pub mod kem_encap {
 
 pub mod cert_operation {
     use super::CRYPTO_CERT_OPERATION;
-    use crate::crypto::SpdmCertOperation;
+    use crate::crypto::{SpdmCertOperation, SpdmCertificateRole};
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
     use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
 
@@ -525,6 +526,25 @@ pub mod cert_operation {
             .try_get_or_init(|| DEFAULT.clone())
             .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
             .verify_cert_chain_cb)(cert_chain, asym, hash)
+    }
+
+    /// Verify a chain for an explicit peer role without a legacy fallback.
+    pub fn verify_cert_chain_with_role(
+        cert_chain: &[u8],
+        base_asym_algo: SpdmBaseAsymAlgo,
+        base_hash_algo: SpdmBaseHashAlgo,
+        role: SpdmCertificateRole,
+    ) -> SpdmResult {
+        let context = CRYPTO_CERT_OPERATION
+            .try_get_or_init(|| DEFAULT.clone())
+            .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?;
+        let verify = context.verify_cert_chain_with_role_cb.ok_or_else(|| {
+            log::error!("Certificate backend does not support role-aware validation");
+            SPDM_STATUS_INVALID_STATE_LOCAL
+        })?;
+        let asym = (base_asym_algo.bits() != 0).then_some(base_asym_algo.bits());
+        let hash = (base_hash_algo.bits() != 0).then_some(base_hash_algo.bits());
+        verify(cert_chain, asym, hash, role)
     }
 }
 

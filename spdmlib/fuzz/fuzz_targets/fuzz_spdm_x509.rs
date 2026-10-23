@@ -8,7 +8,9 @@ use libfuzzer_sys::fuzz_target;
 
 pub use fuzzlib::*;
 
-use spdmlib::crypto::{cert_operation, check_leaf_certificate, is_root_certificate};
+use spdmlib::crypto::{
+    cert_operation, check_leaf_certificate, is_root_certificate, SpdmCertificateRole,
+};
 use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
 
 fuzz_target!(|cert: &[u8]| {
@@ -29,6 +31,18 @@ fuzz_target!(|cert: &[u8]| {
             cert,
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+        );
+    }
+
+    for role in [
+        SpdmCertificateRole::Requester,
+        SpdmCertificateRole::Responder,
+    ] {
+        let _ = cert_operation::verify_cert_chain_with_role(
+            cert,
+            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            role,
         );
     }
 

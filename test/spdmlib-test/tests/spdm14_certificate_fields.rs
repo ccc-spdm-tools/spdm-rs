@@ -66,12 +66,18 @@ fn chain_buffer(leaf: &[u8]) -> SpdmCertChainBuffer {
         [ROOT, INTERMEDIATE, leaf].concat()
     };
     assert!(
-        crypto::cert_operation::verify_cert_chain(
+        [
+            crypto::SpdmCertificateRole::Requester,
+            crypto::SpdmCertificateRole::Responder
+        ]
+        .iter()
+        .any(|role| crypto::cert_operation::verify_cert_chain_with_role(
             &chain,
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
             SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            *role,
         )
-        .is_ok(),
+        .is_ok()),
         "integration vectors must have valid signatures and linkage"
     );
     let root_hash = crypto::hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_256, ROOT).unwrap();
@@ -90,6 +96,79 @@ fn expected(accepted: bool) -> SpdmResult {
         Ok(())
     } else {
         Err(SPDM_STATUS_INVALID_CERT)
+    }
+}
+
+#[test]
+fn spdm14_certificate_eku_roles_in_both_acceptance_paths() {
+    for (leaf, requester_eku, responder_eku) in [
+        (
+            &include_bytes!("../../../test_key/ecp256/end_requester_with_spdm_req_eku.cert.der")[..],
+            true,
+            false,
+        ),
+        (
+            &include_bytes!("../../../test_key/ecp256/end_responder_with_spdm_rsp_eku.cert.der")[..],
+            false,
+            true,
+        ),
+        (
+            &include_bytes!(
+                "../../../test_key/ecp256/end_requester_with_spdm_req_rsp_eku.cert.der"
+            )[..],
+            true,
+            true,
+        ),
+        (LEAF, true, true),
+    ] {
+        for version in [
+            SpdmVersion::SpdmVersion10,
+            SpdmVersion::SpdmVersion11,
+            SpdmVersion::SpdmVersion12,
+            SpdmVersion::SpdmVersion13,
+            SpdmVersion::SpdmVersion14,
+        ] {
+            let (mut requester, mut responder) = contexts();
+            let chain = chain_buffer(leaf);
+            for common in [&mut requester.common, &mut responder.common] {
+                common.negotiate_info.spdm_version_sel = version;
+                common.peer_info.peer_cert_chain_temp = Some(chain);
+            }
+            assert_eq!(
+                requester.verify_spdm_certificate_chain(),
+                expected(responder_eku),
+                "Responder certificate {:?}: req={}, rsp={}",
+                version,
+                requester_eku,
+                responder_eku
+            );
+            assert_eq!(
+                responder.verify_spdm_certificate_chain(),
+                expected(if version == SpdmVersion::SpdmVersion14 {
+                    requester_eku
+                } else {
+                    responder_eku
+                }),
+                "Requester certificate {:?}: req={}, rsp={}",
+                version,
+                requester_eku,
+                responder_eku
+            );
+            if version == SpdmVersion::SpdmVersion14 {
+                let mut corrupt = chain;
+                corrupt.data[corrupt.data_size as usize - 1] ^= 1;
+                requester.common.peer_info.peer_cert_chain_temp = Some(corrupt);
+                responder.common.peer_info.peer_cert_chain_temp = Some(corrupt);
+                assert_eq!(
+                    requester.verify_spdm_certificate_chain(),
+                    Err(SPDM_STATUS_INVALID_CERT)
+                );
+                assert_eq!(
+                    responder.verify_spdm_certificate_chain(),
+                    Err(SPDM_STATUS_INVALID_CERT)
+                );
+            }
+        }
     }
 }
 

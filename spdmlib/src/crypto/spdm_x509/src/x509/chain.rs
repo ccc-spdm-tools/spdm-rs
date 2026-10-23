@@ -752,6 +752,75 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn test_verify_cert_chain_role_eku_signed_matrix() {
+        let read_cert = |name: &str| {
+            std::fs::read(alloc::format!(
+                "{}/../../../../test_key/ecp256/{}",
+                env!("CARGO_MANIFEST_DIR"),
+                name,
+            ))
+            .unwrap()
+        };
+        let root = read_cert("ca.cert.der");
+        let intermediate = read_cert("inter.cert.der");
+        for (name, requester, responder) in [
+            ("end_requester_with_spdm_req_eku.cert.der", true, false),
+            ("end_responder_with_spdm_rsp_eku.cert.der", false, true),
+            ("end_requester_with_spdm_req_rsp_eku.cert.der", true, true),
+            ("end_responder.cert.der", true, true),
+        ] {
+            let leaf = read_cert(name);
+            let chain = [root.as_slice(), intermediate.as_slice(), leaf.as_slice()].concat();
+            assert_eq!(
+                verify_cert_chain(&chain).is_ok(),
+                responder,
+                "legacy/{}",
+                name
+            );
+            for (role, accepted) in [
+                (SpdmCertificateRole::Requester, requester),
+                (SpdmCertificateRole::Responder, responder),
+            ] {
+                let result = verify_cert_chain_with_backend_and_role(
+                    &chain,
+                    crate::crypto_backend::RingBackend,
+                    None,
+                    None,
+                    role,
+                );
+                if accepted {
+                    assert!(result.is_ok(), "{}/{:?}: {:?}", name, role, result);
+                    let mut corrupt = chain.clone();
+                    *corrupt.last_mut().unwrap() ^= 1;
+                    assert!(matches!(
+                        verify_cert_chain_with_backend_and_role(
+                            &corrupt,
+                            crate::crypto_backend::RingBackend,
+                            None,
+                            None,
+                            role,
+                        ),
+                        Err(Error::SignatureError(_))
+                    ));
+                } else {
+                    assert!(
+                        matches!(
+                            result,
+                            Err(Error::ExtensionError(
+                                crate::error::ExtensionError::ExtendedKeyUsage(_)
+                            ))
+                        ),
+                        "{}/{:?}: {:?}",
+                        name,
+                        role,
+                        result
+                    );
+                }
+            }
+        }
+    }
+
     // ── verify_cert_chain_with_options: algorithm enforcement ──
 
     #[test]
@@ -1013,6 +1082,9 @@ pub fn verify_cert_chain_with_options(
 /// 4. Validates SPDM EKU on the leaf certificate
 /// 5. Optionally validates the leaf's algorithms against negotiated SPDM params
 ///
+/// Uses the Responder role for compatibility. For Requester authentication,
+/// use [`verify_cert_chain_with_backend_and_role`].
+///
 /// # Arguments
 /// * `cert_chain` - Buffer containing concatenated DER certificates
 /// * `backend`    - Crypto backend for signature verification
@@ -1023,6 +1095,27 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     backend: B,
     base_asym_algo: Option<u32>,
     base_hash_algo: Option<u32>,
+) -> Result<()> {
+    verify_cert_chain_with_backend_and_role(
+        cert_chain,
+        backend,
+        base_asym_algo,
+        base_hash_algo,
+        SpdmCertificateRole::Responder,
+    )
+}
+
+/// Validate a root-to-leaf DER chain and its leaf EKU for the peer's role.
+///
+/// Unlike the legacy [`verify_cert_chain_with_backend`] entry point, callers
+/// explicitly select Requester or Responder authentication. Field-profile,
+/// deployment trust, and time policies are unchanged.
+pub fn verify_cert_chain_with_backend_and_role<B: CryptoBackend>(
+    cert_chain: &[u8],
+    backend: B,
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
+    role: SpdmCertificateRole,
 ) -> Result<()> {
     log::trace!("verify_cert_chain: chain_len={}", cert_chain.len());
 
@@ -1094,14 +1187,14 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     //  validator through a helper.
     spdm_validator.validate_chain(&chain, &options)?;
 
-    log::trace!("verify_cert_chain: validating leaf certificate EKU (Responder role)");
+    log::trace!(
+        "verify_cert_chain: validating leaf certificate EKU ({:?} role)",
+        role
+    );
 
     // Then, validate SPDM EKU on the leaf certificate (first in reversed chain)
-    // The leaf certificate is a Responder certificate in SPDM protocol
     if !chain.is_empty() {
-        match spdm_validator
-            .validate_spdm_eku(&chain.certificates[0], SpdmCertificateRole::Responder)
-        {
+        match spdm_validator.validate_spdm_eku(&chain.certificates[0], role) {
             Ok(_) => {
                 log::trace!("verify_cert_chain: SPDM EKU validation successful");
             }

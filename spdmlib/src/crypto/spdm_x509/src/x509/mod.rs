@@ -21,7 +21,7 @@ pub mod validator;
 
 pub use chain::{
     get_cert_from_cert_chain, parse_spdm_cert_chain, validate_spdm_cert_chain_with_backend,
-    verify_cert_chain_with_backend, SpdmCertChainHeader,
+    verify_cert_chain_with_backend, verify_cert_chain_with_backend_and_role, SpdmCertChainHeader,
 };
 #[cfg(test)]
 pub use chain::{validate_spdm_cert_chain, verify_cert_chain, verify_cert_chain_with_options};

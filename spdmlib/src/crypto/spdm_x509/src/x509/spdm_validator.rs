@@ -575,8 +575,9 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
 /// contain Basic Constraints with cA=TRUE; the leaf must contain cA=FALSE.
 /// DeviceCert/AliasCert leaves require digitalSignature Key Usage, while
 /// GenericCert leaves may omit Key Usage. Leaves must not assert keyCertSign.
+/// Present Extended Key Usage must be well-formed and nonempty.
 ///
-/// This checks fields only, not signatures, trust, time, EKU, model negotiation,
+/// This checks fields only, not signatures, trust, time, EKU purpose, model negotiation,
 /// or the remaining SPDM extension and algorithm requirements.
 pub fn validate_spdm14_certificate_chain_fields(
     cert_chain: &[u8],
@@ -606,6 +607,20 @@ pub fn validate_spdm14_certificate_chain_fields(
             return Err(Error::ParseError(ParseError::InvalidInteger(
                 "SPDM certificate serial number must be positive".into(),
             )));
+        }
+
+        if let Some(ext) = find_extension(cert, &EXTENDED_KEY_USAGE) {
+            let eku = ExtendedKeyUsage::from_extension(ext).map_err(|e| {
+                Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
+                    "Invalid Extended Key Usage: {:?}",
+                    e
+                )))
+            })?;
+            if eku.key_purposes.is_empty() {
+                return Err(Error::ExtensionError(ExtensionError::InvalidEncoding(
+                    "Extended Key Usage must contain at least one purpose".into(),
+                )));
+            }
         }
 
         let bc_ext = find_extension(cert, &BASIC_CONSTRAINTS).ok_or_else(|| {
@@ -1311,5 +1326,37 @@ mod tests {
             ),
             Err(Error::ChainError(crate::error::ChainError::ChainTooLong))
         ));
+    }
+
+    #[test]
+    fn test_spdm14_malformed_eku_at_every_position() {
+        let certs = [
+            load_cert(&test_key_path("ecp256/ca.cert.der")),
+            load_cert(&test_key_path("ecp256/inter.cert.der")),
+            load_cert(&test_key_path("ecp256/end_responder.cert.der")),
+        ];
+        for position in 0..certs.len() {
+            for value in [
+                &[0x30, 0][..],
+                &[0x30, 1, 0xff][..],
+                &[0x30, 3, 6, 1, 0x80][..],
+                &[0x30, 3, 6, 1][..],
+            ] {
+                let mut mutated = certs.clone();
+                replace_field_extension(&mut mutated[position], EXTENDED_KEY_USAGE, Some(value));
+                assert!(
+                    matches!(
+                        validate_spdm14_certificate_chain_fields(
+                            &field_chain(&mutated),
+                            SpdmCertificateModel::DeviceCert,
+                        ),
+                        Err(Error::ExtensionError(ExtensionError::InvalidEncoding(_)))
+                    ),
+                    "position {}/value {:?}",
+                    position,
+                    value
+                );
+            }
+        }
     }
 }
