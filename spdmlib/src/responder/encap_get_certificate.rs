@@ -215,7 +215,7 @@ impl ResponderContext {
         // 1.1 verify the integrity of the chain
         //
         let verification = if self.common.negotiate_info.spdm_version_sel
-            >= crate::protocol::SpdmVersion::SpdmVersion14
+            >= crate::protocol::SpdmVersion::SpdmVersion12
         {
             crypto::cert_operation::verify_cert_chain_with_role(
                 &runtime_peer_cert_chain_data.data[..data_size as usize],

@@ -127,7 +127,7 @@ pub struct SpdmCertOperation {
         base_hash_algo: Option<u32>,
     ) -> SpdmResult,
 
-    /// Required for SPDM 1.4 acceptance. Verify signatures/path and leaf EKU for
+    /// Required for SPDM 1.2+ acceptance. Verify signatures/path and leaf EKU for
     /// the supplied peer role. `None` supports only legacy acceptance; the
     /// dispatcher must not fall back to the Responder-only callback.
     pub verify_cert_chain_with_role_cb: Option<VerifyCertChainWithRoleCb>,

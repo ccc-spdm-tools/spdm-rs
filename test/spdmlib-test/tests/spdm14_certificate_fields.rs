@@ -100,7 +100,7 @@ fn expected(accepted: bool) -> SpdmResult {
 }
 
 #[test]
-fn spdm14_certificate_eku_roles_in_both_acceptance_paths() {
+fn spdm12_plus_certificate_eku_roles_in_both_acceptance_paths() {
     for (leaf, requester_eku, responder_eku) in [
         (
             &include_bytes!("../../../test_key/ecp256/end_requester_with_spdm_req_eku.cert.der")[..],
@@ -144,7 +144,7 @@ fn spdm14_certificate_eku_roles_in_both_acceptance_paths() {
             );
             assert_eq!(
                 responder.verify_spdm_certificate_chain(),
-                expected(if version == SpdmVersion::SpdmVersion14 {
+                expected(if version >= SpdmVersion::SpdmVersion12 {
                     requester_eku
                 } else {
                     responder_eku
@@ -154,7 +154,7 @@ fn spdm14_certificate_eku_roles_in_both_acceptance_paths() {
                 requester_eku,
                 responder_eku
             );
-            if version == SpdmVersion::SpdmVersion14 {
+            if version >= SpdmVersion::SpdmVersion12 {
                 let mut corrupt = chain;
                 corrupt.data[corrupt.data_size as usize - 1] ^= 1;
                 requester.common.peer_info.peer_cert_chain_temp = Some(corrupt);

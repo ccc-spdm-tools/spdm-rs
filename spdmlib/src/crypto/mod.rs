@@ -35,7 +35,8 @@ use conquer_once::spin::OnceCell;
 /// self-signature (RFC 5280).
 ///
 /// The root's self-signature is verified cryptographically by the registered
-/// certificate-chain callback (role-aware for SPDM 1.4), which runs before this function in the
+/// certificate-chain callback (role-aware for SPDM 1.2+), which runs before
+/// this function in the
 /// GET_CERTIFICATE / ENCAP_GET_CERTIFICATE flow: the X.509 chain walk verifies
 /// the root (last cert) against its own public key using the *active* crypto
 /// backend (ring, mbedtls, or aws-lc). This function therefore only checks the

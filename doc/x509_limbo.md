@@ -111,8 +111,10 @@ retains packed per-slot metadata, and computes digests before encoding so
 metadata is not overwritten by digest patching. Normal DIGESTS continues to
 use MULTI_KEY_CONN_RSP.
 
-SPDM 1.0-1.3 acceptance is unchanged. The legacy leaf and `SpdmValidator`
-helpers remain compatibility APIs, not independent proof of 1.4 conformance.
+The additional field profile does not apply to SPDM 1.0-1.3; their leaf-field
+handling is unchanged. Role-aware EKU validation separately applies to 1.2+
+as described below. The legacy leaf and `SpdmValidator` helpers remain
+compatibility APIs, not independent proof of 1.4 conformance.
 Generic Limbo validation does not run the additional SPDM field profile; its
 missing-Basic-Constraints capability exclusions remain intentional.
 
@@ -132,18 +134,28 @@ Omitted-root/single-certificate handling, the full SPDM extension format, and
 algorithm negotiation remain follow-up work. Time decisions and deployment
 trust policy are unchanged.
 
-### SPDM 1.4 peer-role EKU enforcement
+### SPDM 1.2+ peer-role EKU enforcement
 
-Both 1.4 retrieval directions use a role-aware certificate callback:
+Both retrieval directions use a role-aware certificate callback for SPDM 1.2+:
 GET_CERTIFICATE verifies a Responder leaf, and encapsulated GET_CERTIFICATE
 verifies a Requester leaf. A leaf containing only the opposite SPDM auth OID
 is rejected; both OIDs and alternate OIDs remain permissible. EKU omission is
 permitted. This does not add TLS peer-name or TLS client/server policy.
 
+This role distinction is defined in clause 10.8.2.1 of both
+[DSP0274 1.2.0](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.2.0.pdf)
+and [DSP0274 1.3.0](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.3.0.pdf),
+as well as clause 10.9.2.1 of 1.4. It is not a 1.4-only wire feature.
+The version gate for the additional mandatory-field profile remains 1.4;
+this EKU change does not enable that profile, multi-key metadata, or the
+1.4 chain-length format for earlier revisions.
+
 The [signed role test][chain] checks exact EKU versus signature-error categories.
 The [acceptance matrix][native-tests] runs four signed leaf variants in both
-directions across SPDM 1.0-1.4 and preserves the earlier versions' legacy
-Responder-role behavior. The 1.4 [field tests][spdm-validator] reject empty,
+directions across SPDM 1.0-1.4: 1.2-1.4 use the actual peer role, while
+1.0-1.1 retain legacy Responder-role behavior. Signature corruption is also
+checked in both directions for every 1.2+ revision. The 1.4
+[field tests][spdm-validator] reject empty,
 malformed-OID, truncated, and invalid-tag EKU values at every chain position.
 These field mutations are not claimed as signed malformed-EKU fixtures.
 
@@ -159,14 +171,14 @@ present, but a passing mbedTLS run is not claimed.
 
 [SpdmCertOperation][callbacks] has a new optional field:
 `verify_cert_chain_with_role_cb`. Custom struct literals must add this field.
-Provide `Some(callback)` for SPDM 1.4; the callback receives the same certificate
+Provide `Some(callback)` for SPDM 1.2+; the callback receives the same certificate
 and optional algorithm arguments plus `SpdmCertificateRole` (re-exported from
 `spdmlib::crypto`), and must verify the path/signatures and leaf EKU for that role.
 Ring, AWS-LC, and mbedTLS provide this callback.
 
 Use `None` only for a deliberately legacy-only implementation. The role-aware
 dispatcher logs and returns `SPDM_STATUS_INVALID_STATE_LOCAL` if it is absent;
-1.4 certificate acceptance fails rather than falling back to the Responder-only
+1.2+ certificate acceptance fails rather than falling back to the Responder-only
 callback. The [legacy-only regression][legacy-callback-test] verifies this
 fail-closed behavior. The old `verify_cert_chain` callback and X.509
 `verify_cert_chain_with_backend` API retain their Responder-role behavior.
@@ -224,13 +236,13 @@ algorithm or parsing failure must not stand in for the rule under test.
 
 | ID | Requirement and normative reference | Current evidence | Status and next cases |
 | --- | --- | --- | --- |
-| S01 | SPDM EKU OIDs identify Requester and Responder authentication; both may be present, and alternate OIDs are permissible. DSP0274 10.9.2.1. | The role-aware [chain entry point][chain] and [1.4 acceptance matrix][native-tests] exercise signed matching/opposite/both/alternate OIDs in both directions with version gating. [Field tests][spdm-validator] reject malformed/empty EKU; helper tests permit absence. | **Partial.** The production peer role is wired. Add signed absent-EKU end-entity and malformed/issuer-placement vectors; do not confuse field mutations with signed-path evidence. |
+| S01 | SPDM EKU OIDs identify Requester and Responder authentication; both may be present, and alternate OIDs are permissible. DSP0274 1.2/1.3 10.8.2.1 and 1.4 10.9.2.1. | The role-aware [chain entry point][chain] and [1.2+ acceptance matrix][native-tests] exercise signed matching/opposite/both/alternate OIDs in both directions with version gating. The 1.4 [field tests][spdm-validator] reject malformed/empty EKU; helper tests permit absence. | **Partial.** The production peer role is wired for 1.2-1.4; 1.0-1.1 retain legacy behavior. Add signed absent-EKU end-entity and malformed/issuer-placement vectors; do not confuse field mutations with signed-path evidence. |
 | S02 | The optional SPDM extension is non-critical and follows the specified nested OID/value format. DSP0274 10.9.2.2. | [SPDM validator][spdm-validator] has an absent-extension test and a parser that also accepts bare OIDs and warns about unknown OIDs. | **Gap.** Add canonical nested encoding, critical-bit, empty-container, invalid OID, trailing-field, and OID-definition cases. Verify the production caller actually invokes the checks; helper availability is not integration coverage. |
 | S03 | Hardware Identity is recommended for DeviceCert/device CA, not universally mandatory; it is forbidden in alias certificates. Its definition value is absent. DSP0274 7.2.1.1 and 10.9.2.2.1. | [Acceptance tests][native-tests] verify alias leaf hardware-identity rejection in both 1.4 directions using the selected model; DeviceCert identity omission is not made mandatory there. The standalone [SPDM helper][spdm-validator] still has a mandatory DeviceCert expectation. | **Partial.** Reconcile that standalone helper with the recommendation. Test identity placement in the device CA and every alias certificate, not just the leaf, plus forbidden definition bytes. |
 | S04 | Certificate models depend on the slot and negotiated capabilities; GenericCert requires the applicable multi-key connection mode and is not allowed in slot 0. DSP0274 10.7. | Both 1.4 acceptance paths resolve the selected slot's model, reject missing/invalid multi-key models and GenericCert in slot 0, and distinguish Requester/Responder connection mode. [Acceptance tests][native-tests] cover slots 0/3, model values, asymmetric multi-key flags, and packed encapsulated DIGESTS metadata/hash roundtrips. | **Partial.** Add single-certificate restrictions and the remaining capability/model combinations. Single-key Requester model identity is not advertised by a capability flag. |
 | S05 | Validate certificate signatures and endpoint public-key compatibility at the appropriate algorithm-negotiation layer. DSP0274 10.4, 10.7, and 10.9.2, Table 48. | [Signature tests][signature] cover algorithm families, curves, RSA sizes, and hash selection; [chain tests][chain] cover a matching ECDSA chain and wrong asymmetric selection. | **Partial.** Add valid/invalid signature parameters, wrong keys, supported classical/PQC combinations, and role-specific negotiated selections. Separately identify certificate-issuer signature algorithms and the endpoint authentication key; do not assume every issuer must use the negotiated leaf algorithm. |
 | S06 | Check certificate-chain framing and RootHash using the selected hash algorithm. DSP0274 10.7, Table 39; certificate retrieval in 10.9. | [Chain tests][chain] cover header parsing and hashing; [requester acceptance][requester] checks total length and root digest. [Retrieval tests][retrieval-tests] include `test_case0_send_receive_spdm_certificate` and `test_handle_spdm_certificate_partial_response`. | **Partial.** Add hash mismatch, wrong hash selection, incomplete/extra bytes, malformed lengths, and omitted-root cases through real certificate callbacks. Distinguish pre-1.4 framing from the 1.4 four-byte length. |
-| S07 | Requester and Responder certificate retrieval exchange roles for mutual authentication. DSP0274 10.9.1. | [Acceptance tests][native-tests] run signed field/model and role-EKU cases in both directions. The 1.4 encapsulated flow uses Requester EKU and Requester multi-key DIGESTS metadata. | **Partial.** Fields, leaf models, and peer EKU roles are wired for 1.4. Role-specific negotiated algorithm selection remains to be addressed; full symmetry is not claimed. |
+| S07 | Requester and Responder certificate retrieval exchange roles for mutual authentication. DSP0274 10.9.1. | [Acceptance tests][native-tests] run signed field/model and role-EKU cases in both directions. The 1.2+ encapsulated flow uses Requester EKU; Requester multi-key DIGESTS metadata remains separately gated to 1.4. | **Partial.** Peer EKU roles are wired for 1.2-1.4, with additional fields/leaf models for 1.4. Role-specific negotiated algorithm selection remains to be addressed; full symmetry is not claimed. |
 | S08 | Establish trust in the root separately from verifying a chain's internal consistency. DSP0274 7.2.1.1 and 10.7; deployment trust provisioning is an explicit input. | [Requester][requester] and [encapsulated acceptance][encap-requester] compare provisioned roots when present and allow an unprovisioned mode. | **Partial.** Add matching/nonmatching/missing provisioned-root tests and name the deployment policy for each case. A valid RootHash or self-signature must not be reported as proof that a root is authorized. Do not change the unprovisioned policy as part of test expansion. |
 | S09 | Results should be consistent for each backend's supported algorithm set. Test strategy for the preceding requirements, not a separate wire-protocol requirement. | The [shared role matrix][role-backend-tests] runs signed EKU/corruption cases through production Ring and AWS-LC callbacks; AWS-LC also verifies role-aware ML-DSA. mbedTLS wiring is present but dependency build errors block execution. Generic Limbo still uses its test-only Ring backend. | **Partial.** Restore mbedTLS dependency-build compatibility before claiming its results. Extend backend coverage beyond the role matrix, reporting unsupported algorithms explicitly. |
 
@@ -259,7 +271,7 @@ algorithm or parsing failure must not stand in for the rule under test.
 2. The first native increment enforces C01 and C04-C06 fields for 1.4 in both
    production directions, with field-category matrices and signed acceptance
    regressions. The next increment wires peer-role EKU through the production
-   callbacks and signed 1.0-1.4 acceptance matrix. Extend signed field/EKU vectors,
+   callbacks for 1.2+ and signed 1.0-1.4 acceptance matrix. Extend signed field/EKU vectors,
    then address C03 and remaining S01-S05 cases using normative model/capability
    inputs rather than permissive compatibility expectations.
 3. Exercise S06-S08 through both production acceptance flows with real crypto
