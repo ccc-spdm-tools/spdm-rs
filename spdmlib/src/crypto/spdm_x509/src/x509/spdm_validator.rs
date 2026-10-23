@@ -816,6 +816,61 @@ mod tests {
         )
     }
 
+    #[test]
+    fn test_selected_key_algorithms_do_not_constrain_issuer_signatures() {
+        let cert = load_cert(&test_key_path("ecp256/end_responder_rsa_issuer.cert.der"));
+        let validator = SpdmValidator::new();
+        for hash in [1, 2, 4] {
+            validator.validate_algorithms(&cert, 1 << 4, hash).unwrap();
+        }
+        assert!(matches!(
+            validator.validate_algorithms(&cert, 1 << 7, 1),
+            Err(Error::AlgorithmError(
+                crate::error::AlgorithmError::Unsupported(_)
+            ))
+        ));
+        let mut chain = std::fs::read(test_key_path("rsa2048/ca.cert.der")).unwrap();
+        chain.extend(std::fs::read(test_key_path("rsa2048/inter.cert.der")).unwrap());
+        chain.extend(cert.to_der().unwrap());
+        for hash in [None, Some(1), Some(2), Some(4)] {
+            super::super::chain::verify_cert_chain_with_backend_and_role(
+                &chain,
+                crate::crypto_backend::RingBackend,
+                Some(1 << 4),
+                hash,
+                SpdmCertificateRole::Responder,
+            )
+            .unwrap();
+            assert!(matches!(
+                super::super::chain::verify_cert_chain_with_backend_and_role(
+                    &chain,
+                    crate::crypto_backend::RingBackend,
+                    Some(1 << 7),
+                    hash,
+                    SpdmCertificateRole::Responder,
+                ),
+                Err(Error::AlgorithmError(
+                    crate::error::AlgorithmError::Unsupported(_)
+                ))
+            ));
+        }
+        *chain.last_mut().unwrap() ^= 1;
+        assert!(matches!(
+            super::super::chain::verify_cert_chain_with_backend_and_role(
+                &chain,
+                crate::crypto_backend::RingBackend,
+                Some(1 << 4),
+                Some(1),
+                SpdmCertificateRole::Responder,
+            ),
+            Err(Error::SignatureError(_))
+        ));
+        assert!(matches!(
+            validate_spdm_certificate_chain_algorithms(&[], 1 << 4, 0),
+            Err(Error::ChainError(crate::error::ChainError::EmptyChain))
+        ));
+    }
+
     // ── validate_spdm_eku ──
 
     #[test]

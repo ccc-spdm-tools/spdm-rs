@@ -15,7 +15,7 @@ use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
 
 fuzz_target!(|cert: &[u8]| {
     // Exercise certificate chain parsing with various algorithms
-    for _algo in [
+    for algo in [
         SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
         SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
         SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
@@ -27,10 +27,17 @@ fuzz_target!(|cert: &[u8]| {
     ] {
         let _ = cert_operation::get_cert_from_cert_chain(cert, 0);
         let _ = cert_operation::get_cert_from_cert_chain(cert, -1);
-        let _ = cert_operation::verify_cert_chain(
+        let _ = cert_operation::verify_cert_chain(cert, algo, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
+        let _ = spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms(
             cert,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
-            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            algo.bits(),
+            0,
+        );
+    }
+
+    for pqc in [1, 2, 4] {
+        let _ = spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms(
+            cert, 0, pqc,
         );
     }
 

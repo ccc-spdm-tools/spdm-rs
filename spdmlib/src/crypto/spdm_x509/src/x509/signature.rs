@@ -730,6 +730,219 @@ pub fn verify_hash_algorithm(hash_oid: &ObjectIdentifier, base_hash_algo: u32) -
 mod tests {
     extern crate std;
     use super::*;
+    use der::{Decode, Encode};
+
+    fn public_key(directory: &str) -> crate::certificate::SubjectPublicKeyInfo {
+        let bytes = std::fs::read(alloc::format!(
+            "{}/../../../../test_key/{}/end_responder.cert.der",
+            env!("CARGO_MANIFEST_DIR"),
+            directory
+        ))
+        .unwrap();
+        crate::Certificate::from_der(&bytes)
+            .unwrap()
+            .tbs_certificate
+            .subject_public_key_info
+    }
+
+    #[test]
+    fn test_public_key_selected_algorithm_matrix() {
+        use SpdmBaseAsymAlgo::*;
+        let cases = [
+            ("rsa2048", RsaSsa2048 as u32, 0),
+            ("rsa3072", RsaSsa3072 as u32, 0),
+            ("rsa4096", RsaSsa4096 as u32, 0),
+            ("ecp256", EcdsaP256 as u32, 0),
+            ("ecp384", EcdsaP384 as u32, 0),
+            ("ecp521", EcdsaP521 as u32, 0),
+            ("ed25519", Ed25519 as u32, 0),
+            ("ed448", Ed448 as u32, 0),
+            ("mldsa44", 0, 1),
+            ("mldsa65", 0, 2),
+            ("mldsa87", 0, 4),
+        ];
+        for (key_index, (directory, _, _)) in cases.iter().enumerate() {
+            let key = public_key(directory);
+            for (selection_index, (_, asym, pqc)) in cases.iter().enumerate() {
+                let result = verify_public_key_algorithm(&key, *asym, *pqc);
+                if key_index == selection_index {
+                    result.unwrap();
+                } else {
+                    assert!(
+                        matches!(
+                            result,
+                            Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+                                | Err(Error::KeyError(crate::error::KeyError::WeakKey { .. }))
+                        ),
+                        "{} versus ({}, {}): {:?}",
+                        directory,
+                        asym,
+                        pqc,
+                        result
+                    );
+                }
+            }
+        }
+        for (directory, algorithm) in [
+            ("rsa2048", RsaPss2048),
+            ("rsa3072", RsaPss3072),
+            ("rsa4096", RsaPss4096),
+        ] {
+            verify_public_key_algorithm(&public_key(directory), algorithm as u32, 0).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_public_key_invalid_algorithm_selections() {
+        let key = public_key("ecp256");
+        for (asym, pqc) in [(0, 0), (0x90, 0), (0x10, 1), (0, 3)] {
+            assert!(matches!(
+                verify_public_key_algorithm(&key, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+        for (asym, pqc) in [(1 << 31, 0), (0, 1 << 31), (1 << 9, 0)] {
+            assert!(matches!(
+                verify_public_key_algorithm(&key, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+            ));
+        }
+    }
+
+    #[test]
+    fn test_public_key_ec_parameters_and_point_encoding() {
+        let key = public_key("ecp256");
+        let mut modified = key.clone();
+        modified.algorithm.parameters = None;
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::MissingParameters))
+        ));
+        for parameters in [
+            der::Any::from_der(&[5, 0]).unwrap(),
+            der::Any::new(der::Tag::ObjectIdentifier, alloc::vec![0x80]).unwrap(),
+        ] {
+            modified.algorithm.parameters = Some(parameters);
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, 1 << 4, 0),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+        modified.algorithm.parameters =
+            Some(der::Any::from_der(&oids::ECDSA_P384.to_der().unwrap()).unwrap());
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+        ));
+        modified = key.clone();
+        modified.algorithm.oid = ObjectIdentifier::new_unwrap("1.2.3.4");
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::Unsupported(_)))
+        ));
+        for bytes in [alloc::vec![], alloc::vec![4; 64], alloc::vec![0; 65]] {
+            modified = key.clone();
+            modified.subject_public_key = der::asn1::BitString::from_bytes(&bytes).unwrap();
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, 1 << 4, 0),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+        modified = key.clone();
+        modified.subject_public_key = der::asn1::BitString::new(1, alloc::vec![0; 65]).unwrap();
+        assert!(matches!(
+            verify_public_key_algorithm(&modified, 1 << 4, 0),
+            Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+        ));
+        let mut compressed = alloc::vec![2];
+        compressed.extend_from_slice(&key.subject_public_key.raw_bytes()[1..33]);
+        modified.subject_public_key = der::asn1::BitString::from_bytes(&compressed).unwrap();
+        verify_public_key_algorithm(&modified, 1 << 4, 0).unwrap();
+    }
+
+    #[test]
+    fn test_public_key_parameterless_algorithms_require_exact_encoding() {
+        for (directory, asym, pqc) in [
+            ("ed25519", 1 << 10, 0),
+            ("ed448", 1 << 11, 0),
+            ("mldsa44", 0, 1),
+            ("mldsa65", 0, 2),
+            ("mldsa87", 0, 4),
+        ] {
+            let key = public_key(directory);
+            let mut modified = key.clone();
+            modified.algorithm.parameters = Some(der::Any::from_der(&[5, 0]).unwrap());
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+            modified = key;
+            let mut bytes = modified.subject_public_key.raw_bytes().to_vec();
+            bytes.pop();
+            modified.subject_public_key = der::asn1::BitString::from_bytes(&bytes).unwrap();
+            assert!(matches!(
+                verify_public_key_algorithm(&modified, asym, pqc),
+                Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+            ));
+        }
+    }
+
+    #[test]
+    fn test_public_key_rsa_exact_modulus_bits_and_der_boundaries() {
+        #[derive(der::Sequence)]
+        struct RsaPublicKey<'a> {
+            modulus: der::asn1::UintRef<'a>,
+            exponent: der::asn1::UintRef<'a>,
+        }
+
+        let original = public_key("rsa2048");
+        for (first, expected_bits) in [(0x80, 2048), (0x01, 2041), (0, 2040)] {
+            let mut modulus = alloc::vec![0xff; 256];
+            modulus[0] = first;
+            let encoded = RsaPublicKey {
+                modulus: der::asn1::UintRef::new(&modulus).unwrap(),
+                exponent: der::asn1::UintRef::new(&[1, 0, 1]).unwrap(),
+            }
+            .to_der()
+            .unwrap();
+            let mut key = original.clone();
+            key.subject_public_key = der::asn1::BitString::from_bytes(&encoded).unwrap();
+            let result = verify_public_key_algorithm(&key, 1, 0);
+            if expected_bits == 2048 {
+                result.unwrap();
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(Error::KeyError(crate::error::KeyError::WeakKey { bits, .. }))
+                        if bits == expected_bits
+                ));
+            }
+        }
+        let mut key = original;
+        key.subject_public_key =
+            der::asn1::BitString::from_bytes(&[0x30, 6, 2, 1, 0, 2, 1, 3]).unwrap();
+        assert!(matches!(
+            verify_public_key_algorithm(&key, 1, 0),
+            Err(Error::KeyError(crate::error::KeyError::WeakKey {
+                bits: 0,
+                ..
+            }))
+        ));
+        let mut bytes = key.subject_public_key.raw_bytes().to_vec();
+        bytes.push(0);
+        key.subject_public_key = der::asn1::BitString::from_bytes(&bytes).unwrap();
+        assert!(matches!(
+            verify_public_key_algorithm(&key, 1, 0),
+            Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+        ));
+        key = public_key("rsa2048");
+        key.algorithm.parameters =
+            Some(der::Any::from_der(&oids::ECDSA_P256.to_der().unwrap()).unwrap());
+        assert!(matches!(
+            verify_public_key_algorithm(&key, 1, 0),
+            Err(Error::AlgorithmError(AlgorithmError::InvalidParameters(_)))
+        ));
+    }
 
     #[test]
     fn test_spdm_base_asym_algo_from_bits() {
