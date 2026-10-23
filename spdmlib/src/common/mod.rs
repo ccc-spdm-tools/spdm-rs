@@ -194,6 +194,35 @@ impl SpdmContext {
         self.negotiate_info.base_hash_sel.get_size()
     }
 
+    pub(crate) fn check_peer_certificate_algorithms(
+        &self,
+        cert_chain: &[u8],
+        role: crypto::SpdmCertificateRole,
+    ) -> SpdmResult {
+        use spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms;
+
+        let (asym, pqc) = match role {
+            crypto::SpdmCertificateRole::Responder => (
+                self.negotiate_info.base_asym_sel,
+                self.negotiate_info.pqc_asym_sel,
+            ),
+            crypto::SpdmCertificateRole::Requester => (
+                self.negotiate_info.req_asym_sel.to_base(),
+                self.negotiate_info.pqc_req_asym_sel.to_base(),
+            ),
+        };
+        validate_spdm_certificate_chain_algorithms(cert_chain, asym.bits(), pqc.bits()).map_err(
+            |error| {
+                log::error!(
+                    "Peer {:?} certificate algorithm validation failed: {:?}",
+                    role,
+                    error
+                );
+                crate::error::SPDM_STATUS_INVALID_CERT
+            },
+        )
+    }
+
     pub(crate) fn check_peer_certificate_fields(
         &self,
         cert_chain: &[u8],

@@ -9,7 +9,7 @@
 extern crate alloc;
 
 use const_oid::ObjectIdentifier;
-use der::{Decode, Encode};
+use der::Decode;
 
 use super::extensions::{
     BasicConstraints, ExtendedKeyUsage, BASIC_CONSTRAINTS, EXTENDED_KEY_USAGE,
@@ -190,7 +190,7 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
     /// - `model`: The expected certificate model
     /// - `role`: The certificate role (Requester or Responder)
     /// - `base_asym_algo`: Negotiated SPDM base asymmetric algorithm (bitfield)
-    /// - `base_hash_algo`: Negotiated SPDM base hash algorithm (bitfield)
+    /// - `base_hash_algo`: Retained for compatibility; does not constrain issuer signatures
     /// - `options`: Validation options (e.g., skip time validation)
     ///
     /// # Returns
@@ -235,7 +235,7 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
     /// - `model`: The expected certificate model
     /// - `role`: The certificate role (Requester or Responder)
     /// - `base_asym_algo`: Negotiated SPDM base asymmetric algorithm (bitfield)
-    /// - `base_hash_algo`: Negotiated SPDM base hash algorithm (bitfield)
+    /// - `base_hash_algo`: Retained for compatibility; does not constrain issuer signatures
     ///
     /// # Returns
     /// - `Ok(())` if validation succeeds
@@ -511,50 +511,32 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
         &self,
         cert: &Certificate,
         base_asym_algo: u32,
-        base_hash_algo: u32,
+        _base_hash_algo: u32,
     ) -> Result<()> {
-        use super::signature::{verify_ecc_curve, verify_rsa_key_size, verify_signature_algorithm};
-
-        // Verify signature algorithm
-        verify_signature_algorithm(
-            &cert.signature_algorithm.oid,
+        super::signature::verify_public_key_algorithm(
+            &cert.tbs_certificate.subject_public_key_info,
             base_asym_algo,
-            base_hash_algo,
-        )?;
-
-        // Verify public key algorithm
-        let pk_algo_oid = &cert.tbs_certificate.subject_public_key_info.algorithm.oid;
-
-        // Check if it's RSA or ECC
-        if pk_algo_oid == &oids::RSA {
-            // Verify RSA key size
-            // For RSA, we need the full SubjectPublicKeyInfo DER encoding
-            let pk_der = cert
-                .tbs_certificate
-                .subject_public_key_info
-                .to_der()
-                .map_err(|e| {
-                    Error::ValidationError(alloc::format!("Failed to encode public key: {:?}", e))
-                })?;
-            verify_rsa_key_size(&pk_der, base_asym_algo)?;
-        } else {
-            // Try to get the curve OID for ECC
-            if let Some(params) = &cert
-                .tbs_certificate
-                .subject_public_key_info
-                .algorithm
-                .parameters
-            {
-                // Parameters for ECC contain the curve OID
-                // The parameters are already a der::Any, which we can try to decode as an OID
-                if let Ok(curve_oid) = ObjectIdentifier::from_der(params.value()) {
-                    verify_ecc_curve(&curve_oid, base_asym_algo)?;
-                }
-            }
-        }
-
-        Ok(())
+            0,
+        )
     }
+}
+
+/// Check the leaf key of a root-to-leaf chain against the selected classical or
+/// ML-DSA authentication algorithm. Does not verify signatures or trust.
+pub fn validate_spdm_certificate_chain_algorithms(
+    cert_chain: &[u8],
+    base_asym_algo: u32,
+    pqc_asym_algo: u32,
+) -> Result<()> {
+    let certificates = super::chain::parse_concatenated_certificates(cert_chain)?;
+    let leaf = certificates
+        .last()
+        .ok_or(Error::ChainError(crate::error::ChainError::EmptyChain))?;
+    super::signature::verify_public_key_algorithm(
+        &leaf.tbs_certificate.subject_public_key_info,
+        base_asym_algo,
+        pqc_asym_algo,
+    )
 }
 
 // =============================================================================

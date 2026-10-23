@@ -36,7 +36,6 @@ use crate::error::{ChainError, Error, Result};
 
 use super::signature::SpdmBaseHashAlgo;
 use super::spdm_validator::{SpdmCertificateRole, SpdmValidator};
-use der::Encode;
 
 // =============================================================================
 // SPDM Certificate Chain Header
@@ -1080,7 +1079,7 @@ pub fn verify_cert_chain_with_options(
 /// 2. Reverses the SPDM root→leaf order to leaf→root for X.509 validation
 /// 3. Validates the chain with the standard X.509 validator
 /// 4. Validates SPDM EKU on the leaf certificate
-/// 5. Optionally validates the leaf's algorithms against negotiated SPDM params
+/// 5. Optionally matches the leaf public key to a selected classical algorithm
 ///
 /// Uses the Responder role for compatibility. For Requester authentication,
 /// use [`verify_cert_chain_with_backend_and_role`].
@@ -1089,7 +1088,7 @@ pub fn verify_cert_chain_with_options(
 /// * `cert_chain` - Buffer containing concatenated DER certificates
 /// * `backend`    - Crypto backend for signature verification
 /// * `base_asym_algo` - Optional negotiated SPDM base asymmetric algorithm (bitfield)
-/// * `base_hash_algo` - Optional negotiated SPDM base hash algorithm (bitfield)
+/// * `base_hash_algo` - Retained for API compatibility; does not constrain issuer signatures
 pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     cert_chain: &[u8],
     backend: B,
@@ -1110,11 +1109,13 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
 /// Unlike the legacy [`verify_cert_chain_with_backend`] entry point, callers
 /// explicitly select Requester or Responder authentication. Field-profile,
 /// deployment trust, and time policies are unchanged.
+/// `base_asym_algo`, when present, checks the leaf key even without a hash.
+/// The hash argument is retained for compatibility, not issuer-signature policy.
 pub fn verify_cert_chain_with_backend_and_role<B: CryptoBackend>(
     cert_chain: &[u8],
     backend: B,
     base_asym_algo: Option<u32>,
-    base_hash_algo: Option<u32>,
+    _base_hash_algo: Option<u32>,
     role: SpdmCertificateRole,
 ) -> Result<()> {
     log::trace!("verify_cert_chain: chain_len={}", cert_chain.len());
@@ -1205,50 +1206,13 @@ pub fn verify_cert_chain_with_backend_and_role<B: CryptoBackend>(
         }
     }
 
-    // If SPDM algorithm parameters are provided, validate the leaf certificate's
-    // signature algorithm and public key algorithm against the negotiated values.
-    if let (Some(asym_algo), Some(hash_algo)) = (base_asym_algo, base_hash_algo) {
+    if let Some(asym_algo) = base_asym_algo {
         if let Some(leaf) = chain.certificates.first() {
-            use super::oids;
-            use super::signature::{
-                verify_ecc_curve, verify_rsa_key_size, verify_signature_algorithm,
-            };
-
-            log::trace!(
-                "verify_cert_chain: validating leaf algorithms against negotiated SPDM params"
-            );
-
-            // Verify signature algorithm family + hash
-            verify_signature_algorithm(&leaf.signature_algorithm.oid, asym_algo, hash_algo)?;
-
-            // Verify public key algorithm / key size
-            let pk_algo_oid = &leaf.tbs_certificate.subject_public_key_info.algorithm.oid;
-            if pk_algo_oid == &oids::RSA {
-                let pk_der = leaf
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .to_der()
-                    .map_err(|e| {
-                        Error::ValidationError(alloc::format!(
-                            "Failed to encode public key: {:?}",
-                            e
-                        ))
-                    })?;
-                verify_rsa_key_size(&pk_der, asym_algo)?;
-            } else if let Some(params) = &leaf
-                .tbs_certificate
-                .subject_public_key_info
-                .algorithm
-                .parameters
-            {
-                if let Ok(curve_oid) =
-                    <const_oid::ObjectIdentifier as der::Decode>::from_der(params.value())
-                {
-                    verify_ecc_curve(&curve_oid, asym_algo)?;
-                }
-            }
-
-            log::trace!("verify_cert_chain: leaf algorithm validation successful");
+            super::signature::verify_public_key_algorithm(
+                &leaf.tbs_certificate.subject_public_key_info,
+                asym_algo,
+                0,
+            )?;
         }
     }
 

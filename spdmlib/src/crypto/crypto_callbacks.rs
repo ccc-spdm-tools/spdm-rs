@@ -130,6 +130,9 @@ pub struct SpdmCertOperation {
     /// Required for SPDM 1.2+ acceptance. Verify signatures/path and leaf EKU for
     /// the supplied peer role. `None` supports only legacy acceptance; the
     /// dispatcher must not fall back to the Responder-only callback.
+    /// Protocol acceptance checks the selected classical/PQC leaf key separately
+    /// and passes `None` for both algorithm arguments. Issuer signatures must not
+    /// be restricted to the negotiated endpoint algorithm or transcript hash.
     pub verify_cert_chain_with_role_cb: Option<VerifyCertChainWithRoleCb>,
 }
 

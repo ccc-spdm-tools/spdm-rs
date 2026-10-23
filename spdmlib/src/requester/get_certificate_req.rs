@@ -302,10 +302,14 @@ impl RequesterContext {
         //
         let verification =
             if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+                self.common.check_peer_certificate_algorithms(
+                    &runtime_peer_cert_chain_data.data[..data_size as usize],
+                    crypto::SpdmCertificateRole::Responder,
+                )?;
                 crypto::cert_operation::verify_cert_chain_with_role(
                     &runtime_peer_cert_chain_data.data[..data_size as usize],
-                    self.common.negotiate_info.base_asym_sel,
-                    self.common.negotiate_info.base_hash_sel,
+                    crate::protocol::SpdmBaseAsymAlgo::empty(),
+                    crate::protocol::SpdmBaseHashAlgo::empty(),
                     crypto::SpdmCertificateRole::Responder,
                 )
             } else {
