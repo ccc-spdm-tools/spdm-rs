@@ -74,6 +74,13 @@ It depends on crypto wrapper. Current support algorithms:
 * PQC KeyExchange: ML-KEM (512/768/1024) — requires `spdm-aws-lc` feature and [aws-lc-rs](https://github.com/aws/aws-lc-rs)
 * AEAD: AES_GCM(128/256) / ChaCha20Poly1305
 
+The PQC signature-verification callback receives `SpdmDer`, like the classical
+callback. The AWS-LC backend accepts a certificate chain or an RFC 7250
+SubjectPublicKeyInfo as indicated by that variant. It requires the leaf/SPKI
+algorithm to match the negotiated ML-DSA variant, absent algorithm parameters,
+a byte-aligned key, and the exact FIPS 204 key size. Malformed inputs are
+rejected rather than interpreted as raw keys or truncated to a key-sized tail.
+
 ## Documentation
 All documents are put at [doc](./doc/) folder.
 

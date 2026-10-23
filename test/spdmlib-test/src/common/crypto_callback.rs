@@ -124,7 +124,7 @@ fn fake_asym_verify(
 fn fake_pqc_asym_verify(
     _base_hash_algo: SpdmBaseHashAlgo,
     _pqc_asym_algo: SpdmPqcAsymAlgo,
-    _public_cert_der: &[u8],
+    _der: SpdmDer,
     _data: &[u8],
     _signature: &SpdmSignatureStruct,
 ) -> SpdmResult {
