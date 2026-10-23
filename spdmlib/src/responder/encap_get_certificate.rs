@@ -205,6 +205,12 @@ impl ResponderContext {
         let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
         info!("1. get runtime_peer_cert_chain_data!\n");
 
+        self.common.check_peer_certificate_fields(
+            &runtime_peer_cert_chain_data.data[..data_size as usize],
+            self.common.encap_context.req_slot_id,
+            spdm_x509::x509::spdm_validator::SpdmCertificateRole::Requester,
+        )?;
+
         //
         // 1.1 verify the integrity of the chain
         //

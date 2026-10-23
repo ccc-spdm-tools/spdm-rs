@@ -104,6 +104,13 @@ impl RequesterContext {
                                 >= SpdmVersion::SpdmVersion13
                                 && self.common.negotiate_info.multi_key_conn_rsp
                             {
+                                if self.common.negotiate_info.spdm_version_sel
+                                    >= SpdmVersion::SpdmVersion14
+                                {
+                                    self.common.peer_info.peer_cert_info.fill(None);
+                                    self.common.peer_info.peer_key_pair_id.fill(None);
+                                    self.common.peer_info.peer_key_usage_bit_mask.fill(None);
+                                }
                                 let mut packed_index = 0;
                                 for slot_index in 0..SPDM_MAX_SLOT_NUMBER {
                                     if (digests.slot_mask & (1 << slot_index)) != 0 {

@@ -569,6 +569,91 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
 // without referencing `RingBackend`.
 // =============================================================================
 
+/// Check DSP0274 1.4.0 Table 48 certificate fields in a root-to-leaf DER chain.
+///
+/// Every certificate must be v3 with a positive serial number. Issuers must
+/// contain Basic Constraints with cA=TRUE; the leaf must contain cA=FALSE.
+/// DeviceCert/AliasCert leaves require digitalSignature Key Usage, while
+/// GenericCert leaves may omit Key Usage. Leaves must not assert keyCertSign.
+///
+/// This checks fields only, not signatures, trust, time, EKU, model negotiation,
+/// or the remaining SPDM extension and algorithm requirements.
+pub fn validate_spdm14_certificate_chain_fields(
+    cert_chain: &[u8],
+    model: SpdmCertificateModel,
+) -> Result<()> {
+    use super::chain::parse_concatenated_certificates;
+    use super::extensions::{KeyUsage, KEY_USAGE};
+    use crate::certificate::Version;
+    use crate::error::{ChainError, ParseError};
+
+    let certificates = parse_concatenated_certificates(cert_chain)?;
+    if certificates.is_empty() {
+        return Err(Error::ChainError(ChainError::EmptyChain));
+    }
+    if certificates.len() > ValidationOptions::default().max_chain_depth {
+        return Err(Error::ChainError(ChainError::ChainTooLong));
+    }
+
+    for (index, cert) in certificates.iter().enumerate() {
+        let is_leaf = index + 1 == certificates.len();
+
+        if cert.tbs_certificate.version != Version::V3 {
+            return Err(Error::InvalidVersion(cert.tbs_certificate.version.value()));
+        }
+        // DER decoding rejects negative INTEGERs; zero needs an explicit check.
+        if cert.serial_number().iter().all(|byte| *byte == 0) {
+            return Err(Error::ParseError(ParseError::InvalidInteger(
+                "SPDM certificate serial number must be positive".into(),
+            )));
+        }
+
+        let bc_ext = find_extension(cert, &BASIC_CONSTRAINTS).ok_or_else(|| {
+            Error::ExtensionError(ExtensionError::MissingRequiredExtension(
+                "Basic Constraints".into(),
+            ))
+        })?;
+        let bc = BasicConstraints::from_extension(bc_ext).map_err(|e| {
+            Error::ExtensionError(ExtensionError::BasicConstraints(alloc::format!(
+                "Invalid Basic Constraints: {:?}",
+                e
+            )))
+        })?;
+        if is_leaf {
+            if bc.ca || bc.path_len_constraint.is_some() {
+                return Err(Error::ExtensionError(ExtensionError::BasicConstraints(
+                    "SPDM leaf must have cA=FALSE and no pathLenConstraint".into(),
+                )));
+            }
+            match find_extension(cert, &KEY_USAGE) {
+                Some(ext) => {
+                    let ku = KeyUsage::from_extension(ext).map_err(|e| {
+                        Error::ExtensionError(ExtensionError::KeyUsage(alloc::format!(
+                            "Invalid leaf Key Usage: {:?}",
+                            e
+                        )))
+                    })?;
+                    if !ku.has(KeyUsage::DIGITAL_SIGNATURE) || ku.has(KeyUsage::KEY_CERT_SIGN) {
+                        return Err(Error::ExtensionError(ExtensionError::KeyUsage(
+                            "SPDM leaf Key Usage must include digitalSignature without keyCertSign"
+                                .into(),
+                        )));
+                    }
+                }
+                None if model != SpdmCertificateModel::GenericCert => {
+                    return Err(Error::ExtensionError(
+                        ExtensionError::MissingRequiredExtension("Key Usage".into()),
+                    ));
+                }
+                None => {}
+            }
+        } else if !bc.ca {
+            return Err(Error::ChainError(ChainError::IssuerNotCA));
+        }
+    }
+    Ok(())
+}
+
 /// Validate the SPDM Hardware Identity OID rules for a certificate model
 /// (DSP0274 Section 10.6.1.4), without requiring a crypto backend.
 ///
@@ -968,5 +1053,263 @@ mod tests {
             "SpdmValidator chain failed: {:?}",
             result.err()
         );
+    }
+
+    fn field_chain(certs: &[Certificate]) -> alloc::vec::Vec<u8> {
+        certs
+            .iter()
+            .flat_map(|cert| cert.to_der().unwrap())
+            .collect()
+    }
+
+    fn replace_field_extension(
+        cert: &mut Certificate,
+        oid: ObjectIdentifier,
+        value: Option<&[u8]>,
+    ) {
+        let extensions = cert
+            .tbs_certificate
+            .extensions
+            .get_or_insert_with(crate::certificate::Extensions::new);
+        extensions.extensions.retain(|ext| ext.extn_id != oid);
+        if let Some(value) = value {
+            extensions.push(Extension::new(oid, false, value.to_vec()).unwrap());
+        }
+    }
+
+    fn with_serial(cert: &Certificate, serial: &[u8]) -> Certificate {
+        let mut result = cert.clone();
+        let tbs = &cert.tbs_certificate;
+        result.tbs_certificate = crate::certificate::TBSCertificate::new(
+            serial.to_vec(),
+            tbs.signature.clone(),
+            tbs.issuer.clone(),
+            tbs.validity.clone(),
+            tbs.subject.clone(),
+            tbs.subject_public_key_info.clone(),
+        );
+        result.tbs_certificate.extensions = tbs.extensions.clone();
+        result
+    }
+
+    #[test]
+    fn test_spdm14_leaf_field_matrix() {
+        use super::super::extensions::KEY_USAGE;
+        let leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        for model in [
+            SpdmCertificateModel::DeviceCert,
+            SpdmCertificateModel::AliasCert,
+            SpdmCertificateModel::GenericCert,
+        ] {
+            for (case, bc, ku, expected) in [
+                (
+                    "valid",
+                    Some(&[0x30, 0][..]),
+                    Some(&[3, 2, 7, 0x80][..]),
+                    "ok",
+                ),
+                ("missing-bc", None, Some(&[3, 2, 7, 0x80][..]), "missing-bc"),
+                (
+                    "ca-leaf",
+                    Some(&[0x30, 3, 1, 1, 0xff][..]),
+                    Some(&[3, 2, 7, 0x80][..]),
+                    "bc",
+                ),
+                (
+                    "malformed-bc",
+                    Some(&[0x30, 1, 0xff][..]),
+                    Some(&[3, 2, 7, 0x80][..]),
+                    "bc",
+                ),
+                (
+                    "leaf-pathlen",
+                    Some(&[0x30, 3, 2, 1, 0][..]),
+                    Some(&[3, 2, 7, 0x80][..]),
+                    "bc",
+                ),
+                ("missing-ku", Some(&[0x30, 0][..]), None, "missing-ku"),
+                (
+                    "wrong-ku",
+                    Some(&[0x30, 0][..]),
+                    Some(&[3, 2, 2, 4][..]),
+                    "ku",
+                ),
+                (
+                    "leaf-keycertsign",
+                    Some(&[0x30, 0][..]),
+                    Some(&[3, 2, 2, 0x84][..]),
+                    "ku",
+                ),
+                (
+                    "malformed-ku",
+                    Some(&[0x30, 0][..]),
+                    Some(&[3, 2, 8, 0x80][..]),
+                    "ku",
+                ),
+            ] {
+                let mut cert = leaf.clone();
+                replace_field_extension(&mut cert, BASIC_CONSTRAINTS, bc);
+                replace_field_extension(&mut cert, KEY_USAGE, ku);
+                let result = validate_spdm14_certificate_chain_fields(&field_chain(&[cert]), model);
+                let matches = match (expected, model, &result) {
+                    ("ok", _, Ok(())) => true,
+                    ("missing-ku", SpdmCertificateModel::GenericCert, Ok(())) => true,
+                    (
+                        "missing-ku",
+                        _,
+                        Err(Error::ExtensionError(ExtensionError::MissingRequiredExtension(name))),
+                    ) => name == "Key Usage",
+                    (
+                        "missing-bc",
+                        _,
+                        Err(Error::ExtensionError(ExtensionError::MissingRequiredExtension(name))),
+                    ) => name == "Basic Constraints",
+                    ("bc", _, Err(Error::ExtensionError(ExtensionError::BasicConstraints(_)))) => {
+                        true
+                    }
+                    ("ku", _, Err(Error::ExtensionError(ExtensionError::KeyUsage(_)))) => true,
+                    _ => false,
+                };
+                assert!(matches, "{:?}/{}: {:?}", model, case, result);
+            }
+        }
+    }
+
+    #[test]
+    fn test_spdm14_issuer_field_matrix() {
+        let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let inter = load_cert(&test_key_path("ecp256/inter.cert.der"));
+        let leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        for position in 0..2 {
+            for (value, expected) in [
+                (Some(&[0x30, 3, 1, 1, 0xff][..]), "ok"),
+                (None, "missing"),
+                (Some(&[0x30, 0][..]), "not-ca"),
+                (Some(&[0x30, 1, 0xff][..]), "malformed"),
+            ] {
+                let mut certs = [ca.clone(), inter.clone(), leaf.clone()];
+                replace_field_extension(&mut certs[position], BASIC_CONSTRAINTS, value);
+                let result = validate_spdm14_certificate_chain_fields(
+                    &field_chain(&certs),
+                    SpdmCertificateModel::DeviceCert,
+                );
+                let matches = matches!(
+                    (expected, &result),
+                    ("ok", Ok(()))
+                        | (
+                            "missing",
+                            Err(Error::ExtensionError(
+                                ExtensionError::MissingRequiredExtension(_)
+                            ))
+                        )
+                        | (
+                            "not-ca",
+                            Err(Error::ChainError(crate::error::ChainError::IssuerNotCA))
+                        )
+                        | (
+                            "malformed",
+                            Err(Error::ExtensionError(ExtensionError::BasicConstraints(_)))
+                        )
+                );
+                assert!(matches, "position {}/{}: {:?}", position, expected, result);
+            }
+        }
+    }
+
+    #[test]
+    fn test_spdm14_version_and_serial_at_every_position() {
+        use crate::certificate::Version;
+        let certs = [
+            load_cert(&test_key_path("ecp256/ca.cert.der")),
+            load_cert(&test_key_path("ecp256/inter.cert.der")),
+            load_cert(&test_key_path("ecp256/end_responder.cert.der")),
+        ];
+        for position in 0..certs.len() {
+            for version in [Version::V1, Version::V2] {
+                let mut mutated = certs.clone();
+                mutated[position].tbs_certificate.version = version;
+                let result = validate_spdm14_certificate_chain_fields(
+                    &field_chain(&mutated),
+                    SpdmCertificateModel::DeviceCert,
+                );
+                assert!(matches!(result, Err(Error::InvalidVersion(v)) if v == version.value()));
+            }
+            let mut mutated = certs.clone();
+            mutated[position] = with_serial(&mutated[position], &[0]);
+            assert!(matches!(
+                validate_spdm14_certificate_chain_fields(
+                    &field_chain(&mutated),
+                    SpdmCertificateModel::DeviceCert
+                ),
+                Err(Error::ParseError(crate::error::ParseError::InvalidInteger(
+                    _
+                )))
+            ));
+            mutated[position] = with_serial(&certs[position], &[0x80]);
+            assert!(
+                validate_spdm14_certificate_chain_fields(
+                    &field_chain(&mutated),
+                    SpdmCertificateModel::DeviceCert,
+                )
+                .is_ok(),
+                "positive serial requiring a sign octet must be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn test_spdm14_der_boundaries_and_negative_serial() {
+        let leaf = with_serial(
+            &load_cert(&test_key_path("ecp256/end_responder.cert.der")),
+            &[0x7f],
+        );
+        let der = field_chain(&[leaf]);
+        let mut negative = der.clone();
+        let serial = negative
+            .windows(3)
+            .position(|bytes| bytes == [2, 1, 0x7f])
+            .unwrap();
+        negative[serial + 2] = 0xff;
+        let mut trailing = der.clone();
+        trailing.push(0);
+        let mut malformed = der.clone();
+        malformed[0] = 0x31;
+        for invalid in [
+            &negative[..],
+            &trailing[..],
+            &malformed[..],
+            &der[..der.len() - 1],
+        ] {
+            assert!(matches!(
+                validate_spdm14_certificate_chain_fields(invalid, SpdmCertificateModel::DeviceCert),
+                Err(Error::ParseError(_))
+            ));
+        }
+        assert!(matches!(
+            validate_spdm14_certificate_chain_fields(&[], SpdmCertificateModel::DeviceCert),
+            Err(Error::ChainError(crate::error::ChainError::EmptyChain))
+        ));
+    }
+
+    #[test]
+    fn test_spdm14_profile_depth_bound() {
+        let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        let limit = ValidationOptions::default().max_chain_depth;
+        let mut certs = vec![ca.clone(); limit - 1];
+        certs.push(leaf);
+        assert!(validate_spdm14_certificate_chain_fields(
+            &field_chain(&certs),
+            SpdmCertificateModel::DeviceCert,
+        )
+        .is_ok());
+        certs.insert(0, ca);
+        assert!(matches!(
+            validate_spdm14_certificate_chain_fields(
+                &field_chain(&certs),
+                SpdmCertificateModel::DeviceCert,
+            ),
+            Err(Error::ChainError(crate::error::ChainError::ChainTooLong))
+        ));
     }
 }

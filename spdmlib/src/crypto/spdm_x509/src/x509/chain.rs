@@ -274,7 +274,7 @@ pub fn parse_spdm_cert_chain(
 /// Each certificate is a DER SEQUENCE, so we can parse them sequentially.
 /// We determine each certificate's length by parsing the DER tag+length header
 /// directly, rather than re-encoding (which could desync on non-canonical DER).
-fn parse_concatenated_certificates(mut data: &[u8]) -> Result<Vec<Certificate>> {
+pub(crate) fn parse_concatenated_certificates(mut data: &[u8]) -> Result<Vec<Certificate>> {
     let mut certificates = Vec::new();
 
     while !data.is_empty() {

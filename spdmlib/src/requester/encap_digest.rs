@@ -84,43 +84,96 @@ impl RequesterContext {
             SPDM_MAX_SLOT_NUMBER,
         );
         let mut key_usage_mask = gen_array_clone(SpdmKeyUsageMask::empty(), SPDM_MAX_SLOT_NUMBER);
+        let spdm14 = self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14;
+        let multi_key = if spdm14 {
+            self.common.negotiate_info.multi_key_conn_req
+        } else {
+            self.common.negotiate_info.multi_key_conn_rsp
+        };
 
-        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13
-            && self.common.negotiate_info.multi_key_conn_rsp
-        {
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion13 && multi_key {
             let mut slot_count = 0usize;
             for slot_id in 0..SPDM_MAX_SLOT_NUMBER {
                 if self.common.provision_info.my_cert_chain[slot_id].is_some() {
-                    key_pair_id[slot_count] =
-                        self.common.provision_info.local_key_pair_id[slot_id].unwrap();
-                    certificate_info[slot_count] =
-                        self.common.provision_info.local_cert_info[slot_id].unwrap();
-                    key_usage_mask[slot_count] =
-                        self.common.provision_info.local_key_usage_bit_mask[slot_id].unwrap();
+                    let (Some(key), Some(model), Some(usage)) = (
+                        self.common.provision_info.local_key_pair_id[slot_id],
+                        self.common.provision_info.local_cert_info[slot_id],
+                        self.common.provision_info.local_key_usage_bit_mask[slot_id],
+                    ) else {
+                        error!("Missing local certificate metadata for slot {}", slot_id);
+                        self.encode_encap_error_response(
+                            SpdmErrorCode::SpdmErrorUnspecified,
+                            0,
+                            encap_response,
+                        );
+                        return;
+                    };
+                    key_pair_id[slot_count] = key;
+                    certificate_info[slot_count] = model;
+                    key_usage_mask[slot_count] = usage;
                     slot_count += 1;
                 }
             }
         }
 
+        let header = SpdmMessageHeader {
+            version: self.common.negotiate_info.spdm_version_sel,
+            request_response_code: SpdmRequestResponseCode::SpdmResponseDigests,
+        };
+        let mut payload = SpdmDigestsResponsePayload {
+            slot_mask,
+            digests: gen_array_clone(
+                SpdmDigestStruct {
+                    data_size: self.common.get_hash_size(),
+                    data: Box::new([0xffu8; SPDM_MAX_HASH_SIZE]),
+                },
+                SPDM_MAX_SLOT_NUMBER,
+            ),
+            supported_slot_mask: self.common.provision_info.local_supported_slot_mask,
+            key_pair_id,
+            certificate_info,
+            key_usage_mask,
+        };
+        if spdm14 {
+            for (packed_index, chain) in self
+                .common
+                .provision_info
+                .my_cert_chain
+                .iter()
+                .flatten()
+                .enumerate()
+            {
+                let Some(digest) = crypto::hash::hash_all(
+                    self.common.negotiate_info.base_hash_sel,
+                    chain.as_ref(),
+                ) else {
+                    error!("Failed to hash requester certificate chain");
+                    self.encode_encap_error_response(
+                        SpdmErrorCode::SpdmErrorUnspecified,
+                        0,
+                        encap_response,
+                    );
+                    return;
+                };
+                payload.digests[packed_index] = digest;
+            }
+            if header.encode(encap_response).is_err()
+                || payload
+                    .spdm_encode_with_multi_key(&mut self.common, encap_response, multi_key)
+                    .is_err()
+            {
+                error!("Failed to encode requester digests");
+                self.encode_encap_error_response(
+                    SpdmErrorCode::SpdmErrorUnspecified,
+                    0,
+                    encap_response,
+                );
+            }
+            return;
+        }
         let response = SpdmMessage {
-            header: SpdmMessageHeader {
-                version: self.common.negotiate_info.spdm_version_sel,
-                request_response_code: SpdmRequestResponseCode::SpdmResponseDigests,
-            },
-            payload: SpdmMessagePayload::SpdmDigestsResponse(SpdmDigestsResponsePayload {
-                slot_mask,
-                digests: gen_array_clone(
-                    SpdmDigestStruct {
-                        data_size: self.common.get_hash_size(),
-                        data: Box::new([0xffu8; SPDM_MAX_HASH_SIZE]),
-                    },
-                    SPDM_MAX_SLOT_NUMBER,
-                ),
-                supported_slot_mask: self.common.provision_info.local_supported_slot_mask,
-                key_pair_id,
-                certificate_info,
-                key_usage_mask,
-            }),
+            header,
+            payload: SpdmMessagePayload::SpdmDigestsResponse(payload),
         };
 
         if response

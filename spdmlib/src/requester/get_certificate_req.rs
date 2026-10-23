@@ -237,7 +237,7 @@ impl RequesterContext {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
 
-        let result = self.verify_spdm_certificate_chain();
+        let result = self.verify_spdm_certificate_chain_for_slot(slot_id);
         if result.is_ok() {
             self.common.peer_info.peer_cert_chain[slot_id as usize]
                 .clone_from(&self.common.peer_info.peer_cert_chain_temp);
@@ -246,7 +246,13 @@ impl RequesterContext {
         result
     }
 
+    /// Verify the temporary peer chain for slot 0.
     pub fn verify_spdm_certificate_chain(&mut self) -> SpdmResult {
+        self.verify_spdm_certificate_chain_for_slot(0)
+    }
+
+    /// Verify the temporary peer chain using the negotiated model for this slot.
+    pub fn verify_spdm_certificate_chain_for_slot(&mut self, slot_id: u8) -> SpdmResult {
         //
         // 1. Verify the integrity of cert chain
         //
@@ -284,6 +290,12 @@ impl RequesterContext {
         );
         let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
         info!("1. get runtime_peer_cert_chain_data!\n");
+
+        self.common.check_peer_certificate_fields(
+            &runtime_peer_cert_chain_data.data[..data_size as usize],
+            slot_id,
+            spdm_x509::x509::spdm_validator::SpdmCertificateRole::Responder,
+        )?;
 
         //
         // 1.1 verify the integrity of the chain
@@ -335,14 +347,15 @@ impl RequesterContext {
             -1,
         )?;
         let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
-        if check_leaf_certificate(
-            leaf_cert,
-            self.common
-                .negotiate_info
-                .rsp_capabilities_sel
-                .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP),
-        )
-        .is_ok()
+        if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion14
+            || check_leaf_certificate(
+                leaf_cert,
+                self.common
+                    .negotiate_info
+                    .rsp_capabilities_sel
+                    .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP),
+            )
+            .is_ok()
         {
             info!("1.3. Leaf cert is verified\n");
         } else {
