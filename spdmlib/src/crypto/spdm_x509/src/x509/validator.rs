@@ -531,6 +531,7 @@ impl<B: CryptoBackend> Validator<B> {
             return Err(Error::ChainError(crate::error::ChainError::ChainTooLong));
         }
 
+        let mut non_self_issued_intermediates = 0;
         for (idx, cert) in chain.certificates.iter().enumerate() {
             log::trace!(
                 "validate_chain: validating cert {} (subject={:?})",
@@ -576,7 +577,19 @@ impl<B: CryptoBackend> Validator<B> {
                     }
                 }
 
-                self.verify_issuer_is_ca(issuer, idx, idx + 2 == chain.len())?;
+                if idx != 0
+                    && !Self::distinguished_names_match(
+                        &cert.tbs_certificate.subject,
+                        &cert.tbs_certificate.issuer,
+                    )?
+                {
+                    non_self_issued_intermediates += 1;
+                }
+                self.verify_issuer_is_ca(
+                    issuer,
+                    non_self_issued_intermediates,
+                    idx + 2 == chain.len(),
+                )?;
 
                 // Verify signature last — CA and keyCertSign checks above are
                 // cheap and may reject the issuer without incurring the cost of
@@ -614,7 +627,7 @@ impl<B: CryptoBackend> Validator<B> {
     fn verify_issuer_is_ca(
         &self,
         issuer: &Certificate,
-        depth: usize,
+        non_self_issued_intermediates: usize,
         is_trust_anchor: bool,
     ) -> Result<()> {
         let extensions = match &issuer.tbs_certificate.extensions {
@@ -635,13 +648,10 @@ impl<B: CryptoBackend> Validator<B> {
 
                 // RFC 5280 §4.2.1.9: `pathLenConstraint` bounds the number of
                 // non-self-issued intermediate CAs that may follow this issuer
-                // toward the end-entity. The chain is walked leaf->root, so
-                // `depth` (the child's index in leaf->root order) equals the
-                // count of certificates already traversed below this issuer,
-                // which is exactly that follow-on intermediate count. This is
-                // the single, authoritative pathLen enforcement for the chain.
+                // toward the end-entity. The caller counts these while walking
+                // leaf->root, excluding the target and self-issued certificates.
                 if let Some(path_len) = bc.path_len_constraint {
-                    if depth > path_len as usize {
+                    if non_self_issued_intermediates > path_len as usize {
                         return Err(Error::ChainError(
                             crate::error::ChainError::PathLengthExceeded,
                         ));
@@ -2446,7 +2456,7 @@ impl Default for Validator<RingBackend> {
 mod tests {
     extern crate std;
     use super::*;
-    use crate::x509::limbo::LimboRunner;
+    use crate::x509::limbo::{LimboRunner, LimboTestcase};
     use alloc::format;
     use alloc::string::String;
     use alloc::vec;
@@ -2471,22 +2481,64 @@ mod tests {
         let _validator2 = Validator::default();
     }
 
+    fn validate_signed_limbo_path(testcase: &LimboTestcase) -> Result<()> {
+        let chain = testcase.leaf_first_chain().unwrap_or_else(|error| {
+            panic!("{}: certificate decoding failed: {error:?}", testcase.id)
+        });
+        let validator = Validator::default();
+        let options = ValidationOptions {
+            check_time: false,
+            ..ValidationOptions::default()
+        };
+        let result = validator.validate_chain(&chain, &options);
+        if result.is_ok() {
+            for index in 0..chain.len() {
+                let mut corrupted = chain.clone();
+                let cert = &mut corrupted.certificates[index];
+                let mut signature = cert.signature_value.raw_bytes().to_vec();
+                *signature
+                    .last_mut()
+                    .expect("non-empty certificate signature") ^= 1;
+                cert.signature_value = der::asn1::BitString::from_bytes(&signature).unwrap();
+                let rejection = validator.validate_chain(&corrupted, &options);
+                assert!(
+                    matches!(rejection, Err(Error::SignatureError(_))),
+                    "{}: corrupted signature at certificate {index}: {rejection:?}",
+                    testcase.id
+                );
+            }
+        }
+        result
+    }
+
     #[test]
     fn test_name_constraints_x509_limbo_conformance() {
         let runner =
             LimboRunner::from_json(include_str!("../../etc/name_constraints_x509_limbo.json"))
                 .expect("valid x509-limbo fixture");
-        let validator = Validator::default();
-        let mut options = ValidationOptions::default().skip_signature_validation();
-        options.check_time = false;
-
         let summary = runner.assert_conformance(|testcase| {
-            validator.validate_chain(&testcase.leaf_first_chain()?, &options)
+            let result = validate_signed_limbo_path(testcase);
+            if let Err(error) = &result {
+                assert!(
+                    matches!(
+                        error,
+                        Error::ChainError(crate::error::ChainError::NameConstraintViolation(_))
+                            | Error::ExtensionError(
+                                crate::error::ExtensionError::NameConstraints(_)
+                                    | crate::error::ExtensionError::SubjectAltName(_)
+                            )
+                    ) || (testcase.id == "rfc5280::nc::nc-permits-invalid-ip-san"
+                        && matches!(error, Error::Asn1(_))),
+                    "{}: unexpected rejection category: {error:?}",
+                    testcase.id
+                );
+            }
+            result
         });
 
-        assert_eq!(summary.total, 6);
-        assert_eq!(summary.expected_successes, 2);
-        assert_eq!(summary.expected_failures, 4);
+        assert_eq!(summary.total, 46);
+        assert_eq!(summary.expected_successes, 14);
+        assert_eq!(summary.expected_failures, 32);
         assert_eq!(
             runner.source().repository,
             "https://github.com/C2SP/x509-limbo"
@@ -2502,19 +2554,72 @@ mod tests {
     fn test_rfc5280_core_x509_limbo_conformance() {
         let runner = LimboRunner::from_json(include_str!("../../etc/rfc5280_core_x509_limbo.json"))
             .expect("valid x509-limbo fixture");
-        let validator = Validator::default();
-        let options = ValidationOptions {
-            check_time: false,
-            ..ValidationOptions::default()
-        };
-
         let summary = runner.assert_conformance(|testcase| {
-            validator.validate_chain(&testcase.leaf_first_chain()?, &options)
+            let result = validate_signed_limbo_path(testcase);
+            if let Err(error) = &result {
+                use crate::error::{ChainError, ConstraintError, ExtensionError};
+                let expected_category = match testcase.id.as_str() {
+                    "rfc5280::unknown-critical-extension-ee"
+                    | "rfc5280::unknown-critical-extension-intermediate"
+                    | "rfc5280::unknown-critical-extension-root" => {
+                        matches!(
+                            error,
+                            Error::ExtensionError(ExtensionError::UnknownCriticalExtension(_))
+                        )
+                    }
+                    "rfc5280::intermediate-ca-without-ca-bit" => {
+                        matches!(error, Error::ChainError(ChainError::IssuerNotCA))
+                    }
+                    "rfc5280::root-inconsistent-ca-extensions" => {
+                        matches!(
+                            error,
+                            Error::ConstraintError(ConstraintError::KeyUsageViolation(_))
+                        )
+                    }
+                    "rfc5280::duplicate-extensions" => {
+                        matches!(
+                            error,
+                            Error::ExtensionError(ExtensionError::DuplicateExtension(_))
+                        )
+                    }
+                    _ => false,
+                };
+                assert!(
+                    expected_category,
+                    "{}: unexpected rejection category: {error:?}",
+                    testcase.id
+                );
+            }
+            result
         });
 
-        assert_eq!(summary.total, 5);
-        assert_eq!(summary.expected_successes, 2);
-        assert_eq!(summary.expected_failures, 3);
+        assert_eq!(summary.total, 9);
+        assert_eq!(summary.expected_successes, 3);
+        assert_eq!(summary.expected_failures, 6);
+    }
+
+    #[test]
+    fn test_pathlen_x509_limbo_conformance() {
+        let runner =
+            LimboRunner::from_json(include_str!("../../etc/rfc5280_pathlen_x509_limbo.json"))
+                .expect("valid x509-limbo fixture");
+        let summary = runner.assert_conformance(|testcase| {
+            let result = validate_signed_limbo_path(testcase);
+            if let Err(error) = &result {
+                assert!(
+                    matches!(
+                        error,
+                        Error::ChainError(crate::error::ChainError::PathLengthExceeded)
+                    ),
+                    "{}: unexpected rejection category: {error:?}",
+                    testcase.id
+                );
+            }
+            result
+        });
+        assert_eq!(summary.total, 7);
+        assert_eq!(summary.expected_successes, 5);
+        assert_eq!(summary.expected_failures, 2);
     }
 
     // ── Helper to load a cert from DER file ──

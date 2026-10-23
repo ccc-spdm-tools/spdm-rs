@@ -33,6 +33,176 @@
         {
           "id": "rfc5280::nc::invalid-dnsname-leading-period",
           "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-dns-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-dns-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-dns-match-noncritical",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-dns-match-more",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-ip-mismatch",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-ipv4-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-ipv6-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-ipv6-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-dn-mismatch",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-dn-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-dn-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-dn-match-sub-mismatch",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-self-issued-leaf",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-match-permitted-and-excluded",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::permitted-different-constraint-type",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::excluded-different-constraint-type",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::invalid-dnsname-wildcard",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::invalid-ipv4-address",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::invalid-ipv6-address",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::invalid-email-address",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::not-allowed-in-ee-noncritical",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::not-allowed-in-ee-critical",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::intermediate-with-san-rejected-by-intermediate-nc",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::intermediate-with-san-rejected-by-root-nc",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::restrictive-permits-in-intermediates-narrows",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::restrictive-permits-in-intermediates-widens",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-invalid-dns-san",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-invalid-ip-san",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-invalid-email-san",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-exact",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-domain",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-literal-asterisk-exact-match",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-literal-asterisk-rejects-user",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-literal-asterisk-rejects-subdomain",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-literal-double-asterisk",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-literal-double-asterisk-rejects-single",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-permits-email-literal-mid-asterisk",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-forbids-othername",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-forbids-othername-noop",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-forbids-dnsname-wildcard-san",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::nc::nc-forbids-alternate-chain-ica",
+          "status": "not-applicable",
+          "reason": "requires alternate-path discovery rather than validation of one ordered SPDM chain"
+        },
+        {
+          "id": "rfc5280::nc::nc-forbids-same-chain-ica",
+          "status": "not-applicable",
+          "reason": "requires selecting a path from multiple trust anchors and intermediate candidates"
         }
       ]
     },
@@ -54,8 +224,8 @@
         },
         {
           "id": "rfc5280::root-missing-basic-constraints",
-          "status": "not-applicable",
-          "reason": "DSP0274 permits an issuer certificate to omit Basic Constraints"
+          "status": "unsupported",
+          "reason": "the validator currently accepts missing issuer Basic Constraints; SPDM 1.4 requires it"
         },
         {
           "id": "rfc5280::root-non-critical-basic-constraints",
@@ -69,6 +239,131 @@
         {
           "id": "rfc5280::no-basicconstraints",
           "status": "supported"
+        },
+        {
+          "id": "rfc5280::unknown-critical-extension-root",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::root-inconsistent-ca-extensions",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::duplicate-extensions",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::ee-aia",
+          "status": "supported"
+        },
+        {
+          "id": "rfc5280::ica-ku-keycertsign",
+          "status": "unsupported",
+          "reason": "the pinned testcase omits its described intermediate certificate, so the linear adapter cannot isolate Key Usage rejection"
+        },
+        {
+          "id": "rfc5280::leaf-ku-keycertsign",
+          "status": "unsupported",
+          "reason": "leaf cA and keyCertSign consistency needs native SPDM leaf validation coverage"
+        },
+        {
+          "id": "rfc5280::unknown-critical-extension-unrelated-root",
+          "status": "not-applicable",
+          "reason": "requires selecting the used root from multiple trust anchors"
+        },
+        {
+          "id": "rfc5280::unknown-critical-extension-unrelated-intermediate",
+          "status": "not-applicable",
+          "reason": "requires excluding an unrelated intermediate through path discovery"
+        },
+        {
+          "id": "rfc5280::validity::expired-leaf",
+          "status": "not-applicable",
+          "reason": "time-based certificate acceptance is outside this SPDM conformance increment"
+        },
+        {
+          "id": "rfc5280::validity::not-yet-valid-1-second",
+          "status": "not-applicable",
+          "reason": "time-based certificate acceptance is outside this SPDM conformance increment"
+        },
+        {
+          "id": "rfc5280::eku::ee-wrong-eku",
+          "status": "not-applicable",
+          "reason": "TLS authentication purpose does not represent SPDM Requester or Responder EKU"
+        },
+        {
+          "id": "rfc9881::ml-dsa-44",
+          "status": "unsupported",
+          "reason": "the bundled test-only Ring backend cannot verify ML-DSA; requires the production backend matrix"
+        },
+        {
+          "id": "rfc9881::ml-dsa-44-bad-signature",
+          "status": "unsupported",
+          "reason": "unsupported ML-DSA must not count as a successful bad-signature rejection by the test-only Ring backend"
+        }
+      ]
+    },
+    {
+      "name": "rfc5280_pathlen",
+      "output": "rfc5280_pathlen_x509_limbo.json",
+      "testcases": [
+        {
+          "id": "pathlen::ee-with-intermediate-pathlen-0",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::ee-with-intermediate-pathlen-1",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::ee-with-intermediate-pathlen-2",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::intermediate-violates-pathlen-0",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::intermediate-pathlen-may-increase",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::intermediate-pathlen-too-long",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::self-issued-certs-pathlen",
+          "status": "supported"
+        },
+        {
+          "id": "pathlen::validation-ignores-pathlen-in-leaf",
+          "status": "not-applicable",
+          "reason": "uses a CA certificate as the final target; native SPDM leaf validation requires cA=FALSE"
+        },
+        {
+          "id": "pathlen::max-chain-depth-0",
+          "status": "unsupported",
+          "reason": "upstream max_chain_depth counts logical intermediates; ValidationOptions bounds total certificates instead"
+        },
+        {
+          "id": "pathlen::max-chain-depth-0-exhausted",
+          "status": "unsupported",
+          "reason": "upstream max_chain_depth counts logical intermediates; ValidationOptions bounds total certificates instead"
+        },
+        {
+          "id": "pathlen::max-chain-depth-1",
+          "status": "unsupported",
+          "reason": "upstream max_chain_depth counts logical intermediates; ValidationOptions bounds total certificates instead"
+        },
+        {
+          "id": "pathlen::max-chain-depth-1-exhausted",
+          "status": "unsupported",
+          "reason": "upstream max_chain_depth counts logical intermediates; ValidationOptions bounds total certificates instead"
+        },
+        {
+          "id": "pathlen::max-chain-depth-1-self-issued",
+          "status": "unsupported",
+          "reason": "upstream max_chain_depth counts logical intermediates; ValidationOptions bounds total certificates instead"
         }
       ]
     }

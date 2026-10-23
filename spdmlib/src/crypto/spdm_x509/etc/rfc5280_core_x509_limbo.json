@@ -133,6 +133,106 @@
       "expected_peer_names": [],
       "max_chain_depth": null,
       "crls": []
+    },
+    {
+      "id": "rfc5280::unknown-critical-extension-root",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **invalid** chain:\n\n```\nroot -> EE\n```\n\nThe root has an extension, 1.3.6.1.4.1.55738.666.1, that no implementation\nshould recognize. As this unrecognized extension is marked as critical, a\nchain should not be built with this root.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBpDCCAUmgAwIBAgIUM7AHQPp6cjDUgp2hsakXWxV8+3kwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAAQ2UZAGVQ+VrLvgAHMEMQkX6jIdJ7akN5+FMRv+\nzNWObon2hyKOnd/hupycBfEBTTc3zfYUOAzdKJGwmlCJbDh+o2swaTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUbRmrV7ZLpthEz0CpTMSNG5jIQqQwEgYLKwYBBAGDszqFGgEBAf8E\nADAKBggqhkjOPQQDAgNJADBGAiEA0se67fCpYVZoi9EQ7/YvhJqx1Y8h3X/tCTI0\nTTG+0XcCIQCNQDim6PQviBKj/EF9BuyHZcg6oaNr3fsOVNxCahLHZQ==\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIBsTCCAVagAwIBAgIUP9S0Jp+QS8b+COg/tteequr90o4wCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABJGMaNSCQkoFpAK9KdNNlEC0h4bGZD9FlOxrvXJys9Qv\nxvoIKeSdx5kfJFuBBvARHu3ZH+qsm6SX5zvJFNUP5MijfDB6MB0GA1UdDgQWBBQ9\njxUdxs1jM1QRWg5/sY8cSANlPzAfBgNVHSMEGDAWgBRtGatXtkum2ETPQKlMxI0b\nmMhCpDALBgNVHQ8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwFgYDVR0RBA8w\nDYILZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDSQAwRgIhAKnlFrGRyIN/AR7M3s5I\nEjDAeaIeeNSz4oOVJM4H7MCsAiEAuorxbMK2V/Qayr9iKEyEyZMHxt0ISP3Gbmnb\nJ2g/Emo=\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "FAILURE",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "rfc5280::root-inconsistent-ca-extensions",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **invalid** chain:\n\n```\nroot -> EE\n```\n\nThe root CA has `BasicConstraints.cA=TRUE` and `KeyUsage.keyCertSign=FALSE`.\nAccording to RFC 5280, these two fields are related in the\nfollowing ways:\n\n> If the keyCertSign bit is asserted, then the cA bit in the basic\n> constraints extension MUST also be asserted. (Section 4.2.1.3)\n\nand\n\n> If the cA boolean is not asserted, then the keyCertSign bit in the\n> key usage extension MUST NOT be asserted. (Section 4.2.1.9)\n\nAlthough the profile does not directly state that keyCertSign must be asserted\nwhen cA is asserted, this configuration is inconsistent and clients should\nreject it.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjjCCATSgAwIBAgIUWm7AJPVv88Lnq0lK9HwfCi04WycwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAASQPbYs8y0THVdCbzK89Il5C1UQGBm6w1vktqI6\nbvwB8zgHuoETiLvJ0VuwjJz+NJJH2fkBmFwMDpFdv4wpkGYno1YwVDAPBgNVHRMB\nAf8EBTADAQH/MAoGA1UdDwQDAwEAMBYGA1UdEQQPMA2CC2V4YW1wbGUuY29tMB0G\nA1UdDgQWBBSqEkRSVZhoOAiD+qRKoe+eT+2jLDAKBggqhkjOPQQDAgNIADBFAiEA\n2gVWWG45RMPBNMHsi4ULyptu8pOxiwh7vmdsDtpC9FQCIBlPRl1yGTWudZnAXsTy\n6TxxMHzyGaZ2akwrzydoXg7N\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIBsTCCAVagAwIBAgIUFpAJvXNrgmwe51zd/7FG177v7IUwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABIhSS8DkVoLZkNWNpZwJGq/Q7DsYudsu29p9eCBbVNXl\nomZCG3cJnB4Q2KnsMpqdUjhB9zdrlVdDGg4QnUbDDhujfDB6MB0GA1UdDgQWBBSK\nNC0NfT18n5qwhWEsur8J7S3EjzAfBgNVHSMEGDAWgBSqEkRSVZhoOAiD+qRKoe+e\nT+2jLDALBgNVHQ8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwFgYDVR0RBA8w\nDYILZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDSQAwRgIhALgUrGPlvGtF93LmOMJN\nAWZX+eZsEWH93RRjie2K42JQAiEAi/M4t6EHKw7NhiKGIA7tHbpJmDlqET8nqdFz\nh4S8Rq0=\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "FAILURE",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "rfc5280::duplicate-extensions",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces the following **invalid** chain:\n\n```\nroot -> EE\n```\n\nThis chain is invalid solely because of the EE cert's construction:\nit contains multiple X.509v3 extensions with the same OID, which\nis prohibited under RFC 5280 4.2.\n\n> A certificate MUST NOT include more than one instance of a particular\n> extension.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBkDCCATWgAwIBAgIUIkU38xuim5qUfI6m/wUMZFVktnMwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAARMEFYtczuBM3p673ABZggWd5bUksW740qOoeGq\nfeK3MBkUOGlI1/Q15I/LhPRZw1p/H+2CV6NoDxcMCdWqkFcvo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUwZgSbQ97PWQudUe+SSK0VO1Hw90wCgYIKoZIzj0EAwIDSQAwRgIh\nANFkKmE6gmdd5+ACBsoOXNwbn8o6CUIvz0j8am1bg8Q/AiEAlmMc05hj7kCLFHhX\n7AvGBidwJ9MdTOJuNeLhIyJCvoY=\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIByTCCAXCgAwIBAgIUPes8GoxE4Z9hvAtHRvAT5r/NUCQwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABJ+/V8EAMzPKy2tQO2H8OvvC8dabfG3FjNQXvzpNX/jM\ndaHEc5Zw2xm80Py59h80rs2Czahv3ha53F+8d6bbar2jgZUwgZIwHQYDVR0OBBYE\nFHCPSuyS42SPY8f2EfGd1l6AUQCpMB8GA1UdIwQYMBaAFMGYEm0Pez1kLnVHvkki\ntFTtR8PdMAsGA1UdDwQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREE\nDzANggtleGFtcGxlLmNvbTAWBgNVHREEDzANggtleGFtcGxlLmNvbTAKBggqhkjO\nPQQDAgNHADBEAiApvgq1K4CAORJpt4mKlstPkKTr6nbehEGihaooeUcqPwIgSDFW\nV9ojIK72UjAqsrxG57Mdy/9yXg+vb3HIQf4LuNQ=\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "FAILURE",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
+    },
+    {
+      "id": "rfc5280::ee-aia",
+      "conflicts_with": [],
+      "features": [],
+      "importance": "undetermined",
+      "description": "Produces a **valid** chain with an EE cert.\n\nThis EE cert contains an Authority Information Access extension with a CA Issuer Access\nDescription.",
+      "validation_kind": "SERVER",
+      "trusted_certs": [
+        "-----BEGIN CERTIFICATE-----\nMIIBjjCCATWgAwIBAgIULVDMrpoRTXUzVVwHVFm9VNVLuscwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAaMRgwFgYDVQQDDA94NTA5LWxpbWJvLXJvb3QwWTATBgcq\nhkjOPQIBBggqhkjOPQMBBwNCAASAb+5bH+asEsfxzj+/wG0AS+9cWJ5NWgSeS33X\nV7HDh5XJA49QdZ2ngPR2QXizd3EuVDmDlsZGStaDons1gcXKo1cwVTAPBgNVHRMB\nAf8EBTADAQH/MAsGA1UdDwQEAwIBBjAWBgNVHREEDzANggtleGFtcGxlLmNvbTAd\nBgNVHQ4EFgQUtpXVDQEW72YO5J4o0sLfOH0KCqkwCgYIKoZIzj0EAwIDRwAwRAIg\nYbFZOoa3Xox6SSmRpRVKU0goMb7MNfGrEi2PzS3yzlACIGLz51QvBqVdXSe6P3in\nND84af14lI/QNEIabrjxEz4B\n-----END CERTIFICATE-----\n"
+      ],
+      "untrusted_intermediates": [],
+      "peer_certificate": "-----BEGIN CERTIFICATE-----\nMIIB2jCCAYGgAwIBAgIUD6yQwFpgJ8ymVXumI7C/Ivk2kFowCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPeDUwOS1saW1iby1yb290MCAXDTcwMDEwMTAwMDAwMVoYDzI5\nNjkwNTAzMDAwMDAxWjAWMRQwEgYDVQQDDAtleGFtcGxlLmNvbTBZMBMGByqGSM49\nAgEGCCqGSM49AwEHA0IABBCHR0UQXKyX4FyJEaf68RXPzws1XyKkLWd4IVzlzDv2\nHmRpr4FrIyqEjR7UJx1eePYmTPBN006DacnifjeyyHOjgaYwgaMwHQYDVR0OBBYE\nFLqLOmPJM9m9aJAYuxasYfHuTivxMB8GA1UdIwQYMBaAFLaV1Q0BFu9mDuSeKNLC\n3zh9CgqpMAsGA1UdDwQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDATAWBgNVHREE\nDzANggtleGFtcGxlLmNvbTAnBggrBgEFBQcBAQQbMBkwFwYIKwYBBQUHMAKCC2V4\nYW1wbGUuY29tMAoGCCqGSM49BAMCA0cAMEQCIGQ/Aj6jW8LfQS1Ov5mmr1Wt5FPs\n6hrnJnTDclxvoidTAiBhKLxs1SS6YOkimndTxT9VE1YC14HXNSlc1hW4vpo9kg==\n-----END CERTIFICATE-----\n",
+      "validation_time": null,
+      "signature_algorithms": [],
+      "key_usage": [],
+      "extended_key_usage": [],
+      "expected_result": "SUCCESS",
+      "expected_peer_name": {
+        "kind": "DNS",
+        "value": "example.com"
+      },
+      "expected_peer_names": [],
+      "max_chain_depth": null,
+      "crls": []
     }
   ]
 }
