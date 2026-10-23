@@ -4,6 +4,7 @@
 
 use crate::common::SpdmCodec;
 use crate::common::SpdmConnectionState;
+use crate::config;
 use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
@@ -111,9 +112,17 @@ impl ResponderContext {
             .as_ref()
             .unwrap();
 
+        let data_transfer_size = if self.common.negotiate_info.req_data_transfer_size_sel == 0 {
+            config::SPDM_SENDER_DATA_TRANSFER_SIZE as u32
+        } else {
+            self.common.negotiate_info.req_data_transfer_size_sel
+        };
+        let max_cert_portion_len = self
+            .common
+            .get_max_spdm_cert_portion_len(data_transfer_size);
         let mut length = get_certificate.length;
-        if length > MAX_SPDM_CERT_PORTION_LEN as u32 {
-            length = MAX_SPDM_CERT_PORTION_LEN as u32;
+        if length > max_cert_portion_len {
+            length = max_cert_portion_len;
         }
 
         let offset = get_certificate.offset;

@@ -9,6 +9,7 @@ use crate::protocol::SpdmVersion;
 use codec::{enum_builder, u24, Codec, Reader, Writer};
 
 pub const ENCAPSULATED_RESPONSE_ACK_HEADER_SIZE: usize = 8;
+pub const DELIVER_ENCAPSULATED_RESPONSE_HEADER_SIZE: u32 = 4;
 
 #[derive(Debug, Clone, Default)]
 pub struct SpdmGetEncapsulatedRequestPayload {}
