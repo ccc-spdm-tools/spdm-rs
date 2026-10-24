@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use crate::crypto::SpdmCertOperation;
+use crate::crypto::{SpdmCertOperation, SpdmCertificateRole};
 use crate::error::{SpdmResult, SPDM_STATUS_INVALID_CERT};
 use ring::signature::{self, UnparsedPublicKey};
 use spdm_x509::crypto_backend::{CryptoBackend, SignatureAlgorithm};
@@ -62,6 +62,7 @@ impl CryptoBackend for RingBackend {
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: get_cert_from_cert_chain_x509,
     verify_cert_chain_cb: verify_cert_chain_x509,
+    verify_cert_chain_with_role_cb: Some(verify_cert_chain_with_role_x509),
 };
 
 fn get_cert_from_cert_chain_x509(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)> {
@@ -83,9 +84,37 @@ fn verify_cert_chain_x509(
     .map_err(|_| SPDM_STATUS_INVALID_CERT)
 }
 
+fn verify_cert_chain_with_role_x509(
+    cert_chain: &[u8],
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
+    role: SpdmCertificateRole,
+) -> SpdmResult {
+    spdm_x509::x509::chain::verify_cert_chain_with_backend_and_role(
+        cert_chain,
+        RingBackend,
+        base_asym_algo,
+        base_hash_algo,
+        role,
+    )
+    .map_err(|e| {
+        log::error!(
+            "Role-aware certificate validation failed for {:?}: {:?}",
+            role,
+            e
+        );
+        SPDM_STATUS_INVALID_CERT
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../test/crypto_role_eku.inc.rs"
+    ));
 
     #[test]
     fn test_case0_cert_from_cert_chain() {

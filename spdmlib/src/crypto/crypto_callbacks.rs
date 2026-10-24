@@ -111,6 +111,12 @@ pub struct SpdmHkdf {
 }
 
 type GetCertFromCertChainCb = fn(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)>;
+type VerifyCertChainWithRoleCb = fn(
+    cert_chain: &[u8],
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
+    role: super::SpdmCertificateRole,
+) -> SpdmResult;
 
 #[derive(Clone)]
 pub struct SpdmCertOperation {
@@ -121,6 +127,14 @@ pub struct SpdmCertOperation {
         base_asym_algo: Option<u32>,
         base_hash_algo: Option<u32>,
     ) -> SpdmResult,
+
+    /// Required for SPDM 1.2+ acceptance. Verify signatures/path and leaf EKU for
+    /// the supplied peer role. `None` supports only legacy acceptance; the
+    /// dispatcher must not fall back to the Responder-only callback.
+    /// Protocol acceptance checks the selected classical/PQC leaf key separately
+    /// and passes `None` for both algorithm arguments. Issuer signatures must not
+    /// be restricted to the negotiated endpoint algorithm or transcript hash.
+    pub verify_cert_chain_with_role_cb: Option<VerifyCertChainWithRoleCb>,
 }
 
 type GenerateKeyPairCb = fn(

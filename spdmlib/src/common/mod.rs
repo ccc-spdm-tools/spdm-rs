@@ -193,6 +193,108 @@ impl SpdmContext {
     pub fn get_hash_size(&self) -> u16 {
         self.negotiate_info.base_hash_sel.get_size()
     }
+
+    pub(crate) fn check_peer_certificate_algorithms(
+        &self,
+        cert_chain: &[u8],
+        role: crypto::SpdmCertificateRole,
+    ) -> SpdmResult {
+        use spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms;
+
+        let (asym, pqc) = match role {
+            crypto::SpdmCertificateRole::Responder => (
+                self.negotiate_info.base_asym_sel,
+                self.negotiate_info.pqc_asym_sel,
+            ),
+            crypto::SpdmCertificateRole::Requester => (
+                self.negotiate_info.req_asym_sel.to_base(),
+                self.negotiate_info.pqc_req_asym_sel.to_base(),
+            ),
+        };
+        validate_spdm_certificate_chain_algorithms(cert_chain, asym.bits(), pqc.bits()).map_err(
+            |error| {
+                log::error!(
+                    "Peer {:?} certificate algorithm validation failed: {:?}",
+                    role,
+                    error
+                );
+                crate::error::SPDM_STATUS_INVALID_CERT
+            },
+        )
+    }
+
+    pub(crate) fn check_peer_certificate_fields(
+        &self,
+        cert_chain: &[u8],
+        slot_id: u8,
+        role: spdm_x509::x509::spdm_validator::SpdmCertificateRole,
+    ) -> SpdmResult {
+        use crate::error::SPDM_STATUS_INVALID_CERT;
+        use spdm_x509::x509::spdm_validator::{
+            validate_spdm14_certificate_chain_fields, SpdmCertificateModel, SpdmCertificateRole,
+        };
+
+        if self.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion14 {
+            return Ok(());
+        }
+        let multi_key = match role {
+            SpdmCertificateRole::Requester => self.negotiate_info.multi_key_conn_req,
+            SpdmCertificateRole::Responder => self.negotiate_info.multi_key_conn_rsp,
+        };
+        let cert_info = self
+            .peer_info
+            .peer_cert_info
+            .get(slot_id as usize)
+            .ok_or_else(|| {
+                log::error!("Invalid peer certificate slot {}", slot_id);
+                SPDM_STATUS_INVALID_CERT
+            })?;
+        let model = if multi_key {
+            match cert_info {
+                Some(SpdmCertificateModelType::SpdmCertModelTypeDeviceCert) => {
+                    SpdmCertificateModel::DeviceCert
+                }
+                Some(SpdmCertificateModelType::SpdmCertModelTypeAliasCert) => {
+                    SpdmCertificateModel::AliasCert
+                }
+                Some(SpdmCertificateModelType::SpdmCertModelTypeGenericCert) if slot_id != 0 => {
+                    SpdmCertificateModel::GenericCert
+                }
+                _ => {
+                    log::error!(
+                        "Missing or invalid peer certificate model for slot {}",
+                        slot_id
+                    );
+                    return Err(SPDM_STATUS_INVALID_CERT);
+                }
+            }
+        } else if role == SpdmCertificateRole::Responder
+            && self
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP)
+        {
+            SpdmCertificateModel::AliasCert
+        } else {
+            // Requesters do not advertise their model in single-key mode.
+            // DeviceCert and AliasCert have identical Table 48 field rules.
+            SpdmCertificateModel::DeviceCert
+        };
+        validate_spdm14_certificate_chain_fields(cert_chain, model).map_err(|e| {
+            log::error!("SPDM 1.4 peer certificate fields failed: {:?}", e);
+            SPDM_STATUS_INVALID_CERT
+        })?;
+        let (start, end) = spdm_x509::x509::chain::get_cert_from_cert_chain(cert_chain, -1)
+            .map_err(|e| {
+                log::error!("Failed to locate SPDM 1.4 leaf certificate: {:?}", e);
+                SPDM_STATUS_INVALID_CERT
+            })?;
+        crypto::check_leaf_certificate(
+            &cert_chain[start..end],
+            model == SpdmCertificateModel::AliasCert,
+        )
+    }
+
     pub fn get_asym_sig_size(&self) -> u16 {
         if self.negotiate_info.pqc_asym_sel != SpdmPqcAsymAlgo::empty() {
             self.negotiate_info.pqc_asym_sel.get_sig_size()

@@ -21,6 +21,7 @@ pub use crypto_callbacks::{
     SpdmHash, SpdmHkdf, SpdmHmac, SpdmKemCipherTextExchange, SpdmKemDecap, SpdmKemEncap,
     SpdmKemEncapKeyExchange, SpdmPqcAsymVerify,
 };
+pub use spdm_x509::SpdmCertificateRole;
 
 #[cfg(feature = "hashed-transcript-data")]
 pub use self::hash::SpdmHashCtx;
@@ -34,7 +35,8 @@ use conquer_once::spin::OnceCell;
 /// self-signature (RFC 5280).
 ///
 /// The root's self-signature is verified cryptographically by the registered
-/// `cert_operation::verify_cert_chain`, which runs before this function in the
+/// certificate-chain callback (role-aware for SPDM 1.2+), which runs before
+/// this function in the
 /// GET_CERTIFICATE / ENCAP_GET_CERTIFICATE flow: the X.509 chain walk verifies
 /// the root (last cert) against its own public key using the *active* crypto
 /// backend (ring, mbedtls, or aws-lc). This function therefore only checks the
@@ -52,11 +54,13 @@ pub fn is_root_certificate(cert_der: &[u8]) -> SpdmResult {
     Ok(())
 }
 
-/// Check leaf certificate validity per DSP0274 Table 42.
+/// Apply the legacy leaf certificate checks.
+///
+/// SPDM 1.4 acceptance additionally checks mandatory fields through
+/// `SpdmContext::check_peer_certificate_fields` before invoking this helper.
 ///
 /// Validates:
-/// - Basic Constraints: if present, cA MUST be FALSE (DSP0274 Table 42 /
-///   RFC 5280 §4.2.1.9 — absence is permitted and implies cA=FALSE)
+/// - Basic Constraints: if present, cA MUST be FALSE
 /// - Key Usage, if present, MUST assert digitalSignature (RFC 5280 §4.2.1.3)
 /// - AliasCert model: SPDM HW Identity OID must NOT be present
 /// - Non-alias certs (DeviceCert/GenericCert): treated as GenericCert;
@@ -71,9 +75,7 @@ pub fn check_leaf_certificate(cert_der: &[u8], is_alias_cert: bool) -> SpdmResul
     // Extensions block may legitimately be absent for simple end-entity certs.
     let extensions = cert.tbs_certificate.extensions.as_ref();
 
-    // 1. Basic Constraints: if present, cA MUST be FALSE (DSP0274 Table 42).
-    //    The spec mandates BC with cA=TRUE only for intermediate/root certs.
-    //    For leaf certs the extension is optional; absence implies cA=FALSE.
+    // Missing extensions remain accepted here for pre-1.4 compatibility.
     if let Some(exts) = extensions {
         if let Some(bc_ext) = exts.find(&BASIC_CONSTRAINTS) {
             if let Ok(bc) = BasicConstraints::from_extension(bc_ext) {
@@ -501,7 +503,7 @@ pub mod kem_encap {
 
 pub mod cert_operation {
     use super::CRYPTO_CERT_OPERATION;
-    use crate::crypto::SpdmCertOperation;
+    use crate::crypto::{SpdmCertOperation, SpdmCertificateRole};
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
     use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
 
@@ -541,6 +543,25 @@ pub mod cert_operation {
             .try_get_or_init(|| DEFAULT.clone())
             .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
             .verify_cert_chain_cb)(cert_chain, asym, hash)
+    }
+
+    /// Verify a chain for an explicit peer role without a legacy fallback.
+    pub fn verify_cert_chain_with_role(
+        cert_chain: &[u8],
+        base_asym_algo: SpdmBaseAsymAlgo,
+        base_hash_algo: SpdmBaseHashAlgo,
+        role: SpdmCertificateRole,
+    ) -> SpdmResult {
+        let context = CRYPTO_CERT_OPERATION
+            .try_get_or_init(|| DEFAULT.clone())
+            .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?;
+        let verify = context.verify_cert_chain_with_role_cb.ok_or_else(|| {
+            log::error!("Certificate backend does not support role-aware validation");
+            SPDM_STATUS_INVALID_STATE_LOCAL
+        })?;
+        let asym = (base_asym_algo.bits() != 0).then_some(base_asym_algo.bits());
+        let hash = (base_hash_algo.bits() != 0).then_some(base_hash_algo.bits());
+        verify(cert_chain, asym, hash, role)
     }
 }
 
