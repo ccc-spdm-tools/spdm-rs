@@ -767,9 +767,14 @@ impl RequesterContext {
                                             && message_header.version
                                                 == self.common.negotiate_info.spdm_version_sel
                                         {
-                                            let spdm_message_general_payload =
+                                            // The trailer length is device-controlled; a
+                                            // 2-3 byte trailer must fail cleanly, not panic.
+                                            let Some(spdm_message_general_payload) =
                                                 SpdmMessageGeneralPayload::read(&mut reader)
-                                                    .unwrap();
+                                            else {
+                                                error!("!!! chunk send ack : early error detected but truncated error payload !!!\n");
+                                                return Err(SPDM_STATUS_INVALID_MSG_SIZE);
+                                            };
                                             if spdm_message_general_payload.param1
                                                 != SpdmErrorCode::SpdmErrorLargeResponse.get_u8()
                                             {

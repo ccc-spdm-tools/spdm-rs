@@ -6,6 +6,9 @@
 
 mod challenge_req;
 
+#[cfg(feature = "chunk-cap")]
+mod chunk_send_req;
+
 mod context;
 
 mod end_session_req;
