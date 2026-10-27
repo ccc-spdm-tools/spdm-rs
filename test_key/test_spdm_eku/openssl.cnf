@@ -28,13 +28,13 @@ subjectKeyIdentifier = hash
 extendedKeyUsage = serverAuth
 
 [v3_inter]
-basicConstraints = CA:true
+basicConstraints = critical,CA:true
 keyUsage = cRLSign, keyCertSign, digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement
 subjectKeyIdentifier = hash
 extendedKeyUsage = critical, serverAuth, clientAuth
 
 [v3_ca]
-basicConstraints = CA:true
+basicConstraints = critical,CA:true
 keyUsage = cRLSign, keyCertSign, digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement
 subjectKeyIdentifier = hash
 extendedKeyUsage = critical, serverAuth, clientAuth
