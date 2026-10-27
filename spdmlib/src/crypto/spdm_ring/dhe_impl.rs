@@ -9,6 +9,7 @@ use crate::crypto::bytes_mut_scrubbed::BytesMutStrubbed;
 use crate::crypto::{SpdmDhe, SpdmDheKeyExchange};
 use crate::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmSharedSecretFinalKeyStruct};
 use bytes::{BufMut, BytesMut};
+use zeroize::Zeroizing;
 
 pub static DEFAULT: SpdmDhe = SpdmDhe {
     generate_key_pair_cb: generate_key_pair,
@@ -44,7 +45,8 @@ fn import_private_key(
 
 struct SpdmDheKeyExchangeP256 {
     private_key: ring::agreement::EphemeralPrivateKey,
-    private_key_bytes: alloc::vec::Vec<u8>, // For serialization
+    // Serialization copy of the private scalar; erased on drop.
+    private_key_bytes: Zeroizing<alloc::vec::Vec<u8>>,
 }
 
 impl SpdmDheKeyExchange for SpdmDheKeyExchangeP256 {
@@ -70,7 +72,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP256 {
     }
 
     fn export_private_key(&self) -> Option<alloc::vec::Vec<u8>> {
-        Some(self.private_key_bytes.clone())
+        Some(self.private_key_bytes.to_vec())
     }
 }
 
@@ -82,7 +84,7 @@ impl SpdmDheKeyExchangeP256 {
                 .ok()?;
 
         // Store private key bytes for serialization
-        let private_key_bytes = private_key.export_private_key_bytes().to_vec();
+        let private_key_bytes = Zeroizing::new(private_key.export_private_key_bytes().to_vec());
 
         let public_key_old = private_key.compute_public_key().ok()?;
         let public_key = BytesMut::from(&public_key_old.as_ref()[1..]);
@@ -106,14 +108,15 @@ impl SpdmDheKeyExchangeP256 {
         .ok()?;
         Some(Self {
             private_key,
-            private_key_bytes: private_key_bytes.to_vec(),
+            private_key_bytes: Zeroizing::new(private_key_bytes.to_vec()),
         })
     }
 }
 
 struct SpdmDheKeyExchangeP384 {
     private_key: ring::agreement::EphemeralPrivateKey,
-    private_key_bytes: alloc::vec::Vec<u8>, // For serialization
+    // Serialization copy of the private scalar; erased on drop.
+    private_key_bytes: Zeroizing<alloc::vec::Vec<u8>>,
 }
 
 impl SpdmDheKeyExchange for SpdmDheKeyExchangeP384 {
@@ -139,7 +142,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeP384 {
     }
 
     fn export_private_key(&self) -> Option<alloc::vec::Vec<u8>> {
-        Some(self.private_key_bytes.clone())
+        Some(self.private_key_bytes.to_vec())
     }
 }
 
@@ -151,7 +154,7 @@ impl SpdmDheKeyExchangeP384 {
                 .ok()?;
 
         // Store private key bytes for serialization
-        let private_key_bytes = private_key.export_private_key_bytes().to_vec();
+        let private_key_bytes = Zeroizing::new(private_key.export_private_key_bytes().to_vec());
 
         let public_key_old = private_key.compute_public_key().ok()?;
         let public_key = BytesMut::from(&public_key_old.as_ref()[1..]);
@@ -175,7 +178,7 @@ impl SpdmDheKeyExchangeP384 {
         .ok()?;
         Some(Self {
             private_key,
-            private_key_bytes: private_key_bytes.to_vec(),
+            private_key_bytes: Zeroizing::new(private_key_bytes.to_vec()),
         })
     }
 }
