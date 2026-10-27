@@ -18,6 +18,7 @@ use aws_lc_rs::agreement::{self, PrivateKey, UnparsedPublicKey};
 use aws_lc_rs::encoding::{AsBigEndian, EcPrivateKeyBin};
 use spdmlib::crypto::{SpdmDhe, SpdmDheKeyExchange};
 use spdmlib::protocol::{SpdmDheAlgo, SpdmDheExchangeStruct, SpdmSharedSecretFinalKeyStruct};
+use zeroize::Zeroizing;
 
 pub static DEFAULT: SpdmDhe = SpdmDhe {
     generate_key_pair_cb: generate_key_pair,
@@ -88,7 +89,7 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeAwsLc {
         pubkey.extend_from_slice(&peer_pub_key.data[..peer_pub_key.data_size as usize]);
         let peer_public_key = UnparsedPublicKey::new(self.alg, pubkey);
 
-        let mut final_key: Vec<u8> = Vec::new();
+        let mut final_key = Zeroizing::new(Vec::<u8>::new());
         let res = agreement::agree(
             &private_key,
             &peer_public_key,
@@ -107,6 +108,8 @@ impl SpdmDheKeyExchange for SpdmDheKeyExchangeAwsLc {
     fn export_private_key(&self) -> Option<Vec<u8>> {
         let private_key = self.private_key.as_ref()?;
         let bin: EcPrivateKeyBin = private_key.as_be_bytes().ok()?;
+        // The caller takes ownership of the returned scalar and is expected to
+        // move it into zeroizing storage; `bin` itself is erased by aws-lc-rs.
         Some(bin.as_ref().to_vec())
     }
 }
