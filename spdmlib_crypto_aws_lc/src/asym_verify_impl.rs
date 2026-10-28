@@ -13,7 +13,7 @@ use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_VERIF_FAI
 use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmDer, SpdmSignatureStruct};
 
 // Parse DER length field. Returns (bytes_consumed_for_length, value)
-fn parse_der_length(input: &[u8]) -> Option<(usize, usize)> {
+pub(crate) fn parse_der_length(input: &[u8]) -> Option<(usize, usize)> {
     if input.is_empty() {
         return None;
     }

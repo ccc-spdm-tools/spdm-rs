@@ -9,10 +9,16 @@ use spdmlib::crypto::SpdmPqcAsymVerify;
 use spdmlib::error::{SpdmResult, SPDM_STATUS_INVALID_CERT, SPDM_STATUS_VERIF_FAIL};
 use spdmlib::protocol::{SpdmBaseHashAlgo, SpdmPqcAsymAlgo, SpdmSignatureStruct};
 
+use crate::asym_verify_impl::parse_der_length;
+
 // Raw public key sizes for ML-DSA variants (without SPKI DER header)
 const MLDSA_44_KEY_SIZE: usize = 1312;
 const MLDSA_65_KEY_SIZE: usize = 1952;
 const MLDSA_87_KEY_SIZE: usize = 2592;
+
+// DER universal tags used when recognising a SubjectPublicKeyInfo.
+const DER_TAG_SEQUENCE: u8 = 0x30;
+const DER_TAG_BIT_STRING: u8 = 0x03;
 
 // SPDM signing prefix is 64 bytes, followed by 36 bytes of (zeropad + context_string).
 const SPDM_SIGNING_PREFIX_LEN: usize = 64;
@@ -64,6 +70,84 @@ pub static DEFAULT: SpdmPqcAsymVerify = SpdmPqcAsymVerify {
     fips_self_test_cb: None,
 };
 
+/// How the peer's ML-DSA public key was supplied to the verifier.
+///
+/// `spdmlib::crypto::spdm_asym_verify` hands both `SpdmDer` variants to the
+/// PQC callback as an untyped byte slice, so the backend must recognise the
+/// encoding itself. Classification is deterministic and never attempts an
+/// X.509 parse on a bare key, which keeps the RFC 7250 path free of spurious
+/// certificate errors.
+#[derive(Debug, PartialEq, Eq)]
+enum PublicKeyEncoding<'a> {
+    /// Bare FIPS 204 public key bytes.
+    Raw(&'a [u8]),
+    /// RFC 7250 raw public key: a bare DER `SubjectPublicKeyInfo`. Carries
+    /// the raw key extracted from the `BIT STRING`.
+    Spki(&'a [u8]),
+    /// SPDM certificate chain; the key is taken from the leaf certificate.
+    CertChain(&'a [u8]),
+}
+
+/// Read one DER TLV header at the start of `input`. Returns the tag, the
+/// offset of the content, and the content length, provided the element fits
+/// within `input`.
+fn der_header(input: &[u8]) -> Option<(u8, usize, usize)> {
+    let tag = *input.first()?;
+    let (len_of_len, content_len) = parse_der_length(input.get(1..)?)?;
+    let content_start = 1 + len_of_len;
+    content_start
+        .checked_add(content_len)
+        .filter(|end| *end <= input.len())?;
+    Some((tag, content_start, content_len))
+}
+
+/// Recognise a bare DER `SubjectPublicKeyInfo` carrying a raw ML-DSA key of
+/// `expected_raw_size` bytes and return that key.
+///
+/// ```text
+/// SEQUENCE {
+///     SEQUENCE { OID, ... }       -- AlgorithmIdentifier
+///     BIT STRING { 0x00, key }    -- subjectPublicKey, no unused bits
+/// }
+/// ```
+///
+/// Every length must be consistent with the input; anything else is not an
+/// SPKI and is left for the certificate-chain path.
+fn spki_public_key(input: &[u8], expected_raw_size: usize) -> Option<&[u8]> {
+    let (tag, body_start, body_len) = der_header(input)?;
+    if tag != DER_TAG_SEQUENCE || body_start + body_len != input.len() {
+        return None;
+    }
+    let body = &input[body_start..];
+
+    let (tag, alg_start, alg_len) = der_header(body)?;
+    if tag != DER_TAG_SEQUENCE {
+        return None;
+    }
+    let rest = &body[alg_start + alg_len..];
+
+    let (tag, key_start, key_len) = der_header(rest)?;
+    if tag != DER_TAG_BIT_STRING || key_start + key_len != rest.len() {
+        return None;
+    }
+    let bit_string = &rest[key_start..];
+    // First BIT STRING byte is the unused-bit count; a key is whole bytes.
+    if bit_string.first() != Some(&0) || bit_string.len() != 1 + expected_raw_size {
+        return None;
+    }
+    Some(&bit_string[1..])
+}
+
+fn classify_public_key(input: &[u8], expected_raw_size: usize) -> PublicKeyEncoding<'_> {
+    if input.len() == expected_raw_size {
+        return PublicKeyEncoding::Raw(input);
+    }
+    if let Some(key) = spki_public_key(input, expected_raw_size) {
+        return PublicKeyEncoding::Spki(key);
+    }
+    PublicKeyEncoding::CertChain(input)
+}
+
 /// Extract the raw ML-DSA public key from a DER-encoded certificate chain.
 ///
 /// Parses the cert chain to find the leaf certificate, then extracts
@@ -110,21 +194,6 @@ fn extract_public_key_from_cert_chain(
     }
 }
 
-/// Extract the raw public key from raw key bytes or SPKI DER encoding.
-/// If the input is already the expected raw key size, return it as-is.
-fn extract_raw_public_key(public_key_der: &[u8], expected_raw_size: usize) -> &[u8] {
-    if public_key_der.len() == expected_raw_size {
-        return public_key_der;
-    }
-    // SPKI DER: SEQUENCE { SEQUENCE { OID, ... }, BIT STRING { 0x00, raw_key } }
-    // The raw key is at the end; strip the SPKI header.
-    if public_key_der.len() > expected_raw_size {
-        &public_key_der[public_key_der.len() - expected_raw_size..]
-    } else {
-        public_key_der
-    }
-}
-
 /// Extract the SPDM signing context string from the data buffer.
 ///
 /// The SPDM 1.2+ signing message has the following structure:
@@ -167,16 +236,17 @@ fn pqc_asym_verify(
         _ => return Err(SPDM_STATUS_VERIF_FAIL),
     };
 
-    // Try to extract the key from a cert chain first; if that fails,
-    // treat the input as a raw public key (RFC 7250 / SPKI).
+    // The caller passes either an RFC 7250 raw public key or a certificate
+    // chain without saying which; recognise the encoding before parsing so
+    // that a bare key never reaches the X.509 parser.
     let raw_key_buf;
-    let raw_key: &[u8] =
-        if let Ok(key) = extract_public_key_from_cert_chain(public_key_der, expected_key_size) {
-            raw_key_buf = key;
+    let raw_key: &[u8] = match classify_public_key(public_key_der, expected_key_size) {
+        PublicKeyEncoding::Raw(key) | PublicKeyEncoding::Spki(key) => key,
+        PublicKeyEncoding::CertChain(chain) => {
+            raw_key_buf = extract_public_key_from_cert_chain(chain, expected_key_size)?;
             &raw_key_buf
-        } else {
-            extract_raw_public_key(public_key_der, expected_key_size)
-        };
+        }
+    };
 
     let verify_fn: unsafe extern "C" fn(_, _, _, _, _, _, _) -> _ = match pqc_asym_algo {
         SpdmPqcAsymAlgo::ALG_MLDSA_44 => ml_dsa_44_verify,
@@ -207,5 +277,198 @@ fn pqc_asym_verify(
         Ok(())
     } else {
         Err(SPDM_STATUS_VERIF_FAIL)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aws_lc_rs::signature::KeyPair;
+    use aws_lc_rs::unstable::signature::{
+        PqdsaKeyPair, PqdsaSigningAlgorithm, ML_DSA_44_SIGNING, ML_DSA_65_SIGNING,
+        ML_DSA_87_SIGNING,
+    };
+    use std::vec;
+
+    // id-ml-dsa-44/65/87: 2.16.840.1.101.3.4.3.{17,18,19}
+    const OID_ML_DSA_PREFIX: [u8; 8] = [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03];
+
+    fn der_len(len: usize) -> Vec<u8> {
+        match len {
+            0..=0x7f => vec![len as u8],
+            0x80..=0xff => vec![0x81, len as u8],
+            _ => vec![0x82, (len >> 8) as u8, len as u8],
+        }
+    }
+
+    fn der(tag: u8, content: &[u8]) -> Vec<u8> {
+        let mut out = vec![tag];
+        out.extend(der_len(content.len()));
+        out.extend_from_slice(content);
+        out
+    }
+
+    /// Build the RFC 7250 SubjectPublicKeyInfo that MigTD and other raw-key
+    /// SPDM endpoints exchange in place of a certificate chain.
+    fn spki(oid_last: u8, raw_key: &[u8]) -> Vec<u8> {
+        let mut oid = OID_ML_DSA_PREFIX.to_vec();
+        oid.push(oid_last);
+        let mut bits = vec![0u8];
+        bits.extend_from_slice(raw_key);
+        let mut body = der(DER_TAG_SEQUENCE, &der(0x06, &oid));
+        body.extend(der(DER_TAG_BIT_STRING, &bits));
+        der(DER_TAG_SEQUENCE, &body)
+    }
+
+    fn sign(
+        key_pair: &PqdsaKeyPair,
+        algo: &'static PqdsaSigningAlgorithm,
+        message: &[u8],
+    ) -> SpdmSignatureStruct {
+        let mut sig = vec![0u8; algo.signature_len()];
+        let written = key_pair.sign(message, &mut sig).expect("sign");
+        let mut out = SpdmSignatureStruct {
+            data_size: written as u16,
+            ..SpdmSignatureStruct::default()
+        };
+        out.data[..written].copy_from_slice(&sig[..written]);
+        out
+    }
+
+    fn load_chain(dir: &str) -> Vec<u8> {
+        std::fs::read(std::format!(
+            "{}/../test_key/{}/bundle_responder.certchain.der",
+            env!("CARGO_MANIFEST_DIR"),
+            dir
+        ))
+        .expect("read test chain")
+    }
+
+    #[test]
+    fn exact_size_input_is_a_raw_key() {
+        let key = [0x5a; MLDSA_87_KEY_SIZE];
+        assert_eq!(
+            classify_public_key(&key, MLDSA_87_KEY_SIZE),
+            PublicKeyEncoding::Raw(&key)
+        );
+    }
+
+    #[test]
+    fn bare_spki_is_recognised_without_touching_x509() {
+        for (oid_last, size) in [
+            (0x11, MLDSA_44_KEY_SIZE),
+            (0x12, MLDSA_65_KEY_SIZE),
+            (0x13, MLDSA_87_KEY_SIZE),
+        ] {
+            let key = vec![0xa5; size];
+            let encoded = spki(oid_last, &key);
+            assert_eq!(
+                classify_public_key(&encoded, size),
+                PublicKeyEncoding::Spki(&key)
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_spki_falls_through_to_the_cert_chain_path() {
+        let key = vec![0xa5; MLDSA_87_KEY_SIZE];
+        let good = spki(0x13, &key);
+
+        // Key length does not match the negotiated algorithm.
+        assert!(matches!(
+            classify_public_key(&good, MLDSA_65_KEY_SIZE),
+            PublicKeyEncoding::CertChain(_)
+        ));
+
+        // Trailing bytes beyond the outer SEQUENCE.
+        let mut trailing = good.clone();
+        trailing.push(0);
+        assert!(matches!(
+            classify_public_key(&trailing, MLDSA_87_KEY_SIZE),
+            PublicKeyEncoding::CertChain(_)
+        ));
+
+        // Truncated input.
+        assert!(matches!(
+            classify_public_key(&good[..good.len() - 1], MLDSA_87_KEY_SIZE),
+            PublicKeyEncoding::CertChain(_)
+        ));
+
+        // Non-zero unused-bit count in the BIT STRING.
+        let mut unused_bits = good.clone();
+        let bit_string_start = good.len() - MLDSA_87_KEY_SIZE - 1;
+        unused_bits[bit_string_start] = 1;
+        assert!(matches!(
+            classify_public_key(&unused_bits, MLDSA_87_KEY_SIZE),
+            PublicKeyEncoding::CertChain(_)
+        ));
+    }
+
+    #[test]
+    fn certificate_chain_is_recognised_and_yields_the_leaf_key() {
+        for (dir, size) in [
+            ("mldsa44", MLDSA_44_KEY_SIZE),
+            ("mldsa65", MLDSA_65_KEY_SIZE),
+            ("mldsa87", MLDSA_87_KEY_SIZE),
+        ] {
+            let chain = load_chain(dir);
+            assert!(matches!(
+                classify_public_key(&chain, size),
+                PublicKeyEncoding::CertChain(_)
+            ));
+            let key = extract_public_key_from_cert_chain(&chain, size).expect("leaf key");
+            assert_eq!(key.len(), size, "{dir}");
+        }
+    }
+
+    #[test]
+    fn garbage_that_is_not_a_chain_is_rejected_as_invalid_cert() {
+        // Longer than a raw key, not an SPKI, not a certificate: the old
+        // code silently used the trailing bytes as the key.
+        let garbage = vec![0x30; MLDSA_87_KEY_SIZE + 64];
+        let signature = SpdmSignatureStruct::default();
+        let result = pqc_asym_verify(
+            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            SpdmPqcAsymAlgo::ALG_MLDSA_87,
+            &garbage,
+            b"message",
+            &signature,
+        );
+        assert_eq!(result, Err(SPDM_STATUS_INVALID_CERT));
+    }
+
+    #[test]
+    fn raw_and_spki_encodings_verify_the_same_signature() {
+        for (algo, pqc_algo, oid_last) in [
+            (&ML_DSA_44_SIGNING, SpdmPqcAsymAlgo::ALG_MLDSA_44, 0x11),
+            (&ML_DSA_65_SIGNING, SpdmPqcAsymAlgo::ALG_MLDSA_65, 0x12),
+            (&ML_DSA_87_SIGNING, SpdmPqcAsymAlgo::ALG_MLDSA_87, 0x13),
+        ] {
+            let key_pair = PqdsaKeyPair::generate(algo).expect("keygen");
+            let raw = key_pair.public_key().as_ref().to_vec();
+            let encoded = spki(oid_last, &raw);
+            let message = b"SPDM PQC raw public key verification";
+            let signature = sign(&key_pair, algo, message);
+
+            for public_key in [&raw, &encoded] {
+                let ok = pqc_asym_verify(
+                    SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                    pqc_algo,
+                    public_key,
+                    message,
+                    &signature,
+                );
+                assert_eq!(ok, Ok(()), "{pqc_algo:?}");
+
+                let bad = pqc_asym_verify(
+                    SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+                    pqc_algo,
+                    public_key,
+                    b"tampered",
+                    &signature,
+                );
+                assert_eq!(bad, Err(SPDM_STATUS_VERIF_FAIL), "{pqc_algo:?}");
+            }
+        }
     }
 }
