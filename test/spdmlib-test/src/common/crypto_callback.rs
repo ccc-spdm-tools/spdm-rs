@@ -39,6 +39,7 @@ pub static FAKE_HKDF: SpdmHkdf = SpdmHkdf {
 pub static FAKE_CERT_OPERATION: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: fake_get_cert_from_cert_chain,
     verify_cert_chain_cb: fake_verify_cert_chain,
+    verify_cert_chain_with_role_cb: None,
 };
 
 fn fake_hmac(
