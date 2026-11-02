@@ -513,7 +513,9 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
         base_asym_algo: u32,
         base_hash_algo: u32,
     ) -> Result<()> {
-        use super::signature::{verify_ecc_curve, verify_rsa_key_size, verify_signature_algorithm};
+        use super::signature::{
+            verify_ecc_key_params, verify_rsa_key_size, verify_signature_algorithm,
+        };
 
         // Verify signature algorithm
         verify_signature_algorithm(
@@ -537,20 +539,16 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
                     Error::ValidationError(alloc::format!("Failed to encode public key: {:?}", e))
                 })?;
             verify_rsa_key_size(&pk_der, base_asym_algo)?;
-        } else {
-            // Try to get the curve OID for ECC
-            if let Some(params) = &cert
-                .tbs_certificate
-                .subject_public_key_info
-                .algorithm
-                .parameters
-            {
-                // Parameters for ECC contain the curve OID
-                // The parameters are already a der::Any, which we can try to decode as an OID
-                if let Ok(curve_oid) = ObjectIdentifier::from_der(params.value()) {
-                    verify_ecc_curve(&curve_oid, base_asym_algo)?;
-                }
-            }
+        } else if pk_algo_oid == &oids::ECPUBLICKEY {
+            // Parameters for ECC contain the curve OID
+            verify_ecc_key_params(
+                cert.tbs_certificate
+                    .subject_public_key_info
+                    .algorithm
+                    .parameters
+                    .as_ref(),
+                base_asym_algo,
+            )?;
         }
 
         Ok(())
@@ -949,6 +947,24 @@ mod tests {
             &opts,
         );
         assert!(result.is_err(), "wrong asym algo should be rejected");
+    }
+
+    #[test]
+    fn test_validate_spdm_certificate_wrong_curve_rejected() {
+        let cert = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        let validator = SpdmValidator::new();
+        let opts = ValidationOptions::default();
+        let asym = 1u32 << 7; // EcdsaP384 — wrong curve for a P-256 key
+        let hash = 1u32 << 0; // SHA-256
+        let result = validator.validate_spdm_certificate_with_options(
+            &cert,
+            SpdmCertificateModel::GenericCert,
+            SpdmCertificateRole::Responder,
+            asym,
+            hash,
+            &opts,
+        );
+        assert!(result.is_err(), "wrong ECC curve should be rejected");
     }
 
     // ── validate_chain via SpdmValidator ──

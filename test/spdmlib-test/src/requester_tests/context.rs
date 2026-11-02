@@ -22,8 +22,11 @@ use alloc::sync::Arc;
 fn test_case0_start_session() {
     init_watchdog();
     let future = async {
-        let (rsp_config_info, rsp_provision_info) = create_info();
-        let (req_config_info, req_provision_info) = create_info();
+        let (mut rsp_config_info, rsp_provision_info) = create_info();
+        let (mut req_config_info, req_provision_info) = create_info();
+        // The Requester authenticates with the ECDSA P-384 chain below.
+        rsp_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        req_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -110,8 +113,11 @@ fn test_case0_start_session() {
 fn test_case0_get_next_half_session() {
     let future = async {
         init_watchdog();
-        let (rsp_config_info, rsp_provision_info) = create_info();
-        let (req_config_info, req_provision_info) = create_info();
+        let (mut rsp_config_info, rsp_provision_info) = create_info();
+        let (mut req_config_info, req_provision_info) = create_info();
+        // The Requester authenticates with the ECDSA P-384 chain below.
+        rsp_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        req_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
