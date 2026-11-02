@@ -709,6 +709,21 @@ mod tests {
     }
 
     #[test]
+    fn test_verify_cert_chain_rejects_curve_not_negotiated() {
+        let chain = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../test_key/ecp256/bundle_responder.certchain.der"
+        ))
+        .expect("ecp256 certchain");
+        let p256 = 1u32 << 4;
+        let p384 = 1u32 << 7;
+        let sha256 = 1u32 << 0;
+
+        assert!(verify_cert_chain_with_options(&chain, Some(p256), Some(sha256)).is_ok());
+        assert!(verify_cert_chain_with_options(&chain, Some(p384), Some(sha256)).is_err());
+    }
+
+    #[test]
     fn test_verify_cert_chain_ecp384_real() {
         let chain = std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -1118,7 +1133,7 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
         if let Some(leaf) = chain.certificates.first() {
             use super::oids;
             use super::signature::{
-                verify_ecc_curve, verify_rsa_key_size, verify_signature_algorithm,
+                verify_ecc_key_params, verify_rsa_key_size, verify_signature_algorithm,
             };
 
             log::trace!(
@@ -1142,17 +1157,15 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
                         ))
                     })?;
                 verify_rsa_key_size(&pk_der, asym_algo)?;
-            } else if let Some(params) = &leaf
-                .tbs_certificate
-                .subject_public_key_info
-                .algorithm
-                .parameters
-            {
-                if let Ok(curve_oid) =
-                    <const_oid::ObjectIdentifier as der::Decode>::from_der(params.value())
-                {
-                    verify_ecc_curve(&curve_oid, asym_algo)?;
-                }
+            } else if pk_algo_oid == &oids::ECPUBLICKEY {
+                verify_ecc_key_params(
+                    leaf.tbs_certificate
+                        .subject_public_key_info
+                        .algorithm
+                        .parameters
+                        .as_ref(),
+                    asym_algo,
+                )?;
             }
 
             log::trace!("verify_cert_chain: leaf algorithm validation successful");

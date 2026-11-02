@@ -182,3 +182,53 @@ fn test_handle_encap_response_certificate() {
     assert_eq!(offset, 0x400_u32);
     assert_eq!(context.common.encap_context.encap_cert_size, offset + 0x400);
 }
+
+#[test]
+fn test_verify_requester_cert_chain_uses_req_asym_sel() {
+    let (config_info, provision_info) = create_info();
+    let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let shared_buffer = SharedBuffer::new();
+    let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+        shared_buffer,
+    ))));
+
+    let mut context = ResponderContext::new(
+        socket_io_transport,
+        pcidoe_transport_encap,
+        config_info,
+        provision_info,
+    );
+    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context
+        .common
+        .provision_info
+        .peer_root_cert_data
+        .iter_mut()
+        .for_each(|root| *root = None);
+
+    let chain = &include_bytes!("../../../../test_key/ecp384/bundle_requester.certchain.der")[..];
+    let (root_begin, root_end) =
+        spdmlib::crypto::cert_operation::get_cert_from_cert_chain(chain, 0).unwrap();
+    let root_hash = spdmlib::crypto::hash::hash_all(
+        SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+        &chain[root_begin..root_end],
+    )
+    .unwrap();
+
+    let mut cert_chain = SpdmCertChainBuffer::default();
+    let header_size = 4 + root_hash.data_size as usize;
+    cert_chain.data_size = (header_size + chain.len()) as u32;
+    cert_chain.data[..4].copy_from_slice(&cert_chain.data_size.to_le_bytes());
+    cert_chain.data[4..header_size].copy_from_slice(root_hash.as_ref());
+    cert_chain.data[header_size..header_size + chain.len()].copy_from_slice(chain);
+    context.common.peer_info.peer_cert_chain_temp = Some(cert_chain);
+
+    // The Requester's P-384 chain is judged by ReqBaseAsymAlg, not BaseAsymAlgo.
+    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    assert!(context.verify_spdm_certificate_chain().is_ok());
+
+    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
+    assert!(context.verify_spdm_certificate_chain().is_err());
+}
