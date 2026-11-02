@@ -21,6 +21,7 @@ pub use crypto_callbacks::{
     SpdmHash, SpdmHkdf, SpdmHmac, SpdmKemCipherTextExchange, SpdmKemDecap, SpdmKemEncap,
     SpdmKemEncapKeyExchange, SpdmPqcAsymVerify,
 };
+pub use spdm_x509::SpdmCertificateRole;
 
 #[cfg(feature = "hashed-transcript-data")]
 pub use self::hash::SpdmHashCtx;

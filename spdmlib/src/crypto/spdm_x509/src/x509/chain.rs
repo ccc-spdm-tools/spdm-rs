@@ -1024,6 +1024,26 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     base_asym_algo: Option<u32>,
     base_hash_algo: Option<u32>,
 ) -> Result<()> {
+    verify_cert_chain_with_backend_and_role(
+        cert_chain,
+        backend,
+        base_asym_algo,
+        base_hash_algo,
+        SpdmCertificateRole::Responder,
+    )
+}
+
+/// Validate a root-to-leaf DER chain and its leaf EKU for an explicit peer role.
+///
+/// Signature, path, algorithm, and time policies are identical to
+/// [`verify_cert_chain_with_backend`]; only the leaf EKU purpose differs.
+pub fn verify_cert_chain_with_backend_and_role<B: CryptoBackend>(
+    cert_chain: &[u8],
+    backend: B,
+    base_asym_algo: Option<u32>,
+    base_hash_algo: Option<u32>,
+    role: SpdmCertificateRole,
+) -> Result<()> {
     log::trace!("verify_cert_chain: chain_len={}", cert_chain.len());
 
     // Parse all certificates from the chain
@@ -1094,14 +1114,14 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     //  validator through a helper.
     spdm_validator.validate_chain(&chain, &options)?;
 
-    log::trace!("verify_cert_chain: validating leaf certificate EKU (Responder role)");
+    log::trace!(
+        "verify_cert_chain: validating leaf certificate EKU ({:?} role)",
+        role
+    );
 
     // Then, validate SPDM EKU on the leaf certificate (first in reversed chain)
-    // The leaf certificate is a Responder certificate in SPDM protocol
     if !chain.is_empty() {
-        match spdm_validator
-            .validate_spdm_eku(&chain.certificates[0], SpdmCertificateRole::Responder)
-        {
+        match spdm_validator.validate_spdm_eku(&chain.certificates[0], role) {
             Ok(_) => {
                 log::trace!("verify_cert_chain: SPDM EKU validation successful");
             }

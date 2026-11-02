@@ -8,6 +8,7 @@ use crate::error::SpdmResult;
 pub static DEFAULT: SpdmCertOperation = SpdmCertOperation {
     get_cert_from_cert_chain_cb: get_cert_from_cert_chain,
     verify_cert_chain_cb: verify_cert_chain,
+    verify_cert_chain_with_role_cb: None,
 };
 
 fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> SpdmResult<(usize, usize)> {
