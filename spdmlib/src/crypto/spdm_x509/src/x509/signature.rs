@@ -591,6 +591,30 @@ pub fn verify_ecc_curve(curve_oid: &ObjectIdentifier, base_asym_algo: u32) -> Re
     Ok(())
 }
 
+/// Verify the AlgorithmIdentifier parameters of an `id-ecPublicKey` key
+///
+/// RFC 5480 requires the parameters to be a named curve OID, so absent or
+/// explicit parameters are rejected rather than skipping the curve check.
+///
+/// # Arguments
+/// - `params`: The AlgorithmIdentifier parameters of the public key
+/// - `base_asym_algo`: The negotiated SPDM base asymmetric algorithm (bitfield)
+///
+/// # Returns
+/// - `Ok(())` if the parameters name a negotiated curve
+/// - `Err(AlgorithmError)` otherwise
+pub fn verify_ecc_key_params(params: Option<&der::Any>, base_asym_algo: u32) -> Result<()> {
+    let curve_oid = params
+        .and_then(|params| params.decode_as::<ObjectIdentifier>().ok())
+        .ok_or_else(|| {
+            Error::AlgorithmError(AlgorithmError::Unsupported(alloc::string::String::from(
+                "ECC public key does not name a curve",
+            )))
+        })?;
+
+    verify_ecc_curve(&curve_oid, base_asym_algo)
+}
+
 /// Verify that a hash algorithm OID is in the negotiated SPDM hash algorithms
 ///
 /// # Arguments
@@ -778,6 +802,23 @@ mod tests {
         let curve = oids::ECDSA_P256;
         let asym = 1u32 << 0; // RsaSsa2048 only
         assert!(verify_ecc_curve(&curve, asym).is_err());
+    }
+
+    // ── verify_ecc_key_params ──
+
+    #[test]
+    fn test_verify_ecc_key_params_named_curve() {
+        let params = der::Any::encode_from(&oids::ECDSA_P384).unwrap();
+        assert!(verify_ecc_key_params(Some(&params), 1u32 << 7).is_ok());
+        assert!(verify_ecc_key_params(Some(&params), 1u32 << 4).is_err());
+    }
+
+    #[test]
+    fn test_verify_ecc_key_params_rejects_unnamed_curve() {
+        let asym = 1u32 << 7; // EcdsaP384
+        let explicit = der::Any::new(der::Tag::Sequence, &[][..]).unwrap();
+        assert!(verify_ecc_key_params(None, asym).is_err());
+        assert!(verify_ecc_key_params(Some(&explicit), asym).is_err());
     }
 
     // ── verify_hash_algorithm ──
