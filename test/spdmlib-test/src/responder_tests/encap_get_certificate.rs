@@ -68,6 +68,63 @@ fn test_encode_encap_requst_get_certificate() {
 }
 
 #[test]
+fn test_verify_requester_cert_chain_checks_requester_eku() {
+    let (config_info, provision_info) = create_info();
+    let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+    let shared_buffer = SharedBuffer::new();
+    let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+        shared_buffer,
+    ))));
+
+    let mut context = ResponderContext::new(
+        socket_io_transport,
+        pcidoe_transport_encap,
+        config_info,
+        provision_info,
+    );
+    context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+
+    let ca = &include_bytes!("../../../../test_key/ecp384/ca.cert.der")[..];
+    let inter = &include_bytes!("../../../../test_key/ecp384/inter.cert.der")[..];
+    let root_hash = spdmlib::crypto::hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_384, ca).unwrap();
+
+    // Requester leaves under the provisioned root that differ only in SPDM EKU.
+    for (leaf, is_valid) in [
+        (
+            &include_bytes!("../../../../test_key/ecp384/end_requester_with_spdm_req_eku.cert.der")
+                [..],
+            true,
+        ),
+        (
+            &include_bytes!(
+                "../../../../test_key/ecp384/end_requester_with_spdm_req_rsp_eku.cert.der"
+            )[..],
+            true,
+        ),
+        (
+            &include_bytes!("../../../../test_key/ecp384/end_requester_with_spdm_rsp_eku.cert.der")
+                [..],
+            false,
+        ),
+    ] {
+        let mut cert_chain = SpdmCertChainBuffer::default();
+        let mut offset = 4 + root_hash.data_size as usize;
+        cert_chain.data[4..offset].copy_from_slice(root_hash.as_ref());
+        for cert in [ca, inter, leaf] {
+            cert_chain.data[offset..offset + cert.len()].copy_from_slice(cert);
+            offset += cert.len();
+        }
+        cert_chain.data_size = offset as u32;
+        cert_chain.data[..4].copy_from_slice(&cert_chain.data_size.to_le_bytes());
+        context.common.peer_info.peer_cert_chain_temp = Some(cert_chain);
+
+        assert_eq!(context.verify_spdm_certificate_chain().is_ok(), is_valid);
+    }
+}
+
+#[test]
 fn test_handle_encap_response_certificate() {
     let (config_info, provision_info) = create_info();
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));

@@ -276,55 +276,9 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
     /// - `Ok(())` if EKU validation passes
     /// - `Err(ExtensionError)` if validation fails
     pub fn validate_spdm_eku(&self, cert: &Certificate, role: SpdmCertificateRole) -> Result<()> {
-        // Try to get the EKU extension
-        let eku_ext = match find_extension(cert, &EXTENDED_KEY_USAGE) {
-            Some(ext) => ext,
-            None => return Ok(()), // No EKU extension is allowed
-        };
-
-        // Parse the EKU extension value
-        let eku = ExtendedKeyUsage::from_extension(eku_ext).map_err(|e| {
-            Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
-                "Failed to parse EKU: {:?}",
-                e
-            )))
-        })?;
-
-        // Check for SPDM EKU OIDs
-        let has_requester = eku
-            .key_purposes
-            .iter()
-            .any(|oid| oid == &oids::SPDM_REQUESTER_AUTH);
-        let has_responder = eku
-            .key_purposes
-            .iter()
-            .any(|oid| oid == &oids::SPDM_RESPONDER_AUTH);
-
-        // Apply SPDM validation rules
-        match role {
-            SpdmCertificateRole::Requester => {
-                // Requester cert MUST NOT contain ONLY Responder Auth OID
-                if has_responder && !has_requester {
-                    return Err(Error::ExtensionError(ExtensionError::ExtendedKeyUsage(
-                        alloc::string::String::from(
-                            "Requester certificate contains only Responder Auth EKU",
-                        ),
-                    )));
-                }
-            }
-            SpdmCertificateRole::Responder => {
-                // Responder cert MUST NOT contain ONLY Requester Auth OID
-                if has_requester && !has_responder {
-                    return Err(Error::ExtensionError(ExtensionError::ExtendedKeyUsage(
-                        alloc::string::String::from(
-                            "Responder certificate contains only Requester Auth EKU",
-                        ),
-                    )));
-                }
-            }
-        }
-
-        Ok(())
+        // EKU validation is a pure extension-byte inspection with no
+        // cryptographic operation, so delegate to the backend-free free function.
+        validate_spdm_eku(cert, role)
     }
 
     /// Validate SPDM Extension (OID 1.3.6.1.4.1.412.274.2)
@@ -558,10 +512,10 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
 // =============================================================================
 // Backend-free helpers
 //
-// SPDM hardware-identity validation inspects only X.509 extension bytes and
-// performs no cryptographic operation, so it does not need a `CryptoBackend`.
-// Exposing it as a free function lets callers (e.g. spdmlib's
-// check_leaf_certificate) validate the DeviceCert/AliasCert HW-identity rules
+// SPDM hardware-identity and EKU validation inspect only X.509 extension bytes
+// and perform no cryptographic operation, so they do not need a `CryptoBackend`.
+// Exposing them as free functions lets callers (e.g. spdmlib's
+// check_leaf_certificate) validate the HW-identity and EKU role rules
 // without instantiating `SpdmValidator<B>` for a specific backend — which is
 // what allows a build with no classical backend (standalone aws-lc) to compile
 // without referencing `RingBackend`.
@@ -608,6 +562,64 @@ pub fn validate_hardware_identity(cert: &Certificate, model: SpdmCertificateMode
             }
         }
         SpdmCertificateModel::GenericCert => {}
+    }
+
+    Ok(())
+}
+
+/// Validate the SPDM Extended Key Usage rules for a certificate role
+/// (DSP0274 Section 10.8.2), without requiring a crypto backend.
+///
+/// - No EKU extension: no requirement.
+/// - **Requester**: MUST NOT contain only the Responder Auth OID.
+/// - **Responder**: MUST NOT contain only the Requester Auth OID.
+pub fn validate_spdm_eku(cert: &Certificate, role: SpdmCertificateRole) -> Result<()> {
+    // Try to get the EKU extension
+    let eku_ext = match find_extension(cert, &EXTENDED_KEY_USAGE) {
+        Some(ext) => ext,
+        None => return Ok(()), // No EKU extension is allowed
+    };
+
+    // Parse the EKU extension value
+    let eku = ExtendedKeyUsage::from_extension(eku_ext).map_err(|e| {
+        Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
+            "Failed to parse EKU: {:?}",
+            e
+        )))
+    })?;
+
+    // Check for SPDM EKU OIDs
+    let has_requester = eku
+        .key_purposes
+        .iter()
+        .any(|oid| oid == &oids::SPDM_REQUESTER_AUTH);
+    let has_responder = eku
+        .key_purposes
+        .iter()
+        .any(|oid| oid == &oids::SPDM_RESPONDER_AUTH);
+
+    // Apply SPDM validation rules
+    match role {
+        SpdmCertificateRole::Requester => {
+            // Requester cert MUST NOT contain ONLY Responder Auth OID
+            if has_responder && !has_requester {
+                return Err(Error::ExtensionError(ExtensionError::ExtendedKeyUsage(
+                    alloc::string::String::from(
+                        "Requester certificate contains only Responder Auth EKU",
+                    ),
+                )));
+            }
+        }
+        SpdmCertificateRole::Responder => {
+            // Responder cert MUST NOT contain ONLY Requester Auth OID
+            if has_requester && !has_responder {
+                return Err(Error::ExtensionError(ExtensionError::ExtendedKeyUsage(
+                    alloc::string::String::from(
+                        "Responder certificate contains only Requester Auth EKU",
+                    ),
+                )));
+            }
+        }
     }
 
     Ok(())
