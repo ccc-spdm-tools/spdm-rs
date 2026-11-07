@@ -63,7 +63,14 @@ pub fn is_root_certificate(cert_der: &[u8]) -> SpdmResult {
 ///   absence of the SPDM extension is accepted so that standard chains
 ///   (stock spdm-rs test certs, real device chains without SPDM extension)
 ///   are not rejected.
-pub fn check_leaf_certificate(cert_der: &[u8], is_alias_cert: bool) -> SpdmResult {
+/// - Extended Key Usage, if present, must allow the peer's role: a Requester
+///   leaf must not carry only the Responder Auth OID, and a Responder leaf
+///   must not carry only the Requester Auth OID (DSP0274 Section 10.8.2)
+pub fn check_leaf_certificate(
+    cert_der: &[u8],
+    is_alias_cert: bool,
+    is_requester_cert: bool,
+) -> SpdmResult {
     use spdm_x509::x509::extensions::{BasicConstraints, KeyUsage, BASIC_CONSTRAINTS, KEY_USAGE};
 
     let cert = spdm_x509::Certificate::from_der(cert_der).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
@@ -112,6 +119,17 @@ pub fn check_leaf_certificate(cert_der: &[u8], is_alias_cert: bool) -> SpdmResul
             "Leaf certificate hardware identity check failed for model {:?}",
             model
         );
+        return Err(SPDM_STATUS_INVALID_CERT);
+    }
+
+    // 4. SPDM EKU must permit the role this leaf authenticates.
+    let role = if is_requester_cert {
+        spdm_x509::x509::spdm_validator::SpdmCertificateRole::Requester
+    } else {
+        spdm_x509::x509::spdm_validator::SpdmCertificateRole::Responder
+    };
+    if spdm_x509::x509::spdm_validator::validate_spdm_eku(&cert, role).is_err() {
+        log::error!("Leaf certificate EKU check failed for role {:?}", role);
         return Err(SPDM_STATUS_INVALID_CERT);
     }
 

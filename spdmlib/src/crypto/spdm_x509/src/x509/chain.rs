@@ -35,7 +35,7 @@ use crate::crypto_backend::CryptoBackend;
 use crate::error::{ChainError, Error, Result};
 
 use super::signature::SpdmBaseHashAlgo;
-use super::spdm_validator::{SpdmCertificateRole, SpdmValidator};
+use super::spdm_validator::SpdmValidator;
 use der::Encode;
 
 // =============================================================================
@@ -960,7 +960,6 @@ pub fn get_cert_from_cert_chain(cert_chain: &[u8], index: isize) -> Result<(usiz
 /// 2. Build a CertificateChain structure
 /// 3. Validate using standard X.509 validator
 /// 4. Check signatures, validity periods, and extensions
-/// 5. Validate SPDM EKU on the leaf certificate
 ///
 /// # Note
 /// This function performs structural and cryptographic chain validation
@@ -1010,8 +1009,10 @@ pub fn verify_cert_chain_with_options(
 /// 1. Parses individual certificates from the concatenated DER chain
 /// 2. Reverses the SPDM root→leaf order to leaf→root for X.509 validation
 /// 3. Validates the chain with the standard X.509 validator
-/// 4. Validates SPDM EKU on the leaf certificate
-/// 5. Optionally validates the leaf's algorithms against negotiated SPDM params
+/// 4. Optionally validates the leaf's algorithms against negotiated SPDM params
+///
+/// The SPDM EKU rule is role specific (Requester or Responder leaf) and is not
+/// applied here; callers check the leaf for the peer's role.
 ///
 /// # Arguments
 /// * `cert_chain` - Buffer containing concatenated DER certificates
@@ -1079,7 +1080,7 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     // Build certificate chain
     let chain = CertificateChain::new(certificates);
 
-    // Use SPDM validator with EKU validation
+    // Use SPDM validator
     let spdm_validator = SpdmValidator::with_backend(backend);
 
     let options = ValidationOptions::default();
@@ -1094,23 +1095,9 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     //  validator through a helper.
     spdm_validator.validate_chain(&chain, &options)?;
 
-    log::trace!("verify_cert_chain: validating leaf certificate EKU (Responder role)");
-
-    // Then, validate SPDM EKU on the leaf certificate (first in reversed chain)
-    // The leaf certificate is a Responder certificate in SPDM protocol
-    if !chain.is_empty() {
-        match spdm_validator
-            .validate_spdm_eku(&chain.certificates[0], SpdmCertificateRole::Responder)
-        {
-            Ok(_) => {
-                log::trace!("verify_cert_chain: SPDM EKU validation successful");
-            }
-            Err(e) => {
-                log::error!("verify_cert_chain: SPDM EKU validation failed: {:?}", e);
-                return Err(e);
-            }
-        }
-    }
+    // The SPDM EKU rule depends on whether the leaf belongs to a Requester or a
+    // Responder, which this function cannot tell, so the caller applies it to
+    // the leaf (spdmlib's check_leaf_certificate).
 
     // If SPDM algorithm parameters are provided, validate the leaf certificate's
     // signature algorithm and public key algorithm against the negotiated values.

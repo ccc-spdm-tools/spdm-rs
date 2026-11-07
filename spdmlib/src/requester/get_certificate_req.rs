@@ -349,6 +349,7 @@ impl RequesterContext {
                 .negotiate_info
                 .rsp_capabilities_sel
                 .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP),
+            false,
         )
         .is_ok()
         {
