@@ -181,7 +181,13 @@ mod tests {
         let cert_der = &include_bytes!(
             "../../../../test_key/test_spdm_eku/gen/v3_end_with_eku_spdm_oid_4/cert.der"
         )[..];
-        assert!(verify_cert_chain_x509(cert_der, None, None).is_err());
+        assert!(verify_cert_chain_x509(cert_der, None, None).is_ok());
+
+        // A Requester Auth only leaf is valid for a Requester, not a Responder.
+        let (leaf_begin, leaf_end) = get_cert_from_cert_chain_x509(cert_der, -1).unwrap();
+        let leaf = &cert_der[leaf_begin..leaf_end];
+        assert!(crate::crypto::check_leaf_certificate(leaf, false, false).is_err());
+        assert!(crate::crypto::check_leaf_certificate(leaf, false, true).is_ok());
     }
 
     #[test]

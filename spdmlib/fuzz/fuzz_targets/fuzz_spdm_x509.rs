@@ -40,7 +40,8 @@ fuzz_target!(|cert: &[u8]| {
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
     );
 
-    let _ = check_leaf_certificate(cert, true);
-    let _ = check_leaf_certificate(cert, false);
+    let _ = check_leaf_certificate(cert, true, false);
+    let _ = check_leaf_certificate(cert, false, false);
+    let _ = check_leaf_certificate(cert, false, true);
     let _ = is_root_certificate(cert);
 });
