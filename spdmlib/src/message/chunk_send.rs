@@ -204,7 +204,9 @@ impl SpdmCodec for SpdmChunkSendAckResponsePayload {
             || chunk_receiver_attributes.contains(SpdmChunkReceiverAttributes::EARLY_ERROR_DETECTED)
         {
             let remaining = r.left();
-            if remaining > 0 && remaining <= config::MAX_SPDM_MSG_SIZE {
+            // ResponseToLargeRequest is a complete SPDM message: at least
+            // SPDMVersion, RequestResponseCode, Param1 and Param2.
+            if (4..=config::MAX_SPDM_MSG_SIZE).contains(&remaining) {
                 response_to_large_request_size = remaining;
                 context.chunk_context.chunk_message_size = remaining;
                 context.chunk_context.chunk_message_data[..remaining]
