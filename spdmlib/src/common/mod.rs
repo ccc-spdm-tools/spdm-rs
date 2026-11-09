@@ -1356,30 +1356,27 @@ impl SpdmContext {
         {
             return Err(SPDM_STATUS_INVALID_PARAMETER);
         }
-        let mut buffer = Vec::new();
-        buffer
-            .try_reserve_exact(config::MAX_SPDM_MSG_SIZE)
-            .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-        buffer.resize(config::MAX_SPDM_MSG_SIZE, 0);
-
+        let mut size = config::MAX_SPDM_MSG_SIZE;
         loop {
+            // Zeroizing erases abandoned and partial encodings of session secrets.
+            let mut buffer = zeroize::Zeroizing::new(Vec::new());
+            buffer
+                .try_reserve_exact(size)
+                .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
+            buffer.resize(size, 0);
+
             let encode_result = {
-                let mut writer = Writer::init(&mut buffer);
+                let mut writer = Writer::init(&mut buffer[..]);
                 self.encode_checkpoint_data(&mut writer)
             };
 
             match encode_result {
                 Ok(used_size) => {
                     buffer.truncate(used_size);
-                    return Ok(buffer);
+                    return Ok(core::mem::take(&mut *buffer));
                 }
                 Err(codec::EncodeErr) => {
-                    let current_size = buffer.len();
-                    let new_size = current_size.checked_mul(2).ok_or(SPDM_STATUS_BUFFER_FULL)?;
-                    buffer
-                        .try_reserve_exact(current_size)
-                        .map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
-                    buffer.resize(new_size, 0);
+                    size = size.checked_mul(2).ok_or(SPDM_STATUS_BUFFER_FULL)?;
                 }
             }
         }
