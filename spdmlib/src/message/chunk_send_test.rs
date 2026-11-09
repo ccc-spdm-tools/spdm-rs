@@ -102,3 +102,27 @@ fn test_chunk_send_ack_struct() {
     assert_eq!(context.chunk_context.chunk_message_size, 36);
     assert_eq!(context.chunk_context.chunk_message_data[..36], [0u8; 36]);
 }
+
+#[test]
+fn test_chunk_send_ack_rejects_truncated_response_to_large_request() {
+    create_spdm_context!(context);
+    let context = &mut context;
+    context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
+    context.chunk_context.chunk_message_size = 0x100;
+    context.chunk_context.transferred_size = 0;
+
+    // Param1 = EARLY_ERROR_DETECTED, Param2 = handle, ChunkSeqNo = 0.
+    let ack_header = [0x01u8, 0x01, 0x00, 0x00];
+    for trailer in [&[0x12u8][..], &[0x12, 0x7F], &[0x12, 0x7F, 0x03]] {
+        let mut bytes = ack_header.to_vec();
+        bytes.extend_from_slice(trailer);
+        let reader = &mut Reader::init(&bytes);
+        assert!(SpdmChunkSendAckResponsePayload::spdm_read(context, reader).is_none());
+    }
+
+    let mut bytes = ack_header.to_vec();
+    bytes.extend_from_slice(&[0x12, 0x7F, 0x03, 0x00]);
+    let reader = &mut Reader::init(&bytes);
+    let ack = SpdmChunkSendAckResponsePayload::spdm_read(context, reader).unwrap();
+    assert_eq!(ack.response_to_large_request_size, 4);
+}
