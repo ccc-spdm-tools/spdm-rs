@@ -7,7 +7,7 @@ use codec::{Codec, Reader, Writer};
 use crate::{
     common::SpdmCodec,
     config,
-    crypto::{self, is_root_certificate},
+    crypto::{self, check_leaf_certificate, is_root_certificate},
     error::{
         SpdmResult, SPDM_STATUS_CRYPTO_ERROR, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_CERT,
         SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_MSG_SIZE, SPDM_STATUS_INVALID_PARAMETER,
@@ -254,6 +254,20 @@ impl ResponderContext {
             return Err(SPDM_STATUS_INVALID_CERT);
         }
         info!("1.2. root cert hash is verified!\n");
+
+        //
+        // 1.3 verify the leaf cert as a Requester certificate
+        //
+        let (leaf_cert_begin, leaf_cert_end) = crypto::cert_operation::get_cert_from_cert_chain(
+            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
+            -1,
+        )?;
+        let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
+        if check_leaf_certificate(leaf_cert, false, true).is_err() {
+            error!("Leaf cert verification - fail!\n");
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+        info!("1.3. Leaf cert is verified\n");
 
         //
         // 2. verify the authority of cert chain if provisioned
