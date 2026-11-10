@@ -65,6 +65,34 @@ extern crate alloc;
 use alloc::sync::Arc;
 use core::ops::DerefMut;
 
+/// Certificate chain the Requester presents for mutual authentication.
+/// It must match ReqBaseAsymAlg (SPDMRS_REQ_USE_ECDSA), not BaseAsymAlgo (SPDMRS_USE_ECDSA).
+fn load_req_cert_chain(use_pqc: bool) -> SpdmCertChainData {
+    let dir = if use_pqc {
+        "test_key/mldsa87"
+    } else if req_use_ecdsa() {
+        "test_key/ecp384"
+    } else {
+        "test_key/rsa3072"
+    };
+    let ca_cert = std::fs::read(format!("{}/ca.cert.der", dir)).expect("unable to read ca cert!");
+    let inter_cert =
+        std::fs::read(format!("{}/inter.cert.der", dir)).expect("unable to read inter cert!");
+    let leaf_cert = std::fs::read(format!("{}/end_responder.cert.der", dir))
+        .expect("unable to read leaf cert!");
+
+    let (ca_len, inter_len, leaf_len) = (ca_cert.len(), inter_cert.len(), leaf_cert.len());
+    let mut cert_chain_data = SpdmCertChainData {
+        ..Default::default()
+    };
+    cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
+    cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
+    cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
+    cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
+        .copy_from_slice(leaf_cert.as_ref());
+    cert_chain_data
+}
+
 #[maybe_async::maybe_async]
 async fn send_receive_stop(
     stream: Arc<Mutex<TcpStream>>,
@@ -286,16 +314,7 @@ async fn test_spdm(
         if cfg!(feature = "mut-auth") {
             spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
             spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
-            let mut my_cert_chain_data = SpdmCertChainData {
-                ..Default::default()
-            };
-
-            my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
-            my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
-            my_cert_chain_data.data[ca_len..(ca_len + inter_len)]
-                .copy_from_slice(inter_cert.as_ref());
-            my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
-                .copy_from_slice(leaf_cert.as_ref());
+            let my_cert_chain_data = load_req_cert_chain(use_pqc);
 
             common::SpdmProvisionInfo {
                 my_cert_chain_data: [
@@ -887,15 +906,7 @@ async fn test_idekm_tdisp(
     let provision_info = if cfg!(feature = "mut-auth") {
         spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
         spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
-        let mut my_cert_chain_data = SpdmCertChainData {
-            ..Default::default()
-        };
-
-        my_cert_chain_data.data_size = (ca_len + inter_len + leaf_len) as u32;
-        my_cert_chain_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
-        my_cert_chain_data.data[ca_len..(ca_len + inter_len)].copy_from_slice(inter_cert.as_ref());
-        my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
-            .copy_from_slice(leaf_cert.as_ref());
+        let my_cert_chain_data = load_req_cert_chain(use_pqc);
 
         common::SpdmProvisionInfo {
             my_cert_chain_data: [
