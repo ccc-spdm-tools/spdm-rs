@@ -71,6 +71,14 @@ jobs:
           version: "14.0"
           directory: ${{ runner.temp }}/llvm
 
+      # install-llvm-action does not export LIBCLANG_PATH, so clang-sys picks the
+      # newest libclang on the runner (clang 20/21/22 on ubuntu-26.04), which the
+      # pinned bindgen 0.65 mis-parses (opaque mbedtls structs). Pin it to LLVM 14.
+      - name: Point bindgen at the pinned libclang
+        if: runner.os == 'Linux'
+        shell: bash
+        run: echo "LIBCLANG_PATH=${{ runner.temp }}/llvm/lib" >> "$GITHUB_ENV"
+
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
