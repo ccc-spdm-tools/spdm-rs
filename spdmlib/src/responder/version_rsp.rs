@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -59,6 +59,8 @@ impl ResponderContext {
 
         // clear cache data
         self.common.reset_context();
+        // the sender of VERSION is the Responder
+        self.common.runtime_info.is_requester = false;
 
         if self
             .common

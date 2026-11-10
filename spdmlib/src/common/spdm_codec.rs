@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -64,14 +64,16 @@ impl SpdmCodec for SpdmSignatureStruct {
         context: &mut SpdmContext,
         bytes: &mut Writer,
     ) -> Result<usize, SpdmStatus> {
-        assert_eq!(self.data_size, context.get_asym_sig_size());
+        // the sender generates the signature: this endpoint
+        assert_eq!(self.data_size, context.get_local_sig_size());
         for d in self.data.iter().take(self.data_size as usize) {
             d.encode(bytes).map_err(|_| SPDM_STATUS_BUFFER_FULL)?;
         }
         Ok(self.data_size as usize)
     }
     fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<SpdmSignatureStruct> {
-        let data_size = context.get_asym_sig_size();
+        // the sender generates the signature: the peer
+        let data_size = context.get_peer_sig_size();
         let mut data = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
         for d in data.iter_mut().take(data_size as usize) {
             *d = u8::read(r)?;

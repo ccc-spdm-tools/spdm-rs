@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -14,6 +14,8 @@ impl RequesterContext {
     pub async fn send_spdm_version(&mut self, send_buffer: &mut [u8]) -> SpdmResult<usize> {
         // reset context on get version request
         self.common.reset_context();
+        // the sender of GET_VERSION is the Requester
+        self.common.runtime_info.is_requester = true;
 
         let send_used = self.encode_spdm_version(send_buffer)?;
         self.send_message(None, &send_buffer[..send_used], false)
@@ -105,6 +107,8 @@ impl RequesterContext {
 
                         // clear cache data
                         self.common.reset_runtime_info();
+                        // the sender of GET_VERSION is the Requester
+                        self.common.runtime_info.is_requester = true;
 
                         self.common.append_message_a(send_buffer)?;
                         self.common.append_message_a(&receive_buffer[..used])?;
