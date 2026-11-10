@@ -219,6 +219,7 @@ impl ResponderContext {
         if crypto::cert_operation::verify_cert_chain(
             &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
             self.common.negotiate_info.req_asym_sel.to_base(),
+            self.common.negotiate_info.pqc_req_asym_sel.to_base(),
             self.common.negotiate_info.base_hash_sel,
         )
         .is_err()

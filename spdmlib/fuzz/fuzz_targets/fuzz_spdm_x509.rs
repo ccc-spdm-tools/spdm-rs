@@ -9,7 +9,7 @@ use libfuzzer_sys::fuzz_target;
 pub use fuzzlib::*;
 
 use spdmlib::crypto::{cert_operation, check_leaf_certificate, is_root_certificate};
-use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
+use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo};
 
 fuzz_target!(|cert: &[u8]| {
     // Exercise certificate chain parsing with various algorithms
@@ -28,9 +28,17 @@ fuzz_target!(|cert: &[u8]| {
         let _ = cert_operation::verify_cert_chain(
             cert,
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+            SpdmPqcAsymAlgo::empty(),
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         );
     }
+
+    let _ = cert_operation::verify_cert_chain(
+        cert,
+        SpdmBaseAsymAlgo::empty(),
+        SpdmPqcAsymAlgo::ALG_MLDSA_87,
+        SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+    );
 
     let _ = check_leaf_certificate(cert, true);
     let _ = check_leaf_certificate(cert, false);

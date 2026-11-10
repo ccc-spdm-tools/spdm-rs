@@ -17,6 +17,34 @@ use crate::{
     },
 };
 
+#[test]
+fn test_check_leaf_pqc_algorithm() {
+    use super::check_leaf_pqc_algorithm;
+    use crate::protocol::SpdmPqcAsymAlgo;
+
+    let mldsa87_leaf = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../test_key/mldsa87/end_responder.cert.der"
+    ));
+    let mldsa44_leaf = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../test_key/mldsa44/end_responder.cert.der"
+    ));
+    let ecp384_leaf = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../test_key/ecp384/end_responder.cert.der"
+    ));
+
+    assert!(check_leaf_pqc_algorithm(mldsa87_leaf, SpdmPqcAsymAlgo::ALG_MLDSA_87).is_ok());
+    assert!(check_leaf_pqc_algorithm(mldsa44_leaf, SpdmPqcAsymAlgo::ALG_MLDSA_44).is_ok());
+    assert!(check_leaf_pqc_algorithm(mldsa44_leaf, SpdmPqcAsymAlgo::ALG_MLDSA_87).is_err());
+    assert!(check_leaf_pqc_algorithm(ecp384_leaf, SpdmPqcAsymAlgo::ALG_MLDSA_87).is_err());
+    assert!(check_leaf_pqc_algorithm(mldsa87_leaf, SpdmPqcAsymAlgo::empty()).is_err());
+    assert!(
+        check_leaf_pqc_algorithm(&[0x30, 0x03, 0x02, 0x01], SpdmPqcAsymAlgo::ALG_MLDSA_87).is_err()
+    );
+}
+
 #[cfg(feature = "hashed-transcript-data")]
 #[test]
 fn test_case_hash() {

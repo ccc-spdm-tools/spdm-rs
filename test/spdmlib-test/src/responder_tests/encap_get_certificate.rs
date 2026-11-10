@@ -231,4 +231,10 @@ fn test_verify_requester_cert_chain_uses_req_asym_sel() {
     context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
     context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256;
     assert!(context.verify_spdm_certificate_chain().is_err());
+
+    // A classical Requester leaf must not pass when ReqPqcAsymAlgo is negotiated.
+    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::empty();
+    context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::empty();
+    context.common.negotiate_info.pqc_req_asym_sel = SpdmPqcReqAsymAlgo::ALG_MLDSA_87;
+    assert!(context.verify_spdm_certificate_chain().is_err());
 }
