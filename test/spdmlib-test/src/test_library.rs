@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2023, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -316,6 +316,7 @@ fn test_case0_spdm_context_export_import() {
     original_context
         .runtime_info
         .set_connection_state(spdmlib::common::SpdmConnectionState::SpdmConnectionNegotiated);
+    original_context.runtime_info.is_requester = true;
 
     // Export the context
     let exported_data = original_context.export().expect("Export should succeed");
@@ -335,6 +336,7 @@ fn test_case0_spdm_context_export_import() {
         .expect("Import should succeed");
 
     // Verify that the imported data matches the original
+    assert!(imported_context.runtime_info.is_requester);
     assert_eq!(
         imported_context.negotiate_info.spdm_version_sel,
         original_context.negotiate_info.spdm_version_sel

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -226,6 +226,48 @@ mod tests {
         for i in 0..SHA512_DIGEST_SIZE {
             assert_eq!(spdm_finish_request_payload.verify_data.data[i], 0x5au8);
         }
+    }
+    #[test]
+    fn test_case2_spdm_finish_request_payload_req_asym_differs_from_base() {
+        // The Requester generates the FINISH signature, so its size follows
+        // ReqBaseAsymAlg, even when it differs from the Responder's BaseAsymSel.
+        let u8_slice = &mut [0u8; 2 + RSASSA_3072_SIG_SIZE + SHA384_DIGEST_SIZE];
+        let mut writer = Writer::init(u8_slice);
+        let value = SpdmFinishRequestPayload {
+            finish_request_attributes: SpdmFinishRequestAttributes::SIGNATURE_INCLUDED,
+            req_slot_id: 0,
+            signature: SpdmSignatureStruct {
+                data_size: RSASSA_3072_SIG_SIZE as u16,
+                data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
+            },
+            verify_data: SpdmDigestStruct {
+                data_size: SHA384_DIGEST_SIZE as u16,
+                data: Box::new([0x5au8; SPDM_MAX_HASH_SIZE]),
+            },
+            opaque: SpdmOpaqueStruct::default(),
+        };
+
+        create_spdm_context!(requester);
+        requester.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072;
+        requester.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        requester.runtime_info.is_requester = true;
+
+        create_spdm_context!(responder);
+        responder.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        responder.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072;
+        responder.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        responder.runtime_info.is_requester = false;
+
+        assert!(value.spdm_encode(&mut requester, &mut writer).is_ok());
+        let mut reader = Reader::init(u8_slice);
+        assert_eq!(2 + RSASSA_3072_SIG_SIZE + SHA384_DIGEST_SIZE, reader.left());
+        let payload = SpdmFinishRequestPayload::spdm_read(&mut responder, &mut reader).unwrap();
+        assert_eq!(payload.signature.data_size, RSASSA_3072_SIG_SIZE as u16);
+        for i in 0..RSASSA_3072_SIG_SIZE {
+            assert_eq!(payload.signature.data[i], 0xa5u8);
+        }
+        assert_eq!(payload.verify_data.data_size, SHA384_DIGEST_SIZE as u16);
     }
     #[test]
     fn test_case1_spdm_finish_request_payload() {
