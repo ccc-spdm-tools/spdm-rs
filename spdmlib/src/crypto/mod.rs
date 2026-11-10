@@ -52,6 +52,34 @@ pub fn is_root_certificate(cert_der: &[u8]) -> SpdmResult {
     Ok(())
 }
 
+/// Check that the leaf certificate key matches the negotiated ML-DSA parameter set.
+fn check_leaf_pqc_algorithm(
+    cert_der: &[u8],
+    pqc_asym_algo: crate::protocol::SpdmPqcAsymAlgo,
+) -> SpdmResult {
+    use crate::protocol::SpdmPqcAsymAlgo;
+    use spdm_x509::x509::oids;
+
+    let expected = if pqc_asym_algo == SpdmPqcAsymAlgo::ALG_MLDSA_44 {
+        oids::ML_DSA_44
+    } else if pqc_asym_algo == SpdmPqcAsymAlgo::ALG_MLDSA_65 {
+        oids::ML_DSA_65
+    } else if pqc_asym_algo == SpdmPqcAsymAlgo::ALG_MLDSA_87 {
+        oids::ML_DSA_87
+    } else {
+        return Err(SPDM_STATUS_INVALID_CERT);
+    };
+
+    let cert = spdm_x509::Certificate::from_der(cert_der).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
+    let algorithm = &cert.tbs_certificate.subject_public_key_info.algorithm;
+    // RFC 9881: ML-DSA AlgorithmIdentifier parameters must be absent.
+    if algorithm.oid != expected || algorithm.parameters.is_some() {
+        return Err(SPDM_STATUS_INVALID_CERT);
+    }
+
+    Ok(())
+}
+
 /// Check leaf certificate validity per DSP0274 Table 42.
 ///
 /// Validates:
@@ -494,10 +522,10 @@ pub mod kem_encap {
 }
 
 pub mod cert_operation {
-    use super::CRYPTO_CERT_OPERATION;
+    use super::{check_leaf_pqc_algorithm, CRYPTO_CERT_OPERATION};
     use crate::crypto::SpdmCertOperation;
     use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_LOCAL};
-    use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo};
+    use crate::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo};
 
     #[cfg(not(any(feature = "spdm-ring")))]
     use super::crypto_null::cert_operation_impl::DEFAULT;
@@ -519,6 +547,7 @@ pub mod cert_operation {
     pub fn verify_cert_chain(
         cert_chain: &[u8],
         base_asym_algo: SpdmBaseAsymAlgo,
+        pqc_asym_algo: SpdmPqcAsymAlgo,
         base_hash_algo: SpdmBaseHashAlgo,
     ) -> SpdmResult {
         let asym = if base_asym_algo.bits() != 0 {
@@ -534,7 +563,15 @@ pub mod cert_operation {
         (CRYPTO_CERT_OPERATION
             .try_get_or_init(|| DEFAULT.clone())
             .map_err(|_| SPDM_STATUS_INVALID_STATE_LOCAL)?
-            .verify_cert_chain_cb)(cert_chain, asym, hash)
+            .verify_cert_chain_cb)(cert_chain, asym, hash)?;
+
+        // The backend callback only checks the leaf against BaseAsymAlgo.
+        if pqc_asym_algo != SpdmPqcAsymAlgo::empty() {
+            let (leaf_begin, leaf_end) = get_cert_from_cert_chain(cert_chain, -1)?;
+            check_leaf_pqc_algorithm(&cert_chain[leaf_begin..leaf_end], pqc_asym_algo)?;
+        }
+
+        Ok(())
     }
 }
 
