@@ -1,13 +1,13 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::create_info;
 #[cfg(not(feature = "chunk-cap"))]
 use crate::common::util::TestSpdmMessage;
+use crate::common::util::{create_info, create_info_base_asym_algo};
 use codec::{Codec, Reader, Writer};
 use log::debug;
 use spdmlib::common::*;
@@ -71,7 +71,7 @@ fn test_case0_handle_spdm_algorithm() {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
             other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
                 | SpdmAlgoOtherParams::MULTI_KEY_CONN,
-            base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+            base_asym_algo: create_info_base_asym_algo(),
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
             mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
@@ -149,7 +149,7 @@ fn test_case0_handle_spdm_algorithm() {
             .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1));
         assert_eq!(
             spdm_sturct_data.base_asym_algo,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
+            create_info_base_asym_algo()
         );
         assert_eq!(
             spdm_sturct_data.base_hash_algo,
@@ -224,10 +224,7 @@ fn test_case0_handle_spdm_algorithm() {
                 payload.measurement_hash_algo,
                 SpdmMeasurementHashAlgo::TPM_ALG_SHA_384
             );
-            assert_eq!(
-                payload.base_asym_sel,
-                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
-            );
+            assert_eq!(payload.base_asym_sel, create_info_base_asym_algo());
             assert_eq!(payload.base_hash_sel, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
             assert_eq!(payload.alg_struct_count, 1);
             assert_eq!(
@@ -257,6 +254,8 @@ fn test_case0_handle_spdm_algorithm() {
 pub fn consturct_algorithm_positive() -> (TestSpdmMessage, TestSpdmMessage) {
     use crate::protocol;
     let (config_info, _provision_info) = create_info();
+    // AlgStruct ReqAsym (type 4) carries the configured ReqBaseAsymAlg (SPDMRS_REQ_USE_ECDSA).
+    let req_asym = config_info.req_asym_algo.bits().to_le_bytes();
     let negotiate_algorithm_msg = TestSpdmMessage {
         message: protocol::Message::NEGOTIATE_ALGORITHMS(
             protocol::algorithm::NEGOTIATE_ALGORITHMS {
@@ -278,7 +277,7 @@ pub fn consturct_algorithm_positive() -> (TestSpdmMessage, TestSpdmMessage) {
                 AlgStruct: vec![
                     [0x02, 0x20, 0x10, 0x00],
                     [0x03, 0x20, 0x02, 0x00],
-                    [0x04, 0x20, 0x02, 0x00],
+                    [0x04, 0x20, req_asym[0], req_asym[1]],
                     [0x05, 0x20, 0x01, 0x00],
                 ],
             },
@@ -307,7 +306,7 @@ pub fn consturct_algorithm_positive() -> (TestSpdmMessage, TestSpdmMessage) {
             AlgStruct: vec![
                 [0x02, 0x20, 0x10, 0x00],
                 [0x03, 0x20, 0x02, 0x00],
-                [0x04, 0x20, 0x02, 0x00],
+                [0x04, 0x20, req_asym[0], req_asym[1]],
                 [0x05, 0x20, 0x01, 0x00],
             ],
         }),
