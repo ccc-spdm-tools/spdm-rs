@@ -131,7 +131,45 @@ impl RequesterContext {
                 .teardown();
             return Err(res.err().unwrap());
         }
-        let receive_used = res.unwrap();
+        let mut receive_used = res.unwrap();
+
+        // Handle ResponseNotReady before final processing
+        for _ in 0..super::handle_error_response_req::MAX_RESPOND_IF_READY_RETRY_COUNT {
+            if let Some(ext_data) =
+                self.parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+            {
+                let delay_us = 1usize << (ext_data.rdt_exponent as usize).min(31);
+                crate::time::sleep(delay_us);
+                let session_for_retry = if in_clear_text {
+                    None
+                } else {
+                    Some(session_id)
+                };
+                receive_used = self
+                    .send_receive_respond_if_ready(
+                        session_for_retry,
+                        SpdmRequestResponseCode::SpdmRequestFinish,
+                        ext_data.token,
+                        &mut receive_buffer,
+                        false,
+                    )
+                    .await?;
+            } else {
+                break;
+            }
+        }
+
+        // If still NotReady after retries, fail
+        if self
+            .parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+            .is_some()
+        {
+            if let Some(session) = self.common.get_session_via_id(session_id) {
+                session.teardown();
+            }
+            return Err(SPDM_STATUS_NOT_READY_PEER);
+        }
+
         let res = self.handle_spdm_finish_response(session_id, &receive_buffer[..receive_used]);
         if res.is_err() {
             if let Some(session) = self.common.get_session_via_id(session_id) {
