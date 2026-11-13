@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -6,12 +6,12 @@ use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedB
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
 #[cfg(feature = "mut-auth")]
-use crate::common::util::get_rsp_cert_chain_buff;
+use crate::common::util::get_req_cert_chain_buff;
 use crate::common::util::{req_create_info, rsp_create_info};
 use crate::watchdog_impl_sample::init_watchdog;
 use spdmlib::protocol::SpdmMeasurementSummaryHashType;
 #[cfg(feature = "mut-auth")]
-use spdmlib::protocol::{SpdmReqAsymAlgo, SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags};
+use spdmlib::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags};
 use spdmlib::requester;
 use spdmlib::responder;
 use spin::Mutex;
@@ -63,6 +63,9 @@ fn intergration_client_server() {
         let transport_encap_requester = Arc::new(Mutex::new(PciDoeTransportEncap {}));
 
         let (config_info, provision_info) = req_create_info();
+        // ReqBaseAsymAlg follows SPDMRS_REQ_USE_ECDSA (ECDSA P-384 or RSASSA-3072).
+        #[cfg(feature = "mut-auth")]
+        let req_asym_algo = config_info.req_asym_algo;
         let mut requester_context = requester::RequesterContext::new(
             device_io_requester,
             transport_encap_requester,
@@ -92,10 +95,9 @@ fn intergration_client_server() {
                 SpdmResponseCapabilityFlags::MUT_AUTH_CAP;
             requester_context.common.negotiate_info.req_capabilities_sel |=
                 SpdmRequestCapabilityFlags::MUT_AUTH_CAP;
-            requester_context.common.negotiate_info.req_asym_sel =
-                SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+            requester_context.common.negotiate_info.req_asym_sel = req_asym_algo;
             requester_context.common.provision_info.my_cert_chain = [
-                Some(get_rsp_cert_chain_buff()),
+                Some(get_req_cert_chain_buff()),
                 None,
                 None,
                 None,

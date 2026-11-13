@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2023, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -293,12 +293,29 @@ fn asym_sign(
     base_asym_algo: SpdmBaseAsymAlgo,
     data: &[u8],
 ) -> Option<SpdmSignatureStruct> {
+    // The signer is the Requester for mutual authentication, otherwise the Responder.
+    let signer = if spdm_context.runtime_info.is_requester {
+        "end_requester"
+    } else {
+        "end_responder"
+    };
     match (base_hash_algo, base_asym_algo) {
         (SpdmBaseHashAlgo::TPM_ALG_SHA_256, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256) => {
-            sign_ecdsa_asym_algo(&ring::signature::ECDSA_P256_SHA256_FIXED_SIGNING, data)
+            sign_ecdsa_asym_algo(
+                &ring::signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+                signer,
+                data,
+            )
         }
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
-            sign_ecdsa_asym_algo(&ring::signature::ECDSA_P384_SHA384_FIXED_SIGNING, data)
+            sign_ecdsa_asym_algo(
+                &ring::signature::ECDSA_P384_SHA384_FIXED_SIGNING,
+                signer,
+                data,
+            )
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072) => {
+            sign_rsa_asym_algo(&ring::signature::RSA_PKCS1_SHA384, signer, data)
         }
         _ => {
             panic!();
@@ -306,12 +323,37 @@ fn asym_sign(
     }
 }
 
-fn sign_ecdsa_asym_algo(
-    algorithm: &'static ring::signature::EcdsaSigningAlgorithm,
+fn sign_rsa_asym_algo(
+    padding_alg: &'static dyn ring::signature::RsaEncoding,
+    signer: &str,
     data: &[u8],
 ) -> Option<SpdmSignatureStruct> {
     let crate_dir = get_test_key_directory();
-    let key_file_path = crate_dir.join("test_key/ecp384/end_responder.key.p8");
+    let key_file_path = crate_dir.join(format!("test_key/rsa3072/{}.key.der", signer));
+    let der_file = std::fs::read(key_file_path).expect("unable to read key der!");
+
+    let key_pair = ring::signature::RsaKeyPair::from_pkcs8(der_file.as_slice()).ok()?;
+    let key_len = key_pair.public().modulus_len();
+
+    let rng = ring::rand::SystemRandom::new();
+    let mut full_signature = [0u8; SPDM_MAX_ASYM_SIG_SIZE];
+    key_pair
+        .sign(padding_alg, &rng, data, &mut full_signature[..key_len])
+        .ok()?;
+
+    Some(SpdmSignatureStruct {
+        data_size: key_len as u16,
+        data: full_signature,
+    })
+}
+
+fn sign_ecdsa_asym_algo(
+    algorithm: &'static ring::signature::EcdsaSigningAlgorithm,
+    signer: &str,
+    data: &[u8],
+) -> Option<SpdmSignatureStruct> {
+    let crate_dir = get_test_key_directory();
+    let key_file_path = crate_dir.join(format!("test_key/ecp384/{}.key.p8", signer));
     let der_file = std::fs::read(key_file_path).expect("unable to read key der!");
     let key_bytes = der_file.as_slice();
 
@@ -358,6 +400,12 @@ fn fake_asym_sign(
         (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384) => {
             Some(SpdmSignatureStruct {
                 data_size: ECDSA_ECC_NIST_P384_SIG_SIZE as u16,
+                data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
+            })
+        }
+        (SpdmBaseHashAlgo::TPM_ALG_SHA_384, SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072) => {
+            Some(SpdmSignatureStruct {
+                data_size: RSASSA_3072_SIG_SIZE as u16,
                 data: [0x5a; SPDM_MAX_ASYM_SIG_SIZE],
             })
         }
