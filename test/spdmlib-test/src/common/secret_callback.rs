@@ -223,6 +223,7 @@ fn generate_measurement_summary_hash_impl(
 
 const MAX_BIN_CONCAT_BUF_SIZE: usize = 2 + 8 + 12 + SPDM_MAX_HASH_SIZE;
 const SALT_0: [u8; SPDM_MAX_HASH_SIZE] = [0u8; SPDM_MAX_HASH_SIZE];
+const SALT_0_FF: [u8; SPDM_MAX_HASH_SIZE] = [0xFF; SPDM_MAX_HASH_SIZE];
 const ZERO_FILLED: [u8; SPDM_MAX_HASH_SIZE] = [0u8; SPDM_MAX_HASH_SIZE];
 const BIN_STR0_LABEL: &[u8] = b"derived";
 
@@ -232,6 +233,12 @@ fn handshake_secret_hkdf_expand_impl(
     psk_hint: &SpdmPskHintStruct,
     info: &[u8],
 ) -> Option<SpdmHkdfOutputKeyingMaterial> {
+    let salt0 = if spdm_version >= SpdmVersion::SpdmVersion13 {
+        &SALT_0_FF[0..base_hash_algo.get_size() as usize]
+    } else {
+        &SALT_0[0..base_hash_algo.get_size() as usize]
+    };
+
     let mut psk_key: SpdmSharedSecretFinalKeyStruct = SpdmSharedSecretFinalKeyStruct {
         data_size: b"TestPskData\0".len() as u16,
         data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
@@ -240,7 +247,7 @@ fn handshake_secret_hkdf_expand_impl(
 
     let hs_sec = crypto::hkdf::hkdf_extract(
         base_hash_algo,
-        &SALT_0[0..base_hash_algo.get_size() as usize],
+        salt0,
         &SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(&psk_key),
     )?;
     crypto::hkdf::hkdf_expand(base_hash_algo, &hs_sec, info, base_hash_algo.get_size())
@@ -252,6 +259,12 @@ fn master_secret_hkdf_expand_impl(
     psk_hint: &SpdmPskHintStruct,
     info: &[u8],
 ) -> Option<SpdmHkdfOutputKeyingMaterial> {
+    let salt0 = if spdm_version >= SpdmVersion::SpdmVersion13 {
+        &SALT_0_FF[0..base_hash_algo.get_size() as usize]
+    } else {
+        &SALT_0[0..base_hash_algo.get_size() as usize]
+    };
+
     let mut psk_key: SpdmSharedSecretFinalKeyStruct = SpdmSharedSecretFinalKeyStruct {
         data_size: b"TestPskData\0".len() as u16,
         data: Box::new([0; SPDM_MAX_SHARED_SECRET_SIZE]),
@@ -270,7 +283,7 @@ fn master_secret_hkdf_expand_impl(
 
     let hs_sec = crypto::hkdf::hkdf_extract(
         base_hash_algo,
-        &SALT_0[0..base_hash_algo.get_size() as usize],
+        salt0,
         &SpdmHkdfInputKeyingMaterial::SpdmSharedSecretFinalKey(&psk_key),
     )?;
     let salt_1 =
