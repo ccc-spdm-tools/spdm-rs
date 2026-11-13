@@ -1,11 +1,11 @@
-// Copyright (c) 2021 Intel Corporation
+// Copyright (c) 2021, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::create_info;
+use crate::common::util::{create_info, create_info_req_asym_algo};
 use crate::watchdog_impl_sample::init_watchdog;
 use codec::Writer;
 use spdmlib::common::session::SpdmSession;
@@ -24,9 +24,9 @@ fn test_case0_start_session() {
     let future = async {
         let (mut rsp_config_info, rsp_provision_info) = create_info();
         let (mut req_config_info, req_provision_info) = create_info();
-        // The Requester authenticates with the ECDSA P-384 chain below.
-        rsp_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        req_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        // The Requester authenticates with the create_info() chain below (SPDMRS_USE_ECDSA).
+        rsp_config_info.req_asym_algo = create_info_req_asym_algo();
+        req_config_info.req_asym_algo = create_info_req_asym_algo();
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -75,8 +75,7 @@ fn test_case0_start_session() {
 
         #[cfg(feature = "mut-auth")]
         {
-            requester.common.negotiate_info.req_asym_sel =
-                SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+            requester.common.negotiate_info.req_asym_sel = create_info_req_asym_algo();
         }
 
         let result = requester
@@ -115,9 +114,9 @@ fn test_case0_get_next_half_session() {
         init_watchdog();
         let (mut rsp_config_info, rsp_provision_info) = create_info();
         let (mut req_config_info, req_provision_info) = create_info();
-        // The Requester authenticates with the ECDSA P-384 chain below.
-        rsp_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-        req_config_info.req_asym_algo = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        // The Requester authenticates with the create_info() chain below (SPDMRS_USE_ECDSA).
+        rsp_config_info.req_asym_algo = create_info_req_asym_algo();
+        req_config_info.req_asym_algo = create_info_req_asym_algo();
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -166,8 +165,7 @@ fn test_case0_get_next_half_session() {
 
         #[cfg(feature = "mut-auth")]
         {
-            requester.common.negotiate_info.req_asym_sel =
-                SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+            requester.common.negotiate_info.req_asym_sel = create_info_req_asym_algo();
         }
 
         let result = requester

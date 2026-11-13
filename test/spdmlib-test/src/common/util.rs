@@ -31,6 +31,25 @@ use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use core::ops::DerefMut;
 
+/// BaseAsymAlgo of the create_info() fixture. It follows SPDMRS_USE_ECDSA.
+pub fn create_info_base_asym_algo() -> SpdmBaseAsymAlgo {
+    if use_ecdsa() {
+        SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
+    } else {
+        SpdmBaseAsymAlgo::TPM_ALG_RSASSA_3072
+    }
+}
+
+/// ReqBaseAsymAlg matching the certificate chain of the create_info() fixture, which
+/// is also the chain a Requester built from create_info() presents. Follows SPDMRS_USE_ECDSA.
+pub fn create_info_req_asym_algo() -> SpdmReqAsymAlgo {
+    if use_ecdsa() {
+        SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
+    } else {
+        SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
+    }
+}
+
 pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
     let config_info = SpdmConfigInfo {
         spdm_version: [
@@ -75,12 +94,16 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
         req_ct_exponent: 0,
         measurement_specification: SpdmMeasurementSpecification::DMTF,
         measurement_hash_algo: SpdmMeasurementHashAlgo::TPM_ALG_SHA_384,
-        base_asym_algo: SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+        base_asym_algo: create_info_base_asym_algo(),
         base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         dhe_algo: SpdmDheAlgo::SECP_384_R1,
 
         aead_algo: SpdmAeadAlgo::AES_256_GCM,
-        req_asym_algo: SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048,
+        req_asym_algo: if req_use_ecdsa() {
+            SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
+        } else {
+            SpdmReqAsymAlgo::TPM_ALG_RSASSA_3072
+        },
         key_schedule_algo: SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
             | SpdmAlgoOtherParams::MULTI_KEY_CONN,
@@ -104,11 +127,16 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
     };
 
     let crate_dir = get_test_key_directory();
-    let ca_file_path = crate_dir.join("test_key/ecp384/ca.cert.der");
+    let key_dir = if use_ecdsa() {
+        "test_key/ecp384"
+    } else {
+        "test_key/rsa3072"
+    };
+    let ca_file_path = crate_dir.join(format!("{}/ca.cert.der", key_dir));
     let ca_cert = std::fs::read(ca_file_path).expect("unable to read ca cert!");
-    let inter_file_path = crate_dir.join("test_key/ecp384/inter.cert.der");
+    let inter_file_path = crate_dir.join(format!("{}/inter.cert.der", key_dir));
     let inter_cert = std::fs::read(inter_file_path).expect("unable to read inter cert!");
-    let leaf_file_path = crate_dir.join("test_key/ecp384/end_responder.cert.der");
+    let leaf_file_path = crate_dir.join(format!("{}/end_responder.cert.der", key_dir));
     let leaf_cert = std::fs::read(leaf_file_path).expect("unable to read leaf cert!");
 
     let ca_len = ca_cert.len();
@@ -464,11 +492,19 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
     my_cert_chain_data.data[(ca_len + inter_len)..(ca_len + inter_len + leaf_len)]
         .copy_from_slice(leaf_cert.as_ref());
 
+    // The trust anchor for the Requester's (mutual authentication) chain follows
+    // ReqBaseAsymAlg, not BaseAsymAlgo.
+    let req_ca_cert = std::fs::read(if req_use_ecdsa() {
+        crate_dir.join("test_key/ecp384/ca.cert.der")
+    } else {
+        crate_dir.join("test_key/rsa3072/ca.cert.der")
+    })
+    .expect("unable to read requester ca cert!");
     let mut peer_root_cert_data = SpdmCertChainData {
         ..Default::default()
     };
-    peer_root_cert_data.data_size = ca_len as u32;
-    peer_root_cert_data.data[0..ca_len].copy_from_slice(ca_cert.as_ref());
+    peer_root_cert_data.data_size = req_ca_cert.len() as u32;
+    peer_root_cert_data.data[0..req_ca_cert.len()].copy_from_slice(req_ca_cert.as_ref());
     let mut peer_root_cert_data_list = gen_array_clone(None, MAX_ROOT_CERT_SUPPORT);
     peer_root_cert_data_list[0] = Some(peer_root_cert_data);
 
@@ -524,9 +560,36 @@ pub fn get_test_key_directory() -> PathBuf {
     crate_dir.to_path_buf()
 }
 
+/// Certificate chain the Responder presents.
+/// It must match BaseAsymAlgo, which follows SPDMRS_USE_ECDSA.
 pub fn get_rsp_cert_chain_buff() -> SpdmCertChainBuffer {
+    if use_ecdsa() {
+        build_cert_chain_buff(include_bytes!(
+            "../../../../test_key/ecp384/bundle_responder.certchain.der"
+        ))
+    } else {
+        build_cert_chain_buff(include_bytes!(
+            "../../../../test_key/rsa3072/bundle_responder.certchain.der"
+        ))
+    }
+}
+
+/// Certificate chain the Requester presents for mutual authentication.
+/// It must match ReqBaseAsymAlg, which follows SPDMRS_REQ_USE_ECDSA.
+pub fn get_req_cert_chain_buff() -> SpdmCertChainBuffer {
+    if req_use_ecdsa() {
+        build_cert_chain_buff(include_bytes!(
+            "../../../../test_key/ecp384/bundle_requester.certchain.der"
+        ))
+    } else {
+        build_cert_chain_buff(include_bytes!(
+            "../../../../test_key/rsa3072/bundle_requester.certchain.der"
+        ))
+    }
+}
+
+fn build_cert_chain_buff(cert_chain: &[u8]) -> SpdmCertChainBuffer {
     let hash_algo = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    let cert_chain = include_bytes!("../../../../test_key/ecp384/bundle_responder.certchain.der");
 
     let (root_cert_begin, root_cert_end) =
         crypto::cert_operation::get_cert_from_cert_chain(cert_chain, 0)

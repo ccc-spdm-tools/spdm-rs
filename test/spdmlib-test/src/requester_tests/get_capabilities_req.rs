@@ -5,7 +5,7 @@
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::create_info;
+use crate::common::util::{create_info, create_info_base_asym_algo};
 use codec::Writer;
 use spdmlib::common::{SpdmCodec, SpdmConnectionState};
 use spdmlib::protocol::*;
@@ -59,8 +59,7 @@ fn test_case0_send_receive_spdm_capability() {
         requester.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.negotiate_info.base_asym_sel = create_info_base_asym_algo();
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
 
         let status = requester.send_receive_spdm_capability().await.is_ok();
@@ -141,10 +140,7 @@ fn test_case1_send_receive_spdm_capability_supported_algorithms() {
             block.measurement_specification,
             SpdmMeasurementSpecification::DMTF
         );
-        assert_eq!(
-            block.base_asym_algo,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
-        );
+        assert_eq!(block.base_asym_algo, create_info_base_asym_algo());
         assert_eq!(block.base_hash_algo, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
         // create_info() configures DHE, AEAD, ReqAsym and KeySchedule (4 alg struct tables).
         assert_eq!(block.alg_struct_count, 4);
@@ -266,10 +262,7 @@ fn test_case2_send_receive_spdm_capability_supported_algorithms_chunked() {
             .get_peer_supported_algorithms()
             .expect("Responder must return SupportedAlgorithms (chunked) when requested");
         assert_eq!(block.alg_struct_count, 4);
-        assert_eq!(
-            block.base_asym_algo,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384
-        );
+        assert_eq!(block.base_asym_algo, create_info_base_asym_algo());
 
         // Even though CAPABILITIES was chunked on the wire, the reassembled message must appear
         // identically in both VCA transcripts (the chunk envelopes are not part of the transcript).
