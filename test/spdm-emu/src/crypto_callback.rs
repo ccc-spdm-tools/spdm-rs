@@ -195,8 +195,10 @@ fn sign_rsa_asym_algo(
         .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
     let key_bytes = der_file.as_slice();
 
-    let key_pair: ring::signature::RsaKeyPair =
-        ring::signature::RsaKeyPair::from_der(key_bytes).ok()?;
+    // The test keys are PKCS#8; also accept PKCS#1 (RSAPrivateKey) keys.
+    let key_pair: ring::signature::RsaKeyPair = ring::signature::RsaKeyPair::from_pkcs8(key_bytes)
+        .or_else(|_| ring::signature::RsaKeyPair::from_der(key_bytes))
+        .ok()?;
 
     if key_len != key_pair.public().modulus_len() {
         panic!();
@@ -596,7 +598,10 @@ fn sign_rsa_asym_algo_aws_lc(
     };
     let der_file = std::fs::read(&key_file_path)
         .unwrap_or_else(|e| panic!("unable to read key from {:?}: {}", key_file_path, e));
-    let key_pair = signature::RsaKeyPair::from_der(der_file.as_slice()).ok()?;
+    // The test keys are PKCS#8; also accept PKCS#1 (RSAPrivateKey) keys.
+    let key_pair = signature::RsaKeyPair::from_pkcs8(der_file.as_slice())
+        .or_else(|_| signature::RsaKeyPair::from_der(der_file.as_slice()))
+        .ok()?;
     if key_len != key_pair.public_modulus_len() {
         panic!();
     }
