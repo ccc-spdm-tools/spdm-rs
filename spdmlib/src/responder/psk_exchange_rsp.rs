@@ -201,7 +201,7 @@ impl ResponderContext {
             MAX_SPDM_PSK_CONTEXT_SIZE as u16
         };
         let mut psk_context = [0u8; MAX_SPDM_PSK_CONTEXT_SIZE];
-        if psk_without_context {
+        if !psk_without_context {
             let res = crypto::rand::get_random(&mut psk_context);
             if res.is_err() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
