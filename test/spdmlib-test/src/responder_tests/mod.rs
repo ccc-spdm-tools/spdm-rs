@@ -8,6 +8,8 @@ mod challenge_rsp;
 
 mod algorithm_rsp;
 
+mod app_message_handler;
+
 mod capability_rsp;
 
 mod certificate_rsp;
