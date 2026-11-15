@@ -5,7 +5,8 @@
 use codec::Writer;
 use conquer_once::spin::OnceCell;
 
-use crate::error::SpdmResult;
+use crate::common::session::SpdmSessionState;
+use crate::error::{SpdmResult, SPDM_STATUS_INVALID_STATE_PEER};
 use crate::responder::ResponderContext;
 
 type DispatchSecuredAppMessageCbType = for<'a> fn(
@@ -44,6 +45,17 @@ pub fn dispatch_secured_app_message_cb<'a>(
     app_handle: usize, // interpreted/managed by User
     writer: &'a mut Writer,
 ) -> (SpdmResult, Option<&'a [u8]>) {
+    // Application data is only valid once FINISH / PSK_FINISH has completed.
+    // In the handshake phase the Requester has not yet been authenticated.
+    let established = ctx
+        .common
+        .get_immutable_session_via_id(session_id)
+        .map(|session| session.get_session_state() == SpdmSessionState::SpdmSessionEstablished)
+        .unwrap_or(false);
+    if !established {
+        return (Err(SPDM_STATUS_INVALID_STATE_PEER), None);
+    }
+
     (SPDM_APP_MESSAGE_HANDLER
         .try_get_or_init(|| DEFAULT.clone())
         .unwrap_or(&DEFAULT)
