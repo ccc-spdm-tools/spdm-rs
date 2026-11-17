@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -1484,7 +1484,11 @@ impl SpdmSession {
             &secured_buffer
                 [(aad_size + cipher_text_size)..(aad_size + cipher_text_size + tag_size)],
             &mut plain_text_buf[..cipher_text_size],
-        )?;
+        )
+        // Any failure of the AEAD call is a decrypt error. Report it as
+        // CRYPTO_ERROR for every backend, so callers can tell it from a decode
+        // error (DECODE_AEAD_FAIL and the like), which is a malformed message.
+        .map_err(|_| SPDM_STATUS_CRYPTO_ERROR)?;
 
         let mut reader = Reader::init(&plain_text_buf);
         let app_length = u16::read(&mut reader).ok_or(SPDM_STATUS_DECODE_AEAD_FAIL)? as usize;

@@ -11,6 +11,8 @@ mod chunk_send_req;
 
 mod context;
 
+mod decrypt_error_req;
+
 mod end_session_req;
 
 #[cfg(feature = "mut-auth")]
