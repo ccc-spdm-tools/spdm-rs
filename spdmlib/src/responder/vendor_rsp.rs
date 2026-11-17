@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::session::SpdmSessionState;
 use crate::common::SpdmCodec;
 use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
@@ -72,8 +73,18 @@ impl ResponderContext {
         let standard_id = vendor_defined_request_payload.standard_id;
         let vendor_id = vendor_defined_request_payload.vendor_id;
         let req_payload = vendor_defined_request_payload.req_payload;
+
+        // Only report a session the handler can rely on: one that is established.
+        let established_session_id = session_id.filter(|&session_id| {
+            self.common
+                .get_immutable_session_via_id(session_id)
+                .map(|session| session.get_session_state())
+                == Some(SpdmSessionState::SpdmSessionEstablished)
+        });
+
         let rsp_payload = self.respond_to_vendor_defined_request(
             &req_payload,
+            established_session_id,
             &vendor_id,
             vendor_defined_request_handler,
         );
@@ -112,16 +123,18 @@ impl ResponderContext {
     pub fn respond_to_vendor_defined_request<F>(
         &mut self,
         req: &VendorDefinedReqPayloadStruct,
+        session_id: Option<u32>,
         vendor_id_struct: &VendorIDStruct,
         verdor_defined_func: F,
     ) -> SpdmResult<VendorDefinedRspPayloadStruct>
     where
         F: Fn(
+            Option<u32>,
             &VendorIDStruct,
             &VendorDefinedReqPayloadStruct,
         ) -> SpdmResult<VendorDefinedRspPayloadStruct>,
     {
-        verdor_defined_func(vendor_id_struct, req)
+        verdor_defined_func(session_id, vendor_id_struct, req)
     }
 
     pub fn respond_to_vendor_defined_request_ex<'a, F>(

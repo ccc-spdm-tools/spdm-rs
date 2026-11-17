@@ -681,6 +681,7 @@ pub async fn send_pci_discovery(
 
 fn pci_idekm_tdisp_rsp_dispatcher(
     vdm_handle: usize,
+    session_id: Option<u32>,
     vendor_id_struct: &VendorIDStruct,
     vendor_defined_req_payload_struct: &VendorDefinedReqPayloadStruct,
 ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
@@ -691,11 +692,13 @@ fn pci_idekm_tdisp_rsp_dispatcher(
     match vendor_defined_req_payload_struct.vendor_defined_req_payload[0] {
         IDEKM_PROTOCOL_ID => pci_ide_km_rsp_dispatcher(
             vdm_handle,
+            session_id,
             vendor_id_struct,
             vendor_defined_req_payload_struct,
         ),
         TDISP_PROTOCOL_ID => pci_tdisp_rsp_dispatcher(
             vdm_handle,
+            session_id,
             vendor_id_struct,
             vendor_defined_req_payload_struct,
         ),

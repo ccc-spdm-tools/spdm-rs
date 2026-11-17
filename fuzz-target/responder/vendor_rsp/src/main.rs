@@ -55,9 +55,11 @@ async fn fuzz_handle_spdm_vendor_defined_request(data: Arc<Vec<u8>>) {
 
     let vendor_defined_func: for<'r> fn(
         usize,
+        Option<u32>,
         &VendorIDStruct,
         &'r VendorDefinedReqPayloadStruct,
     ) -> Result<_, _> = |_: usize,
+                         _: Option<u32>,
                          _: &VendorIDStruct,
                          _vendor_defined_req_payload_struct|
      -> SpdmResult<VendorDefinedRspPayloadStruct> {
