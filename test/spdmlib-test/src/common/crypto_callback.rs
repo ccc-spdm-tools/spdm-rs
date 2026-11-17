@@ -1,11 +1,11 @@
-// Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2023, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use spdmlib::crypto::SpdmCertOperation;
 use spdmlib::crypto::SpdmCryptoRandom;
 use spdmlib::crypto::{SpdmAead, SpdmAsymVerify, SpdmHkdf, SpdmHmac, SpdmPqcAsymVerify};
-use spdmlib::error::{SpdmResult, SPDM_STATUS_VERIF_FAIL};
+use spdmlib::error::{SpdmResult, SPDM_STATUS_CRYPTO_ERROR, SPDM_STATUS_VERIF_FAIL};
 use spdmlib::protocol::*;
 
 pub static FAKE_HMAC: SpdmHmac = SpdmHmac {
@@ -90,9 +90,13 @@ fn fake_decrypt(
     _iv: &SpdmAeadIvStruct,
     _aad: &[u8],
     cipher_text: &[u8],
-    _tag: &[u8],
+    tag: &[u8],
     plain_text: &mut [u8],
 ) -> SpdmResult<usize> {
+    // fake_encrypt leaves the tag zeroed, so any other tag fails authentication.
+    if tag.iter().any(|b| *b != 0) {
+        return Err(SPDM_STATUS_CRYPTO_ERROR);
+    }
     let plain_text_size = plain_text.len();
     let cipher_text_size = cipher_text.len();
     if cipher_text_size != plain_text_size {

@@ -19,6 +19,8 @@ mod certificate_rsp;
 //
 // mod context;
 
+mod decrypt_error_rsp;
+
 mod digest_rsp;
 
 #[cfg(feature = "mut-auth")]

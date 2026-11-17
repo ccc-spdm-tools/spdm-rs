@@ -1317,11 +1317,21 @@ impl SpdmContext {
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
 
         let mut app_buffer = [0u8; config::RECEIVER_BUFFER_SIZE];
-        let decode_size = spdm_session.decode_spdm_secured_message(
+        let decode_size = match spdm_session.decode_spdm_secured_message(
             &encoded_receive_buffer[..used],
             &mut app_buffer,
             false,
-        )?;
+        ) {
+            Ok(decode_size) => decode_size,
+            Err(e) => {
+                // Only an AEAD decrypt failure ends the session. A decode error,
+                // such as a bad length, leaves it open.
+                if e == SPDM_STATUS_CRYPTO_ERROR {
+                    spdm_session.teardown();
+                }
+                return Err(e);
+            }
+        };
 
         let mut transport_encap = self.transport_encap.lock();
         let transport_encap: &mut (dyn SpdmTransportEncap + Send + Sync) =

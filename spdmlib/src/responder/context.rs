@@ -291,10 +291,28 @@ impl ResponderContext {
                         &mut app_buffer,
                         true,
                     );
-                    if decode_size.is_err() {
-                        return Err(used);
-                    }
-                    let decode_size = decode_size.unwrap();
+                    let decode_size = match decode_size {
+                        Ok(decode_size) => decode_size,
+                        // A decode error, such as a bad length, is dropped and the
+                        // session stays open.
+                        Err(e) if e != SPDM_STATUS_CRYPTO_ERROR => return Err(used),
+                        Err(_) => {
+                            // An AEAD decrypt failure gets a DecryptError and ends the
+                            // session.
+                            self.write_spdm_error(
+                                SpdmErrorCode::SpdmErrorDecryptError,
+                                0,
+                                &mut writer,
+                            );
+                            let _ = self
+                                .send_message(Some(session_id), writer.used_slice(), false)
+                                .await;
+                            if let Some(session) = self.common.get_session_via_id(session_id) {
+                                session.teardown();
+                            }
+                            return Ok(Err(SPDM_STATUS_SESSION_MSG_ERROR));
+                        }
+                    };
 
                     let mut spdm_buffer = [0u8; config::SPDM_DATA_TRANSFER_SIZE];
                     let decap_result = {
