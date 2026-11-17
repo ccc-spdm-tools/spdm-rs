@@ -4,7 +4,7 @@
 
 use core::convert::TryFrom;
 use spdmlib::{
-    error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD},
+    error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_STATE_PEER},
     message::{
         VendorDefinedReqPayloadStruct, VendorDefinedRspPayloadStruct, VendorIDStruct,
         MAX_SPDM_VENDOR_DEFINED_PAYLOAD_SIZE,
@@ -29,9 +29,15 @@ use super::{
 
 pub fn pci_tdisp_rsp_dispatcher(
     vdm_handle: usize,
+    session_id: Option<u32>,
     vendor_id_struct: &VendorIDStruct,
     vendor_defined_req_payload_struct: &VendorDefinedReqPayloadStruct,
 ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
+    // TDISP must run inside an established secure session.
+    if session_id.is_none() {
+        return Err(SPDM_STATUS_INVALID_STATE_PEER);
+    }
+
     if vendor_defined_req_payload_struct.req_length < 3
         || vendor_id_struct != &vendor_id()
         || vendor_defined_req_payload_struct.vendor_defined_req_payload[0] != TDISP_PROTOCOL_ID

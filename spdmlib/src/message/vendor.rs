@@ -470,8 +470,12 @@ impl SpdmCodec for SpdmVendorDefinedResponsePayload {
 
 #[derive(Clone, Copy)]
 pub struct VendorDefinedStruct {
+    // The Option<u32> is the session the request was received in, and is
+    // Some only once that session is established. It is None for a request
+    // sent outside a session or during the session handshake.
     pub vendor_defined_request_handler: fn(
         usize,
+        Option<u32>,
         &VendorIDStruct,
         &VendorDefinedReqPayloadStruct,
     ) -> SpdmResult<VendorDefinedRspPayloadStruct>,
@@ -483,6 +487,7 @@ static VENDOR_DEFNIED: OnceCell<VendorDefinedStruct> = OnceCell::uninit();
 static VENDOR_DEFNIED_DEFAULT: VendorDefinedStruct = VendorDefinedStruct {
     vendor_defined_request_handler:
         |_vdm_handle: usize,
+         _session_id: Option<u32>,
          _vendor_id_struct: &VendorIDStruct,
          _vendor_defined_req_payload_struct: &VendorDefinedReqPayloadStruct|
          -> SpdmResult<VendorDefinedRspPayloadStruct> {
@@ -497,12 +502,14 @@ pub fn register_vendor_defined_struct(context: VendorDefinedStruct) -> bool {
 }
 
 pub fn vendor_defined_request_handler(
+    session_id: Option<u32>,
     vendor_id_struct: &VendorIDStruct,
     vendor_defined_req_payload_struct: &VendorDefinedReqPayloadStruct,
 ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
     if let Ok(vds) = VENDOR_DEFNIED.try_get_or_init(|| VENDOR_DEFNIED_DEFAULT) {
         (vds.vendor_defined_request_handler)(
             vds.vdm_handle,
+            session_id,
             vendor_id_struct,
             vendor_defined_req_payload_struct,
         )

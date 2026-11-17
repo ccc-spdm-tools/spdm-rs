@@ -11,7 +11,7 @@ use crate::pci_idekm::{
     QUERY_OBJECT_ID,
 };
 use spdmlib::{
-    error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD},
+    error::{SpdmResult, SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_STATE_PEER},
     message::{
         VendorDefinedReqPayloadStruct, VendorDefinedRspPayloadStruct, VendorDefinedStruct,
         VendorIDStruct,
@@ -25,9 +25,15 @@ pub const PCI_IDE_KM_INSTANCE: VendorDefinedStruct = VendorDefinedStruct {
 
 pub fn pci_ide_km_rsp_dispatcher(
     _vdm_handle: usize,
+    session_id: Option<u32>,
     vendor_id_struct: &VendorIDStruct,
     vendor_defined_req_payload_struct: &VendorDefinedReqPayloadStruct,
 ) -> SpdmResult<VendorDefinedRspPayloadStruct> {
+    // IDE_KM carries IDE keys and must run inside an established secure session.
+    if session_id.is_none() {
+        return Err(SPDM_STATUS_INVALID_STATE_PEER);
+    }
+
     if vendor_defined_req_payload_struct.req_length < 2
         || vendor_id_struct != &vendor_id()
         || vendor_defined_req_payload_struct.vendor_defined_req_payload[0] != IDEKM_PROTOCOL_ID
