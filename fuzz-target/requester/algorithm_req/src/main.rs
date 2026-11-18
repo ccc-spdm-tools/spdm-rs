@@ -33,19 +33,7 @@ async fn fuzz_send_receive_spdm_algorithm(fuzzdata: Arc<Vec<u8>>) {
 
 fn main() {
     #[cfg(all(feature = "fuzzlogfile", feature = "fuzz"))]
-    flexi_logger::Logger::try_with_str("info")
-        .unwrap()
-        .log_to_file(
-            FileSpec::default()
-                .directory("traces")
-                .basename("foo")
-                .discriminant("Sample4711A")
-                .suffix("trc"),
-        )
-        .print_message()
-        .create_symlink("current_run")
-        .start()
-        .unwrap();
+    fuzzlib::init_file_logger();
 
     #[cfg(not(feature = "fuzz"))]
     {
