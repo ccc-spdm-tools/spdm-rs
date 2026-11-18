@@ -735,22 +735,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "flexi_logger"
-version = "0.27.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "469e584c031833564840fb0cdbce99bdfe946fd45480a188545e73a76f45461c"
-dependencies = [
- "chrono",
- "glob",
- "is-terminal",
- "lazy_static",
- "log",
- "nu-ansi-term",
- "regex",
- "thiserror",
-]
-
-[[package]]
 name = "focaccia"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -831,7 +815,6 @@ dependencies = [
  "async-trait",
  "codec",
  "executor",
- "flexi_logger",
  "futures",
  "log",
  "ring",
@@ -918,12 +901,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hermit-abi"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
-
-[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -971,17 +948,6 @@ dependencies = [
  "maybe-async",
  "spdmlib",
  "zeroize",
-]
-
-[[package]]
-name = "is-terminal"
-version = "0.4.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
-dependencies = [
- "hermit-abi",
- "libc",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1297,15 +1263,6 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
-]
-
-[[package]]
-name = "nu-ansi-term"
-version = "0.49.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c073d3c1930d0751774acf49e66653acecb416c3a54c6ec095a9b11caddb5a68"
-dependencies = [
- "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -2081,26 +2038,6 @@ dependencies = [
  "maybe-async",
  "spdmlib",
  "spin 0.9.8",
-]
-
-[[package]]
-name = "thiserror"
-version = "1.0.69"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
-dependencies = [
- "thiserror-impl",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "1.0.69"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.114",
 ]
 
 [[package]]

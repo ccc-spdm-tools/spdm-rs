@@ -24,10 +24,63 @@ pub use spdmlib::error::SpdmResult;
 pub use spdmlib::{common, config, error, protocol, requester, responder};
 pub use spin::{self, Mutex};
 
-pub use flexi_logger;
-pub use flexi_logger::FileSpec;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
+use std::io::Write;
+
+struct FileLogger(std::sync::Mutex<std::fs::File>);
+
+impl log::Log for FileLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= log::Level::Info
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            if let Ok(mut file) = self.0.lock() {
+                let _ = writeln!(
+                    file,
+                    "{} [{}] {}",
+                    record.level(),
+                    record.target(),
+                    record.args()
+                );
+            }
+        }
+    }
+
+    fn flush(&self) {
+        if let Ok(mut file) = self.0.lock() {
+            let _ = file.flush();
+        }
+    }
+}
+
+/// Log at info level to a per-process file under `traces/`.
+pub fn init_file_logger() {
+    let name = std::env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_stem()
+                .map(|stem| stem.to_string_lossy().into_owned())
+        })
+        .unwrap_or_else(|| String::from("fuzz"));
+    let path = format!("traces/{}_{}.trc", name, std::process::id());
+    std::fs::create_dir_all("traces").unwrap();
+    let file = std::fs::File::create(&path).unwrap();
+    log::set_logger(Box::leak(Box::new(FileLogger(std::sync::Mutex::new(file))))).unwrap();
+    log::set_max_level(LevelFilter::Info);
+    eprintln!("Log is written to {}", path);
+}
+
+/// Log at the `RUST_LOG` level, off when unset.
+pub fn init_env_logger() {
+    SimpleLogger::new()
+        .with_level(LevelFilter::Off)
+        .env()
+        .init()
+        .unwrap();
+}
 
 pub fn new_logger_from_env() -> SimpleLogger {
     let level = match std::env::var("SPDMRS_LOG") {

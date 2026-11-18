@@ -10,9 +10,6 @@ use fuzzlib::{
     Mutex, PciDoeTransportEncap, SharedBuffer, *,
 };
 
-#[allow(unused)]
-use fuzzlib::flexi_logger;
-
 extern crate alloc;
 use alloc::sync::Arc;
 
@@ -74,19 +71,7 @@ async fn fuzz_send_receive_spdm_version(fuzzdata: Arc<Vec<u8>>) {
 #[cfg(not(feature = "use_libfuzzer"))]
 fn main() {
     #[cfg(all(feature = "fuzzlogfile", feature = "fuzz"))]
-    flexi_logger::Logger::try_with_str("info")
-        .unwrap()
-        .log_to_file(
-            FileSpec::default()
-                .directory("traces")
-                .basename("foo")
-                .discriminant("Sample4711A")
-                .suffix("trc"),
-        )
-        .print_message()
-        .create_symlink("current_run")
-        .start()
-        .unwrap();
+    fuzzlib::init_file_logger();
 
     spdmlib::secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
     spdmlib::secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
@@ -94,10 +79,7 @@ fn main() {
 
     #[cfg(not(feature = "fuzz"))]
     {
-        flexi_logger::Logger::try_with_env()
-            .unwrap()
-            .start()
-            .unwrap();
+        fuzzlib::init_env_logger();
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
             // Here you can replace the single-step debugging value in the fuzzdata array.
