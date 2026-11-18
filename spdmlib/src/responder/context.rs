@@ -154,6 +154,11 @@ impl ResponderContext {
             self.common.chunk_context.chunk_status = common::SpdmChunkStatus::Idle;
             self.common.chunk_context.session_id = None;
         }
+        // Application data is opaque to SPDM: its bytes are not a response code
+        // and must not drive the connection or session state.
+        if is_app_message {
+            return Ok(());
+        }
         if opcode == SpdmRequestResponseCode::SpdmResponseVersion.get_u8() {
             self.common
                 .runtime_info
