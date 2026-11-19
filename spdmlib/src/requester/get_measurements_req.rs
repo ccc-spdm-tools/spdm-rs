@@ -252,9 +252,39 @@ impl RequesterContext {
     ) -> SpdmResult {
         info!("!!! receive measurement !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let used = self
+        let mut used = self
             .receive_message(session_id, &mut receive_buffer, true)
             .await?;
+
+        // Handle ResponseNotReady before final processing
+        for _ in 0..super::handle_error_response_req::MAX_RESPOND_IF_READY_RETRY_COUNT {
+            if let Some(ext_data) = self.parse_response_not_ready_ext_data(&receive_buffer[..used])
+            {
+                let delay_us = 1usize << (ext_data.rdt_exponent as usize).min(31);
+                crate::time::sleep(delay_us);
+                used = self
+                    .send_receive_respond_if_ready(
+                        session_id,
+                        SpdmRequestResponseCode::SpdmRequestGetMeasurements,
+                        ext_data.token,
+                        &mut receive_buffer,
+                        true,
+                    )
+                    .await?;
+            } else {
+                break;
+            }
+        }
+
+        // If still NotReady after retries, fail
+        if self
+            .parse_response_not_ready_ext_data(&receive_buffer[..used])
+            .is_some()
+        {
+            self.common.reset_message_m(session_id);
+            *transcript_meas = None;
+            return Err(SPDM_STATUS_NOT_READY_PEER);
+        }
 
         let result = self.handle_spdm_measurement_record_response(
             session_id,

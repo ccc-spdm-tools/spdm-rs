@@ -11,6 +11,7 @@ use crate::error::SPDM_STATUS_ERROR_PEER;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_PARAMETER;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
+use crate::error::SPDM_STATUS_NOT_READY_PEER;
 use crate::error::SPDM_STATUS_SESSION_NUMBER_EXCEED;
 use crate::error::SPDM_STATUS_UNSUPPORTED_CAP;
 use crate::error::SPDM_STATUS_VERIF_FAIL;
@@ -70,9 +71,38 @@ impl RequesterContext {
         send_buffer: &[u8],
     ) -> SpdmResult<u32> {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let receive_used = self
+        let mut receive_used = self
             .receive_message(None, &mut receive_buffer, false)
             .await?;
+
+        // Handle ResponseNotReady before consuming key_exchange_context
+        for _ in 0..super::handle_error_response_req::MAX_RESPOND_IF_READY_RETRY_COUNT {
+            if let Some(ext_data) =
+                self.parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+            {
+                let delay_us = 1usize << (ext_data.rdt_exponent as usize).min(31);
+                crate::time::sleep(delay_us);
+                receive_used = self
+                    .send_receive_respond_if_ready(
+                        None,
+                        SpdmRequestResponseCode::SpdmRequestKeyExchange,
+                        ext_data.token,
+                        &mut receive_buffer,
+                        false,
+                    )
+                    .await?;
+            } else {
+                break;
+            }
+        }
+
+        // If still NotReady after retries, fail
+        if self
+            .parse_response_not_ready_ext_data(&receive_buffer[..receive_used])
+            .is_some()
+        {
+            return Err(SPDM_STATUS_NOT_READY_PEER);
+        }
 
         let mut target_session_id = None;
         if let Err(e) = self.handle_spdm_key_exchange_response(
