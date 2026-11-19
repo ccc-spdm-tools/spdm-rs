@@ -121,6 +121,16 @@ impl ResponderContext {
                         Some(writer.used_slice()),
                     );
                 }
+                if !self.local_key_usage_allowed(
+                    slot_id,
+                    SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE,
+                ) {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                        Some(writer.used_slice()),
+                    );
+                }
             } else if self.common.provision_info.my_pub_key.is_none() {
                 self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
                 return (

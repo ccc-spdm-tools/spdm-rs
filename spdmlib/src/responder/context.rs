@@ -10,7 +10,9 @@ use crate::common::{SpdmConnectionState, ST1};
 use crate::config::{self, MAX_SPDM_MSG_SIZE, RECEIVER_BUFFER_SIZE};
 use crate::error::*;
 use crate::message::*;
-use crate::protocol::{SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags};
+use crate::protocol::{
+    SpdmKeyUsageMask, SpdmRequestCapabilityFlags, SpdmResponseCapabilityFlags, SPDM_MAX_SLOT_NUMBER,
+};
 use crate::watchdog::{reset_watchdog, start_watchdog};
 use codec::{Codec, Reader, Writer};
 extern crate alloc;
@@ -41,6 +43,16 @@ impl ResponderContext {
                 provision_info,
             ),
         }
+    }
+
+    // With MULTI_KEY_CONN_RSP, the key in a certificate slot may only be used for the
+    // operations in the KeyUsageMask reported for that slot in DIGESTS.
+    pub(crate) fn local_key_usage_allowed(&self, slot_id: usize, usage: SpdmKeyUsageMask) -> bool {
+        if !self.common.negotiate_info.multi_key_conn_rsp || slot_id >= SPDM_MAX_SLOT_NUMBER {
+            return true;
+        }
+        self.common.provision_info.local_key_usage_bit_mask[slot_id]
+            .is_some_and(|mask| mask.contains(usage))
     }
 
     #[maybe_async::maybe_async]
