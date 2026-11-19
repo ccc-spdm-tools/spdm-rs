@@ -183,7 +183,11 @@ pub fn create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             None,
         ],
         local_key_usage_bit_mask: [
-            Some(SpdmKeyUsageMask::empty()),
+            Some(
+                SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE
+                    | SpdmKeyUsageMask::KEY_USAGE_MASK_CHALLENGE_USE
+                    | SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE,
+            ),
             None,
             None,
             None,
@@ -362,7 +366,11 @@ pub fn req_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
                 None,
             ],
             local_key_usage_bit_mask: [
-                Some(SpdmKeyUsageMask::empty()),
+                Some(
+                    SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE
+                        | SpdmKeyUsageMask::KEY_USAGE_MASK_CHALLENGE_USE
+                        | SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE,
+                ),
                 None,
                 None,
                 None,
@@ -536,7 +544,11 @@ pub fn rsp_create_info() -> (SpdmConfigInfo, SpdmProvisionInfo) {
             None,
         ],
         local_key_usage_bit_mask: [
-            Some(SpdmKeyUsageMask::empty()),
+            Some(
+                SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE
+                    | SpdmKeyUsageMask::KEY_USAGE_MASK_CHALLENGE_USE
+                    | SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE,
+            ),
             None,
             None,
             None,

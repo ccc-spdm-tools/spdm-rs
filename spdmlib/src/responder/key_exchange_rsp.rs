@@ -244,6 +244,13 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         }
+        if !self.local_key_usage_allowed(slot_id, SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE) {
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+            return (
+                Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                Some(writer.used_slice()),
+            );
+        }
 
         self.common
             .runtime_info

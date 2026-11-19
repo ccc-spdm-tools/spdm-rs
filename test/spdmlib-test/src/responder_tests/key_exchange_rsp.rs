@@ -296,3 +296,144 @@ fn test_case2_handle_spdm_key_exchange_requires_key_ex_cap() {
     };
     executor::block_on(future);
 }
+
+#[test]
+fn test_case3_handle_spdm_key_exchange_key_usage_mask() {
+    let future = async {
+        let (config_info, provision_info) = create_info();
+        let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+
+        secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+        crypto::hmac::register(FAKE_HMAC.clone());
+
+        let shared_buffer = SharedBuffer::new();
+        let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+            shared_buffer,
+        ))));
+
+        let mut context = responder::ResponderContext::new(
+            socket_io_transport,
+            pcidoe_transport_encap,
+            config_info,
+            provision_info,
+        );
+
+        context.common.provision_info.my_cert_chain[0] = Some(SpdmCertChainBuffer {
+            data_size: (4 + SPDM_MAX_HASH_SIZE + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE)
+                as u32,
+            ..Default::default()
+        });
+        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
+        context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        context.common.negotiate_info.other_params_support = SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
+        context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::KEY_EX_CAP;
+        context.common.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::KEY_EX_CAP;
+        context.common.negotiate_info.multi_key_conn_rsp = true;
+        context
+            .common
+            .runtime_info
+            .set_connection_state(spdmlib::common::SpdmConnectionState::SpdmConnectionNegotiated);
+
+        let slot_0_key_exchange = |context: &mut responder::ResponderContext| {
+            let rng = ring::rand::SystemRandom::new();
+            let private_key =
+                ring::agreement::EphemeralPrivateKey::generate(&ring::agreement::ECDH_P256, &rng)
+                    .unwrap();
+            let public_key = private_key.compute_public_key().unwrap();
+            let public_key = BytesMut::from(&public_key.as_ref()[1..]);
+
+            let request = SpdmMessage {
+                header: SpdmMessageHeader {
+                    version: SpdmVersion::SpdmVersion13,
+                    request_response_code: SpdmRequestResponseCode::SpdmRequestKeyExchange,
+                },
+                payload: SpdmMessagePayload::SpdmKeyExchangeRequest(
+                    SpdmKeyExchangeRequestPayload {
+                        measurement_summary_hash_type:
+                            SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                        slot_id: 0,
+                        req_session_id: 0xffu16,
+                        session_policy: 0,
+                        random: SpdmRandomStruct {
+                            data: [100u8; SPDM_RANDOM_SIZE],
+                        },
+                        exchange: SpdmReqExchangeStruct::from_dhe(SpdmDheExchangeStruct::from(
+                            public_key,
+                        )),
+                        opaque: SpdmOpaqueStruct::from_sm_supported_ver_list_opaque(
+                            &mut context.common,
+                            &SMSupportedVerListOpaque {
+                                secured_message_version_list: SecuredMessageVersionList {
+                                    version_count: 2,
+                                    versions_list: [
+                                        SecuredMessageVersion::try_from(
+                                            DMTF_SECURE_SPDM_VERSION_10,
+                                        )
+                                        .unwrap(),
+                                        SecuredMessageVersion::try_from(
+                                            DMTF_SECURE_SPDM_VERSION_11,
+                                        )
+                                        .unwrap(),
+                                        SecuredMessageVersion::try_from(
+                                            DMTF_SECURE_SPDM_VERSION_12,
+                                        )
+                                        .unwrap(),
+                                        SecuredMessageVersion::try_from(
+                                            DMTF_SECURE_SPDM_VERSION_13,
+                                        )
+                                        .unwrap(),
+                                    ],
+                                },
+                            },
+                        )
+                        .unwrap(),
+                    },
+                ),
+            };
+            let mut request_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
+            let mut writer = Writer::init(&mut request_buffer);
+            let request_size = request
+                .spdm_encode(&mut context.common, &mut writer)
+                .unwrap();
+
+            let mut response_buffer = [0u8; spdmlib::config::MAX_SPDM_MSG_SIZE];
+            let mut writer = Writer::init(&mut response_buffer);
+            let (status, response) =
+                context.handle_spdm_key_exchange(&request_buffer[..request_size], &mut writer);
+            let response = response.unwrap();
+            (status, response[1], response[2])
+        };
+
+        // The slot 0 key is not provisioned for KEY_EXCHANGE.
+        context.common.provision_info.local_key_usage_bit_mask[0] = Some(
+            SpdmKeyUsageMask::KEY_USAGE_MASK_CHALLENGE_USE
+                | SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE,
+        );
+        let (status, code, param1) = slot_0_key_exchange(&mut context);
+        assert!(status.is_err());
+        assert_eq!(code, SpdmRequestResponseCode::SpdmResponseError.get_u8());
+        assert_eq!(param1, SpdmErrorCode::SpdmErrorInvalidRequest.get_u8());
+        for session in context.common.session.iter() {
+            assert_eq!(
+                session.get_session_id(),
+                spdmlib::common::INVALID_SESSION_ID
+            );
+        }
+
+        context.common.provision_info.local_key_usage_bit_mask[0] =
+            Some(SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE);
+        let (status, code, _) = slot_0_key_exchange(&mut context);
+        assert!(status.is_ok());
+        assert_eq!(
+            code,
+            SpdmRequestResponseCode::SpdmResponseKeyExchangeRsp.get_u8()
+        );
+    };
+    executor::block_on(future);
+}
