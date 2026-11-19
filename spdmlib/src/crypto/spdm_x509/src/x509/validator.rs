@@ -576,7 +576,7 @@ impl<B: CryptoBackend> Validator<B> {
                     }
                 }
 
-                self.verify_issuer_is_ca(issuer, idx)?;
+                self.verify_issuer_is_ca(issuer, idx, idx + 2 == chain.len())?;
 
                 // Verify signature last — CA and keyCertSign checks above are
                 // cheap and may reject the issuer without incurring the cost of
@@ -608,11 +608,19 @@ impl<B: CryptoBackend> Validator<B> {
     ///
     /// Per SPDM 1.2 (DSP0274), the BasicConstraints extension is not required
     /// to be present.  If it *is* present the cA flag must be TRUE; if it is
-    /// absent the certificate is still accepted as a valid issuer.
-    fn verify_issuer_is_ca(&self, issuer: &Certificate, depth: usize) -> Result<()> {
+    /// absent the trust anchor is still accepted as a valid issuer, and an
+    /// intermediate is accepted only when its Key Usage asserts keyCertSign.
+    /// An intermediate with neither extension is an end-entity certificate.
+    fn verify_issuer_is_ca(
+        &self,
+        issuer: &Certificate,
+        depth: usize,
+        is_trust_anchor: bool,
+    ) -> Result<()> {
         let extensions = match &issuer.tbs_certificate.extensions {
             Some(exts) => exts,
-            None => return Ok(()),
+            None if is_trust_anchor => return Ok(()),
+            None => return Err(Error::ChainError(crate::error::ChainError::IssuerNotCA)),
         };
 
         for ext in &extensions.extensions {
@@ -644,8 +652,14 @@ impl<B: CryptoBackend> Validator<B> {
             }
         }
 
-        // BasicConstraints extension not present — acceptable per SPDM 1.2.
-        Ok(())
+        // BasicConstraints extension not present — acceptable per SPDM 1.2,
+        // but an intermediate must then assert keyCertSign (validate_chain
+        // already rejects a Key Usage without it).
+        if is_trust_anchor || extensions.extensions.iter().any(|e| e.extn_id == KEY_USAGE) {
+            Ok(())
+        } else {
+            Err(Error::ChainError(crate::error::ChainError::IssuerNotCA))
+        }
     }
     /// Enforce RFC 5280 §4.2.1.10 Name Constraints across the chain.
     ///
@@ -2734,14 +2748,47 @@ mod tests {
     fn test_verify_issuer_is_ca_with_ca_cert() {
         let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
         let validator = Validator::new();
-        assert!(validator.verify_issuer_is_ca(&ca, 0).is_ok());
+        assert!(validator.verify_issuer_is_ca(&ca, 0, true).is_ok());
     }
 
     #[test]
     fn test_verify_issuer_is_ca_with_leaf_fails() {
         let leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
         let validator = Validator::new();
-        assert!(validator.verify_issuer_is_ca(&leaf, 0).is_err());
+        assert!(validator.verify_issuer_is_ca(&leaf, 0, false).is_err());
+    }
+
+    #[test]
+    fn test_verify_issuer_is_ca_without_basic_constraints() {
+        let validator = Validator::new();
+
+        // An intermediate without BasicConstraints still needs Key Usage.
+        let mut inter = load_cert(&test_key_path("ecp256/inter.cert.der"));
+        remove_extension(&mut inter, BASIC_CONSTRAINTS);
+        assert!(validator.verify_issuer_is_ca(&inter, 0, false).is_ok());
+        remove_extension(&mut inter, KEY_USAGE);
+        assert!(validator.verify_issuer_is_ca(&inter, 0, false).is_err());
+        inter.tbs_certificate.extensions = None;
+        assert!(validator.verify_issuer_is_ca(&inter, 0, false).is_err());
+
+        // The trust anchor keeps the SPDM allowance.
+        assert!(validator.verify_issuer_is_ca(&inter, 0, true).is_ok());
+    }
+
+    #[test]
+    fn test_validate_chain_rejects_end_entity_issuer() {
+        let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let mut inter = load_cert(&test_key_path("ecp256/inter.cert.der"));
+        let leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        remove_extension(&mut inter, BASIC_CONSTRAINTS);
+        remove_extension(&mut inter, KEY_USAGE);
+
+        let chain = CertificateChain::new(vec![leaf, inter, ca]);
+        let opts = ValidationOptions::default().skip_signature_validation();
+        assert!(matches!(
+            Validator::new().validate_chain(&chain, &opts),
+            Err(Error::ChainError(crate::error::ChainError::IssuerNotCA))
+        ));
     }
 
     // ── Cross-algorithm chain tests ──
