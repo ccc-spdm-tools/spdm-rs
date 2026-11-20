@@ -12,6 +12,7 @@ use spdmlib::common::{SpdmCodec, SpdmConnectionState};
 use spdmlib::config::{MAX_SPDM_MSG_SIZE, MAX_SPDM_PSK_CONTEXT_SIZE, MAX_SPDM_PSK_HINT_SIZE};
 use spdmlib::message::*;
 use spdmlib::protocol::*;
+use spdmlib::requester::RequesterContext;
 use spdmlib::{responder, secret};
 use spin::Mutex;
 extern crate alloc;
@@ -266,6 +267,106 @@ fn test_case2_handle_spdm_psk_exchange_responder_context_is_random() {
                 .iter()
                 .any(|&b| b != 0)
         );
+    };
+    executor::block_on(future);
+}
+
+#[test]
+fn test_case3_handle_spdm_psk_exchange_requires_psk_cap() {
+    let future = async {
+        secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
+
+        let mut psk_hint = SpdmPskHintStruct {
+            data_size: b"TestPskHint\0".len() as u16,
+            data: [0u8; MAX_SPDM_PSK_HINT_SIZE],
+        };
+        psk_hint.data[..psk_hint.data_size as usize].copy_from_slice(b"TestPskHint\0");
+
+        // A Responder that only offers KEY_EXCHANGE sessions must not answer PSK_EXCHANGE.
+        let key_ex_only = SpdmResponseCapabilityFlags::KEY_EX_CAP;
+        for (rsp_capabilities, psk_exchange_allowed) in [
+            (key_ex_only, false),
+            (
+                key_ex_only | SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT,
+                true,
+            ),
+        ] {
+            let (config_info, provision_info) = create_info();
+            let mut context = responder::ResponderContext::new(
+                Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+                    SharedBuffer::new(),
+                )))),
+                Arc::new(Mutex::new(PciDoeTransportEncap {})),
+                config_info,
+                provision_info,
+            );
+            context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+            context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+            context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+            context.common.negotiate_info.req_capabilities_sel =
+                SpdmRequestCapabilityFlags::PSK_CAP;
+            context.common.negotiate_info.rsp_capabilities_sel = rsp_capabilities;
+            context
+                .common
+                .runtime_info
+                .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
+
+            let (config_info, provision_info) = create_info();
+            let mut requester = RequesterContext::new(
+                Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+                    SharedBuffer::new(),
+                )))),
+                Arc::new(Mutex::new(PciDoeTransportEncap {})),
+                config_info,
+                provision_info,
+            );
+            requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion11;
+            requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+
+            let mut request = [0u8; MAX_SPDM_MSG_SIZE];
+            let request_size = requester
+                .encode_spdm_psk_exchange(
+                    100u16,
+                    SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                    &psk_hint,
+                    &mut request,
+                )
+                .unwrap();
+
+            let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
+            let mut writer = Writer::init(&mut response_buffer);
+            let (status, response) =
+                context.handle_spdm_psk_exchange(&request[..request_size], &mut writer);
+            let mut reader = Reader::init(response.unwrap());
+            let header = SpdmMessageHeader::read(&mut reader).unwrap();
+            let session_count = context
+                .common
+                .session
+                .iter()
+                .filter(|s| s.get_session_id() != spdmlib::common::INVALID_SESSION_ID)
+                .count();
+
+            if psk_exchange_allowed {
+                assert!(status.is_ok());
+                assert_eq!(
+                    header.request_response_code,
+                    SpdmRequestResponseCode::SpdmResponsePskExchangeRsp
+                );
+                assert_eq!(session_count, 1);
+            } else {
+                assert!(status.is_err());
+                assert_eq!(
+                    header.request_response_code,
+                    SpdmRequestResponseCode::SpdmResponseError
+                );
+                let error = SpdmMessageGeneralPayload::read(&mut reader).unwrap();
+                assert_eq!(
+                    error.param1,
+                    SpdmErrorCode::SpdmErrorUnsupportedRequest.get_u8()
+                );
+                assert_eq!(session_count, 0);
+            }
+        }
     };
     executor::block_on(future);
 }

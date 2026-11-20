@@ -14,6 +14,7 @@ use crate::error::SPDM_STATUS_CRYPTO_ERROR;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::error::SPDM_STATUS_INVALID_STATE_PEER;
+use crate::error::SPDM_STATUS_UNSUPPORTED_CAP;
 use crate::message::*;
 use crate::protocol::*;
 use crate::responder::*;
@@ -59,6 +60,24 @@ impl ResponderContext {
                 Err(SPDM_STATUS_INVALID_STATE_PEER),
                 Some(writer.used_slice()),
             );
+        }
+        if !self
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITHOUT_CONTEXT)
+            && !self
+                .common
+                .negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::PSK_CAP_WITH_CONTEXT)
+        {
+            self.write_spdm_error(
+                SpdmErrorCode::SpdmErrorUnsupportedRequest,
+                SpdmRequestResponseCode::SpdmRequestPskExchange.get_u8(),
+                writer,
+            );
+            return (Err(SPDM_STATUS_UNSUPPORTED_CAP), Some(writer.used_slice()));
         }
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);

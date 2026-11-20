@@ -13,7 +13,7 @@ use crate::common::SpdmTransportEncap;
 use crate::crypto;
 use crate::error::{
     SpdmResult, SPDM_STATUS_BUFFER_FULL, SPDM_STATUS_CRYPTO_ERROR, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_STATE_LOCAL, SPDM_STATUS_INVALID_STATE_PEER,
+    SPDM_STATUS_INVALID_STATE_LOCAL, SPDM_STATUS_INVALID_STATE_PEER, SPDM_STATUS_UNSUPPORTED_CAP,
 };
 use crate::message::*;
 use crate::protocol::*;
@@ -59,6 +59,19 @@ impl ResponderContext {
                 Err(SPDM_STATUS_INVALID_STATE_PEER),
                 Some(writer.used_slice()),
             );
+        }
+        if !self
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .contains(SpdmResponseCapabilityFlags::KEY_EX_CAP)
+        {
+            self.write_spdm_error(
+                SpdmErrorCode::SpdmErrorUnsupportedRequest,
+                SpdmRequestResponseCode::SpdmRequestKeyExchange.get_u8(),
+                writer,
+            );
+            return (Err(SPDM_STATUS_UNSUPPORTED_CAP), Some(writer.used_slice()));
         }
         let mut reader = Reader::init(bytes);
         let message_header = SpdmMessageHeader::read(&mut reader);
