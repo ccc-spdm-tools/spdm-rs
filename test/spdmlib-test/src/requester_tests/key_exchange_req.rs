@@ -63,6 +63,8 @@ fn test_case0_send_receive_spdm_key_exchange() {
 
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        responder.common.negotiate_info.rsp_capabilities_sel |=
+            SpdmResponseCapabilityFlags::KEY_EX_CAP;
         responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
         responder.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
@@ -186,6 +188,8 @@ fn test_case1_send_receive_spdm_key_exchange() {
 
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
         responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
+        responder.common.negotiate_info.rsp_capabilities_sel |=
+            SpdmResponseCapabilityFlags::KEY_EX_CAP;
         responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1; // different dhe algo will cause key negotiate fail
         responder.common.negotiate_info.base_asym_sel =
             SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;

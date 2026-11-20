@@ -41,6 +41,8 @@ async fn fuzz_handle_spdm_key_exchange(data: Arc<Vec<u8>>) {
         context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
         context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_RSAPSS_2048;
         context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
+        context.common.negotiate_info.rsp_capabilities_sel |=
+            SpdmResponseCapabilityFlags::KEY_EX_CAP;
         context.common.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
@@ -93,7 +95,8 @@ async fn fuzz_handle_spdm_key_exchange(data: Arc<Vec<u8>>) {
         context.common.negotiate_info.req_capabilities_sel |= SpdmRequestCapabilityFlags::CERT_CAP
             | SpdmRequestCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
         context.common.negotiate_info.rsp_capabilities_sel |= SpdmResponseCapabilityFlags::CERT_CAP
-            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP;
+            | SpdmResponseCapabilityFlags::HANDSHAKE_IN_THE_CLEAR_CAP
+            | SpdmResponseCapabilityFlags::KEY_EX_CAP;
         context.common.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
@@ -145,7 +148,8 @@ async fn fuzz_handle_spdm_key_exchange(data: Arc<Vec<u8>>) {
         context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;
         context.common.negotiate_info.rsp_capabilities_sel |=
             SpdmResponseCapabilityFlags::MEAS_CAP_SIG
-                | SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG;
+                | SpdmResponseCapabilityFlags::MEAS_CAP_NO_SIG
+                | SpdmResponseCapabilityFlags::KEY_EX_CAP;
         context.common.provision_info.my_cert_chain = [
             Some(get_rsp_cert_chain_buff()),
             None,
