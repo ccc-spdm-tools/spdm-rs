@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::session::SpdmSession;
-use crate::common::{ManagedBuffer12Sign, SpdmCodec, SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
+#[cfg(feature = "hashed-transcript-data")]
+use crate::common::ManagedBuffer12Sign;
+use crate::common::{SpdmCodec, SpdmOpaqueStruct, MAX_SPDM_OPAQUE_SIZE};
 use crate::crypto;
 use crate::error::*;
 use crate::message::*;
@@ -409,7 +411,16 @@ impl ResponderContext {
                     .ok_or(SPDM_STATUS_INVALID_PARAMETER)?
                     .data_size as usize)]
         };
-        let mut transcript_sign = ManagedBuffer12Sign::default();
+        let mut transcript_sign = self.common.calc_rsp_transcript_data(
+            false,
+            true,
+            &session.runtime_info.message_k,
+            Some(&session.runtime_info.message_f),
+            session
+                .runtime_info
+                .vdm_message_transcript_before_finish
+                .as_ref(),
+        )?;
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
@@ -507,3 +518,7 @@ impl ResponderContext {
         res
     }
 }
+
+#[cfg(all(test, feature = "spdm-ring", not(feature = "hashed-transcript-data")))]
+#[path = "finish_rsp_test.rs"]
+mod finish_rsp_test;
