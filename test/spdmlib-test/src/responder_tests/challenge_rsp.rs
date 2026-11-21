@@ -317,3 +317,98 @@ fn test_case1_handle_spdm_challenge() {
         device_io::test_header_generater_callback
     ));
 }
+
+#[test]
+fn test_case2_handle_spdm_challenge_key_usage_mask() {
+    let future = async {
+        let (config_info, provision_info) = create_info();
+        let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+        let shared_buffer = SharedBuffer::new();
+        let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+            shared_buffer,
+        ))));
+
+        secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+        crypto::rand::register(FAKE_RAND.clone());
+
+        let mut context = responder::ResponderContext::new(
+            socket_io_transport,
+            pcidoe_transport_encap,
+            config_info,
+            provision_info,
+        );
+        context.common.provision_info.my_cert_chain[0] = Some(SpdmCertChainBuffer {
+            data_size: (4 + SPDM_MAX_HASH_SIZE + config::MAX_SPDM_CERT_CHAIN_DATA_SIZE) as u32,
+            ..Default::default()
+        });
+        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::CHAL_CAP;
+        context.common.negotiate_info.multi_key_conn_rsp = true;
+
+        let request = SpdmMessage {
+            header: SpdmMessageHeader {
+                version: SpdmVersion::SpdmVersion13,
+                request_response_code: SpdmRequestResponseCode::SpdmRequestChallenge,
+            },
+            payload: SpdmMessagePayload::SpdmChallengeRequest(SpdmChallengeRequestPayload {
+                slot_id: 0,
+                measurement_summary_hash_type:
+                    SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone,
+                nonce: SpdmNonceStruct {
+                    data: [100u8; SPDM_NONCE_SIZE],
+                },
+                context: SpdmChallengeContextStruct {
+                    data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
+                },
+            }),
+        };
+        let mut request_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut request_buffer);
+        let request_size = request
+            .spdm_encode(&mut context.common, &mut writer)
+            .unwrap();
+
+        // The slot 0 key is not provisioned for CHALLENGE.
+        context.common.provision_info.local_key_usage_bit_mask[0] = Some(
+            SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE
+                | SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE,
+        );
+        context
+            .common
+            .runtime_info
+            .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
+        let mut response_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut response_buffer);
+        let (status, response) =
+            context.handle_spdm_challenge(&request_buffer[..request_size], &mut writer);
+        let response = response.unwrap();
+        assert!(status.is_err());
+        assert_eq!(
+            response[1],
+            SpdmRequestResponseCode::SpdmResponseError.get_u8()
+        );
+        assert_eq!(response[2], SpdmErrorCode::SpdmErrorInvalidRequest.get_u8());
+
+        context.common.provision_info.local_key_usage_bit_mask[0] =
+            Some(SpdmKeyUsageMask::KEY_USAGE_MASK_CHALLENGE_USE);
+        context
+            .common
+            .runtime_info
+            .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
+        let mut response_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut response_buffer);
+        let (status, response) =
+            context.handle_spdm_challenge(&request_buffer[..request_size], &mut writer);
+        let response = response.unwrap();
+        assert!(status.is_ok());
+        assert_eq!(
+            response[1],
+            SpdmRequestResponseCode::SpdmResponseChallengeAuth.get_u8()
+        );
+    };
+    executor::block_on(future);
+}

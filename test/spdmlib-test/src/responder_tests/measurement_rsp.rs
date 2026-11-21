@@ -331,3 +331,102 @@ fn test_case2_handle_spdm_measurements() {
 
     test_handle_spdm_measurement_runner(get_measurement_msg, measurement_msg);
 }
+
+#[test]
+fn test_case3_handle_spdm_measurement_key_usage_mask() {
+    let future = async {
+        let (config_info, provision_info) = create_info();
+        let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
+        let shared_buffer = SharedBuffer::new();
+        let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
+            shared_buffer,
+        ))));
+        let mut context = responder::ResponderContext::new(
+            socket_io_transport,
+            pcidoe_transport_encap,
+            config_info,
+            provision_info,
+        );
+
+        secret::asym_sign::register(SECRET_ASYM_IMPL_INSTANCE.clone());
+        secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
+        secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
+        spdmlib::crypto::rand::register(crate::common::crypto_callback::FAKE_RAND.clone());
+
+        context.common.provision_info.my_cert_chain[0] = Some(SpdmCertChainBuffer {
+            data_size: (4 + SPDM_MAX_HASH_SIZE + spdmlib::config::MAX_SPDM_CERT_CHAIN_DATA_SIZE)
+                as u32,
+            ..Default::default()
+        });
+        context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
+        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.measurement_hash_sel =
+            SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
+        context.common.negotiate_info.measurement_specification_sel =
+            SpdmMeasurementSpecification::DMTF;
+        context.common.negotiate_info.rsp_capabilities_sel =
+            SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::MEAS_CAP_SIG;
+        context.common.negotiate_info.multi_key_conn_rsp = true;
+        context
+            .common
+            .runtime_info
+            .set_connection_state(SpdmConnectionState::SpdmConnectionNegotiated);
+
+        let request = SpdmMessage {
+            header: SpdmMessageHeader {
+                version: SpdmVersion::SpdmVersion13,
+                request_response_code: SpdmRequestResponseCode::SpdmRequestGetMeasurements,
+            },
+            payload: SpdmMessagePayload::SpdmGetMeasurementsRequest(
+                SpdmGetMeasurementsRequestPayload {
+                    measurement_attributes: SpdmMeasurementAttributes::SIGNATURE_REQUESTED,
+                    measurement_operation: SpdmMeasurementOperation::SpdmMeasurementRequestAll,
+                    nonce: SpdmNonceStruct {
+                        data: [100u8; SPDM_NONCE_SIZE],
+                    },
+                    slot_id: 0,
+                    context: SpdmMeasurementContextStruct {
+                        data: [100u8; SPDM_MEASUREMENTS_CONTEXT_SIZE],
+                    },
+                },
+            ),
+        };
+        let mut request_buffer = [0u8; MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut request_buffer);
+        let request_size = request
+            .spdm_encode(&mut context.common, &mut writer)
+            .unwrap();
+
+        // The slot 0 key is not provisioned for signing measurements.
+        context.common.provision_info.local_key_usage_bit_mask[0] = Some(
+            SpdmKeyUsageMask::KEY_USAGE_MASK_KEY_EX_USE
+                | SpdmKeyUsageMask::KEY_USAGE_MASK_CHALLENGE_USE,
+        );
+        let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut response_buffer);
+        let (status, response) =
+            context.handle_spdm_measurement(None, &request_buffer[..request_size], &mut writer);
+        let response = response.unwrap();
+        assert!(status.is_err());
+        assert_eq!(
+            response[1],
+            SpdmRequestResponseCode::SpdmResponseError.get_u8()
+        );
+        assert_eq!(response[2], SpdmErrorCode::SpdmErrorInvalidRequest.get_u8());
+
+        context.common.provision_info.local_key_usage_bit_mask[0] =
+            Some(SpdmKeyUsageMask::KEY_USAGE_MASK_MEASUREMENT_USE);
+        let mut response_buffer = [0u8; MAX_SPDM_MSG_SIZE];
+        let mut writer = Writer::init(&mut response_buffer);
+        let (status, response) =
+            context.handle_spdm_measurement(None, &request_buffer[..request_size], &mut writer);
+        let response = response.unwrap();
+        assert!(status.is_ok());
+        assert_eq!(
+            response[1],
+            SpdmRequestResponseCode::SpdmResponseMeasurements.get_u8()
+        );
+    };
+    executor::block_on(future);
+}
