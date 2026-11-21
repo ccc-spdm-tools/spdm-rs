@@ -373,7 +373,16 @@ impl RequesterContext {
     ) -> SpdmResult<SpdmSignatureStruct> {
         let transcript_data_hash = self.common.calc_req_transcript_hash(false, true, session)?;
 
-        let mut transcript_sign = ManagedBuffer12Sign::default();
+        let mut transcript_sign = self.common.calc_req_transcript_data(
+            false,
+            true,
+            &session.runtime_info.message_k,
+            Some(&session.runtime_info.message_f),
+            session
+                .runtime_info
+                .vdm_message_transcript_before_finish
+                .as_ref(),
+        )?;
         if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
             transcript_sign.reset_message();
             transcript_sign
