@@ -318,6 +318,19 @@ This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1
 | `SPDMRS_USE_PQC` | Set to `true` to enable PQC-only mode (ML-DSA-87 + ML-KEM-1024) |
 | `SPDMRS_USE_RAW_PUB_KEY` | Set to `true` to use raw public key (RFC 7250) instead of the default certificate chain |
 
+### Limit the sessions with the AEAD limit (DSP0277 1.3)
+A session ends when its sequence number reaches the AEAD limit, 2^`AeadLimitExponent`. The Requester
+and the Responder tell each other their limit in KEY_EXCHANGE and PSK_EXCHANGE, when they use Secured
+Message version 1.3, and the session gets the smaller one. By default the limit is 2^64.
+
+To ask for a smaller limit, set `SpdmConfigInfo.aead_limit_exponent`. In the emulators set the
+environment variable `SPDMRS_AEAD_LIMIT_EXPONENT` to a number from 0 to 64, for the requester, the
+responder, or both. A small value ends the sessions early:
+```
+SPDMRS_AEAD_LIMIT_EXPONENT=20 cargo run -p spdm-responder-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
+SPDMRS_AEAD_LIMIT_EXPONENT=20 cargo run -p spdm-requester-emu --no-default-features --features "spdm-ring,hashed-transcript-data,async-executor"
+```
+
 ### Cross test with [spdm_emu](https://github.com/DMTF/spdm-emu)
 Open one command windows in workspace and run:
 

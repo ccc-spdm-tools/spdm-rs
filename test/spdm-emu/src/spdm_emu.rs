@@ -96,6 +96,24 @@ pub fn use_supported_algos_ext_cap() -> bool {
         .unwrap_or(false)
 }
 
+/// The AEAD limit (DSP0277 1.3) that this endpoint asks for in KEY_EXCHANGE and PSK_EXCHANGE:
+/// a session ends when its sequence number reaches 2^exponent. The Requester and the
+/// Responder use the smaller one of their limits.
+/// SPDMRS_AEAD_LIMIT_EXPONENT=<0 to 64> -> asks for that limit, so a small value ends sessions early
+/// SPDMRS_AEAD_LIMIT_EXPONENT=0 or 64 or unset -> the default limit, 2^64
+pub fn aead_limit_exponent() -> u8 {
+    match std::env::var("SPDMRS_AEAD_LIMIT_EXPONENT") {
+        Ok(value) => match value.parse::<u8>() {
+            Ok(exponent) if exponent <= 64 => exponent,
+            _ => panic!(
+                "SPDMRS_AEAD_LIMIT_EXPONENT must be a number from 0 to 64, not {:?}",
+                value
+            ),
+        },
+        Err(_) => 0,
+    }
+}
+
 #[derive(Debug, Copy, Clone, Default)]
 pub struct SpdmSocketHeader {
     pub command: u32,
