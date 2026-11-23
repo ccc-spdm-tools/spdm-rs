@@ -45,6 +45,8 @@ mod heartbeat_req;
 
 mod key_exchange_req;
 
+mod key_update_failure_req;
+
 mod key_update_req;
 
 mod negotiate_algorithms_req;
