@@ -1,10 +1,10 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::error::{
-    SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
-    SPDM_STATUS_INVALID_PARAMETER,
+    SpdmResult, SPDM_STATUS_BUSY_PEER, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_MSG_FIELD,
+    SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_NOT_READY_PEER,
 };
 use crate::message::*;
 use crate::requester::*;
@@ -166,6 +166,27 @@ impl RequesterContext {
         {
             return Err(SPDM_STATUS_INVALID_MSG_FIELD);
         }
+
+        let result = self.key_update_flow(session_id, key_update_operation).await;
+
+        // A failed key update ends the session. A peer that is Busy or NotReady is not a
+        // failure: the session stays open and the caller can retry.
+        if let Err(e) = &result {
+            if *e != SPDM_STATUS_BUSY_PEER && *e != SPDM_STATUS_NOT_READY_PEER {
+                if let Some(session) = self.common.get_session_via_id(session_id) {
+                    session.teardown();
+                }
+            }
+        }
+        result
+    }
+
+    #[maybe_async::maybe_async]
+    async fn key_update_flow(
+        &mut self,
+        session_id: u32,
+        key_update_operation: SpdmKeyUpdateOperation,
+    ) -> SpdmResult {
         self.send_spdm_key_update(session_id, key_update_operation, 1)
             .await?;
         self.receive_spdm_key_update(session_id, key_update_operation)
