@@ -1,9 +1,10 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::SpdmCodec;
 use crate::error::SpdmResult;
+use crate::error::SPDM_STATUS_CRYPTO_ERROR;
 use crate::error::SPDM_STATUS_INVALID_MSG_FIELD;
 use crate::error::SPDM_STATUS_INVALID_STATE_LOCAL;
 use crate::message::*;
@@ -71,16 +72,17 @@ impl ResponderContext {
                 Some(writer.used_slice()),
             );
         };
-        match key_update_req.key_update_operation {
+        let updated = match key_update_req.key_update_operation {
             SpdmKeyUpdateOperation::SpdmUpdateSingleKey => {
-                let _ = session.create_data_secret_update(spdm_version_sel, true, false);
+                session.create_data_secret_update(spdm_version_sel, true, false)
             }
-            SpdmKeyUpdateOperation::SpdmUpdateAllKeys => {
-                let _ = session.create_data_secret_update(spdm_version_sel, true, true);
-                let _ = session.activate_data_secret_update(spdm_version_sel, false, true, true);
-            }
+            SpdmKeyUpdateOperation::SpdmUpdateAllKeys => session
+                .create_data_secret_update(spdm_version_sel, true, true)
+                .and_then(|_| {
+                    session.activate_data_secret_update(spdm_version_sel, false, true, true)
+                }),
             SpdmKeyUpdateOperation::SpdmVerifyNewKey => {
-                let _ = session.activate_data_secret_update(spdm_version_sel, true, false, true);
+                session.activate_data_secret_update(spdm_version_sel, true, false, true)
             }
             _ => {
                 error!("!!! key_update req : fail !!!\n");
@@ -90,6 +92,14 @@ impl ResponderContext {
                     Some(writer.used_slice()),
                 );
             }
+        };
+        if updated.is_err() {
+            error!("!!! key_update : key derivation fail !!!\n");
+            // Go back to the old keys, so that the error response can still be sent
+            // with them. The caller ends the session after the response is sent.
+            let _ = session.activate_data_secret_update(spdm_version_sel, true, true, false);
+            self.write_spdm_error(SpdmErrorCode::SpdmErrorUnspecified, 0, writer);
+            return (Err(SPDM_STATUS_CRYPTO_ERROR), Some(writer.used_slice()));
         }
 
         info!("send spdm key_update rsp\n");

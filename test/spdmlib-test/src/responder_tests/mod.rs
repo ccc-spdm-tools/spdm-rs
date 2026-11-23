@@ -42,6 +42,8 @@ mod heartbeat_rsp;
 
 mod key_exchange_rsp;
 
+mod key_update_failure_rsp;
+
 mod key_update_rsp;
 
 mod measurement_rsp;

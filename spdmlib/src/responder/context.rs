@@ -424,7 +424,13 @@ impl ResponderContext {
                                     &spdm_buffer[0..decode_size],
                                     &mut writer,
                                 );
-                                if let Some(send_buffer) = send_buffer {
+                                // A failed key update ends the session, once the error
+                                // response is sent with the keys that are still valid.
+                                let key_update_failed = decode_size > 1
+                                    && spdm_buffer[1]
+                                        == SpdmRequestResponseCode::SpdmRequestKeyUpdate.get_u8()
+                                    && status == Err(SPDM_STATUS_CRYPTO_ERROR);
+                                let result = if let Some(send_buffer) = send_buffer {
                                     if let Err(err) = self
                                         .send_message(Some(session_id), send_buffer, false)
                                         .await
@@ -435,7 +441,15 @@ impl ResponderContext {
                                     }
                                 } else {
                                     Ok(status)
+                                };
+                                if key_update_failed {
+                                    if let Some(session) =
+                                        self.common.get_session_via_id(session_id)
+                                    {
+                                        session.teardown();
+                                    }
                                 }
+                                result
                             } else {
                                 let (status, send_buffer) = self.dispatch_secured_app_message(
                                     session_id,
