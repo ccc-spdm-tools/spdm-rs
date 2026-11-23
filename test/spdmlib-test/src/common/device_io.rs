@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Intel Corporation
+// Copyright (c) 2023, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
@@ -190,6 +190,11 @@ impl SharedBuffer {
         SharedBuffer {
             queue: Arc::new(Mutex::new(VecDeque::<u8>::new())),
         }
+    }
+
+    /// The bytes that went through and were not taken, without taking them.
+    pub fn contents(&self) -> Vec<u8> {
+        self.queue.lock().iter().copied().collect()
     }
 
     pub fn set_buffer_ref(&self, b: Arc<&[u8]>) {

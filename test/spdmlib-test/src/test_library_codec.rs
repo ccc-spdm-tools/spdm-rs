@@ -49,6 +49,7 @@ fn test_spdm_config_info_codec() {
         pqc_req_asym_algo: SpdmPqcReqAsymAlgo::ALG_MLDSA_87,
         kem_algo: SpdmKemAlgo::ALG_MLKEM_1024,
         supported_algos_ext_cap: true,
+        aead_limit_exponent: 40,
     };
 
     // Test round-trip encoding/decoding
