@@ -443,6 +443,20 @@ pub struct SpdmSession {
     th2: SpdmDigestStruct,
     pub heartbeat_period: u8, // valid only when HEARTBEAT cap set
     pub secure_spdm_version_sel: SecuredMessageVersion,
+    // The largest sequence number the session may use, which is its AEAD limit
+    // (DSP0277 1.3) minus one. It is u64::MAX unless a smaller AEAD limit was agreed.
+    max_sequence_number: u64,
+}
+
+/// The largest sequence number an AEAD limit of 2^`exponent` allows (DSP0277 1.3).
+/// An exponent of 64 or more is the default limit, where the all-ones value is also
+/// refused, so that the sequence number can never wrap.
+pub fn aead_limit_exponent_to_max_sequence_number(exponent: u8) -> u64 {
+    if exponent >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << exponent) - 1
+    }
 }
 
 impl Default for SpdmSession {
@@ -472,6 +486,7 @@ impl Codec for SpdmSession {
         size += self.th2.encode(writer)?;
         size += self.heartbeat_period.encode(writer)?;
         size += self.secure_spdm_version_sel.encode(writer)?;
+        size += self.max_sequence_number.encode(writer)?;
         Ok(size)
     }
 
@@ -495,6 +510,7 @@ impl Codec for SpdmSession {
             th2: SpdmDigestStruct::read(reader)?,
             heartbeat_period: u8::read(reader)?,
             secure_spdm_version_sel: SecuredMessageVersion::read(reader)?,
+            max_sequence_number: u64::read(reader)?,
         })
     }
 }
@@ -520,7 +536,19 @@ impl SpdmSession {
             heartbeat_period: 0,
             secure_spdm_version_sel: SecuredMessageVersion::default(),
             mut_auth_requested: SpdmKeyExchangeMutAuthAttributes::default(),
+            max_sequence_number: u64::MAX,
         }
+    }
+
+    /// Limit the session to an AEAD limit of 2^`exponent` (DSP0277 1.3). Sending or
+    /// receiving a Secured Message at the limit ends the session, like a sequence
+    /// number overflow.
+    pub fn set_aead_limit_exponent(&mut self, exponent: u8) {
+        self.max_sequence_number = aead_limit_exponent_to_max_sequence_number(exponent);
+    }
+
+    pub fn get_max_sequence_number(&self) -> u64 {
+        self.max_sequence_number
     }
 
     pub fn set_request_direction_sequence_number(&mut self, seq: u64) {
@@ -566,6 +594,7 @@ impl SpdmSession {
         self.requester_backup_valid = false;
         self.th1 = SpdmDigestStruct::default();
         self.th2 = SpdmDigestStruct::default();
+        self.max_sequence_number = u64::MAX;
     }
 
     pub fn get_session_id(&self) -> u32 {
@@ -1354,7 +1383,10 @@ impl SpdmSession {
         let app_length = app_buffer.len() as u16;
         let length = cipher_text_size as u16 + tag_size as u16;
 
-        if secret_param.sequence_number == 0xFFFFFFFFFFFFFFFFu64 {
+        // The AEAD limit, or the all-ones value, which is never used.
+        if secret_param.sequence_number > self.max_sequence_number
+            || secret_param.sequence_number == u64::MAX
+        {
             return Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW);
         }
 
@@ -1427,7 +1459,10 @@ impl SpdmSession {
         let transport_param = &self.transport_param;
         let tag_size = aead_algo.get_tag_size() as usize;
 
-        if secret_param.sequence_number == 0xFFFFFFFFFFFFFFFFu64 {
+        // The AEAD limit, or the all-ones value, which is never used.
+        if secret_param.sequence_number > self.max_sequence_number
+            || secret_param.sequence_number == u64::MAX
+        {
             return Err(SPDM_STATUS_SEQUENCE_NUMBER_OVERFLOW);
         }
 
@@ -1915,5 +1950,163 @@ mod tests_session {
         };
         session.teardown();
         assert!(session.session_id != 0x0f0f0f0fu32);
+    }
+
+    // An established session, with data secrets, that can send and receive.
+    fn established_session() -> SpdmSession {
+        let mut session = SpdmSession::default();
+        session.setup(0xFFFFFFFDu32).unwrap();
+        session.set_crypto_param(
+            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+            SpdmDheAlgo::SECP_384_R1,
+            SpdmKemAlgo::empty(),
+            SpdmAeadAlgo::AES_256_GCM,
+            SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
+        );
+        session.set_session_state(SpdmSessionState::SpdmSessionHandshaking);
+        let th = SpdmDigestStruct {
+            data_size: 5,
+            data: Box::new([100u8; SPDM_MAX_HASH_SIZE]),
+        };
+        let shared_secret = SpdmSharedSecretFinalKeyStruct {
+            data_size: 5,
+            data: Box::new([100u8; SPDM_MAX_SHARED_SECRET_SIZE]),
+        };
+        session
+            .set_shared_secret(SpdmVersion::SpdmVersion12, shared_secret)
+            .unwrap();
+        session
+            .generate_handshake_secret(SpdmVersion::SpdmVersion12, &th)
+            .unwrap();
+        session
+            .generate_data_secret(SpdmVersion::SpdmVersion12, &th)
+            .unwrap();
+        session.set_session_state(SpdmSessionState::SpdmSessionEstablished);
+        session
+    }
+
+    #[test]
+    fn test_aead_limit_exponent_to_max_sequence_number() {
+        assert_eq!(aead_limit_exponent_to_max_sequence_number(0), 0);
+        assert_eq!(aead_limit_exponent_to_max_sequence_number(3), 7);
+        assert_eq!(aead_limit_exponent_to_max_sequence_number(32), 0xFFFF_FFFF);
+        assert_eq!(
+            aead_limit_exponent_to_max_sequence_number(63),
+            0x7FFF_FFFF_FFFF_FFFF
+        );
+        // The default limit of 2^64, and anything above it.
+        assert_eq!(aead_limit_exponent_to_max_sequence_number(64), u64::MAX);
+        assert_eq!(aead_limit_exponent_to_max_sequence_number(255), u64::MAX);
+
+        let mut session = SpdmSession::default();
+        assert_eq!(session.get_max_sequence_number(), u64::MAX);
+        session.set_aead_limit_exponent(4);
+        assert_eq!(session.get_max_sequence_number(), 15);
+        // The limit does not survive the end of the session.
+        session.teardown();
+        assert_eq!(session.get_max_sequence_number(), u64::MAX);
+    }
+
+    #[test]
+    fn test_aead_limit_encode() {
+        let mut session = established_session();
+        let send_buffer = [100u8; 64];
+        let mut encoded = [0u8; config::SENDER_BUFFER_SIZE];
+
+        // An AEAD limit of 2^3 allows the sequence numbers 0 to 7.
+        session.set_aead_limit_exponent(3);
+        session.set_request_direction_sequence_number(7);
+        assert!(session
+            .encode_spdm_secured_message(&send_buffer, &mut encoded, true)
+            .is_ok());
+        assert_eq!(session.get_request_direction_sequence_number(), 8);
+
+        // The limit is reached, so the session ends.
+        let r = session.encode_spdm_secured_message(&send_buffer, &mut encoded, true);
+        assert_eq!(
+            r.unwrap_err().status_code,
+            crate::error::StatusCode::CRYPTO(StatusCodeCrypto::SEQUENCE_NUMBER_OVERFLOW)
+        );
+        assert_eq!(session.get_session_id(), INVALID_SESSION_ID);
+        assert_eq!(
+            session.get_session_state(),
+            SpdmSessionState::SpdmSessionNotStarted
+        );
+    }
+
+    #[test]
+    fn test_aead_limit_encode_response_direction() {
+        let mut session = established_session();
+        let send_buffer = [100u8; 64];
+        let mut encoded = [0u8; config::SENDER_BUFFER_SIZE];
+
+        session.set_aead_limit_exponent(3);
+        session.set_response_direction_sequence_number(7);
+        assert!(session
+            .encode_spdm_secured_message(&send_buffer, &mut encoded, false)
+            .is_ok());
+        assert!(session
+            .encode_spdm_secured_message(&send_buffer, &mut encoded, false)
+            .is_err());
+        assert_eq!(session.get_session_id(), INVALID_SESSION_ID);
+    }
+
+    #[test]
+    fn test_aead_limit_decode() {
+        let mut session = established_session();
+        let send_buffer = [100u8; 64];
+        let mut encoded = [0u8; config::SENDER_BUFFER_SIZE];
+        let mut decoded = [0u8; config::SENDER_BUFFER_SIZE];
+
+        // The last message that the AEAD limit of 2^3 allows.
+        session.set_aead_limit_exponent(3);
+        session.set_request_direction_sequence_number(7);
+        let size = session
+            .encode_spdm_secured_message(&send_buffer, &mut encoded, true)
+            .unwrap();
+        session.set_request_direction_sequence_number(7);
+        assert_eq!(
+            session
+                .decode_spdm_secured_message(&encoded[..size], &mut decoded, true)
+                .unwrap(),
+            send_buffer.len()
+        );
+        assert_eq!(session.get_request_direction_sequence_number(), 8);
+
+        // A message at the limit is refused, and the session ends.
+        let r = session.decode_spdm_secured_message(&encoded[..size], &mut decoded, true);
+        assert_eq!(
+            r.unwrap_err().status_code,
+            crate::error::StatusCode::CRYPTO(StatusCodeCrypto::SEQUENCE_NUMBER_OVERFLOW)
+        );
+        assert_eq!(session.get_session_id(), INVALID_SESSION_ID);
+    }
+
+    #[test]
+    fn test_default_aead_limit_allows_up_to_the_all_ones_value() {
+        let mut session = established_session();
+        let send_buffer = [100u8; 64];
+        let mut encoded = [0u8; config::SENDER_BUFFER_SIZE];
+
+        session.set_request_direction_sequence_number(u64::MAX - 1);
+        assert!(session
+            .encode_spdm_secured_message(&send_buffer, &mut encoded, true)
+            .is_ok());
+        assert!(session
+            .encode_spdm_secured_message(&send_buffer, &mut encoded, true)
+            .is_err());
+    }
+
+    #[test]
+    fn test_max_sequence_number_codec() {
+        let mut session = SpdmSession::default();
+        session.set_aead_limit_exponent(20);
+
+        let mut buffer = [0u8; 4096];
+        let mut writer = Writer::init(&mut buffer);
+        let size = session.encode(&mut writer).unwrap();
+        let decoded = SpdmSession::read(&mut Reader::init(&buffer[..size])).unwrap();
+        assert_eq!(decoded.get_max_sequence_number(), (1u64 << 20) - 1);
+        assert_eq!(decoded, session);
     }
 }
