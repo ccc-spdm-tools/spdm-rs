@@ -1,23 +1,20 @@
-// Copyright (c) 2022 Intel Corporation
+// Copyright (c) 2022, 2026 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use codec::{Codec, Reader};
 
+use crate::common::SpdmConnectionState;
 use crate::error::{
     SpdmResult, SpdmStatus, SPDM_STATUS_BUSY_PEER, SPDM_STATUS_ERROR_PEER,
-    SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_INVALID_STATE_PEER,
-    SPDM_STATUS_NOT_READY_PEER, SPDM_STATUS_SESSION_MSG_ERROR,
+    SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_PARAMETER, SPDM_STATUS_NOT_READY_PEER,
+    SPDM_STATUS_RESYNCH_PEER, SPDM_STATUS_SESSION_MSG_ERROR,
 };
 use crate::message::*;
 use crate::requester::RequesterContext;
 
 impl RequesterContext {
-    fn spdm_handle_simple_error_response(
-        &mut self,
-        session_id: Option<u32>,
-        error_code: u8,
-    ) -> SpdmResult {
+    fn spdm_handle_simple_error_response(&mut self, error_code: u8) -> SpdmResult {
         /* NOT_READY is treated as error here.
          * Use spdm_handle_error_response_main to handle NOT_READY message in long latency command.*/
         if error_code == SpdmErrorCode::SpdmErrorResponseNotReady.get_u8() {
@@ -25,15 +22,11 @@ impl RequesterContext {
         } else if error_code == SpdmErrorCode::SpdmErrorBusy.get_u8() {
             Err(SPDM_STATUS_BUSY_PEER)
         } else if error_code == SpdmErrorCode::SpdmErrorRequestResynch.get_u8() {
-            if let Some(sid) = session_id {
-                let session = if let Some(s) = self.common.get_session_via_id(sid) {
-                    s
-                } else {
-                    return Err(SPDM_STATUS_INVALID_PARAMETER);
-                };
-                session.teardown();
-            }
-            Err(SPDM_STATUS_INVALID_STATE_PEER)
+            // GET_VERSION must follow; keep the sessions so the caller decides when to end them.
+            self.common
+                .runtime_info
+                .set_connection_state(SpdmConnectionState::SpdmConnectionNotStarted);
+            Err(SPDM_STATUS_RESYNCH_PEER)
         } else {
             Err(SPDM_STATUS_ERROR_PEER)
         }
@@ -83,12 +76,11 @@ impl RequesterContext {
             }
             spdm_status = SPDM_STATUS_SESSION_MSG_ERROR;
         } else {
-            spdm_status = match self
-                .spdm_handle_simple_error_response(session_id, spdm_message_general_payload.param1)
-            {
-                Err(e) => e,
-                _ => SPDM_STATUS_ERROR_PEER,
-            }
+            spdm_status =
+                match self.spdm_handle_simple_error_response(spdm_message_general_payload.param1) {
+                    Err(e) => e,
+                    _ => SPDM_STATUS_ERROR_PEER,
+                }
         }
 
         spdm_status.spdm_status_set_error_data(response);
