@@ -51,4 +51,6 @@ mod psk_exchange_req;
 
 mod psk_finish_req;
 
+mod request_resynch_req;
+
 mod vendor_req;
