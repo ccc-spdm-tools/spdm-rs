@@ -4,6 +4,8 @@
 
 #![forbid(unsafe_code)]
 
+mod aead_limit_req;
+
 mod challenge_req;
 
 #[cfg(feature = "chunk-cap")]

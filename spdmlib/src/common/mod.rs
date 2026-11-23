@@ -1494,6 +1494,9 @@ pub struct SpdmConfigInfo {
     pub kem_algo: SpdmKemAlgo,                   // spdm 1.4
     // spdm 1.3: requester asks for SupportedAlgorithms in GET_CAPABILITIES (needs CHUNK_CAP).
     pub supported_algos_ext_cap: bool,
+    // DSP0277 1.3: this endpoint ends a session when its sequence number reaches the AEAD
+    // limit 2^aead_limit_exponent. 0 (or more than 64) is the default, 64.
+    pub aead_limit_exponent: u8,
 }
 
 impl Codec for SpdmConfigInfo {
@@ -1536,6 +1539,7 @@ impl Codec for SpdmConfigInfo {
         size += self.pqc_req_asym_algo.encode(writer)?;
         size += self.kem_algo.encode(writer)?;
         size += (self.supported_algos_ext_cap as u8).encode(writer)?;
+        size += self.aead_limit_exponent.encode(writer)?;
         Ok(size)
     }
 
@@ -1582,6 +1586,7 @@ impl Codec for SpdmConfigInfo {
         let pqc_req_asym_algo = SpdmPqcReqAsymAlgo::read(reader)?;
         let kem_algo = SpdmKemAlgo::read(reader)?;
         let supported_algos_ext_cap = u8::read(reader)? != 0;
+        let aead_limit_exponent = u8::read(reader)?;
 
         Some(Self {
             spdm_version,
@@ -1609,6 +1614,7 @@ impl Codec for SpdmConfigInfo {
             pqc_req_asym_algo,
             kem_algo,
             supported_algos_ext_cap,
+            aead_limit_exponent,
         })
     }
 }

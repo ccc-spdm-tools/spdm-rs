@@ -126,12 +126,16 @@ impl RequesterContext {
             secured_message_version_list.version_count += 1;
         }
 
-        let opaque = SpdmOpaqueStruct::from_sm_supported_ver_list_opaque(
+        let mut opaque = SpdmOpaqueStruct::from_sm_supported_ver_list_opaque(
             &mut self.common,
             &SMSupportedVerListOpaque {
                 secured_message_version_list,
             },
         )?;
+        // DSP0277 1.3: tell the Responder the AEAD limit of this endpoint.
+        if self.common.supports_aead_limit() {
+            self.common.advertise_aead_limit(&mut opaque)?;
+        }
 
         let request = SpdmMessage {
             header: SpdmMessageHeader {
@@ -205,6 +209,20 @@ impl RequesterContext {
                                 .opaque
                                 .req_get_dmtf_secure_spdm_version_selection(&mut self.common)
                                 .ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
+
+                            // DSP0277 1.3: the session ends at the smaller AEAD limit of the
+                            // Requester and the Responder.
+                            let aead_limit_exponent =
+                                if secured_message_version_has_aead_limit(&secure_spdm_version_sel)
+                                {
+                                    let peer_exponent = psk_exchange_rsp
+                                        .opaque
+                                        .get_aead_limit_exponent(&self.common)
+                                        .map_err(|_| SPDM_STATUS_INVALID_MSG_FIELD)?;
+                                    Some(self.common.session_aead_limit_exponent(peer_exponent))
+                                } else {
+                                    None
+                                };
 
                             let session_id = ((psk_exchange_rsp.rsp_session_id as u32) << 16)
                                 + half_session_id as u32;
@@ -347,6 +365,9 @@ impl RequesterContext {
                                 .get_session_via_id(session_id)
                                 .ok_or(SPDM_STATUS_INVALID_STATE_LOCAL)?;
                             session.secure_spdm_version_sel = secure_spdm_version_sel;
+                            if let Some(exponent) = aead_limit_exponent {
+                                session.set_aead_limit_exponent(exponent);
+                            }
                             session.heartbeat_period = psk_exchange_rsp.heartbeat_period;
 
                             Ok(session_id)

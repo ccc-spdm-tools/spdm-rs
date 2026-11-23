@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use crate::common::opaque::SpdmOpaqueStruct;
-use crate::common::SMVersionSelOpaque;
 use crate::common::SecuredMessageVersion;
 use crate::common::SpdmCodec;
 use crate::common::SpdmConnectionState;
 use crate::common::SpdmTransportEncap;
+use crate::common::{secured_message_version_has_aead_limit, SMVersionSelOpaque};
 use crate::crypto;
 use crate::error::SpdmResult;
 use crate::error::SPDM_STATUS_CRYPTO_ERROR;
@@ -111,6 +111,8 @@ impl ResponderContext {
             SpdmPskExchangeRequestPayload::spdm_read(&mut self.common, &mut reader);
 
         let mut return_opaque = SpdmOpaqueStruct::default();
+        let mut selected_secure_version: Option<SecuredMessageVersion> = None;
+        let mut aead_limit_exponent: Option<u8> = None;
 
         let measurement_summary_hash;
         let psk_hint;
@@ -180,6 +182,39 @@ impl ResponderContext {
                         },
                     ) {
                         return_opaque = opaque;
+                        selected_secure_version = Some(selected_version);
+
+                        // DSP0277 1.3: the session ends at the smaller AEAD limit of the
+                        // Requester and the Responder.
+                        if secured_message_version_has_aead_limit(&selected_version) {
+                            let peer_exponent = match psk_exchange_req
+                                .opaque
+                                .get_aead_limit_exponent(&self.common)
+                            {
+                                Ok(peer_exponent) => peer_exponent,
+                                Err(_) => {
+                                    self.write_spdm_error(
+                                        SpdmErrorCode::SpdmErrorInvalidRequest,
+                                        0,
+                                        writer,
+                                    );
+                                    return (
+                                        Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                                        Some(writer.used_slice()),
+                                    );
+                                }
+                            };
+                            if let Err(e) = self.common.advertise_aead_limit(&mut return_opaque) {
+                                self.write_spdm_error(
+                                    SpdmErrorCode::SpdmErrorUnspecified,
+                                    0,
+                                    writer,
+                                );
+                                return (Err(e), Some(writer.used_slice()));
+                            }
+                            aead_limit_exponent =
+                                Some(self.common.session_aead_limit_exponent(peer_exponent));
+                        }
                     } else {
                         self.write_spdm_error(
                             SpdmErrorCode::SpdmErrorUnsupportedRequest,
@@ -519,18 +554,20 @@ impl ResponderContext {
             );
         };
         session.heartbeat_period = heartbeat_period;
-        if return_opaque.data_size != 0 {
-            session.secure_spdm_version_sel = if let Ok(ssvs) = SecuredMessageVersion::try_from(
-                return_opaque.data[return_opaque.data_size as usize - 1],
-            ) {
-                ssvs
-            } else {
-                self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
-                return (
-                    Err(SPDM_STATUS_INVALID_MSG_FIELD),
-                    Some(writer.used_slice()),
-                );
-            };
+        if let Some(selected_version) = selected_secure_version {
+            session.secure_spdm_version_sel =
+                if let Ok(ssvs) = SecuredMessageVersion::try_from(u8::from(&selected_version)) {
+                    ssvs
+                } else {
+                    self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                    return (
+                        Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                        Some(writer.used_slice()),
+                    );
+                };
+            if let Some(exponent) = aead_limit_exponent {
+                session.set_aead_limit_exponent(exponent);
+            }
         }
 
         (Ok(()), Some(writer.used_slice()))

@@ -18,6 +18,9 @@ mod test_library_codec;
 mod test_secured_message_version;
 
 #[cfg(test)]
+mod test_opaque_aead_limit;
+
+#[cfg(test)]
 mod requester_tests;
 
 #[cfg(test)]

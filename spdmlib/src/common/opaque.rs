@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
 use super::*;
-use crate::error::{SpdmStatus, SPDM_STATUS_UNSUPPORTED_CAP};
+use crate::error::{SpdmStatus, SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_UNSUPPORTED_CAP};
 use codec::u24;
 
 /// This is used in SpdmOpaqueStruct <- SpdmChallengeAuthResponsePayload / SpdmMeasurementsResponsePayload
@@ -20,6 +20,11 @@ pub const DMTF_VENDOR_LEN: u8 = 0x00;
 pub const OPAQUE_LIST_TOTAL_ELEMENTS: u8 = 0x01;
 pub const VERSION_SELECTION_SM_DATA_ID: u8 = 0x00;
 pub const SUPPORTED_VERSION_LIST_SM_DATA_ID: u8 = 0x01;
+pub const AEAD_LIMIT_SM_DATA_ID: u8 = 0x02;
+
+/// DSP0277 1.3: the AEAD limit exponent when the AEAD limit data is absent. The AEAD
+/// limit is 2^exponent, and the exponent shall not exceed this value.
+pub const AEAD_LIMIT_EXPONENT_DEFAULT: u8 = 64;
 
 pub const DMTF_SECURE_SPDM_VERSION_10: u8 = 0x10;
 pub const DMTF_SECURE_SPDM_VERSION_11: u8 = 0x11;
@@ -107,6 +112,7 @@ impl SpdmCodec for FM1OpaqueDataHeader {
 pub enum SMDataId {
     VersionSelectionSmDataId,
     SupportedVersionList,
+    AeadLimit,
 }
 
 impl From<SMDataId> for u8 {
@@ -114,6 +120,7 @@ impl From<SMDataId> for u8 {
         match id {
             SMDataId::VersionSelectionSmDataId => 0,
             SMDataId::SupportedVersionList => 1,
+            SMDataId::AeadLimit => 2,
         }
     }
 }
@@ -130,6 +137,7 @@ impl TryFrom<u8> for SMDataId {
         match untrusted {
             0 => Ok(Self::VersionSelectionSmDataId),
             1 => Ok(Self::SupportedVersionList),
+            2 => Ok(Self::AeadLimit),
             _ => Err(()),
         }
     }
@@ -633,4 +641,209 @@ impl SpdmOpaqueStruct {
         }
         Some(selected)
     }
+}
+
+/// Where the header of general opaque data ends, and where it counts its elements.
+struct OpaqueLayout {
+    header_size: usize,
+    total_elements_index: usize,
+}
+
+impl OpaqueLayout {
+    // The header is the OpaqueDataFmt1 one from SPDM 1.2 on, the general one before.
+    fn of(context: &SpdmContext) -> Option<Self> {
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+            if context
+                .negotiate_info
+                .other_params_support
+                .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1)
+            {
+                Some(Self {
+                    header_size: 4,
+                    total_elements_index: 0,
+                })
+            } else {
+                None
+            }
+        } else {
+            Some(Self {
+                header_size: 8,
+                total_elements_index: 5,
+            })
+        }
+    }
+
+    // Check the header and return the number of elements.
+    fn total_elements(&self, context: &SpdmContext, data: &[u8]) -> Option<u8> {
+        let mut reader = Reader::init(data);
+        if context.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+            FM1OpaqueDataHeader::read(&mut reader)?;
+        } else {
+            GeneralOpaqueDataHeader::read(&mut reader)?;
+        }
+        data.get(self.total_elements_index).copied()
+    }
+}
+
+/// An element of general opaque data: ID, VendorLen, VendorID, OpaqueElementDataLen,
+/// OpaqueElementData, then padding to a multiple of 4 bytes.
+struct OpaqueElement<'a> {
+    id: u8,
+    vendor_len: u8,
+    data: &'a [u8],
+    // The offset after the element, with its padding.
+    end: usize,
+}
+
+fn read_opaque_element(data: &[u8], offset: usize) -> Option<OpaqueElement<'_>> {
+    let id = *data.get(offset)?;
+    let vendor_len = *data.get(offset.checked_add(1)?)?;
+    let len_offset = offset.checked_add(2)?.checked_add(vendor_len as usize)?;
+    let len = u16::from_le_bytes([
+        *data.get(len_offset)?,
+        *data.get(len_offset.checked_add(1)?)?,
+    ]) as usize;
+    let data_offset = len_offset.checked_add(2)?;
+    let data_end = data_offset.checked_add(len)?;
+    let element_data = data.get(data_offset..data_end)?;
+    let end = offset.checked_add((data_end - offset).checked_add(3)? & !3)?;
+    Some(OpaqueElement {
+        id,
+        vendor_len,
+        data: element_data,
+        end,
+    })
+}
+
+// The Secured Message data (SMData) of the first element with this SMDataID.
+fn find_sm_data<'a>(
+    context: &SpdmContext,
+    layout: &OpaqueLayout,
+    data: &'a [u8],
+    sm_data_id: u8,
+) -> SpdmResult<Option<&'a [u8]>> {
+    let total_elements = layout
+        .total_elements(context, data)
+        .ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
+    let mut offset = layout.header_size;
+    for _ in 0..total_elements {
+        let element = read_opaque_element(data, offset).ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
+        if element.id == DMTF_ID
+            && element.vendor_len == DMTF_VENDOR_LEN
+            && element.data.len() >= 2
+            && element.data[0] == SM_DATA_VERSION
+            && element.data[1] == sm_data_id
+        {
+            return Ok(Some(&element.data[2..]));
+        }
+        // The padding of the last element may be missing.
+        offset = element.end.min(data.len());
+    }
+    Ok(None)
+}
+
+impl SpdmOpaqueStruct {
+    /// DSP0277 1.3: append the AEAD limit data (AEADlimitOE) to opaque data that already
+    /// holds the version selection or the supported version list.
+    pub fn append_aead_limit(&mut self, context: &SpdmContext, exponent: u8) -> SpdmResult {
+        if exponent > AEAD_LIMIT_EXPONENT_DEFAULT {
+            return Err(SPDM_STATUS_INVALID_PARAMETER);
+        }
+        let layout = OpaqueLayout::of(context).ok_or(SPDM_STATUS_UNSUPPORTED_CAP)?;
+
+        let data_size = self.data_size as usize;
+        let data = &self.data[..data_size];
+        let total_elements = layout
+            .total_elements(context, data)
+            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+        // The new element goes at the aligned end of the last one. That is after the data when
+        // the last element does not have all of its padding.
+        let mut end = layout.header_size;
+        for _ in 0..total_elements {
+            let element = read_opaque_element(data, end).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            end = element.end;
+        }
+
+        // OpaqueElementData is SMDataVersion, SMDataID and AeadLimitExponent, then one
+        // byte of padding.
+        let element = [
+            DMTF_ID,
+            DMTF_VENDOR_LEN,
+            3,
+            0,
+            SM_DATA_VERSION,
+            AEAD_LIMIT_SM_DATA_ID,
+            exponent,
+            0,
+        ];
+        if total_elements == u8::MAX || end + element.len() > MAX_SPDM_OPAQUE_SIZE {
+            return Err(SPDM_STATUS_BUFFER_FULL);
+        }
+        // Zero the padding that the last element is missing, before the new element.
+        if end > data_size {
+            self.data[data_size..end].fill(0);
+        }
+        self.data[end..end + element.len()].copy_from_slice(&element);
+        self.data[layout.total_elements_index] = total_elements + 1;
+        self.data_size = (end + element.len()) as u16;
+        Ok(())
+    }
+
+    /// DSP0277 1.3: the AeadLimitExponent in this opaque data, or None when it has no AEAD
+    /// limit data. The exponent shall not exceed 64.
+    pub fn get_aead_limit_exponent(&self, context: &SpdmContext) -> SpdmResult<Option<u8>> {
+        if self.data_size == 0 {
+            return Ok(None);
+        }
+        let layout = OpaqueLayout::of(context).ok_or(SPDM_STATUS_UNSUPPORTED_CAP)?;
+        let data = &self.data[..self.data_size as usize];
+        match find_sm_data(context, &layout, data, AEAD_LIMIT_SM_DATA_ID)? {
+            None => Ok(None),
+            Some(&[exponent]) if exponent <= AEAD_LIMIT_EXPONENT_DEFAULT => Ok(Some(exponent)),
+            Some(_) => Err(SPDM_STATUS_INVALID_MSG_FIELD),
+        }
+    }
+}
+
+impl SpdmContext {
+    /// The AEAD limit exponent this endpoint asks for: the configured one, or the default
+    /// when none is configured.
+    pub fn local_aead_limit_exponent(&self) -> u8 {
+        match self.config_info.aead_limit_exponent {
+            1..=AEAD_LIMIT_EXPONENT_DEFAULT => self.config_info.aead_limit_exponent,
+            _ => AEAD_LIMIT_EXPONENT_DEFAULT,
+        }
+    }
+
+    /// Whether this endpoint supports a Secured Message version with the AEAD limit
+    /// (DSP0277 1.3 or later).
+    pub fn supports_aead_limit(&self) -> bool {
+        self.config_info
+            .secure_spdm_version
+            .iter()
+            .flatten()
+            .any(secured_message_version_has_aead_limit)
+    }
+
+    /// Tell the peer this endpoint's AEAD limit by appending it to `opaque`. Nothing is
+    /// appended for the default limit, which is what a peer assumes when it is absent.
+    pub fn advertise_aead_limit(&self, opaque: &mut SpdmOpaqueStruct) -> SpdmResult {
+        let exponent = self.local_aead_limit_exponent();
+        if exponent == AEAD_LIMIT_EXPONENT_DEFAULT {
+            return Ok(());
+        }
+        opaque.append_aead_limit(self, exponent)
+    }
+
+    /// The AEAD limit exponent of a session: the smaller one of this endpoint and the peer.
+    /// A peer that sent no AEAD limit data has the default.
+    pub fn session_aead_limit_exponent(&self, peer_exponent: Option<u8>) -> u8 {
+        self.local_aead_limit_exponent()
+            .min(peer_exponent.unwrap_or(AEAD_LIMIT_EXPONENT_DEFAULT))
+    }
+}
+
+/// Whether a Secured Message version has the AEAD limit data (DSP0277 1.3 or later).
+pub fn secured_message_version_has_aead_limit(version: &SecuredMessageVersion) -> bool {
+    u8::from(version) >= DMTF_SECURE_SPDM_VERSION_13
 }
