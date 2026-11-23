@@ -394,6 +394,7 @@ async fn handle_message(
             Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
             Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
+        aead_limit_exponent: aead_limit_exponent(),
         ..Default::default()
     };
 

@@ -236,6 +236,7 @@ async fn test_spdm(
         ],
         // DSP0274 1.3: request the Responder's SupportedAlgorithms block in CAPABILITIES.
         supported_algos_ext_cap: use_supported_algos_ext_cap(),
+        aead_limit_exponent: aead_limit_exponent(),
         ..Default::default()
     };
 
@@ -855,6 +856,7 @@ async fn test_idekm_tdisp(
             Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_12).unwrap()),
             Some(SecuredMessageVersion::try_from(DMTF_SECURE_SPDM_VERSION_13).unwrap()),
         ],
+        aead_limit_exponent: aead_limit_exponent(),
         ..Default::default()
     };
 
