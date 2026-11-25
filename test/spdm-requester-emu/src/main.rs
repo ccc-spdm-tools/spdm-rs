@@ -1699,6 +1699,10 @@ fn emu_main_inner() {
     new_logger_from_env().init().unwrap();
 
     spdmlib::secret::psk::register(SECRET_PSK_IMPL_INSTANCE.clone());
+    #[cfg(feature = "respond-if-ready")]
+    spdmlib::time::register(spdmlib::time::SpdmTime {
+        sleep_cb: |us| std::thread::sleep(std::time::Duration::from_micros(us as u64)),
+    });
 
     // Crypto backend registration is decided entirely at compile time:
     // - aws-lc present, no classical backend  -> aws-lc standalone (classical + PQC)
