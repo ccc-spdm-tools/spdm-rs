@@ -16,7 +16,7 @@ use crate::requester::RequesterContext;
 impl RequesterContext {
     fn spdm_handle_simple_error_response(&mut self, error_code: u8) -> SpdmResult {
         /* NOT_READY is treated as error here.
-         * Use spdm_handle_error_response_main to handle NOT_READY message in long latency command.*/
+         * Use spdm_handle_response_not_ready to handle NOT_READY message in long latency command.*/
         if error_code == SpdmErrorCode::SpdmErrorResponseNotReady.get_u8() {
             Err(SPDM_STATUS_NOT_READY_PEER)
         } else if error_code == SpdmErrorCode::SpdmErrorBusy.get_u8() {
@@ -85,5 +85,20 @@ impl RequesterContext {
 
         spdm_status.spdm_status_set_error_data(response);
         Err(spdm_status)
+    }
+
+    /// Without the `respond-if-ready` feature, ERROR(ResponseNotReady) is left to the
+    /// response handler, which returns NOT_READY_PEER.
+    #[cfg(not(feature = "respond-if-ready"))]
+    #[maybe_async::maybe_async]
+    pub async fn spdm_handle_response_not_ready(
+        &mut self,
+        _session_id: Option<u32>,
+        _original_request_code: SpdmRequestResponseCode,
+        _receive_buffer: &mut [u8],
+        used: usize,
+        _crypto_request: bool,
+    ) -> SpdmResult<usize> {
+        Ok(used)
     }
 }

@@ -157,6 +157,9 @@ pub struct SpdmContext {
     #[cfg(feature = "chunk-cap")]
     pub chunk_rsp_handle: u8,
 
+    #[cfg(feature = "respond-if-ready")]
+    pub respond_if_ready: Option<SpdmRespondIfReadyContext>,
+
     pub session: [SpdmSession; config::MAX_SPDM_SESSION_COUNT],
 }
 
@@ -187,6 +190,8 @@ impl SpdmContext {
             chunk_req_handle: 0,
             #[cfg(feature = "chunk-cap")]
             chunk_rsp_handle: 0,
+            #[cfg(feature = "respond-if-ready")]
+            respond_if_ready: None,
         }
     }
 
@@ -1377,6 +1382,19 @@ impl SpdmContext {
             self.chunk_context.encode(writer)?;
         }
 
+        #[cfg(feature = "respond-if-ready")]
+        {
+            match &self.respond_if_ready {
+                Some(context) => {
+                    1u8.encode(writer)?;
+                    context.encode(writer)?;
+                }
+                None => {
+                    0u8.encode(writer)?;
+                }
+            }
+        }
+
         Ok(writer.used())
     }
 
@@ -1459,6 +1477,22 @@ impl SpdmContext {
                     u8::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
                 self.chunk_context =
                     SpdmChunkContext::read(&mut reader).ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
+            }
+        }
+
+        // Older checkpoints end before this field.
+        #[cfg(feature = "respond-if-ready")]
+        {
+            self.respond_if_ready = None;
+            if reader.left() != 0 {
+                self.respond_if_ready = match u8::read(&mut reader) {
+                    Some(0) => None,
+                    Some(1) => Some(
+                        SpdmRespondIfReadyContext::read(&mut reader)
+                            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?,
+                    ),
+                    _ => return Err(SPDM_STATUS_INVALID_PARAMETER),
+                };
             }
         }
 
@@ -2976,6 +3010,44 @@ impl Codec for SpdmEncapContext {
             req_slot_id: u8::read(reader)?,
             request_id: u8::read(reader)?,
             encap_cert_size: u32::read(reader)?,
+        })
+    }
+}
+
+/// A RESPOND_IF_READY that was sent and is not answered yet.
+#[cfg(feature = "respond-if-ready")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SpdmRespondIfReadyContext {
+    pub request_code: u8,
+    pub token: u8,
+    pub retry_count: u8,
+    pub session_id: Option<u32>,
+}
+
+#[cfg(feature = "respond-if-ready")]
+impl Codec for SpdmRespondIfReadyContext {
+    fn encode(&self, writer: &mut Writer) -> Result<usize, codec::EncodeErr> {
+        let mut size = 0;
+        size += self.request_code.encode(writer)?;
+        size += self.token.encode(writer)?;
+        size += self.retry_count.encode(writer)?;
+        size += match self.session_id {
+            Some(session_id) => 1u8.encode(writer)? + session_id.encode(writer)?,
+            None => 0u8.encode(writer)?,
+        };
+        Ok(size)
+    }
+
+    fn read(reader: &mut Reader) -> Option<Self> {
+        Some(Self {
+            request_code: u8::read(reader)?,
+            token: u8::read(reader)?,
+            retry_count: u8::read(reader)?,
+            session_id: match u8::read(reader)? {
+                0 => None,
+                1 => Some(u32::read(reader)?),
+                _ => return None,
+            },
         })
     }
 }

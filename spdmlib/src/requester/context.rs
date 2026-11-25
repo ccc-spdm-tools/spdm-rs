@@ -137,6 +137,12 @@ impl RequesterContext {
         send_buffer: &[u8],
         is_app_message: bool,
     ) -> SpdmResult {
+        // A new request ends any RESPOND_IF_READY left over from a restored checkpoint.
+        #[cfg(feature = "respond-if-ready")]
+        {
+            self.common.respond_if_ready = None;
+        }
+
         if self.common.negotiate_info.rsp_max_spdm_msg_size_sel != 0
             && send_buffer.len() > self.common.negotiate_info.rsp_max_spdm_msg_size_sel as usize
         {
@@ -204,7 +210,7 @@ impl RequesterContext {
     }
 
     #[maybe_async::maybe_async]
-    async fn send_single_message(
+    pub(crate) async fn send_single_message(
         &mut self,
         session_id: Option<u32>,
         send_buffer: &[u8],

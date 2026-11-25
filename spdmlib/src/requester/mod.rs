@@ -29,9 +29,13 @@ mod mutual_authenticate;
 mod negotiate_algorithms_req;
 mod psk_exchange_req;
 mod psk_finish_req;
+#[cfg(feature = "respond-if-ready")]
+mod respond_if_ready_req;
 mod vendor_req;
 
 pub use context::RequesterContext;
+#[cfg(feature = "respond-if-ready")]
+pub use respond_if_ready_req::{MAX_RDT_EXPONENT, MAX_RESPOND_IF_READY_RETRY_COUNT};
 
 use crate::common::*;
 use crate::config;
