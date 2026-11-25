@@ -596,19 +596,41 @@ impl SpdmOpaqueStruct {
             .ok_or(SPDM_STATUS_INVALID_PARAMETER)
     }
 
+    /// The Secured Message versions that the Requester supports, ordered from the earliest to
+    /// the latest version, whatever order the Requester sent them in.
+    ///
+    /// DSP0277: the Responder should select the latest supported common version. The
+    /// Responder selects the last of the versions in this list that it supports too, which
+    /// is the latest common one only because of this order.
     pub fn rsp_get_dmtf_supported_secure_spdm_version_list(
         &self,
         context: &mut SpdmContext,
     ) -> Option<SecuredMessageVersionList> {
         let smsupported_ver_list_opaque = self.to_sm_supported_ver_list_opaque(context).ok()?;
-        Some(smsupported_ver_list_opaque.secured_message_version_list)
+        let mut list = smsupported_ver_list_opaque.secured_message_version_list;
+        let count = (list.version_count as usize).min(list.versions_list.len());
+        list.versions_list[..count].sort_unstable_by_key(|version| u8::from(version));
+        Some(list)
     }
 
+    /// The Secured Message version that the Responder selected, or None if there is none, or
+    /// if it is not one that this Requester supports. DSP0277: the Responder shall select a
+    /// version among the ones that the Requester supports.
     pub fn req_get_dmtf_secure_spdm_version_selection(
         &self,
         context: &mut SpdmContext,
     ) -> Option<SecuredMessageVersion> {
         let smversion_sel_opaque = self.to_sm_version_sel_opaque(context).ok()?;
-        Some(smversion_sel_opaque.secured_message_version)
+        let selected = smversion_sel_opaque.secured_message_version;
+        if !context
+            .config_info
+            .secure_spdm_version
+            .iter()
+            .flatten()
+            .any(|offered| *offered == selected)
+        {
+            return None;
+        }
+        Some(selected)
     }
 }

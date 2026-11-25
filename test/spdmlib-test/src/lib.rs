@@ -15,6 +15,9 @@ mod test_library;
 mod test_library_codec;
 
 #[cfg(test)]
+mod test_secured_message_version;
+
+#[cfg(test)]
 mod requester_tests;
 
 #[cfg(test)]
