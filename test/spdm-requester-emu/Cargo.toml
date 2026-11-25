@@ -28,6 +28,7 @@ dhat = { version = "0.3.2", optional = true }
 default = ["spdm-emu/default", "async-executor"]
 mut-auth = ["spdm-emu/mut-auth"]
 chunk-cap = ["spdm-emu/chunk-cap"]
+respond-if-ready = ["spdm-emu/respond-if-ready"]
 spdm-ring = ["spdm-emu/spdm-ring"]
 spdm-mbedtls = ["spdm-emu/spdm-mbedtls"]
 chacha20-poly1305 = ["spdm-emu/chacha20-poly1305"]

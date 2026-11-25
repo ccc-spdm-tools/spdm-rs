@@ -57,4 +57,7 @@ mod psk_finish_req;
 
 mod request_resynch_req;
 
+#[cfg(feature = "respond-if-ready")]
+mod respond_if_ready_req;
+
 mod vendor_req;

@@ -36,6 +36,7 @@ aws-lc-rs = { path = "../../external/aws-lc-rs/aws-lc-rs", features = ["unstable
 default = ["spdm-ring", "spdmlib/hashed-transcript-data", "async-executor"]
 mut-auth = ["spdmlib/mut-auth"]
 chunk-cap = ["spdmlib/chunk-cap"]
+respond-if-ready = ["spdmlib/respond-if-ready"]
 mandatory-mut-auth = ["mut-auth", "spdmlib/mandatory-mut-auth"]
 spdm-ring = ["spdmlib/spdm-ring", "spdmlib/std", "dep:ring", "dep:untrusted"]
 spdm-mbedtls = ["spdmlib_crypto_mbedtls", "dep:mbedtls"]
