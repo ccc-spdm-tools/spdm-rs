@@ -55,6 +55,15 @@ impl RequesterContext {
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
             .await?;
+        let used = self
+            .spdm_handle_response_not_ready(
+                Some(session_id),
+                SpdmRequestResponseCode::SpdmRequestKeyUpdate,
+                &mut receive_buffer,
+                used,
+                false,
+            )
+            .await?;
 
         self.handle_spdm_key_update_op_response(
             session_id,

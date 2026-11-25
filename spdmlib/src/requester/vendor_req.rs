@@ -53,6 +53,15 @@ impl RequesterContext {
         let receive_used = self
             .receive_message(session_id, &mut receive_buffer, false)
             .await?;
+        let receive_used = self
+            .spdm_handle_response_not_ready(
+                session_id,
+                SpdmRequestResponseCode::SpdmRequestVendorDefinedRequest,
+                &mut receive_buffer,
+                receive_used,
+                false,
+            )
+            .await?;
 
         self.handle_spdm_vendor_defined_respond(session_id, &receive_buffer[..receive_used])
     }
@@ -140,6 +149,15 @@ impl RequesterContext {
         rsp_bytes: &'a mut [u8],
     ) -> SpdmResult<&'a [u8]> {
         let receive_used = self.receive_message(session_id, rsp_bytes, false).await?;
+        let receive_used = self
+            .spdm_handle_response_not_ready(
+                session_id,
+                SpdmRequestResponseCode::SpdmRequestVendorDefinedRequest,
+                rsp_bytes,
+                receive_used,
+                false,
+            )
+            .await?;
 
         self.handle_spdm_vendor_defined_respond_ex(session_id, &rsp_bytes[..receive_used])
     }

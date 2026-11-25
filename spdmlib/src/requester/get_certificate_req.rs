@@ -46,6 +46,15 @@ impl RequesterContext {
         let used = self
             .receive_message(session_id, &mut receive_buffer, false)
             .await?;
+        let used = self
+            .spdm_handle_response_not_ready(
+                session_id,
+                SpdmRequestResponseCode::SpdmRequestGetCertificate,
+                &mut receive_buffer,
+                used,
+                false,
+            )
+            .await?;
 
         self.handle_spdm_certificate_partial_response(
             session_id,

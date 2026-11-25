@@ -73,6 +73,15 @@ impl RequesterContext {
         let receive_used = self
             .receive_message(None, &mut receive_buffer, false)
             .await?;
+        let receive_used = self
+            .spdm_handle_response_not_ready(
+                None,
+                SpdmRequestResponseCode::SpdmRequestKeyExchange,
+                &mut receive_buffer,
+                receive_used,
+                false,
+            )
+            .await?;
 
         let mut target_session_id = None;
         if let Err(e) = self.handle_spdm_key_exchange_response(

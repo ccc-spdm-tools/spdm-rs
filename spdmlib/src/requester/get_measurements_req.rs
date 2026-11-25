@@ -256,18 +256,30 @@ impl RequesterContext {
             .receive_message(session_id, &mut receive_buffer, true)
             .await?;
 
-        let result = self.handle_spdm_measurement_record_response(
-            session_id,
-            slot_id,
-            spdm_measuremente_attributes,
-            measurement_operation,
-            requester_context,
-            content_changed,
-            spdm_measurement_record_structure,
-            send_buffer,
-            &receive_buffer[..used],
-            transcript_meas,
-        );
+        let result = match self
+            .spdm_handle_response_not_ready(
+                session_id,
+                SpdmRequestResponseCode::SpdmRequestGetMeasurements,
+                &mut receive_buffer,
+                used,
+                true,
+            )
+            .await
+        {
+            Ok(used) => self.handle_spdm_measurement_record_response(
+                session_id,
+                slot_id,
+                spdm_measuremente_attributes,
+                measurement_operation,
+                requester_context,
+                content_changed,
+                spdm_measurement_record_structure,
+                send_buffer,
+                &receive_buffer[..used],
+                transcript_meas,
+            ),
+            Err(e) => Err(e),
+        };
 
         if let Err(e) = &result {
             if *e != SPDM_STATUS_NOT_READY_PEER {
