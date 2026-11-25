@@ -53,9 +53,22 @@ impl RequesterContext {
     #[maybe_async::maybe_async]
     pub async fn receive_spdm_psk_finish(&mut self, session_id: u32) -> SpdmResult {
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = self
+        let res = match self
             .receive_message(Some(session_id), &mut receive_buffer, false)
-            .await;
+            .await
+        {
+            Ok(used) => {
+                self.spdm_handle_response_not_ready(
+                    Some(session_id),
+                    SpdmRequestResponseCode::SpdmRequestPskFinish,
+                    &mut receive_buffer,
+                    used,
+                    false,
+                )
+                .await
+            }
+            Err(e) => Err(e),
+        };
         if res.is_err() {
             self.common
                 .get_session_via_id(session_id)

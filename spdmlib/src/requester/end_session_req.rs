@@ -35,6 +35,15 @@ impl RequesterContext {
         let used = self
             .receive_message(Some(session_id), &mut receive_buffer, false)
             .await?;
+        let used = self
+            .spdm_handle_response_not_ready(
+                Some(session_id),
+                SpdmRequestResponseCode::SpdmRequestEndSession,
+                &mut receive_buffer,
+                used,
+                false,
+            )
+            .await?;
         self.handle_spdm_end_session_response(session_id, &receive_buffer[..used])
     }
 

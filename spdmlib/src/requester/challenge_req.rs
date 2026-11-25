@@ -56,6 +56,15 @@ impl RequesterContext {
         let used = self
             .receive_message(None, &mut receive_buffer, true)
             .await?;
+        let used = self
+            .spdm_handle_response_not_ready(
+                None,
+                SpdmRequestResponseCode::SpdmRequestChallenge,
+                &mut receive_buffer,
+                used,
+                true,
+            )
+            .await?;
         self.handle_spdm_challenge_response(
             0, // NULL
             slot_id,

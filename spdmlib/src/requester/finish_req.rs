@@ -118,11 +118,26 @@ impl RequesterContext {
     ) -> SpdmResult {
         info!("!!! receive finish !!!");
         let mut receive_buffer = [0u8; config::MAX_SPDM_MSG_SIZE];
-        let res = if in_clear_text {
-            self.receive_message(None, &mut receive_buffer, false).await
+        let rsp_session_id = if in_clear_text {
+            None
         } else {
-            self.receive_message(Some(session_id), &mut receive_buffer, false)
+            Some(session_id)
+        };
+        let res = match self
+            .receive_message(rsp_session_id, &mut receive_buffer, false)
+            .await
+        {
+            Ok(used) => {
+                self.spdm_handle_response_not_ready(
+                    rsp_session_id,
+                    SpdmRequestResponseCode::SpdmRequestFinish,
+                    &mut receive_buffer,
+                    used,
+                    false,
+                )
                 .await
+            }
+            Err(e) => Err(e),
         };
         if res.is_err() {
             self.common
