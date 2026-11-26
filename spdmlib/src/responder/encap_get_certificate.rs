@@ -264,7 +264,26 @@ impl ResponderContext {
             -1,
         )?;
         let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
-        if check_leaf_certificate(leaf_cert, false, true).is_err() {
+        let is_alias_cert = self.common.negotiate_info.multi_key_conn_req
+            && matches!(
+                self.common
+                    .peer_info
+                    .peer_cert_info
+                    .get(self.common.encap_context.req_slot_id as usize)
+                    .copied()
+                    .flatten(),
+                Some(crate::protocol::SpdmCertificateModelType::SpdmCertModelTypeAliasCert)
+            );
+        if crypto::check_chain_hardware_identity(
+            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
+            is_alias_cert,
+        )
+        .is_err()
+        {
+            error!("Chain SPDM extension / hardware identity verification - fail!\n");
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+        if check_leaf_certificate(leaf_cert, is_alias_cert, true).is_err() {
             error!("Leaf cert verification - fail!\n");
             return Err(SPDM_STATUS_INVALID_CERT);
         }

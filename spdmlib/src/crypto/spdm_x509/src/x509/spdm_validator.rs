@@ -281,15 +281,11 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
         validate_spdm_eku(cert, role)
     }
 
-    /// Validate SPDM Extension (OID 1.3.6.1.4.1.412.274.2)
-    ///
-    /// This extension contains SPDM-specific certificate information.
-    /// The presence and content of this extension may be validated
-    /// depending on the certificate model.
+    /// Validate SPDM Extension (OID 1.3.6.1.4.1.412.274.6) per DSP0274 §10.9.2.2.
     ///
     /// # Arguments
     /// - `cert`: The certificate to validate
-    /// - `model`: The expected certificate model
+    /// - `_model`: The expected certificate model
     ///
     /// # Returns
     /// - `Ok(())` if extension validation passes
@@ -299,84 +295,17 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
         cert: &Certificate,
         _model: SpdmCertificateModel,
     ) -> Result<()> {
-        // Try to get the SPDM extension
-        let spdm_ext = match find_extension(cert, &oids::SPDM_EXTENSION) {
-            Some(ext) => ext,
-            None => return Ok(()), // SPDM extension is optional
-        };
-
-        // Parse the extension value: it MUST be a SEQUENCE OF ObjectIdentifier.
-        // Verify that it is well-formed and every OID inside is a known SPDM
-        // OID (under 1.3.6.1.4.1.412.274).  Unknown OIDs are logged but not
-        // rejected so that future spec revisions remain forward-compatible.
-        use der::{Decode, Header, Reader, SliceReader, Tag};
-
-        let bytes = spdm_ext.extn_value.as_bytes();
-        let mut reader = SliceReader::new(bytes).map_err(|e| {
-            Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
-                "Invalid SPDM extension encoding: {:?}",
-                e
-            )))
-        })?;
-
-        let header = Header::decode(&mut reader).map_err(|e| {
-            Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
-                "Invalid SPDM extension header: {:?}",
-                e
-            )))
-        })?;
-
-        if header.tag != Tag::Sequence {
-            return Err(Error::ExtensionError(ExtensionError::InvalidEncoding(
-                alloc::format!("Expected SEQUENCE in SPDM extension, got {:?}", header.tag),
-            )));
-        }
-
-        reader
-            .read_nested(header.length, |seq_reader| {
-                while !seq_reader.is_finished() {
-                    // Each element may be either a bare OID or a SEQUENCE { OID, ... }
-                    // (DSP0274 Section 10.6.1 defines SpdmExtension ::= SEQUENCE { id OID, ... }).
-                    let tag = seq_reader.peek_tag()?;
-                    let oid = if tag == Tag::Sequence {
-                        // Nested SEQUENCE — read header, then extract the leading OID.
-                        let hdr = Header::decode(seq_reader)?;
-                        seq_reader.read_nested(hdr.length, |inner| {
-                            let id = ObjectIdentifier::decode(inner)?;
-                            // Skip any remaining fields in this SpdmExtension entry.
-                            while !inner.is_finished() {
-                                let _: der::Any = Decode::decode(inner)?;
-                            }
-                            Ok(id)
-                        })?
-                    } else {
-                        ObjectIdentifier::decode(seq_reader)?
-                    };
-                    if !oids::is_spdm_oid(&oid) {
-                        log::warn!(
-                            "Unknown OID in SPDM extension: {} (not under SPDM base)",
-                            oid
-                        );
-                    }
-                }
-                Ok(())
-            })
-            .map_err(|e| {
-                Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
-                    "Failed to parse SPDM extension OIDs: {:?}",
-                    e
-                )))
-            })?;
-
-        Ok(())
+        validate_spdm_extension(cert)
     }
 
-    /// Validate Hardware Identity OID (1.3.6.1.4.1.412.274.4)
+    /// Validate Hardware Identity OID (1.3.6.1.4.1.412.274.2)
     ///
-    /// # Validation Rules (DSP0274 Section 10.6.1.4)
-    /// - **DeviceCert**: Hardware Identity OID MUST be present in SPDM extension
+    /// # Validation Rules (DSP0274 §7.2.1.1 and §10.9.2.2.1)
+    /// - **DeviceCert**: Hardware Identity OID is RECOMMENDED (not mandatory)
     /// - **AliasCert**: Hardware Identity OID MUST NOT be present
     /// - **GenericCert**: No specific requirement
+    /// - If present, the SPDM extension MUST satisfy DSP0274 §10.9.2.2 and the
+    ///   Hardware Identity entry MUST NOT include a definition value.
     ///
     /// # Arguments
     /// - `cert`: The certificate to validate
@@ -521,47 +450,215 @@ impl<B: crate::crypto_backend::CryptoBackend> SpdmValidator<B> {
 // without referencing `RingBackend`.
 // =============================================================================
 
-/// Validate the SPDM Hardware Identity OID rules for a certificate model
-/// (DSP0274 Section 10.6.1.4), without requiring a crypto backend.
+/// Parse and strictly validate an `id-DMTF-spdm-extension` (`1.3.6.1.4.1.412.274.6`)
+/// extension per DSP0274 §10.9.2.2 and §10.9.2.2.1.
 ///
-/// - **DeviceCert**: the SPDM extension with the Hardware Identity OID MUST be present.
-/// - **AliasCert**: the Hardware Identity OID MUST NOT be present.
-/// - **GenericCert**: no requirement.
+/// ASN.1 grammar:
+/// ```text
+/// SpdmExtension ::= SEQUENCE SIZE (1..MAX) OF SpdmExtensionEntry
+/// SpdmExtensionEntry ::= SEQUENCE {
+///     oid        OBJECT IDENTIFIER,
+///     definition ANY DEFINED BY oid OPTIONAL
+/// }
+/// ```
+///
+/// Enforces:
+/// - The X.509 extension MUST be non-critical.
+/// - Outer DER SEQUENCE is non-empty with no trailing bytes.
+/// - Every entry is a nested SEQUENCE (bare OIDs are rejected) containing an
+///   OID and at most one optional definition value (no trailing fields).
+/// - `id-DMTF-hardware-identity` (`1.3.6.1.4.1.412.274.2`) MUST NOT carry a
+///   definition value.
+fn parse_spdm_extension(ext: &Extension) -> Result<alloc::vec::Vec<ObjectIdentifier>> {
+    use der::{Decode, Header, Reader, SliceReader, Tag};
+
+    if ext.critical {
+        return Err(Error::ExtensionError(ExtensionError::InvalidValue(
+            alloc::string::String::from("SPDM extension MUST be non-critical"),
+        )));
+    }
+
+    let bytes = ext.extn_value.as_bytes();
+    let mut reader = SliceReader::new(bytes).map_err(|e| {
+        Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
+            "Invalid SPDM extension encoding: {:?}",
+            e
+        )))
+    })?;
+
+    let header = Header::decode(&mut reader).map_err(|e| {
+        Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
+            "Invalid SPDM extension SEQUENCE header: {:?}",
+            e
+        )))
+    })?;
+
+    if header.tag != Tag::Sequence {
+        return Err(Error::ExtensionError(ExtensionError::InvalidEncoding(
+            alloc::format!("Expected SEQUENCE in SPDM extension, got {:?}", header.tag),
+        )));
+    }
+
+    let mut entries: alloc::vec::Vec<(ObjectIdentifier, bool)> = alloc::vec::Vec::new();
+    reader
+        .read_nested(header.length, |seq_reader| {
+            while !seq_reader.is_finished() {
+                let entry_hdr = Header::decode(seq_reader)?;
+                if entry_hdr.tag != Tag::Sequence {
+                    return Err(der::Error::new(
+                        der::ErrorKind::TagUnexpected {
+                            expected: Some(Tag::Sequence),
+                            actual: entry_hdr.tag,
+                        },
+                        seq_reader.position(),
+                    ));
+                }
+                let entry = seq_reader.read_nested(entry_hdr.length, |inner| {
+                    let oid = ObjectIdentifier::decode(inner)?;
+                    let has_definition = if !inner.is_finished() {
+                        let _: der::Any = Decode::decode(inner)?;
+                        true
+                    } else {
+                        false
+                    };
+                    if !inner.is_finished() {
+                        return Err(der::Error::new(
+                            der::ErrorKind::TrailingData {
+                                decoded: inner.position(),
+                                remaining: inner.remaining_len(),
+                            },
+                            inner.position(),
+                        ));
+                    }
+                    Ok((oid, has_definition))
+                })?;
+                entries.push(entry);
+            }
+            Ok(())
+        })
+        .map_err(|e| {
+            Error::ExtensionError(ExtensionError::InvalidEncoding(alloc::format!(
+                "Failed to parse SPDM extension entries: {:?}",
+                e
+            )))
+        })?;
+
+    if !reader.is_finished() {
+        return Err(Error::ExtensionError(ExtensionError::InvalidEncoding(
+            alloc::string::String::from("Trailing bytes after SPDM extension SEQUENCE"),
+        )));
+    }
+
+    if entries.is_empty() {
+        return Err(Error::ExtensionError(ExtensionError::InvalidEncoding(
+            alloc::string::String::from("SPDM extension must contain at least one entry"),
+        )));
+    }
+
+    let mut oids_out = alloc::vec::Vec::with_capacity(entries.len());
+    for (oid, has_definition) in entries {
+        if oid == oids::HARDWARE_IDENTITY && has_definition {
+            return Err(Error::ExtensionError(ExtensionError::InvalidValue(
+                alloc::string::String::from(
+                    "Hardware Identity OID must not include a definition value",
+                ),
+            )));
+        }
+        if !oids::is_spdm_oid(&oid) {
+            log::warn!(
+                "Unknown OID in SPDM extension: {} (not under SPDM base)",
+                oid
+            );
+        }
+        oids_out.push(oid);
+    }
+
+    Ok(oids_out)
+}
+
+/// Validate the optional SPDM extension (`1.3.6.1.4.1.412.274.6`) per
+/// DSP0274 §10.9.2.2, without requiring a crypto backend.
+pub fn validate_spdm_extension(cert: &Certificate) -> Result<()> {
+    let Some(spdm_ext) = find_extension(cert, &oids::SPDM_EXTENSION) else {
+        return Ok(());
+    };
+    parse_spdm_extension(spdm_ext).map(|_| ())
+}
+
+/// Validate the SPDM Hardware Identity OID rules for a certificate model
+/// (DSP0274 §7.2.1.1 and §10.9.2.2.1), without requiring a crypto backend.
+///
+/// - Any present SPDM extension MUST be non-critical and canonically encoded
+///   per DSP0274 §10.9.2.2, and Hardware Identity MUST have no definition value.
+/// - **DeviceCert**: Hardware Identity is RECOMMENDED (not mandatory); absence
+///   is accepted.
+/// - **AliasCert**: Hardware Identity OID MUST NOT be present.
+/// - **GenericCert**: no Hardware Identity presence requirement.
 pub fn validate_hardware_identity(cert: &Certificate, model: SpdmCertificateModel) -> Result<()> {
     let spdm_ext = match find_extension(cert, &oids::SPDM_EXTENSION) {
         Some(ext) => ext,
-        None => {
-            if model == SpdmCertificateModel::DeviceCert {
-                return Err(Error::ExtensionError(
-                    ExtensionError::MissingRequiredExtension(alloc::string::String::from(
-                        "DeviceCert requires SPDM extension with Hardware Identity",
-                    )),
-                ));
-            }
-            return Ok(());
-        }
+        None => return Ok(()),
     };
 
-    let has_hw_identity = check_hardware_identity_in_extension(&spdm_ext.extn_value)?;
+    let oids = parse_spdm_extension(spdm_ext)?;
+    let has_hw_identity = oids.iter().any(|oid| oid == &oids::HARDWARE_IDENTITY);
 
-    match model {
-        SpdmCertificateModel::DeviceCert => {
-            if !has_hw_identity {
-                return Err(Error::ExtensionError(
-                    ExtensionError::MissingRequiredExtension(alloc::string::String::from(
-                        "DeviceCert MUST contain Hardware Identity OID",
-                    )),
-                ));
-            }
-        }
-        SpdmCertificateModel::AliasCert => {
-            if has_hw_identity {
+    if model == SpdmCertificateModel::AliasCert && has_hw_identity {
+        return Err(Error::ExtensionError(ExtensionError::InvalidValue(
+            alloc::string::String::from("AliasCert MUST NOT contain Hardware Identity OID"),
+        )));
+    }
+
+    Ok(())
+}
+
+/// Validate SPDM extension syntax across every certificate in a root-to-leaf
+/// DER chain and enforce Hardware Identity placement for `AliasCert` chains
+/// (DSP0274 §7.2.1.1 and §10.9.2.2.1).
+///
+/// - Every certificate carrying `id-DMTF-spdm-extension` must satisfy
+///   [`validate_spdm_extension`].
+/// - For `AliasCert`:
+///   - The leaf certificate MUST NOT contain the Hardware Identity OID.
+///   - Once a DeviceCert CA in the chain asserts Hardware Identity, no
+///     subordinate certificate below it (alias intermediate CA or alias leaf)
+///     may assert Hardware Identity.
+pub fn validate_chain_hardware_identity(
+    cert_chain: &[u8],
+    model: SpdmCertificateModel,
+) -> Result<()> {
+    let certificates = super::chain::parse_concatenated_certificates(cert_chain)?;
+    if certificates.is_empty() {
+        return Err(Error::ChainError(crate::error::ChainError::EmptyChain));
+    }
+
+    let mut seen_device_ca_hw_id = false;
+    let last_idx = certificates.len() - 1;
+
+    for (idx, cert) in certificates.iter().enumerate() {
+        let Some(spdm_ext) = find_extension(cert, &oids::SPDM_EXTENSION) else {
+            continue;
+        };
+        let oids = parse_spdm_extension(spdm_ext)?;
+        let has_hw_identity = oids.iter().any(|oid| oid == &oids::HARDWARE_IDENTITY);
+
+        if model == SpdmCertificateModel::AliasCert && has_hw_identity {
+            if idx == last_idx {
                 return Err(Error::ExtensionError(ExtensionError::InvalidValue(
-                    alloc::string::String::from("AliasCert MUST NOT contain Hardware Identity OID"),
+                    alloc::string::String::from(
+                        "AliasCert leaf MUST NOT contain Hardware Identity OID",
+                    ),
                 )));
             }
+            if seen_device_ca_hw_id {
+                return Err(Error::ExtensionError(ExtensionError::InvalidValue(
+                    alloc::string::String::from(
+                        "AliasCert subordinate certificate MUST NOT contain Hardware Identity OID",
+                    ),
+                )));
+            }
+            seen_device_ca_hw_id = true;
         }
-        SpdmCertificateModel::GenericCert => {}
     }
 
     Ok(())
@@ -623,67 +720,6 @@ pub fn validate_spdm_eku(cert: &Certificate, role: SpdmCertificateRole) -> Resul
     }
 
     Ok(())
-}
-
-/// Returns `true` if the SPDM extension OCTET STRING (a DER SEQUENCE OF OID)
-/// contains the Hardware Identity OID.
-fn check_hardware_identity_in_extension(extn_value: &der::asn1::OctetString) -> Result<bool> {
-    use const_oid::ObjectIdentifier;
-    use der::{Decode, Header, Reader, SliceReader, Tag};
-
-    let bytes = extn_value.as_bytes();
-
-    let mut reader = SliceReader::new(bytes).map_err(|e| {
-        Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
-            alloc::format!("Invalid SPDM extension encoding: {:?}", e),
-        ))
-    })?;
-
-    let header = Header::decode(&mut reader).map_err(|e| {
-        Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
-            alloc::format!("Invalid SPDM extension SEQUENCE header: {:?}", e),
-        ))
-    })?;
-
-    if header.tag != Tag::Sequence {
-        return Err(Error::ExtensionError(
-            crate::error::ExtensionError::InvalidEncoding(alloc::format!(
-                "Expected SEQUENCE in SPDM extension, got {:?}",
-                header.tag
-            )),
-        ));
-    }
-
-    let mut found = false;
-    reader
-        .read_nested(header.length, |seq_reader| {
-            while !seq_reader.is_finished() {
-                let tag = seq_reader.peek_tag()?;
-                let oid = if tag == Tag::Sequence {
-                    let hdr = Header::decode(seq_reader)?;
-                    seq_reader.read_nested(hdr.length, |inner| {
-                        let id = ObjectIdentifier::decode(inner)?;
-                        while !inner.is_finished() {
-                            let _: der::Any = Decode::decode(inner)?;
-                        }
-                        Ok(id)
-                    })?
-                } else {
-                    ObjectIdentifier::decode(seq_reader)?
-                };
-                if oid == oids::HARDWARE_IDENTITY {
-                    found = true;
-                }
-            }
-            Ok(())
-        })
-        .map_err(|e| {
-            Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
-                alloc::format!("Failed to parse SPDM extension OIDs: {:?}", e),
-            ))
-        })?;
-
-    Ok(found)
 }
 
 #[cfg(test)]
@@ -829,6 +865,22 @@ mod tests {
 
     // ── validate_spdm_extension ──
 
+    fn set_spdm_extension(cert: &mut Certificate, critical: bool, value: &[u8]) {
+        let exts =
+            cert.tbs_certificate
+                .extensions
+                .get_or_insert_with(|| crate::certificate::Extensions {
+                    extensions: alloc::vec::Vec::new(),
+                });
+        exts.extensions
+            .retain(|e| e.extn_id != oids::SPDM_EXTENSION);
+        exts.extensions.push(Extension {
+            extn_id: oids::SPDM_EXTENSION,
+            critical,
+            extn_value: der::asn1::OctetString::new(value).unwrap(),
+        });
+    }
+
     #[test]
     fn test_spdm_extension_absent_passes() {
         // CA cert has no SPDM extension
@@ -836,6 +888,128 @@ mod tests {
         let validator = SpdmValidator::new();
         let result = validator.validate_spdm_extension(&cert, SpdmCertificateModel::GenericCert);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_spdm_extension_canonical_nested_entries_pass() {
+        // Real DeviceCert fixture carries canonical SEQUENCE { SEQUENCE { HARDWARE_IDENTITY } }
+        let cert = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        assert!(validate_spdm_extension(&cert).is_ok());
+
+        // Non-HW-ID SPDM OID with a single optional definition value (UTF8String "ok") is valid.
+        let mut with_def = cert;
+        // Outer SEQUENCE (0x30 0x12):
+        //   Inner SEQUENCE (0x30 0x10):
+        //     OID 1.3.6.1.4.1.412.274.1 (0x06 0x0a 2b 06 01 04 01 83 1c 82 12 01)
+        //     UTF8String "ok" (0x0c 0x02 0x6f 0x6b)
+        let canonical_with_def = [
+            0x30, 0x12, 0x30, 0x10, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1c, 0x82,
+            0x12, 0x01, 0x0c, 0x02, 0x6f, 0x6b,
+        ];
+        set_spdm_extension(&mut with_def, false, &canonical_with_def);
+        assert!(validate_spdm_extension(&with_def).is_ok());
+    }
+
+    #[test]
+    fn test_spdm_extension_critical_is_rejected_by_validator() {
+        let mut cert = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        let canonical_hw_id = [
+            0x30, 0x0e, 0x30, 0x0c, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1c, 0x82,
+            0x12, 0x02,
+        ];
+        set_spdm_extension(&mut cert, true, &canonical_hw_id);
+
+        assert!(matches!(
+            validate_spdm_extension(&cert),
+            Err(Error::ExtensionError(ExtensionError::InvalidValue(_)))
+        ));
+        assert!(matches!(
+            Validator::new().validate(
+                &cert,
+                &ValidationOptions::default().skip_signature_validation()
+            ),
+            Err(Error::ExtensionError(ExtensionError::InvalidValue(_)))
+        ));
+    }
+
+    #[test]
+    fn test_spdm_extension_malformed_encodings_rejected() {
+        let base = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        let cases: &[(&str, &[u8])] = &[
+            // Empty outer SEQUENCE (violates SIZE (1..MAX))
+            ("empty container", &[0x30, 0x00]),
+            // Bare OID instead of nested SEQUENCE { OID }
+            (
+                "bare OID",
+                &[
+                    0x30, 0x0c, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1c, 0x82, 0x12,
+                    0x02,
+                ],
+            ),
+            // Trailing byte after outer SEQUENCE
+            (
+                "trailing outer byte",
+                &[
+                    0x30, 0x0e, 0x30, 0x0c, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1c,
+                    0x82, 0x12, 0x02, 0x00,
+                ],
+            ),
+            // Invalid / truncated OID inside entry
+            ("invalid OID", &[0x30, 0x05, 0x30, 0x03, 0x06, 0x01, 0x80]),
+            // Trailing third field inside SpdmExtensionEntry (OID + 2 values)
+            (
+                "trailing entry field",
+                &[
+                    0x30, 0x12, 0x30, 0x10, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1c,
+                    0x82, 0x12, 0x01, 0x05, 0x00, 0x05, 0x00,
+                ],
+            ),
+            // Non-SEQUENCE outer tag
+            ("non-sequence outer", &[0x05, 0x00]),
+        ];
+
+        for (name, bytes) in cases {
+            let mut cert = base.clone();
+            set_spdm_extension(&mut cert, false, bytes);
+            assert!(
+                matches!(
+                    validate_spdm_extension(&cert),
+                    Err(Error::ExtensionError(ExtensionError::InvalidEncoding(_)))
+                ),
+                "case '{}' should fail with InvalidEncoding",
+                name
+            );
+            assert!(
+                Validator::new()
+                    .validate(
+                        &cert,
+                        &ValidationOptions::default().skip_signature_validation()
+                    )
+                    .is_err(),
+                "Validator must reject malformed SPDM extension '{}'",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_hw_identity_forbids_definition_bytes() {
+        let mut cert = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+        // SEQUENCE { SEQUENCE { HARDWARE_IDENTITY, NULL } }
+        let hw_id_with_null = [
+            0x30, 0x10, 0x30, 0x0e, 0x06, 0x0a, 0x2b, 0x06, 0x01, 0x04, 0x01, 0x83, 0x1c, 0x82,
+            0x12, 0x02, 0x05, 0x00,
+        ];
+        set_spdm_extension(&mut cert, false, &hw_id_with_null);
+
+        assert!(matches!(
+            validate_spdm_extension(&cert),
+            Err(Error::ExtensionError(ExtensionError::InvalidValue(_)))
+        ));
+        assert!(matches!(
+            validate_hardware_identity(&cert, SpdmCertificateModel::DeviceCert),
+            Err(Error::ExtensionError(ExtensionError::InvalidValue(_)))
+        ));
     }
 
     // ── validate_hardware_identity ──
@@ -849,11 +1023,55 @@ mod tests {
     }
 
     #[test]
-    fn test_hw_identity_device_cert_without_spdm_ext_rejected() {
+    fn test_hw_identity_device_cert_without_spdm_ext_passes_per_dsp0274() {
+        // DSP0274 §7.2.1.1 / §10.9.2.2.1 recommends (does not mandate) HW Identity on DeviceCert.
         let cert = load_cert(&test_key_path("ecp256/ca.cert.der"));
         let validator = SpdmValidator::new();
         let result = validator.validate_hardware_identity(&cert, SpdmCertificateModel::DeviceCert);
-        assert!(result.is_err(), "DeviceCert without SPDM ext should fail");
+        assert!(
+            result.is_ok(),
+            "DeviceCert without SPDM extension must be accepted: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_chain_hw_identity_alias_placement_rules() {
+        let ca = load_cert(&test_key_path("ecp256/ca.cert.der"));
+        let inter = load_cert(&test_key_path("ecp256/inter.cert.der"));
+        let device_ca = load_cert(&test_key_path(
+            "ecp256/end_responder_alias_cert_partial_set.cert.der",
+        ));
+        let alias_leaf = load_cert(&test_key_path("ecp256/end_responder_alias.cert.der"));
+        let device_leaf = load_cert(&test_key_path("ecp256/end_responder.cert.der"));
+
+        let encode_chain = |certs: &[&Certificate]| -> alloc::vec::Vec<u8> {
+            let mut out = alloc::vec::Vec::new();
+            for c in certs {
+                out.extend_from_slice(&c.to_der().unwrap());
+            }
+            out
+        };
+
+        // Valid alias chain: DeviceCert CA carries HW_ID, alias leaf does not.
+        let valid_alias = encode_chain(&[&ca, &inter, &device_ca, &alias_leaf]);
+        assert!(
+            validate_chain_hardware_identity(&valid_alias, SpdmCertificateModel::AliasCert).is_ok()
+        );
+
+        // Alias leaf carrying HW_ID must be rejected.
+        let bad_alias_leaf = encode_chain(&[&ca, &inter, &device_ca, &device_leaf]);
+        assert!(matches!(
+            validate_chain_hardware_identity(&bad_alias_leaf, SpdmCertificateModel::AliasCert),
+            Err(Error::ExtensionError(ExtensionError::InvalidValue(_)))
+        ));
+
+        // Alias intermediate CA carrying HW_ID below a DeviceCert CA must be rejected.
+        let bad_alias_sub_ca = encode_chain(&[&ca, &inter, &device_ca, &device_ca, &alias_leaf]);
+        assert!(matches!(
+            validate_chain_hardware_identity(&bad_alias_sub_ca, SpdmCertificateModel::AliasCert),
+            Err(Error::ExtensionError(ExtensionError::InvalidValue(_)))
+        ));
     }
 
     // ── validate_basic_constraints_spdm ──
