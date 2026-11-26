@@ -165,6 +165,19 @@ impl ResponderContext {
                 );
             }
 
+            // A malformed opaque data, or a duplicated SMDataID, rejects the whole request.
+            if key_exchange_req
+                .opaque
+                .check_secured_message_opaque_data(&self.common)
+                .is_err()
+            {
+                self.write_spdm_error(SpdmErrorCode::SpdmErrorInvalidRequest, 0, writer);
+                return (
+                    Err(SPDM_STATUS_INVALID_MSG_FIELD),
+                    Some(writer.used_slice()),
+                );
+            }
+
             if let Some(secured_message_version_list) = key_exchange_req
                 .opaque
                 .rsp_get_dmtf_supported_secure_spdm_version_list(&mut self.common)
