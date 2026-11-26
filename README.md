@@ -312,11 +312,23 @@ This exercises the full SPDM handshake with ML-DSA-87 for signature and ML-KEM-1
 
 **Environment variables:**
 
+The emulators (`spdm-requester-emu` and `spdm-responder-emu`) read these variables when they start, and so does `spdmlib-test` where the table says so. `SPDM_CONFIG` is read when `spdmlib` is built. A boolean variable is true for `true` or `1`, unless the description says otherwise.
+
 | Variable | Description |
 |---|---|
-| `SPDM_CONFIG` | Set to `"etc/pqc_config.json"` for PQC builds (larger buffers for ML-DSA signatures and cert chains) |
-| `SPDMRS_USE_PQC` | Set to `true` to enable PQC-only mode (ML-DSA-87 + ML-KEM-1024) |
+| `SPDM_CONFIG` | Path of the JSON file that `spdmlib/build.rs` reads to generate the buffer sizes, relative to the `spdmlib` directory. Default `etc/config.json`. Set `"etc/pqc_config.json"` for PQC builds (larger buffers for ML-DSA signatures and cert chains), or `"etc/chunk_test_config.json"` to test chunking |
+| `SPDMRS_USE_PQC` | Set to `true` to enable PQC-only mode (ML-DSA-87 + ML-KEM-1024). It takes precedence over the two ECDSA variables below |
+| `SPDMRS_USE_ECDSA` | Selects the Responder's signing algorithm (`BaseAsymAlgo`) when `SPDMRS_USE_PQC` is not set: ECDSA P-384 (ECDHE + ECDSA) if true, RSASSA-3072 (ECDHE + RSA) if `false` or `0`. Any other value, or unset, means ECDSA. Also read by `spdmlib-test` |
+| `SPDMRS_REQ_USE_ECDSA` | The same for the Requester's signing algorithm (`ReqBaseAsymAlg`), which mutual authentication uses. Also read by `spdmlib-test` |
 | `SPDMRS_USE_RAW_PUB_KEY` | Set to `true` to use raw public key (RFC 7250) instead of the default certificate chain |
+| `SPDMRS_USE_HANDSHAKE_IN_THE_CLEAR` | Set to `true` to advertise `HANDSHAKE_IN_THE_CLEAR_CAP`, in the Requester and in the Responder. Default off |
+| `SPDMRS_USE_PSK_WITHOUT_CONTEXT` | Responder only. Set to `true` to advertise `PSK_CAP_WITHOUT_CONTEXT` instead of `PSK_CAP_WITH_CONTEXT` (default) |
+| `SPDMRS_USE_SUPPORTED_ALGOS` | Requester only. Set to `true` to ask the Responder for its SupportedAlgorithms block (DSP0274 1.3 `SUPPORTED_ALGOS_EXT_CAP`), which needs `CHUNK_CAP`. Default off |
+| `SPDMRS_AEAD_LIMIT_EXPONENT` | A number from 0 to 64: the AEAD limit, 2^exponent, that the endpoint asks for in KEY_EXCHANGE and PSK_EXCHANGE (DSP0277 1.3). 0, 64 or unset means the default, 2^64. Any other value makes the emulator panic. See [Limit the sessions with the AEAD limit](#limit-the-sessions-with-the-aead-limit-dsp0277-13) |
+| `SPDMRS_RSP_EMU_CERT_CHAIN_PATH` | Responder emulator: path of a DER file with the certificate chain to present, instead of the files under `test_key`. Not used with `SPDMRS_USE_RAW_PUB_KEY`. See [Run the responder emulator using the certificate chain and private key specified in environment variables](#run-the-responder-emulator-using-the-certificate-chain-and-private-key-specified-in-environment-variables) |
+| `SPDMRS_RSP_EMU_PRIVATE_KEY_PATH` | Path of the PKCS#8 (ECDSA) or DER (RSA) private key that signs for the certificate chain, instead of the key under `test_key`. It is read by the emulators' ECDSA and RSA signing, not by the ML-DSA signing |
+| `SPDMRS_LOG` | Log level of the emulators: `trace`, `debug`, `info` or `warn`, in any case. Any other value means `error`, and unset means `trace` |
+| `RUST_MIN_STACK` | Not an spdm-rs variable. Set it to `10485760` before running the tests, which need a larger stack. See [Run test cases](#run-test-cases) |
 
 ### Limit the sessions with the AEAD limit (DSP0277 1.3)
 A session ends when its sequence number reaches the AEAD limit, 2^`AeadLimitExponent`. The Requester
