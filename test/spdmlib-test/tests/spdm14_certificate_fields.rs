@@ -26,6 +26,9 @@ const DEVICE_CA: &[u8] =
     include_bytes!("../../../test_key/ecp256/end_responder_alias_cert_partial_set.cert.der");
 const MISSING_BC_LEAF: &[u8] =
     include_bytes!("../../../test_key/ecp256/end_requester_without_basic_constraint.cert.der");
+const P384_LEAF: &[u8] = include_bytes!("../../../test_key/ecp384/end_responder.cert.der");
+const MIXED_LEAF: &[u8] =
+    include_bytes!("../../../test_key/ecp256/end_responder_rsa_issuer.cert.der");
 
 fn contexts() -> (RequesterContext, ResponderContext) {
     // Avoid contention during lazy initialization of the global crypto callbacks.
@@ -62,29 +65,47 @@ fn contexts() -> (RequesterContext, ResponderContext) {
 }
 
 fn chain_buffer(leaf: &[u8]) -> SpdmCertChainBuffer {
-    let chain = if leaf == ALIAS_LEAF {
-        [ROOT, INTERMEDIATE, DEVICE_CA, leaf].concat()
+    chain_buffer_with_hash(leaf, SpdmBaseHashAlgo::TPM_ALG_SHA_256)
+}
+
+fn chain_buffer_with_hash(leaf: &[u8], hash: SpdmBaseHashAlgo) -> SpdmCertChainBuffer {
+    let (root, intermediate): (&[u8], &[u8]) = if leaf == MIXED_LEAF {
+        (
+            include_bytes!("../../../test_key/rsa2048/ca.cert.der"),
+            include_bytes!("../../../test_key/rsa2048/inter.cert.der"),
+        )
+    } else if leaf == P384_LEAF {
+        (
+            include_bytes!("../../../test_key/ecp384/ca.cert.der"),
+            include_bytes!("../../../test_key/ecp384/inter.cert.der"),
+        )
     } else {
-        [ROOT, INTERMEDIATE, leaf].concat()
+        (ROOT, INTERMEDIATE)
+    };
+    let chain = if leaf == ALIAS_LEAF {
+        [root, intermediate, DEVICE_CA, leaf].concat()
+    } else {
+        [root, intermediate, leaf].concat()
     };
     assert!(
         crypto::cert_operation::verify_cert_chain(
             &chain,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+            SpdmBaseAsymAlgo::empty(),
             SpdmPqcAsymAlgo::empty(),
-            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            SpdmBaseHashAlgo::empty(),
         )
         .is_ok(),
         "integration vectors must have valid signatures and linkage"
     );
-    let root_hash = crypto::hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_256, ROOT).unwrap();
+    let root_hash = crypto::hash::hash_all(hash, root).unwrap();
+    let certificate_offset = 4 + root_hash.data_size as usize;
     let mut buffer = SpdmCertChainBuffer {
         data_size: (4 + root_hash.data_size as usize + chain.len()) as u32,
         ..Default::default()
     };
     buffer.data[..4].copy_from_slice(&buffer.data_size.to_le_bytes());
-    buffer.data[4..36].copy_from_slice(root_hash.as_ref());
-    buffer.data[36..buffer.data_size as usize].copy_from_slice(&chain);
+    buffer.data[4..certificate_offset].copy_from_slice(root_hash.as_ref());
+    buffer.data[certificate_offset..buffer.data_size as usize].copy_from_slice(&chain);
     buffer
 }
 
@@ -93,6 +114,186 @@ fn expected(accepted: bool) -> SpdmResult {
         Ok(())
     } else {
         Err(SPDM_STATUS_INVALID_CERT)
+    }
+}
+
+#[test]
+fn spdm_certificate_eku_roles_in_both_acceptance_paths() {
+    for (leaf, requester_eku, responder_eku) in [
+        (
+            &include_bytes!("../../../test_key/ecp256/end_requester_with_spdm_req_eku.cert.der")[..],
+            true,
+            false,
+        ),
+        (
+            &include_bytes!("../../../test_key/ecp256/end_responder_with_spdm_rsp_eku.cert.der")[..],
+            false,
+            true,
+        ),
+        (
+            &include_bytes!(
+                "../../../test_key/ecp256/end_requester_with_spdm_req_rsp_eku.cert.der"
+            )[..],
+            true,
+            true,
+        ),
+        (LEAF, true, true),
+    ] {
+        for version in [
+            SpdmVersion::SpdmVersion10,
+            SpdmVersion::SpdmVersion11,
+            SpdmVersion::SpdmVersion12,
+            SpdmVersion::SpdmVersion13,
+            SpdmVersion::SpdmVersion14,
+        ] {
+            let (mut requester, mut responder) = contexts();
+            let chain = chain_buffer(leaf);
+            for common in [&mut requester.common, &mut responder.common] {
+                common.negotiate_info.spdm_version_sel = version;
+                common.peer_info.peer_cert_chain_temp = Some(chain.clone());
+            }
+            assert_eq!(
+                requester.verify_spdm_certificate_chain(),
+                expected(responder_eku),
+                "Responder certificate {:?}: req={}, rsp={}",
+                version,
+                requester_eku,
+                responder_eku
+            );
+            assert_eq!(
+                responder.verify_spdm_certificate_chain(),
+                expected(requester_eku),
+                "Requester certificate {:?}: req={}, rsp={}",
+                version,
+                requester_eku,
+                responder_eku
+            );
+            let mut corrupt = chain;
+            corrupt.data[corrupt.data_size as usize - 1] ^= 1;
+            requester.common.peer_info.peer_cert_chain_temp = Some(corrupt.clone());
+            responder.common.peer_info.peer_cert_chain_temp = Some(corrupt);
+            assert_eq!(
+                requester.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+            assert_eq!(
+                responder.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+        }
+    }
+}
+
+#[test]
+fn spdm12_plus_negotiated_algorithms_follow_the_peer_role() {
+    for version in [
+        SpdmVersion::SpdmVersion12,
+        SpdmVersion::SpdmVersion13,
+        SpdmVersion::SpdmVersion14,
+    ] {
+        for (responder_asym, requester_asym, responder_leaf, requester_leaf) in [
+            (
+                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+                SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+                LEAF,
+                P384_LEAF,
+            ),
+            (
+                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+                SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
+                P384_LEAF,
+                LEAF,
+            ),
+        ] {
+            let (mut requester, mut responder) = contexts();
+            for common in [&mut requester.common, &mut responder.common] {
+                common.negotiate_info.spdm_version_sel = version;
+                common.negotiate_info.base_asym_sel = responder_asym;
+                common.negotiate_info.req_asym_sel = requester_asym;
+            }
+            requester.common.peer_info.peer_cert_chain_temp = Some(chain_buffer(responder_leaf));
+            responder.common.peer_info.peer_cert_chain_temp = Some(chain_buffer(requester_leaf));
+            assert_eq!(requester.verify_spdm_certificate_chain(), Ok(()));
+            assert_eq!(responder.verify_spdm_certificate_chain(), Ok(()));
+
+            requester.common.peer_info.peer_cert_chain_temp = Some(chain_buffer(requester_leaf));
+            responder.common.peer_info.peer_cert_chain_temp = Some(chain_buffer(responder_leaf));
+            assert_eq!(
+                requester.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+            assert_eq!(
+                responder.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+        }
+    }
+}
+
+#[test]
+fn spdm12_plus_issuer_signatures_are_independent_of_endpoint_negotiation() {
+    for version in [
+        SpdmVersion::SpdmVersion12,
+        SpdmVersion::SpdmVersion13,
+        SpdmVersion::SpdmVersion14,
+    ] {
+        for hash in [
+            SpdmBaseHashAlgo::TPM_ALG_SHA_256,
+            SpdmBaseHashAlgo::TPM_ALG_SHA_512,
+        ] {
+            let (mut requester, mut responder) = contexts();
+            let chain = chain_buffer_with_hash(MIXED_LEAF, hash);
+            for common in [&mut requester.common, &mut responder.common] {
+                common.negotiate_info.spdm_version_sel = version;
+                common.negotiate_info.base_hash_sel = hash;
+                common.peer_info.peer_cert_chain_temp = Some(chain.clone());
+            }
+            assert_eq!(requester.verify_spdm_certificate_chain(), Ok(()));
+            assert_eq!(responder.verify_spdm_certificate_chain(), Ok(()));
+            let mut corrupt = chain;
+            corrupt.data[corrupt.data_size as usize - 1] ^= 1;
+            requester.common.peer_info.peer_cert_chain_temp = Some(corrupt.clone());
+            responder.common.peer_info.peer_cert_chain_temp = Some(corrupt);
+            assert_eq!(
+                requester.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+            assert_eq!(
+                responder.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+        }
+    }
+}
+
+#[test]
+fn spdm12_plus_rejects_missing_ambiguous_and_incompatible_selections() {
+    for version in [
+        SpdmVersion::SpdmVersion12,
+        SpdmVersion::SpdmVersion13,
+        SpdmVersion::SpdmVersion14,
+    ] {
+        for (asym, pqc) in [(0, 0), (0x90, 0), (0x10, 1), (0, 1)] {
+            let (mut requester, mut responder) = contexts();
+            for common in [&mut requester.common, &mut responder.common] {
+                common.negotiate_info.spdm_version_sel = version;
+                common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::from_bits(asym).unwrap();
+                common.negotiate_info.req_asym_sel =
+                    SpdmReqAsymAlgo::from_base(common.negotiate_info.base_asym_sel);
+                common.negotiate_info.pqc_asym_sel = SpdmPqcAsymAlgo::from_bits(pqc).unwrap();
+                common.negotiate_info.pqc_req_asym_sel =
+                    SpdmPqcReqAsymAlgo::from_base(common.negotiate_info.pqc_asym_sel);
+                common.peer_info.peer_cert_chain_temp = Some(chain_buffer(LEAF));
+            }
+            assert_eq!(
+                requester.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+            assert_eq!(
+                responder.verify_spdm_certificate_chain(),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+        }
     }
 }
 

@@ -213,4 +213,7 @@ mod tests {
         )[..];
         assert!(verify_cert_chain_x509(cert_der, None, None).is_ok());
     }
+
+    use crate::crypto::check_leaf_certificate;
+    include!("../../../../test/crypto_role_eku.inc.rs");
 }

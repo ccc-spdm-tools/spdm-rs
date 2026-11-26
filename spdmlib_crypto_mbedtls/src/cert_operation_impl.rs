@@ -228,4 +228,7 @@ mod tests {
     fn test_mbedtls_backend_creation() {
         let _backend = MbedtlsBackend;
     }
+
+    use spdmlib::crypto::check_leaf_certificate;
+    include!("../../test/crypto_role_eku.inc.rs");
 }
