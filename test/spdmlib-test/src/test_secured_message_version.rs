@@ -6,6 +6,7 @@
 // Responder selects the latest version that the Requester supports and it supports itself,
 // whatever the order of the lists, and the Requester accepts only a version that it offered.
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
@@ -335,11 +336,12 @@ async fn exchange_with(
         Flow::KeyExchange => {
             responder.common.negotiate_info.rsp_capabilities_sel |=
                 SpdmResponseCapabilityFlags::KEY_EX_CAP;
-            responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+            responder.common.negotiate_info.dhe_sel = algo::dhe_algo();
+            responder.common.negotiate_info.kem_sel = algo::kem_algo();
             // The algorithm of the certificate chain, which is RSA when SPDMRS_USE_ECDSA is
             // false, and not always ECDSA.
-            responder.common.negotiate_info.base_asym_sel =
-                responder.common.config_info.base_asym_algo;
+            responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+            responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
             #[cfg(feature = "mut-auth")]
             {
                 responder.common.negotiate_info.rsp_capabilities_sel |=
@@ -402,11 +404,12 @@ async fn exchange_with(
         SpdmMeasurementSummaryHashType::SpdmMeasurementSummaryHashTypeNone;
     let session_id = match flow {
         Flow::KeyExchange => {
-            requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+            requester.common.negotiate_info.dhe_sel = algo::dhe_algo();
+            requester.common.negotiate_info.kem_sel = algo::kem_algo();
             // The algorithm of the certificate chain, which is RSA when SPDMRS_USE_ECDSA is
             // false, and not always ECDSA.
-            requester.common.negotiate_info.base_asym_sel =
-                requester.common.config_info.base_asym_algo;
+            requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+            requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
             #[cfg(feature = "mut-auth")]
             {
                 requester.common.negotiate_info.rsp_capabilities_sel |=

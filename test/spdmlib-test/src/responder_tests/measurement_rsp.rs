@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
@@ -46,7 +47,8 @@ fn test_case0_handle_spdm_measurement() {
 
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.measurement_specification_sel =
@@ -156,7 +158,8 @@ fn test_case1_handle_spdm_measurement() {
 
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.measurement_specification_sel =
@@ -360,7 +363,8 @@ fn test_case3_handle_spdm_measurement_key_usage_mask() {
         });
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         context.common.negotiate_info.measurement_specification_sel =

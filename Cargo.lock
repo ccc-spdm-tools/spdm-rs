@@ -1888,6 +1888,7 @@ version = "0.1.0"
 dependencies = [
  "async-recursion",
  "async-trait",
+ "aws-lc-rs",
  "bytes",
  "codec",
  "env_logger",
@@ -1897,6 +1898,7 @@ dependencies = [
  "pcidoe_transport",
  "ring",
  "spdmlib",
+ "spdmlib_crypto_aws_lc",
  "spin 0.9.8",
 ]
 

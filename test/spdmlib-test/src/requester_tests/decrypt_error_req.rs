@@ -5,6 +5,7 @@
 // Only an AEAD decrypt failure on a secured response ends the session on the
 // Requester. A decode error, such as a bad length, leaves it open.
 
+use crate::common::algo;
 use crate::common::crypto_callback::FAKE_HMAC;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
@@ -42,8 +43,8 @@ fn new_context_with_session() -> RequesterContext {
     context.common.session[0].setup(SESSION_ID).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );

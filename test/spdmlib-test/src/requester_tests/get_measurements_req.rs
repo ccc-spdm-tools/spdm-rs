@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
@@ -66,8 +67,8 @@ fn test_case0_send_receive_spdm_measurement() {
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         responder.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         #[cfg(not(feature = "hashed-transcript-data"))]
@@ -136,8 +137,8 @@ fn test_case0_send_receive_spdm_measurement() {
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         requester.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
@@ -383,7 +384,7 @@ fn test_handle_spdm_measurement_record_response() {
                 v.extend_from_slice(&[0x10, 0x00]);
                 v.extend_from_slice(&[0x02; 16]);
                 v.extend_from_slice(&[0x00; 8]);
-                v.extend_from_slice(&[0xFF; 96]); // Signature
+                v.extend_from_slice(&vec![0xFF; algo::asym_sig_size()]); // Signature
                 v.into_boxed_slice()
             },
             expected_result: Err(SPDM_STATUS_INVALID_MSG_FIELD),
@@ -450,8 +451,8 @@ fn test_handle_spdm_measurement_record_response() {
                 .negotiate_info
                 .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
             requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-            requester.common.negotiate_info.base_asym_sel =
-                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+            requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+            requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
             requester.common.negotiate_info.measurement_hash_sel =
                 SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
             requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
@@ -535,8 +536,8 @@ fn test_case1_send_receive_spdm_measurement() {
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         responder.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         #[cfg(not(feature = "hashed-transcript-data"))]
@@ -609,8 +610,8 @@ fn test_case1_send_receive_spdm_measurement() {
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         requester.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
@@ -670,14 +671,17 @@ fn test_case1_send_receive_spdm_measurement() {
         let mut message_l1l2 = ManagedBufferL1L2::default();
         message_l1l2.append_message(b"transcript_vca").unwrap();
         message_l1l2
-            .append_message(&transcript_meas.as_ref()[..transcript_meas_len - 96])
+            .append_message(
+                &transcript_meas.as_ref()[..transcript_meas_len - algo::asym_sig_size()],
+            )
             .unwrap();
         let mut spdm_signature_struct = SpdmSignatureStruct {
-            data_size: 96,
+            data_size: algo::asym_sig_size() as u16,
             ..SpdmSignatureStruct::default()
         };
-        spdm_signature_struct.data[..96]
-            .copy_from_slice(&transcript_meas.as_ref()[transcript_meas_len - 96..]);
+        spdm_signature_struct.data[..algo::asym_sig_size()].copy_from_slice(
+            &transcript_meas.as_ref()[transcript_meas_len - algo::asym_sig_size()..],
+        );
         let message_l1l2_hash =
             crypto::hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_384, message_l1l2.as_ref())
                 .unwrap();
@@ -766,8 +770,8 @@ fn test_case3_send_receive_spdm_measurement() {
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         responder.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         #[cfg(not(feature = "hashed-transcript-data"))]
@@ -839,8 +843,8 @@ fn test_case3_send_receive_spdm_measurement() {
             .negotiate_info
             .measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         requester.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());
@@ -912,14 +916,17 @@ fn test_case3_send_receive_spdm_measurement() {
                 let mut message_l1l2 = ManagedBufferL1L2::default();
                 message_l1l2.append_message(b"transcript_vca").unwrap();
                 message_l1l2
-                    .append_message(&transcript_meas.as_ref()[..transcript_meas_len - 96])
+                    .append_message(
+                        &transcript_meas.as_ref()[..transcript_meas_len - algo::asym_sig_size()],
+                    )
                     .unwrap();
                 let mut spdm_signature_struct = SpdmSignatureStruct {
-                    data_size: 96,
+                    data_size: algo::asym_sig_size() as u16,
                     ..SpdmSignatureStruct::default()
                 };
-                spdm_signature_struct.data[..96]
-                    .copy_from_slice(&transcript_meas.as_ref()[transcript_meas_len - 96..]);
+                spdm_signature_struct.data[..algo::asym_sig_size()].copy_from_slice(
+                    &transcript_meas.as_ref()[transcript_meas_len - algo::asym_sig_size()..],
+                );
                 let message_l1l2_hash = crypto::hash::hash_all(
                     SpdmBaseHashAlgo::TPM_ALG_SHA_384,
                     message_l1l2.as_ref(),

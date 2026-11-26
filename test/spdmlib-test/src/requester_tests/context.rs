@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, create_info_req_asym_algo};
+use crate::common::util::{req_create_info, rsp_create_info};
 use crate::watchdog_impl_sample::init_watchdog;
 use codec::Writer;
 use spdmlib::common::session::SpdmSession;
@@ -22,11 +23,8 @@ use alloc::sync::Arc;
 fn test_case0_start_session() {
     init_watchdog();
     let future = async {
-        let (mut rsp_config_info, rsp_provision_info) = create_info();
-        let (mut req_config_info, req_provision_info) = create_info();
-        // The Requester authenticates with the create_info() chain below (SPDMRS_USE_ECDSA).
-        rsp_config_info.req_asym_algo = create_info_req_asym_algo();
-        req_config_info.req_asym_algo = create_info_req_asym_algo();
+        let (rsp_config_info, rsp_provision_info) = rsp_create_info();
+        let (req_config_info, req_provision_info) = req_create_info();
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -75,7 +73,8 @@ fn test_case0_start_session() {
 
         #[cfg(feature = "mut-auth")]
         {
-            requester.common.negotiate_info.req_asym_sel = create_info_req_asym_algo();
+            requester.common.negotiate_info.req_asym_sel =
+                requester.common.config_info.req_asym_algo;
         }
 
         let result = requester
@@ -112,11 +111,8 @@ fn test_case0_start_session() {
 fn test_case0_get_next_half_session() {
     let future = async {
         init_watchdog();
-        let (mut rsp_config_info, rsp_provision_info) = create_info();
-        let (mut req_config_info, req_provision_info) = create_info();
-        // The Requester authenticates with the create_info() chain below (SPDMRS_USE_ECDSA).
-        rsp_config_info.req_asym_algo = create_info_req_asym_algo();
-        req_config_info.req_asym_algo = create_info_req_asym_algo();
+        let (rsp_config_info, rsp_provision_info) = rsp_create_info();
+        let (req_config_info, req_provision_info) = req_create_info();
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -165,7 +161,8 @@ fn test_case0_get_next_half_session() {
 
         #[cfg(feature = "mut-auth")]
         {
-            requester.common.negotiate_info.req_asym_sel = create_info_req_asym_algo();
+            requester.common.negotiate_info.req_asym_sel =
+                requester.common.config_info.req_asym_algo;
         }
 
         let result = requester
@@ -232,8 +229,8 @@ fn test_case0_get_next_half_session() {
 fn test_case0_receive_secured_message() {
     let future = async {
         init_watchdog();
-        let (rsp_config_info, rsp_provision_info) = create_info();
-        let (req_config_info, req_provision_info) = create_info();
+        let (rsp_config_info, rsp_provision_info) = rsp_create_info();
+        let (req_config_info, req_provision_info) = req_create_info();
 
         let shared_buffer = SharedBuffer::new();
         let device_io_responder = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -258,8 +255,8 @@ fn test_case0_receive_secured_message() {
         responder.common.session[0].setup(session_id).unwrap();
         responder.common.session[0].set_crypto_param(
             protocol::SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            protocol::SpdmDheAlgo::SECP_384_R1,
-            protocol::SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             protocol::SpdmAeadAlgo::AES_256_GCM,
             protocol::SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -314,8 +311,8 @@ fn test_case0_receive_secured_message() {
         requester.common.session[0].setup(session_id).unwrap();
         requester.common.session[0].set_crypto_param(
             protocol::SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            protocol::SpdmDheAlgo::SECP_384_R1,
-            protocol::SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             protocol::SpdmAeadAlgo::AES_256_GCM,
             protocol::SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );

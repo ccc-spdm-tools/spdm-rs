@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::{create_info, create_info_base_asym_algo};
+use crate::common::util::create_info;
 use codec::Writer;
 use spdmlib::common::{SpdmCodec, SpdmConnectionState};
 use spdmlib::protocol::*;
@@ -14,6 +15,47 @@ use spdmlib::{responder, secret};
 use spin::Mutex;
 extern crate alloc;
 use alloc::sync::Arc;
+
+// The alg struct tables that create_info() configures, in the order that they are sent: the DHE,
+// the AEAD, the ReqAsym and the key schedule, then, from SPDM 1.4, the PqcReqAsym and the KEM.
+// The ones of the other suites are not configured.
+fn expected_alg_structs() -> Vec<(SpdmAlgType, SpdmAlg)> {
+    let (config_info, _) = create_info();
+    let mut expected = Vec::new();
+    if algo::dhe_algo().is_valid() {
+        expected.push((
+            SpdmAlgType::SpdmAlgTypeDHE,
+            SpdmAlg::SpdmAlgoDhe(algo::dhe_algo()),
+        ));
+    }
+    expected.push((
+        SpdmAlgType::SpdmAlgTypeAEAD,
+        SpdmAlg::SpdmAlgoAead(SpdmAeadAlgo::AES_256_GCM),
+    ));
+    if config_info.req_asym_algo.is_valid() {
+        expected.push((
+            SpdmAlgType::SpdmAlgTypeReqAsym,
+            SpdmAlg::SpdmAlgoReqAsym(config_info.req_asym_algo),
+        ));
+    }
+    expected.push((
+        SpdmAlgType::SpdmAlgTypeKeySchedule,
+        SpdmAlg::SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE),
+    ));
+    if config_info.pqc_req_asym_algo.is_valid() {
+        expected.push((
+            SpdmAlgType::SpdmAlgTypePqcReqAsym,
+            SpdmAlg::SpdmAlgoPqcReqAsym(config_info.pqc_req_asym_algo),
+        ));
+    }
+    if algo::kem_algo().is_valid() {
+        expected.push((
+            SpdmAlgType::SpdmAlgTypeKEM,
+            SpdmAlg::SpdmAlgoKem(algo::kem_algo()),
+        ));
+    }
+    expected
+}
 
 #[test]
 fn test_case0_send_receive_spdm_capability() {
@@ -59,7 +101,7 @@ fn test_case0_send_receive_spdm_capability() {
         requester.common.negotiate_info.measurement_hash_sel =
             SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel = create_info_base_asym_algo();
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
 
         let status = requester.send_receive_spdm_capability().await.is_ok();
@@ -100,7 +142,8 @@ fn test_case1_send_receive_spdm_capability_supported_algorithms() {
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
         // The Responder emits the block only once a >=1.3 version is selected.
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -120,7 +163,8 @@ fn test_case1_send_receive_spdm_capability_supported_algorithms() {
         );
 
         requester.common.reset_runtime_info();
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         // Before the exchange, nothing is available to consume.
         assert!(requester.get_peer_supported_algorithms().is_none());
@@ -140,28 +184,15 @@ fn test_case1_send_receive_spdm_capability_supported_algorithms() {
             block.measurement_specification,
             SpdmMeasurementSpecification::DMTF
         );
-        assert_eq!(block.base_asym_algo, create_info_base_asym_algo());
+        assert_eq!(block.base_asym_algo, algo::base_asym_algo());
         assert_eq!(block.base_hash_algo, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
-        // create_info() configures DHE, AEAD, ReqAsym and KeySchedule (4 alg struct tables).
-        assert_eq!(block.alg_struct_count, 4);
-        assert_eq!(block.alg_struct[0].alg_type, SpdmAlgType::SpdmAlgTypeDHE);
-        assert_eq!(
-            block.alg_struct[0].alg_supported,
-            SpdmAlg::SpdmAlgoDhe(SpdmDheAlgo::SECP_384_R1)
-        );
-        assert_eq!(block.alg_struct[1].alg_type, SpdmAlgType::SpdmAlgTypeAEAD);
-        assert_eq!(
-            block.alg_struct[1].alg_supported,
-            SpdmAlg::SpdmAlgoAead(SpdmAeadAlgo::AES_256_GCM)
-        );
-        assert_eq!(
-            block.alg_struct[2].alg_type,
-            SpdmAlgType::SpdmAlgTypeReqAsym
-        );
-        assert_eq!(
-            block.alg_struct[3].alg_type,
-            SpdmAlgType::SpdmAlgTypeKeySchedule
-        );
+        // create_info() configures these alg struct tables.
+        let expected = expected_alg_structs();
+        assert_eq!(block.alg_struct_count as usize, expected.len());
+        for (index, (alg_type, alg_supported)) in expected.iter().enumerate() {
+            assert_eq!(block.alg_struct[index].alg_type, *alg_type);
+            assert_eq!(block.alg_struct[index].alg_supported, *alg_supported);
+        }
 
         // End-to-end transcript check: the Requester and Responder must have built an identical
         // VCA transcript (message_a). The block-bearing CAPABILITIES response is part of it, so
@@ -232,7 +263,8 @@ fn test_case2_send_receive_spdm_capability_supported_algorithms_chunked() {
             .common
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -250,7 +282,8 @@ fn test_case2_send_receive_spdm_capability_supported_algorithms_chunked() {
         );
 
         requester.common.reset_runtime_info();
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         // GET_CAPABILITIES advertises DataTransferSize=42; the block-bearing CAPABILITIES exceeds
         // it, so this exercises the ERROR/LargeResponse -> CHUNK_GET -> CHUNK_RESPONSE path.
@@ -261,8 +294,11 @@ fn test_case2_send_receive_spdm_capability_supported_algorithms_chunked() {
         let block = requester
             .get_peer_supported_algorithms()
             .expect("Responder must return SupportedAlgorithms (chunked) when requested");
-        assert_eq!(block.alg_struct_count, 4);
-        assert_eq!(block.base_asym_algo, create_info_base_asym_algo());
+        assert_eq!(
+            block.alg_struct_count as usize,
+            expected_alg_structs().len()
+        );
+        assert_eq!(block.base_asym_algo, algo::base_asym_algo());
 
         // Even though CAPABILITIES was chunked on the wire, the reassembled message must appear
         // identically in both VCA transcripts (the chunk envelopes are not part of the transcript).
@@ -333,7 +369,8 @@ fn test_case3_send_receive_spdm_capability_supported_algorithms_no_chunk() {
             .common
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -350,7 +387,8 @@ fn test_case3_send_receive_spdm_capability_supported_algorithms_no_chunk() {
         );
 
         requester.common.reset_runtime_info();
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         // The capability exchange succeeds, but no SupportedAlgorithms block is returned.
         assert!(requester.send_receive_spdm_capability().await.is_ok());
@@ -396,7 +434,8 @@ fn test_case4_send_receive_spdm_capability_supported_algorithms_exceed_max_msg_s
             .common
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterVersion);
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -413,7 +452,8 @@ fn test_case4_send_receive_spdm_capability_supported_algorithms_exceed_max_msg_s
         );
 
         requester.common.reset_runtime_info();
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
 
         // The capability exchange succeeds (basic CAPABILITIES), with no SupportedAlgorithms
         // block, even though CHUNK_CAP is available - because chunking cannot satisfy

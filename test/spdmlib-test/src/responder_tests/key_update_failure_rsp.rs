@@ -5,6 +5,7 @@
 // A key update that fails on the Responder ends the session, after the error
 // response is sent.
 
+use crate::common::algo;
 use crate::common::crypto_callback::FAKE_HMAC;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
@@ -48,8 +49,8 @@ fn new_context_with_session(with_data_secret: bool) -> ResponderContext {
     session.setup(SESSION_ID).unwrap();
     session.set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
