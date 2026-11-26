@@ -210,4 +210,27 @@ fn test_0_crypto_init() {
     spdmlib::secret::asym_sign::register(FAKE_SECRET_ASYM_IMPL_INSTANCE.clone());
     spdmlib::secret::pqc_asym_sign::register(FAKE_SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     spdmlib::secret::measurement::register(SECRET_MEASUREMENT_IMPL_INSTANCE.clone());
+    register_pqc_backend();
+}
+
+/// The crypto that PQC uses where the classical suites use the real one, and the fake one does not
+/// stand in for: the ML-KEM (as the DHE is real) and the ML-DSA certificate chain verification (as
+/// the certificate chain verification is real). The signatures of ML-DSA are fake, as the ones of
+/// ECDSA and RSA are.
+pub fn register_pqc_backend() {
+    if !super::use_pqc() {
+        return;
+    }
+    #[cfg(feature = "spdm-aws-lc")]
+    {
+        spdmlib::crypto::kem_decap::register(
+            spdmlib_crypto_aws_lc::kem_impl::DEFAULT_DECAP.clone(),
+        );
+        spdmlib::crypto::kem_encap::register(
+            spdmlib_crypto_aws_lc::kem_impl::DEFAULT_ENCAP.clone(),
+        );
+        spdmlib_crypto_aws_lc::pqc_cert_verify_impl::register();
+    }
+    #[cfg(not(feature = "spdm-aws-lc"))]
+    panic!("SPDMRS_USE_PQC needs the spdm-aws-lc feature of spdmlib-test, for the ML-KEM and the ML-DSA certificate chains");
 }

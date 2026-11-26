@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::crypto_callback::FAKE_HMAC;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
@@ -43,7 +44,8 @@ fn test_case0_handle_spdm_key_exchange() {
         );
 
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
         context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
 
@@ -127,7 +129,8 @@ fn test_case1_handle_spdm_key_exchange() {
         );
 
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
         context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
 
@@ -222,9 +225,10 @@ fn test_case2_handle_spdm_key_exchange_requires_key_ex_cap() {
                 SpdmRequestCapabilityFlags::KEY_EX_CAP;
             responder.common.negotiate_info.rsp_capabilities_sel = rsp_capabilities;
             responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-            responder.common.negotiate_info.base_asym_sel =
-                SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-            responder.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+            responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+            responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
+            responder.common.negotiate_info.dhe_sel = algo::dhe_algo();
+            responder.common.negotiate_info.kem_sel = algo::kem_algo();
             responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
             responder.common.negotiate_info.other_params_support =
                 SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
@@ -245,7 +249,8 @@ fn test_case2_handle_spdm_key_exchange_requires_key_ex_cap() {
             );
             requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
             requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-            requester.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_384_R1;
+            requester.common.negotiate_info.dhe_sel = algo::dhe_algo();
+            requester.common.negotiate_info.kem_sel = algo::kem_algo();
             requester.common.negotiate_info.other_params_support =
                 SpdmAlgoOtherParams::OPAQUE_DATA_FMT1;
             requester.common.reset_runtime_info();
@@ -326,7 +331,8 @@ fn test_case3_handle_spdm_key_exchange_key_usage_mask() {
         });
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.dhe_sel = SpdmDheAlgo::SECP_256_R1;
         context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
         context.common.negotiate_info.key_schedule_sel = SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE;

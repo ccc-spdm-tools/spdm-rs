@@ -7,10 +7,11 @@ extern crate alloc;
 #[cfg(feature = "hashed-transcript-data")]
 #[allow(unused_imports)]
 use {
+    crate::common::algo,
     crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
     crate::common::secret_callback::*,
     crate::common::transport::PciDoeTransportEncap,
-    crate::common::util::{create_info, create_info_base_asym_algo, get_rsp_cert_chain_buff},
+    crate::common::util::{create_info, get_rsp_cert_chain_buff},
     alloc::sync::Arc,
     spdmlib::common::SpdmConnectionState,
     spdmlib::config::{MAX_SPDM_CERT_CHAIN_DATA_SIZE, MAX_SPDM_MSG_SIZE, SPDM_DATA_TRANSFER_SIZE},
@@ -47,7 +48,7 @@ fn test_case0_send_receive_spdm_certificate() {
 
         responder.common.reset_runtime_info();
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel = create_info_base_asym_algo();
+        responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
         #[cfg(feature = "chunk-cap")]
         {
             responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
@@ -92,7 +93,7 @@ fn test_case0_send_receive_spdm_certificate() {
         );
 
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel = create_info_base_asym_algo();
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
         #[cfg(feature = "chunk-cap")]
         {
             requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;

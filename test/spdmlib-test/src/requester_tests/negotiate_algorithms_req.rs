@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
@@ -44,6 +45,25 @@ fn test_case0_send_receive_spdm_algorithm() {
             .common
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(responder.common.negotiate_info.spdm_version_sel);
+        // The capabilities that SPDM 1.3 and later negotiation looks at, as test_case1 sets them.
+        responder
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
+        #[cfg(feature = "chunk-cap")]
+        {
+            responder.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            responder.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            responder.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
 
         let pcidoe_transport_encap2 = Arc::new(Mutex::new(PciDoeTransportEncap {}));
         let shared_buffer = SharedBuffer::new();
@@ -59,6 +79,29 @@ fn test_case0_send_receive_spdm_algorithm() {
             req_provision_info,
         );
 
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(requester.common.negotiate_info.spdm_version_sel);
+        requester
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .insert(SpdmResponseCapabilityFlags::MULTI_KEY_CAP_ONLY);
+        requester
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .insert(SpdmResponseCapabilityFlags::MEL_CAP);
+        #[cfg(feature = "chunk-cap")]
+        {
+            requester.common.negotiate_info.req_capabilities_sel |=
+                SpdmRequestCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_capabilities_sel |=
+                SpdmResponseCapabilityFlags::CHUNK_CAP;
+            requester.common.negotiate_info.rsp_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+            requester.common.negotiate_info.req_data_transfer_size_sel =
+                config::SPDM_DATA_TRANSFER_SIZE as u32;
+        }
         let status = requester.send_receive_spdm_algorithm().await.is_ok();
         assert!(status);
     };
@@ -91,7 +134,8 @@ fn test_case1_send_receive_spdm_algorithm() {
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
 
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
         responder
             .common
             .negotiate_info
@@ -124,7 +168,8 @@ fn test_case1_send_receive_spdm_algorithm() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
         requester
             .common
             .negotiate_info
@@ -186,7 +231,8 @@ fn test_case2_send_receive_spdm_algorithm() {
             .runtime_info
             .set_connection_state(SpdmConnectionState::SpdmConnectionAfterCapabilities);
 
-        responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        responder.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
         responder
             .common
             .negotiate_info
@@ -239,7 +285,8 @@ fn test_case2_send_receive_spdm_algorithm() {
             req_provision_info,
         );
 
-        requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
+        requester.common.negotiate_info.spdm_version_sel =
+            algo::spdm_version(SpdmVersion::SpdmVersion13);
         requester
             .common
             .negotiate_info

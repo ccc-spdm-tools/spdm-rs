@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::*;
@@ -39,8 +40,8 @@ fn test_case0_send_secured_message() {
     context.common.session[0].setup(session_id).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
@@ -161,8 +162,8 @@ fn test_case0_process_message() {
     context.common.session[0].setup(session_id).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
@@ -194,7 +195,8 @@ fn test_case0_dispatch_secured_message() {
     let patch_context = |context: &mut SpdmContext| {
         context.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion10;
         context.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    context.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
         context.negotiate_info.measurement_specification_sel = SpdmMeasurementSpecification::DMTF;
 
@@ -202,8 +204,8 @@ fn test_case0_dispatch_secured_message() {
         context.session[0].setup(session_id).unwrap();
         context.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );

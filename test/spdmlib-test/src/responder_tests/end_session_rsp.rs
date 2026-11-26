@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
@@ -58,8 +59,8 @@ fn test_case0_handle_spdm_end_session() {
         context.common.session[0].setup(session_id).unwrap();
         context.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );

@@ -1166,16 +1166,21 @@ fn test_mixed_buffer_stress() {
         .expect("Failed to append to buffer C");
 
     // Test each buffer individually
-    let mut encode_buf = [0u8; 16384];
+    // Room for the largest buffer and its length, whatever the sizes of the configuration are.
+    let encode_buf_size = MAX_MANAGED_BUFFER_A_SIZE
+        .max(MAX_MANAGED_BUFFER_B_SIZE)
+        .max(MAX_MANAGED_BUFFER_C_SIZE)
+        + 16;
+    let mut encode_buf = vec![0u8; encode_buf_size];
 
     // Test buffer A
-    let mut writer = Writer::init(&mut encode_buf);
+    let mut writer = Writer::init(&mut encode_buf[..]);
     let encoded_size_a = buffer_a
         .encode(&mut writer)
         .expect("Failed to encode buffer A");
     assert!(encoded_size_a > 0, "Buffer A encoded to zero size");
     assert!(
-        encoded_size_a < 16384,
+        encoded_size_a < encode_buf_size,
         "Buffer A encoded size too large: {}",
         encoded_size_a
     );
@@ -1185,13 +1190,13 @@ fn test_mixed_buffer_stress() {
     assert_eq!(buffer_a.as_ref(), decoded_a.as_ref());
 
     // Test buffer B
-    let mut writer = Writer::init(&mut encode_buf);
+    let mut writer = Writer::init(&mut encode_buf[..]);
     let encoded_size_b = buffer_b
         .encode(&mut writer)
         .expect("Failed to encode buffer B");
     assert!(encoded_size_b > 0, "Buffer B encoded to zero size");
     assert!(
-        encoded_size_b < 16384,
+        encoded_size_b < encode_buf_size,
         "Buffer B encoded size too large: {}",
         encoded_size_b
     );
@@ -1201,13 +1206,13 @@ fn test_mixed_buffer_stress() {
     assert_eq!(buffer_b.as_ref(), decoded_b.as_ref());
 
     // Test buffer C
-    let mut writer = Writer::init(&mut encode_buf);
+    let mut writer = Writer::init(&mut encode_buf[..]);
     let encoded_size_c = buffer_c
         .encode(&mut writer)
         .expect("Failed to encode buffer C");
     assert!(encoded_size_c > 0, "Buffer C encoded to zero size");
     assert!(
-        encoded_size_c < 16384,
+        encoded_size_c < encode_buf_size,
         "Buffer C encoded size too large: {}",
         encoded_size_c
     );

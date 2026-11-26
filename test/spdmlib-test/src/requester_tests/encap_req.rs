@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::crypto_callback::FAKE_HMAC;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
@@ -309,7 +310,8 @@ fn setup_test_context_and_session(
     crypto::hmac::register(FAKE_HMAC.clone());
 
     context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
-    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
     context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
     context.common.negotiate_info.req_capabilities_sel =
         SpdmRequestCapabilityFlags::ENCAP_CAP | SpdmRequestCapabilityFlags::CERT_CAP;
@@ -332,8 +334,8 @@ fn setup_test_context_and_session(
     context.common.session[0].setup(SESSION_ID).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );

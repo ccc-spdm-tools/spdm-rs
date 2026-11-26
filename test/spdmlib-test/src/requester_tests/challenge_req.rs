@@ -6,6 +6,7 @@
 extern crate alloc;
 #[cfg(feature = "hashed-transcript-data")]
 use {
+    crate::common::algo,
     crate::common::crypto_callback::FAKE_RAND,
     crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
     crate::common::secret_callback::*,
@@ -61,7 +62,8 @@ fn test_case0_send_receive_spdm_challenge() {
     responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
 
     responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    responder.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
     responder.common.runtime_info.need_measurement_summary_hash = true;
 
     #[cfg(feature = "chunk-cap")]
@@ -101,7 +103,8 @@ fn test_case0_send_receive_spdm_challenge() {
 
     requester.common.negotiate_info.measurement_hash_sel = SpdmMeasurementHashAlgo::TPM_ALG_SHA_384;
     requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    requester.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
     requester.common.runtime_info.need_measurement_summary_hash = true;
 
     requester.common.peer_info.peer_cert_chain[0] = Some(get_rsp_cert_chain_buff());

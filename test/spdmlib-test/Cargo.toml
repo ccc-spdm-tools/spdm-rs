@@ -17,14 +17,19 @@ async-recursion = "1.0.4"
 spin = { version = "0.9.8" }
 executor = { path = "../../executor" }
 pcidoe_transport = { path = "../../pcidoe_transport" }
+spdmlib_crypto_aws_lc = { path = "../../spdmlib_crypto_aws_lc", optional = true }
+aws-lc-rs = { path = "../../external/aws-lc-rs/aws-lc-rs", features = ["unstable"], optional = true }
 
 [dev-dependencies]
 env_logger = "*"
 
 [features]
 default = ["hashed-transcript-data", "mut-auth", "chunk-cap", "respond-if-ready"]
-hashed-transcript-data = ["spdmlib/hashed-transcript-data"]
+hashed-transcript-data = ["spdmlib/hashed-transcript-data", "spdmlib_crypto_aws_lc?/hashed-transcript-data"]
 mut-auth = ["spdmlib/mut-auth"]
 chunk-cap = ["spdmlib/chunk-cap"]
 respond-if-ready = ["spdmlib/respond-if-ready"]
 fips = ["spdmlib/fips"]
+# The ML-KEM and the ML-DSA certificate chain verification that SPDMRS_USE_PQC=true needs: the
+# real ones, as the DHE and the certificate chain verification of the classical suites are.
+spdm-aws-lc = ["spdmlib_crypto_aws_lc", "aws-lc-rs", "spdmlib/std"]

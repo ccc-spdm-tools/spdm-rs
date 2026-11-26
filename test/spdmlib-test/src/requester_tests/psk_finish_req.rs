@@ -7,6 +7,7 @@ extern crate alloc;
 #[cfg(feature = "hashed-transcript-data")]
 #[allow(unused_imports)]
 use {
+    crate::common::algo,
     crate::common::crypto_callback::*,
     crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer},
     crate::common::secret_callback::*,
@@ -49,8 +50,8 @@ fn test_case0_send_receive_spdm_psk_finish() {
 
         responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         #[cfg(feature = "chunk-cap")]
@@ -75,8 +76,8 @@ fn test_case0_send_receive_spdm_psk_finish() {
         responder.common.session[0].setup(4294901758).unwrap();
         responder.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -114,8 +115,8 @@ fn test_case0_send_receive_spdm_psk_finish() {
 
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         #[cfg(feature = "chunk-cap")]
@@ -136,8 +137,8 @@ fn test_case0_send_receive_spdm_psk_finish() {
         requester.common.session[0].setup(4294901758).unwrap();
         requester.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -192,8 +193,8 @@ fn test_case1_send_receive_spdm_psk_finish() {
 
         responder.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         responder.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        responder.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        responder.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        responder.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         responder.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         // let rsp_session_id = 0x11u16;
@@ -202,8 +203,8 @@ fn test_case1_send_receive_spdm_psk_finish() {
         responder.common.session[0].setup(4294901758).unwrap();
         responder.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -242,8 +243,8 @@ fn test_case1_send_receive_spdm_psk_finish() {
 
         requester.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion12;
         requester.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        requester.common.negotiate_info.base_asym_sel =
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        requester.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        requester.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         requester.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_256_GCM;
 
         // let rsp_session_id = 0x11u16;
@@ -252,8 +253,8 @@ fn test_case1_send_receive_spdm_psk_finish() {
         requester.common.session[0].setup(4294901758).unwrap();
         requester.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );

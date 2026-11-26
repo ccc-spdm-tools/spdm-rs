@@ -4,6 +4,7 @@
 
 #![allow(unused)]
 
+use crate::common::algo;
 use crate::common::crypto_callback::FAKE_RAND;
 use crate::common::device_io::{self, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
@@ -60,7 +61,8 @@ fn test_case0_handle_spdm_challenge() {
         ];
 
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.runtime_info.need_measurement_summary_hash = true;
         context
             .common
@@ -183,7 +185,7 @@ fn test_case0_handle_spdm_challenge() {
                     SHA384_DIGEST_SIZE
                 );
                 assert_eq!(payload.opaque.data_size, 0);
-                assert_eq!(payload.signature.data_size, SECP_384_R1_KEY_SIZE);
+                assert_eq!(payload.signature.data_size as usize, algo::asym_sig_size());
                 for i in 0..SHA384_DIGEST_SIZE {
                     assert_eq!(payload.measurement_summary_hash.data[i], 0xaau8);
                 }
@@ -344,7 +346,8 @@ fn test_case2_handle_spdm_challenge_key_usage_mask() {
         });
         context.common.negotiate_info.spdm_version_sel = SpdmVersion::SpdmVersion13;
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.rsp_capabilities_sel =
             SpdmResponseCapabilityFlags::CERT_CAP | SpdmResponseCapabilityFlags::CHAL_CAP;
         context.common.negotiate_info.multi_key_conn_rsp = true;

@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
+use crate::common::util::create_info;
 #[cfg(not(feature = "chunk-cap"))]
 use crate::common::util::TestSpdmMessage;
-use crate::common::util::{create_info, create_info_base_asym_algo};
 use codec::{Codec, Reader, Writer};
 use log::debug;
 use spdmlib::common::*;
@@ -71,7 +72,7 @@ fn test_case0_handle_spdm_algorithm() {
             measurement_specification: SpdmMeasurementSpecification::DMTF,
             other_params_support: SpdmAlgoOtherParams::OPAQUE_DATA_FMT1
                 | SpdmAlgoOtherParams::MULTI_KEY_CONN,
-            base_asym_algo: create_info_base_asym_algo(),
+            base_asym_algo: algo::base_asym_algo(),
             base_hash_algo: SpdmBaseHashAlgo::TPM_ALG_SHA_384,
             pqc_asym_algo: SpdmPqcAsymAlgo::ALG_MLDSA_87,
             mel_specification: SpdmMelSpecification::DMTF_MEL_SPEC,
@@ -147,10 +148,7 @@ fn test_case0_handle_spdm_algorithm() {
         assert!(spdm_sturct_data
             .other_params_support
             .contains(SpdmAlgoOtherParams::OPAQUE_DATA_FMT1));
-        assert_eq!(
-            spdm_sturct_data.base_asym_algo,
-            create_info_base_asym_algo()
-        );
+        assert_eq!(spdm_sturct_data.base_asym_algo, algo::base_asym_algo());
         assert_eq!(
             spdm_sturct_data.base_hash_algo,
             SpdmBaseHashAlgo::TPM_ALG_SHA_384
@@ -224,9 +222,28 @@ fn test_case0_handle_spdm_algorithm() {
                 payload.measurement_hash_algo,
                 SpdmMeasurementHashAlgo::TPM_ALG_SHA_384
             );
-            assert_eq!(payload.base_asym_sel, create_info_base_asym_algo());
+            assert_eq!(payload.base_asym_sel, algo::base_asym_algo());
             assert_eq!(payload.base_hash_sel, SpdmBaseHashAlgo::TPM_ALG_SHA_384);
-            assert_eq!(payload.alg_struct_count, 1);
+            // The Requester offers a DHE group, an AEAD and a ReqAsym that create_info() does not
+            // configure, and the key schedule, the PqcReqAsym and the KEM that it does, as
+            // far as its suite has them. The Responder selects the ones that match.
+            let mut expected = vec![(
+                SpdmAlgType::SpdmAlgTypeKeySchedule,
+                SpdmAlg::SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE),
+            )];
+            if context.common.config_info.pqc_req_asym_algo.is_valid() {
+                expected.push((
+                    SpdmAlgType::SpdmAlgTypePqcReqAsym,
+                    SpdmAlg::SpdmAlgoPqcReqAsym(context.common.config_info.pqc_req_asym_algo),
+                ));
+            }
+            if algo::kem_algo().is_valid() {
+                expected.push((
+                    SpdmAlgType::SpdmAlgTypeKEM,
+                    SpdmAlg::SpdmAlgoKem(algo::kem_algo()),
+                ));
+            }
+            assert_eq!(payload.alg_struct_count as usize, expected.len());
             assert_eq!(
                 payload.mel_specification_sel,
                 SpdmMelSpecification::DMTF_MEL_SPEC
@@ -236,14 +253,10 @@ fn test_case0_handle_spdm_algorithm() {
                 SpdmMelSpecification::DMTF_MEL_SPEC
             );
 
-            assert_eq!(
-                payload.alg_struct[0].alg_type,
-                SpdmAlgType::SpdmAlgTypeKeySchedule
-            );
-            assert_eq!(
-                payload.alg_struct[0].alg_supported,
-                SpdmAlg::SpdmAlgoKeySchedule(SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE)
-            );
+            for (index, (alg_type, alg_supported)) in expected.iter().enumerate() {
+                assert_eq!(payload.alg_struct[index].alg_type, *alg_type);
+                assert_eq!(payload.alg_struct[index].alg_supported, *alg_supported);
+            }
         }
     };
 

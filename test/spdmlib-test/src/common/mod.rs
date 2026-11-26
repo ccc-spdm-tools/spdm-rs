@@ -32,6 +32,18 @@ pub fn req_use_ecdsa() -> bool {
         .unwrap_or(REQ_USE_ECDSA)
 }
 
+/// Check if PQC should be used: ML-KEM + ML-DSA, for both endpoints. It takes precedence over
+/// SPDMRS_USE_ECDSA and SPDMRS_REQ_USE_ECDSA.
+/// SPDMRS_USE_PQC=true or 1 -> uses ML-KEM and ML-DSA
+/// SPDMRS_USE_PQC=false or 0 or unset -> does not (default)
+pub fn use_pqc() -> bool {
+    std::env::var("SPDMRS_USE_PQC")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
+pub mod algo;
+
 pub mod util;
 
 pub mod device_io;

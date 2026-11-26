@@ -6,6 +6,7 @@
 extern crate alloc;
 #[cfg(not(feature = "hashed-transcript-data"))]
 use {
+    crate::common::algo,
     crate::common::crypto_callback::FAKE_HMAC,
     crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer},
     crate::common::secret_callback::*,
@@ -43,14 +44,15 @@ fn test_case0_handle_spdm_psk_finish() {
             provision_info,
         );
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
         context.common.session = gen_array_clone(SpdmSession::new(), 4);
         context.common.session[0].setup(4294901758).unwrap();
         context.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );
@@ -110,14 +112,15 @@ fn test_case1_handle_spdm_psk_finish() {
             provision_info,
         );
         context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-        context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+        context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+        context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
         context.common.negotiate_info.aead_sel = SpdmAeadAlgo::AES_128_GCM;
         context.common.session = gen_array_clone(SpdmSession::new(), 4);
         context.common.session[0].setup(4294901758).unwrap();
         context.common.session[0].set_crypto_param(
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-            SpdmDheAlgo::SECP_384_R1,
-            SpdmKemAlgo::empty(),
+            algo::dhe_algo(),
+            algo::kem_algo(),
             SpdmAeadAlgo::AES_256_GCM,
             SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
         );

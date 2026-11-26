@@ -4,6 +4,7 @@
 
 // A failed key update ends the session on the Requester.
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIo, FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
@@ -30,8 +31,8 @@ fn setup_session(session: &mut SpdmSession, with_data_secret: bool) {
     session.setup(SESSION_ID).unwrap();
     session.set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );

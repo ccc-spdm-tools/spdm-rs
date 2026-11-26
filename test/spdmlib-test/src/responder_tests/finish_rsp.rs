@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::crypto_callback::FAKE_HMAC;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
@@ -38,14 +39,15 @@ fn test_case0_handle_spdm_finish() {
     secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
-    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
     context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
     context.common.session = gen_array_clone(SpdmSession::new(), 4);
     context.common.session[0].setup(4294901758).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
@@ -77,13 +79,14 @@ fn test_case0_handle_spdm_finish() {
         };
         assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
-        let finish_slic: &mut [u8; 1024] = &mut [0u8; 1024];
-        let mut writer = Writer::init(finish_slic);
+        // The FINISH request holds a signature, which a PQC signature makes larger than 1024 bytes.
+        let mut finish_slic = vec![0u8; 1024 + algo::asym_sig_size()];
+        let mut writer = Writer::init(&mut finish_slic[..]);
         let value = SpdmFinishRequestPayload {
             finish_request_attributes: SpdmFinishRequestAttributes::empty(),
             req_slot_id: 0,
             signature: SpdmSignatureStruct {
-                data_size: 512,
+                data_size: algo::asym_sig_size() as u16,
                 data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
             },
             verify_data: SpdmDigestStruct {
@@ -127,7 +130,8 @@ fn test_case1_handle_spdm_finish() {
     secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
-    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
     context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
     context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
     context.common.negotiate_info.rsp_capabilities_sel =
@@ -137,8 +141,8 @@ fn test_case1_handle_spdm_finish() {
     context.common.session[0].setup(4294901758).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
@@ -167,13 +171,14 @@ fn test_case1_handle_spdm_finish() {
     };
     assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
-    let finish_slic: &mut [u8; 1024] = &mut [0u8; 1024];
-    let mut writer = Writer::init(finish_slic);
+    // The FINISH request holds a signature, which a PQC signature makes larger than 1024 bytes.
+    let mut finish_slic = vec![0u8; 1024 + algo::asym_sig_size()];
+    let mut writer = Writer::init(&mut finish_slic[..]);
     let value = SpdmFinishRequestPayload {
         finish_request_attributes: SpdmFinishRequestAttributes::SIGNATURE_INCLUDED,
         req_slot_id: 0,
         signature: SpdmSignatureStruct {
-            data_size: 96,
+            data_size: algo::asym_sig_size() as u16,
             data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
         },
         verify_data: SpdmDigestStruct {
@@ -217,7 +222,8 @@ fn test_case2_handle_spdm_finish() {
     secret::pqc_asym_sign::register(SECRET_PQC_ASYM_IMPL_INSTANCE.clone());
     crypto::hmac::register(FAKE_HMAC.clone());
 
-    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
     context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
     context.common.negotiate_info.req_capabilities_sel = SpdmRequestCapabilityFlags::CERT_CAP;
     context.common.negotiate_info.rsp_capabilities_sel =
@@ -227,8 +233,8 @@ fn test_case2_handle_spdm_finish() {
     context.common.session[0].setup(4294901758).unwrap();
     context.common.session[0].set_crypto_param(
         SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-        SpdmDheAlgo::SECP_384_R1,
-        SpdmKemAlgo::empty(),
+        algo::dhe_algo(),
+        algo::kem_algo(),
         SpdmAeadAlgo::AES_256_GCM,
         SpdmKeyScheduleAlgo::SPDM_KEY_SCHEDULE,
     );
@@ -257,13 +263,14 @@ fn test_case2_handle_spdm_finish() {
     };
     assert!(value.spdm_encode(&mut context.common, &mut writer).is_ok());
 
-    let finish_slic: &mut [u8; 1024] = &mut [0u8; 1024];
-    let mut writer = Writer::init(finish_slic);
+    // The FINISH request holds a signature, which a PQC signature makes larger than 1024 bytes.
+    let mut finish_slic = vec![0u8; 1024 + algo::asym_sig_size()];
+    let mut writer = Writer::init(&mut finish_slic[..]);
     let value = SpdmFinishRequestPayload {
         finish_request_attributes: SpdmFinishRequestAttributes::SIGNATURE_INCLUDED,
         req_slot_id: 0,
         signature: SpdmSignatureStruct {
-            data_size: 96,
+            data_size: algo::asym_sig_size() as u16,
             data: [0xa5u8; SPDM_MAX_ASYM_SIG_SIZE],
         },
         verify_data: SpdmDigestStruct {

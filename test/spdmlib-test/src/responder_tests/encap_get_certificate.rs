@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0 or MIT
 
+use crate::common::algo;
 use crate::common::device_io::{FakeSpdmDeviceIoReceve, SharedBuffer};
 use crate::common::secret_callback::*;
 use crate::common::transport::PciDoeTransportEncap;
-use crate::common::util::create_info;
+use crate::common::util::{create_info, read_test_key, rsp_create_info};
 use codec::{Codec, Reader, Writer};
 use spdmlib::common::SpdmCodec;
 use spdmlib::config;
@@ -69,7 +70,8 @@ fn test_encode_encap_requst_get_certificate() {
 
 #[test]
 fn test_verify_requester_cert_chain_checks_requester_eku() {
-    let (config_info, provision_info) = create_info();
+    // The Responder trusts the root of the Requester's chain.
+    let (config_info, provision_info) = rsp_create_info();
     let pcidoe_transport_encap = Arc::new(Mutex::new(PciDoeTransportEncap {}));
     let shared_buffer = SharedBuffer::new();
     let socket_io_transport = Arc::new(Mutex::new(FakeSpdmDeviceIoReceve::new(Arc::new(
@@ -83,36 +85,28 @@ fn test_verify_requester_cert_chain_checks_requester_eku() {
         provision_info,
     );
     context.common.negotiate_info.base_hash_sel = SpdmBaseHashAlgo::TPM_ALG_SHA_384;
-    context.common.negotiate_info.base_asym_sel = SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
-    context.common.negotiate_info.req_asym_sel = SpdmReqAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384;
+    context.common.negotiate_info.base_asym_sel = algo::base_asym_algo();
+    context.common.negotiate_info.pqc_asym_sel = algo::pqc_asym_algo();
+    context.common.negotiate_info.req_asym_sel = algo::req_base_asym_algo();
+    context.common.negotiate_info.pqc_req_asym_sel = algo::req_pqc_asym_algo();
 
-    let ca = &include_bytes!("../../../../test_key/ecp384/ca.cert.der")[..];
-    let inter = &include_bytes!("../../../../test_key/ecp384/inter.cert.der")[..];
+    let key_dir = algo::req_asym_cert_dir();
+    let ca = &read_test_key(&format!("{}/ca.cert.der", key_dir))[..];
+    let inter = &read_test_key(&format!("{}/inter.cert.der", key_dir))[..];
     let root_hash = spdmlib::crypto::hash::hash_all(SpdmBaseHashAlgo::TPM_ALG_SHA_384, ca).unwrap();
 
     // Requester leaves under the provisioned root that differ only in SPDM EKU.
+    let leaf =
+        |name: &str| read_test_key(&format!("{}/end_requester_with_{}.cert.der", key_dir, name));
     for (leaf, is_valid) in [
-        (
-            &include_bytes!("../../../../test_key/ecp384/end_requester_with_spdm_req_eku.cert.der")
-                [..],
-            true,
-        ),
-        (
-            &include_bytes!(
-                "../../../../test_key/ecp384/end_requester_with_spdm_req_rsp_eku.cert.der"
-            )[..],
-            true,
-        ),
-        (
-            &include_bytes!("../../../../test_key/ecp384/end_requester_with_spdm_rsp_eku.cert.der")
-                [..],
-            false,
-        ),
+        (leaf("spdm_req_eku"), true),
+        (leaf("spdm_req_rsp_eku"), true),
+        (leaf("spdm_rsp_eku"), false),
     ] {
         let mut cert_chain = SpdmCertChainBuffer::default();
         let mut offset = 4 + root_hash.data_size as usize;
         cert_chain.data[4..offset].copy_from_slice(root_hash.as_ref());
-        for cert in [ca, inter, leaf] {
+        for cert in [ca, inter, &leaf[..]] {
             cert_chain.data[offset..offset + cert.len()].copy_from_slice(cert);
             offset += cert.len();
         }
