@@ -214,6 +214,12 @@ impl RequesterContext {
                                 transport_encap.get_max_random_count()
                             };
 
+                            // A malformed opaque data, or a duplicated SMDataID, rejects the
+                            // whole response.
+                            psk_exchange_rsp
+                                .opaque
+                                .check_secured_message_opaque_data(&self.common)?;
+
                             let secure_spdm_version_sel = psk_exchange_rsp
                                 .opaque
                                 .req_get_dmtf_secure_spdm_version_selection(&mut self.common)

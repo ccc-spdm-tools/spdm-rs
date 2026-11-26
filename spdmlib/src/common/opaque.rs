@@ -16,6 +16,8 @@ pub const DMTF_SPEC_ID: u32 = 0x444D5446;
 pub const DMTF_OPAQUE_VERSION: u8 = 0x01;
 pub const SM_DATA_VERSION: u8 = 0x01;
 pub const DMTF_ID: u8 = 0x00;
+/// The largest ID of a registry that an opaque data element can name (DSP0274).
+pub const SPDM_REGISTRY_ID_MAX: u8 = 0x0B;
 pub const DMTF_VENDOR_LEN: u8 = 0x00;
 pub const OPAQUE_LIST_TOTAL_ELEMENTS: u8 = 0x01;
 pub const VERSION_SELECTION_SM_DATA_ID: u8 = 0x00;
@@ -543,7 +545,7 @@ impl SpdmCodec for SpdmOpaqueStruct {
         }
         Ok(cnt)
     }
-    fn spdm_read(_context: &mut SpdmContext, r: &mut Reader) -> Option<SpdmOpaqueStruct> {
+    fn spdm_read(context: &mut SpdmContext, r: &mut Reader) -> Option<SpdmOpaqueStruct> {
         let data_size = u16::read(r)?;
         if data_size > MAX_SPDM_OPAQUE_SIZE as u16 {
             return None;
@@ -553,7 +555,11 @@ impl SpdmCodec for SpdmOpaqueStruct {
             *d = u8::read(r)?;
         }
 
-        Some(SpdmOpaqueStruct { data_size, data })
+        let opaque = SpdmOpaqueStruct { data_size, data };
+        // Every message that carries opaque data is rejected as a whole if the opaque data is
+        // malformed.
+        opaque.check_general_opaque_data(context).ok()?;
+        Some(opaque)
     }
 }
 
@@ -691,6 +697,8 @@ struct OpaqueElement<'a> {
     id: u8,
     vendor_len: u8,
     data: &'a [u8],
+    // The offset after the element data, where its padding starts.
+    data_end: usize,
     // The offset after the element, with its padding.
     end: usize,
 }
@@ -711,6 +719,7 @@ fn read_opaque_element(data: &[u8], offset: usize) -> Option<OpaqueElement<'_>> 
         id,
         vendor_len,
         data: element_data,
+        data_end,
         end,
     })
 }
@@ -743,6 +752,78 @@ fn find_sm_data<'a>(
 }
 
 impl SpdmOpaqueStruct {
+    /// Check the general opaque data, which any message can carry from SPDM 1.2 on, when
+    /// opaque data format 1 is negotiated. Reject it as a whole if it is malformed. Before SPDM
+    /// 1.2, or with another format, the format is not defined here, so it is not checked.
+    pub fn check_general_opaque_data(&self, context: &SpdmContext) -> SpdmResult {
+        if self.data_size == 0
+            || context.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion12
+        {
+            return Ok(());
+        }
+        self.check_element_list(context)
+    }
+
+    /// Check the opaque data of KEY_EXCHANGE, KEY_EXCHANGE_RSP, PSK_EXCHANGE and PSK_EXCHANGE_RSP.
+    /// DSP0277 defines its format for every SPDM version: the general opaque data from SPDM 1.2
+    /// on, which reading the message checks already, and before that a table of its own, with
+    /// the same elements and another header. Unlike other opaque data, it is not optional: the
+    /// Requester lists its Secured Message versions in it, and the Responder selects one.
+    pub fn check_secured_message_opaque_data(&self, context: &SpdmContext) -> SpdmResult {
+        if self.data_size == 0 {
+            return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+        }
+        self.check_element_list(context)
+    }
+
+    // The header, then every element: it has a known registry, it fits with its padding, which
+    // is zero, and a DMTF Secured Message element does not repeat an SMDataID. Nothing follows
+    // the last element.
+    fn check_element_list(&self, context: &SpdmContext) -> SpdmResult {
+        // Without opaque data format 1, the format is not one that is defined.
+        let Some(layout) = OpaqueLayout::of(context) else {
+            return Ok(());
+        };
+        let data = &self.data[..self.data_size as usize];
+        let total_elements = layout
+            .total_elements(context, data)
+            .ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
+        if total_elements == 0 {
+            return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+        }
+
+        let mut seen_sm_data_ids = [false; 256];
+        let mut offset = layout.header_size;
+        for _ in 0..total_elements {
+            let element = read_opaque_element(data, offset).ok_or(SPDM_STATUS_INVALID_MSG_FIELD)?;
+            if element.id > SPDM_REGISTRY_ID_MAX || element.end > data.len() {
+                return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+            }
+            if data[element.data_end..element.end]
+                .iter()
+                .any(|byte| *byte != 0)
+            {
+                return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+            }
+            if element.id == DMTF_ID
+                && element.vendor_len == DMTF_VENDOR_LEN
+                && element.data.len() >= 2
+                && element.data[0] == SM_DATA_VERSION
+            {
+                let seen = &mut seen_sm_data_ids[element.data[1] as usize];
+                if *seen {
+                    return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+                }
+                *seen = true;
+            }
+            offset = element.end;
+        }
+        if offset != data.len() {
+            return Err(SPDM_STATUS_INVALID_MSG_FIELD);
+        }
+        Ok(())
+    }
+
     /// DSP0277 1.3: append the AEAD limit data (AEADlimitOE) to opaque data that already
     /// holds the version selection or the supported version list.
     pub fn append_aead_limit(&mut self, context: &SpdmContext, exponent: u8) -> SpdmResult {
