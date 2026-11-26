@@ -317,14 +317,29 @@ impl RequesterContext {
         //
         // 1.1 verify the integrity of the chain
         //
-        if crypto::cert_operation::verify_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
-            self.common.negotiate_info.base_asym_sel,
-            self.common.negotiate_info.pqc_asym_sel,
-            self.common.negotiate_info.base_hash_sel,
-        )
-        .is_err()
-        {
+        let verification =
+            if self.common.negotiate_info.spdm_version_sel >= SpdmVersion::SpdmVersion12 {
+                self.common.check_peer_certificate_algorithms(
+                    &runtime_peer_cert_chain_data.data[..data_size as usize],
+                    spdm_x509::x509::spdm_validator::SpdmCertificateRole::Responder,
+                )?;
+                crypto::cert_operation::verify_cert_chain(
+                    &runtime_peer_cert_chain_data.data
+                        [..(runtime_peer_cert_chain_data.data_size as usize)],
+                    SpdmBaseAsymAlgo::empty(),
+                    SpdmPqcAsymAlgo::empty(),
+                    SpdmBaseHashAlgo::empty(),
+                )
+            } else {
+                crypto::cert_operation::verify_cert_chain(
+                    &runtime_peer_cert_chain_data.data
+                        [..(runtime_peer_cert_chain_data.data_size as usize)],
+                    self.common.negotiate_info.base_asym_sel,
+                    self.common.negotiate_info.pqc_asym_sel,
+                    self.common.negotiate_info.base_hash_sel,
+                )
+            };
+        if verification.is_err() {
             error!("cert_chain verification - fail! - TBD later\n");
             return Err(SPDM_STATUS_INVALID_CERT);
         }

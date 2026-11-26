@@ -36,7 +36,6 @@ use crate::error::{ChainError, Error, Result};
 
 use super::signature::SpdmBaseHashAlgo;
 use super::spdm_validator::SpdmValidator;
-use der::Encode;
 
 // =============================================================================
 // SPDM Certificate Chain Header
@@ -1032,13 +1031,14 @@ pub fn verify_cert_chain_with_options(
 /// # Arguments
 /// * `cert_chain` - Buffer containing concatenated DER certificates
 /// * `backend`    - Crypto backend for signature verification
-/// * `base_asym_algo` - Optional negotiated SPDM base asymmetric algorithm (bitfield)
-/// * `base_hash_algo` - Optional negotiated SPDM base hash algorithm (bitfield)
+/// * `base_asym_algo` - Optional negotiated SPDM base asymmetric algorithm (bitfield);
+///   when present, checks the leaf key even without a hash.
+/// * `_base_hash_algo` - Retained for compatibility, not issuer-signature policy.
 pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     cert_chain: &[u8],
     backend: B,
     base_asym_algo: Option<u32>,
-    base_hash_algo: Option<u32>,
+    _base_hash_algo: Option<u32>,
 ) -> Result<()> {
     log::trace!("verify_cert_chain: chain_len={}", cert_chain.len());
 
@@ -1114,48 +1114,13 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
     // Responder, which this function cannot tell, so the caller applies it to
     // the leaf (spdmlib's check_leaf_certificate).
 
-    // If SPDM algorithm parameters are provided, validate the leaf certificate's
-    // signature algorithm and public key algorithm against the negotiated values.
-    if let (Some(asym_algo), Some(hash_algo)) = (base_asym_algo, base_hash_algo) {
+    if let Some(asym_algo) = base_asym_algo {
         if let Some(leaf) = chain.certificates.first() {
-            use super::oids;
-            use super::signature::{
-                verify_ecc_key_params, verify_rsa_key_size, verify_signature_algorithm,
-            };
-
-            log::trace!(
-                "verify_cert_chain: validating leaf algorithms against negotiated SPDM params"
-            );
-
-            // Verify signature algorithm family + hash
-            verify_signature_algorithm(&leaf.signature_algorithm.oid, asym_algo, hash_algo)?;
-
-            // Verify public key algorithm / key size
-            let pk_algo_oid = &leaf.tbs_certificate.subject_public_key_info.algorithm.oid;
-            if pk_algo_oid == &oids::RSA {
-                let pk_der = leaf
-                    .tbs_certificate
-                    .subject_public_key_info
-                    .to_der()
-                    .map_err(|e| {
-                        Error::ValidationError(alloc::format!(
-                            "Failed to encode public key: {:?}",
-                            e
-                        ))
-                    })?;
-                verify_rsa_key_size(&pk_der, asym_algo)?;
-            } else if pk_algo_oid == &oids::ECPUBLICKEY {
-                verify_ecc_key_params(
-                    leaf.tbs_certificate
-                        .subject_public_key_info
-                        .algorithm
-                        .parameters
-                        .as_ref(),
-                    asym_algo,
-                )?;
-            }
-
-            log::trace!("verify_cert_chain: leaf algorithm validation successful");
+            super::signature::verify_public_key_algorithm(
+                &leaf.tbs_certificate.subject_public_key_info,
+                asym_algo,
+                0,
+            )?;
         }
     }
 

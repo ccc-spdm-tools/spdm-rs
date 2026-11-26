@@ -57,27 +57,13 @@ fn check_leaf_pqc_algorithm(
     cert_der: &[u8],
     pqc_asym_algo: crate::protocol::SpdmPqcAsymAlgo,
 ) -> SpdmResult {
-    use crate::protocol::SpdmPqcAsymAlgo;
-    use spdm_x509::x509::oids;
-
-    let expected = if pqc_asym_algo == SpdmPqcAsymAlgo::ALG_MLDSA_44 {
-        oids::ML_DSA_44
-    } else if pqc_asym_algo == SpdmPqcAsymAlgo::ALG_MLDSA_65 {
-        oids::ML_DSA_65
-    } else if pqc_asym_algo == SpdmPqcAsymAlgo::ALG_MLDSA_87 {
-        oids::ML_DSA_87
-    } else {
-        return Err(SPDM_STATUS_INVALID_CERT);
-    };
-
     let cert = spdm_x509::Certificate::from_der(cert_der).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
-    let algorithm = &cert.tbs_certificate.subject_public_key_info.algorithm;
-    // RFC 9881: ML-DSA AlgorithmIdentifier parameters must be absent.
-    if algorithm.oid != expected || algorithm.parameters.is_some() {
-        return Err(SPDM_STATUS_INVALID_CERT);
-    }
-
-    Ok(())
+    spdm_x509::x509::signature::verify_public_key_algorithm(
+        &cert.tbs_certificate.subject_public_key_info,
+        0,
+        pqc_asym_algo.bits(),
+    )
+    .map_err(|_| SPDM_STATUS_INVALID_CERT)
 }
 
 /// Apply the legacy leaf certificate checks.
