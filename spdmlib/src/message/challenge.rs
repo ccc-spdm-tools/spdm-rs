@@ -298,9 +298,19 @@ mod tests {
                 data_size: SHA512_DIGEST_SIZE as u16,
                 data: Box::new([0x55u8; SPDM_MAX_HASH_SIZE]),
             },
-            opaque: SpdmOpaqueStruct {
-                data_size: MAX_SPDM_OPAQUE_SIZE as u16,
-                data: [0xAAu8; MAX_SPDM_OPAQUE_SIZE],
+            opaque: {
+                // OpaqueDataFmt1 is negotiated below, so the opaque data is a valid list of one
+                // element that fills the field: TotalElements, three reserved bytes, then an
+                // element of ID 0, VendorLen 0, OpaqueElementDataLen and its data.
+                let mut opaque = SpdmOpaqueStruct {
+                    data_size: MAX_SPDM_OPAQUE_SIZE as u16,
+                    data: [0xAAu8; MAX_SPDM_OPAQUE_SIZE],
+                };
+                opaque.data[..4].copy_from_slice(&[1, 0, 0, 0]);
+                let element_data_len = (MAX_SPDM_OPAQUE_SIZE - 8) as u16;
+                opaque.data[4..6].copy_from_slice(&[0, 0]);
+                opaque.data[6..8].copy_from_slice(&element_data_len.to_le_bytes());
+                opaque
             },
             requester_context: SpdmChallengeContextStruct {
                 data: [100u8; SPDM_CHALLENGE_CONTEXT_SIZE],
@@ -359,9 +369,7 @@ mod tests {
         for i in 0..SHA512_DIGEST_SIZE {
             assert_eq!(spdm_read_data.cert_chain_hash.data[i], 0xAAu8);
         }
-        for i in 0..MAX_SPDM_OPAQUE_SIZE {
-            assert_eq!(spdm_read_data.opaque.data[i], 0xAAu8);
-        }
+        assert_eq!(spdm_read_data.opaque.data, value.opaque.data);
         for i in 0..SHA512_DIGEST_SIZE {
             assert_eq!(spdm_read_data.measurement_summary_hash.data[i], 0x55u8);
         }
