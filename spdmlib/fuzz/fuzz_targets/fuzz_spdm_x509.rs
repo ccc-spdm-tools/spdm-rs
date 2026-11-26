@@ -13,7 +13,7 @@ use spdmlib::protocol::{SpdmBaseAsymAlgo, SpdmBaseHashAlgo, SpdmPqcAsymAlgo};
 
 fuzz_target!(|cert: &[u8]| {
     // Exercise certificate chain parsing with various algorithms
-    for _algo in [
+    for algo in [
         SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P256,
         SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
         SpdmBaseAsymAlgo::TPM_ALG_RSASSA_2048,
@@ -27,18 +27,34 @@ fuzz_target!(|cert: &[u8]| {
         let _ = cert_operation::get_cert_from_cert_chain(cert, -1);
         let _ = cert_operation::verify_cert_chain(
             cert,
-            SpdmBaseAsymAlgo::TPM_ALG_ECDSA_ECC_NIST_P384,
+            algo,
             SpdmPqcAsymAlgo::empty(),
             SpdmBaseHashAlgo::TPM_ALG_SHA_384,
         );
+        let _ = spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms(
+            cert,
+            algo.bits(),
+            0,
+        );
     }
 
-    let _ = cert_operation::verify_cert_chain(
-        cert,
-        SpdmBaseAsymAlgo::empty(),
+    for pqc in [
+        SpdmPqcAsymAlgo::ALG_MLDSA_44,
+        SpdmPqcAsymAlgo::ALG_MLDSA_65,
         SpdmPqcAsymAlgo::ALG_MLDSA_87,
-        SpdmBaseHashAlgo::TPM_ALG_SHA_384,
-    );
+    ] {
+        let _ = cert_operation::verify_cert_chain(
+            cert,
+            SpdmBaseAsymAlgo::empty(),
+            pqc,
+            SpdmBaseHashAlgo::TPM_ALG_SHA_384,
+        );
+        let _ = spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms(
+            cert,
+            0,
+            pqc.bits(),
+        );
+    }
 
     let _ = check_leaf_certificate(cert, true, false);
     let _ = check_leaf_certificate(cert, false, false);

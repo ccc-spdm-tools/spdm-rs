@@ -11,6 +11,8 @@
 pub mod chain;
 pub mod extensions;
 mod idna;
+#[cfg(test)]
+mod limbo;
 pub mod oids;
 mod rfc4518;
 pub mod signature;
@@ -27,7 +29,7 @@ pub use extensions::*;
 #[cfg(test)]
 pub use signature::verify_signature;
 pub use signature::{
-    verify_ecc_curve, verify_hash_algorithm, verify_rsa_key_size, verify_signature_algorithm,
-    verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
+    verify_ecc_curve, verify_hash_algorithm, verify_public_key_algorithm, verify_rsa_key_size,
+    verify_signature_algorithm, verify_signature_with_backend, SpdmBaseAsymAlgo, SpdmBaseHashAlgo,
 };
 pub use spdm_validator::{SpdmCertificateModel, SpdmCertificateRole, SpdmValidator};

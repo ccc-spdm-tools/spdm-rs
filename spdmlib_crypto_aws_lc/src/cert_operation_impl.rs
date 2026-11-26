@@ -109,8 +109,50 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_cert_chain_mldsa87() {
-        let chain = &include_bytes!("../../test_key/mldsa87/bundle_responder.certchain.der")[..];
-        assert!(verify_cert_chain(chain, None, None).is_ok());
+    fn test_verify_cert_chain_mldsa_selected_key_matrix() {
+        use spdm_x509::x509::spdm_validator::validate_spdm_certificate_chain_algorithms;
+        use spdmlib::crypto::check_leaf_certificate;
+
+        let cases: [(&[u8], u32); 3] = [
+            (
+                include_bytes!("../../test_key/mldsa44/bundle_responder.certchain.der"),
+                1,
+            ),
+            (
+                include_bytes!("../../test_key/mldsa65/bundle_responder.certchain.der"),
+                2,
+            ),
+            (
+                include_bytes!("../../test_key/mldsa87/bundle_responder.certchain.der"),
+                4,
+            ),
+        ];
+        for (chain, selected) in cases {
+            validate_spdm_certificate_chain_algorithms(chain, 0, selected).unwrap();
+            for other in [1, 2, 4] {
+                if other != selected {
+                    assert!(matches!(
+                        validate_spdm_certificate_chain_algorithms(chain, 0, other),
+                        Err(Error::AlgorithmError(
+                            spdm_x509::error::AlgorithmError::Unsupported(_)
+                        ))
+                    ));
+                }
+            }
+            assert!(verify_cert_chain(chain, None, None).is_ok());
+            let (leaf_begin, leaf_end) = get_cert_from_cert_chain(chain, -1).unwrap();
+            let leaf = &chain[leaf_begin..leaf_end];
+            assert!(check_leaf_certificate(leaf, false, false).is_ok());
+            assert!(check_leaf_certificate(leaf, false, true).is_ok());
+            let mut corrupt = chain.to_vec();
+            *corrupt.last_mut().unwrap() ^= 1;
+            assert_eq!(
+                verify_cert_chain(&corrupt, None, None),
+                Err(SPDM_STATUS_INVALID_CERT)
+            );
+        }
     }
+
+    use spdmlib::crypto::check_leaf_certificate;
+    include!("../../test/crypto_role_eku.inc.rs");
 }
