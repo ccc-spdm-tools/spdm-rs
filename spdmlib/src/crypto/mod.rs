@@ -112,7 +112,7 @@ pub fn check_leaf_certificate(
     if let Some(exts) = extensions {
         if let Some(bc_ext) = exts.find(&BASIC_CONSTRAINTS) {
             if let Ok(bc) = BasicConstraints::from_extension(bc_ext) {
-                if bc.ca {
+                if bc.ca || bc.path_len_constraint.is_some() {
                     return Err(SPDM_STATUS_INVALID_CERT);
                 }
             } else {
@@ -120,10 +120,11 @@ pub fn check_leaf_certificate(
             }
         }
 
-        // 2. Key Usage, if present, MUST assert digitalSignature (RFC 5280 §4.2.1.3)
+        // 2. Key Usage, if present, MUST assert digitalSignature and MUST NOT
+        //    assert keyCertSign on an end-entity leaf (RFC 5280 §4.2.1.3 / §4.2.1.9).
         if let Some(ku_ext) = exts.find(&KEY_USAGE) {
             let ku = KeyUsage::from_extension(ku_ext).map_err(|_| SPDM_STATUS_INVALID_CERT)?;
-            if !ku.has(KeyUsage::DIGITAL_SIGNATURE) {
+            if !ku.has(KeyUsage::DIGITAL_SIGNATURE) || ku.has(KeyUsage::KEY_CERT_SIGN) {
                 return Err(SPDM_STATUS_INVALID_CERT);
             }
         }

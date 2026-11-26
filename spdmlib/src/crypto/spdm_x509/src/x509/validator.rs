@@ -397,21 +397,39 @@ impl<B: CryptoBackend> Validator<B> {
                 ext.critical
             );
 
-            if ext.critical {
-                if !self.known_extensions.contains(&ext.extn_id) {
-                    log::error!(
-                        "validate_extensions: UNKNOWN critical extension: {}",
-                        ext.extn_id
-                    );
-                    return Err(Error::ExtensionError(
-                        crate::error::ExtensionError::UnknownCriticalExtension(
-                            ext.extn_id.to_string(),
-                        ),
-                    ));
-                }
+            if ext.critical && !self.known_extensions.contains(&ext.extn_id) {
+                log::error!(
+                    "validate_extensions: UNKNOWN critical extension: {}",
+                    ext.extn_id
+                );
+                return Err(Error::ExtensionError(
+                    crate::error::ExtensionError::UnknownCriticalExtension(ext.extn_id.to_string()),
+                ));
+            }
 
-                if ext.extn_id == BASIC_CONSTRAINTS {
-                    self.validate_basic_constraints(cert)?;
+            if ext.extn_id == BASIC_CONSTRAINTS {
+                self.validate_basic_constraints(cert)?;
+            }
+
+            if ext.extn_id == KEY_USAGE {
+                use crate::x509::extensions::KeyUsage;
+                KeyUsage::from_der(ext.extn_value.as_bytes()).map_err(Error::Asn1)?;
+            }
+
+            if ext.extn_id == EXTENDED_KEY_USAGE {
+                let eku = crate::x509::extensions::ExtendedKeyUsage::from_extension(ext).map_err(
+                    |e| {
+                        Error::ExtensionError(crate::error::ExtensionError::InvalidEncoding(
+                            alloc::format!("Invalid Extended Key Usage: {:?}", e),
+                        ))
+                    },
+                )?;
+                if eku.key_purposes.is_empty() {
+                    return Err(Error::ExtensionError(
+                        crate::error::ExtensionError::InvalidEncoding(alloc::string::String::from(
+                            "Extended Key Usage must contain at least one purpose",
+                        )),
+                    ));
                 }
             }
 
