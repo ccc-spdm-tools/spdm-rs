@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use spdmlib::common::session::{SpdmSession, SpdmSessionState};
 use spdmlib::common::{SpdmDeviceIo, SpdmTransportEncap};
 use spdmlib::config::RECEIVER_BUFFER_SIZE;
-use spdmlib::error::{SpdmResult, SpdmStatus, SPDM_STATUS_BUSY_PEER, SPDM_STATUS_NOT_READY_PEER};
+use spdmlib::error::{SpdmResult, SpdmStatus, SPDM_STATUS_BUSY_PEER};
 use spdmlib::message::key_update::SpdmKeyUpdateOperation;
 use spdmlib::message::{SpdmErrorCode, SpdmRequestResponseCode};
 use spdmlib::protocol::*;
@@ -265,6 +265,10 @@ fn test_key_update_busy_keeps_session_and_can_retry() {
     );
 }
 
+// With respond-if-ready, the Requester answers ResponseNotReady with RESPOND_IF_READY instead of
+// returning it. For KEY_UPDATE that is sent with the updated keys, which a Responder that is not
+// ready has not switched to, so this only holds without it.
+#[cfg(not(feature = "respond-if-ready"))]
 #[test]
 fn test_key_update_response_not_ready_keeps_session_and_can_retry() {
     // rd_exponent, request code, token, rdtm
@@ -277,6 +281,6 @@ fn test_key_update_response_not_ready_keeps_session_and_can_retry() {
     key_update_retry_after(
         SpdmErrorCode::SpdmErrorResponseNotReady.get_u8(),
         extended_data,
-        SPDM_STATUS_NOT_READY_PEER,
+        spdmlib::error::SPDM_STATUS_NOT_READY_PEER,
     );
 }
