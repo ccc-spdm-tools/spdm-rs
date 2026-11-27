@@ -767,6 +767,29 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[test]
+    fn test_verify_cert_chain_rejects_trailing_bytes() {
+        let base = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../../test_key/ecp256/bundle_responder.certchain.der"
+        ))
+        .expect("ecp256 certchain");
+
+        for suffix in [
+            &[0x00u8][..],
+            &[0xffu8, 0x00][..],
+            &[0x30u8, 0x05, 0x00][..],
+        ] {
+            let mut chain = base.clone();
+            chain.extend_from_slice(suffix);
+            assert!(
+                verify_cert_chain(&chain).is_err(),
+                "trailing bytes {:?} must be rejected",
+                suffix
+            );
+        }
+    }
+
     // ── verify_cert_chain_with_options: algorithm enforcement ──
 
     #[test]
@@ -1042,43 +1065,20 @@ pub fn verify_cert_chain_with_backend<B: CryptoBackend>(
 ) -> Result<()> {
     log::trace!("verify_cert_chain: chain_len={}", cert_chain.len());
 
-    // Parse all certificates from the chain
-    let mut certificates = Vec::new();
-    let mut cert_index = 0isize;
-
-    while let Ok((start, end)) = get_cert_from_cert_chain(cert_chain, cert_index) {
-        log::trace!(
-            "verify_cert_chain: parsed cert {} at [{}, {})",
-            cert_index,
-            start,
-            end
-        );
-        let cert_der = &cert_chain[start..end];
-        let cert = Certificate::from_der(cert_der)?;
-        log::trace!(
-            "verify_cert_chain: cert {} subject={:?}",
-            cert_index,
-            cert.tbs_certificate.subject
-        );
-        log::trace!(
-            "verify_cert_chain: cert {} issuer={:?}",
-            cert_index,
-            cert.tbs_certificate.issuer
-        );
-        certificates.push(cert);
-        cert_index += 1;
-
-        if cert_index > ValidationOptions::default().max_chain_depth as isize {
-            log::error!("verify_cert_chain: chain too long (exceeds max_chain_depth)");
-            return Err(Error::ValidationError(
-                "Certificate chain too long (exceeds max_chain_depth)".into(),
-            ));
-        }
-    }
+    // Parse all certificates strictly so trailing garbage or truncated bytes
+    // after a valid prefix cannot slip past chain validation.
+    let mut certificates = parse_concatenated_certificates(cert_chain)?;
 
     if certificates.is_empty() {
         log::error!("verify_cert_chain: empty chain");
         return Err(Error::ChainError(ChainError::EmptyChain));
+    }
+
+    if certificates.len() > ValidationOptions::default().max_chain_depth {
+        log::error!("verify_cert_chain: chain too long (exceeds max_chain_depth)");
+        return Err(Error::ValidationError(
+            "Certificate chain too long (exceeds max_chain_depth)".into(),
+        ));
     }
 
     log::trace!(

@@ -7,10 +7,9 @@ use codec::{Codec, Reader, Writer};
 use crate::{
     common::SpdmCodec,
     config,
-    crypto::{self, check_leaf_certificate, is_root_certificate},
     error::{
-        SpdmResult, SPDM_STATUS_CRYPTO_ERROR, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_CERT,
-        SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_MSG_SIZE, SPDM_STATUS_INVALID_PARAMETER,
+        SpdmResult, SPDM_STATUS_ERROR_PEER, SPDM_STATUS_INVALID_CERT,
+        SPDM_STATUS_INVALID_MSG_FIELD, SPDM_STATUS_INVALID_MSG_SIZE,
         SPDM_STATUS_INVALID_STATE_LOCAL,
     },
     message::{
@@ -18,7 +17,7 @@ use crate::{
         SpdmMessageGeneralPayload, SpdmMessageHeader, SpdmMessagePayload, SpdmRequestResponseCode,
         DELIVER_ENCAPSULATED_RESPONSE_HEADER_SIZE, MAX_SPDM_CERT_PORTION_LEN,
     },
-    protocol::{SpdmCertChainBuffer, SpdmCertChainData},
+    protocol::SpdmCertChainBuffer,
 };
 
 use super::ResponderContext;
@@ -175,139 +174,7 @@ impl ResponderContext {
     }
 
     pub fn verify_spdm_certificate_chain(&mut self) -> SpdmResult {
-        //
-        // 1. Verify the integrity of cert chain
-        //
-        if self.common.peer_info.peer_cert_chain_temp.is_none() {
-            error!("peer_cert_chain is not populated!\n");
-            return Err(SPDM_STATUS_INVALID_PARAMETER);
-        }
-
-        let peer_cert_chain = self
-            .common
-            .peer_info
-            .peer_cert_chain_temp
-            .as_ref()
-            .ok_or(SPDM_STATUS_INVALID_PARAMETER)?;
-        if peer_cert_chain.data_size <= (4 + self.common.get_hash_size() as u32) {
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-
-        // SPDM CertificateChain header: [0..4] = Length (u32 LE).
-        // Per SPDM 1.4, the certificate chain size can be larger than UINT16_MAX,
-        // so parse the full 4-byte Length field.
-        let data_size_in_cert_chain = peer_cert_chain.data[0] as u32
-            + ((peer_cert_chain.data[1] as u32) << 8)
-            + ((peer_cert_chain.data[2] as u32) << 16)
-            + ((peer_cert_chain.data[3] as u32) << 24);
-        if data_size_in_cert_chain != peer_cert_chain.data_size {
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-
-        let data_size = peer_cert_chain.data_size - 4 - self.common.get_hash_size() as u32;
-        let mut data = SpdmCertChainData::default().data;
-        data[0..(data_size as usize)].copy_from_slice(
-            &peer_cert_chain.data[(4usize + self.common.get_hash_size() as usize)
-                ..(peer_cert_chain.data_size as usize)],
-        );
-        let runtime_peer_cert_chain_data = SpdmCertChainData { data_size, data };
-        info!("1. get runtime_peer_cert_chain_data!\n");
-
-        //
-        // 1.1 verify the integrity of the chain
-        //
-        if crypto::cert_operation::verify_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
-            self.common.negotiate_info.req_asym_sel.to_base(),
-            self.common.negotiate_info.pqc_req_asym_sel.to_base(),
-            self.common.negotiate_info.base_hash_sel,
-        )
-        .is_err()
-        {
-            error!("cert_chain verification - fail! - TBD later\n");
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        info!("1.1. integrity of cert_chain is verified!\n");
-
-        //
-        // 1.2 verify the root cert hash consistency
-        //
-        let (root_cert_begin, root_cert_end) = crypto::cert_operation::get_cert_from_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
-            0,
-        )?;
-        let root_cert = &runtime_peer_cert_chain_data.data[root_cert_begin..root_cert_end];
-        if is_root_certificate(root_cert).is_err() {
-            error!("First certificate in chain is not a self-signed root\n");
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        let root_hash = if let Some(rh) =
-            crypto::hash::hash_all(self.common.negotiate_info.base_hash_sel, root_cert)
-        {
-            rh
-        } else {
-            return Err(SPDM_STATUS_CRYPTO_ERROR);
-        };
-        if root_hash.data[..(root_hash.data_size as usize)]
-            != peer_cert_chain.data[4usize..(4usize + self.common.get_hash_size() as usize)]
-        {
-            error!("root_hash - fail!\n");
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        info!("1.2. root cert hash is verified!\n");
-
-        //
-        // 1.3 verify the leaf cert as a Requester certificate
-        //
-        let (leaf_cert_begin, leaf_cert_end) = crypto::cert_operation::get_cert_from_cert_chain(
-            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
-            -1,
-        )?;
-        let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
-        if check_leaf_certificate(leaf_cert, false, true).is_err() {
-            error!("Leaf cert verification - fail!\n");
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-        info!("1.3. Leaf cert is verified\n");
-
-        //
-        // 2. verify the authority of cert chain if provisioned
-        //
-        let mut cert_chain_provisioned = false;
-        let mut found_match = false;
-        for peer_root_cert_data in self
-            .common
-            .provision_info
-            .peer_root_cert_data
-            .iter()
-            .flatten()
-        {
-            cert_chain_provisioned = true;
-            if root_cert.len() != peer_root_cert_data.data_size as usize {
-                continue;
-            }
-            if root_cert[..] != peer_root_cert_data.data[..peer_root_cert_data.data_size as usize] {
-                continue;
-            } else {
-                found_match = true;
-                break;
-            }
-        }
-
-        if cert_chain_provisioned && !found_match {
-            return Err(SPDM_STATUS_INVALID_CERT);
-        }
-
-        if !cert_chain_provisioned {
-            // No trust anchor provisioned for the peer (requester) cert chain.
-            // This is acceptable when mutual auth is not mandatory — the cert
-            // chain integrity was still verified via signature checks above.
-            info!("No trust anchor provisioned - skipping trust anchor verification\n");
-        }
-
-        info!("2. root cert is verified!\n");
-
-        info!("cert_chain verification - pass!\n");
-        Ok(())
+        self.common
+            .verify_peer_certificate_chain(self.common.encap_context.req_slot_id, true)
     }
 }

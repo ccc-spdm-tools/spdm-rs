@@ -198,6 +198,212 @@ impl SpdmContext {
     pub fn get_hash_size(&self) -> u16 {
         self.negotiate_info.base_hash_sel.get_size()
     }
+
+    /// Verify `peer_info.peer_cert_chain_temp` per DSP0274 §10.7 / §10.9.
+    ///
+    /// Supports both chains that include the root certificate on the wire and
+    /// omitted-root chains whose `RootHash` matches a provisioned trust anchor
+    /// in `provision_info.peer_root_cert_data`.
+    pub(crate) fn verify_peer_certificate_chain(
+        &self,
+        slot_id: u8,
+        is_requester_cert: bool,
+    ) -> SpdmResult {
+        use crate::error::SPDM_STATUS_INVALID_CERT;
+
+        fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+            a.len() == b.len()
+                && a.iter()
+                    .zip(b.iter())
+                    .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+                    == 0
+        }
+
+        let peer_cert_chain = self
+            .peer_info
+            .peer_cert_chain_temp
+            .as_ref()
+            .ok_or_else(|| {
+                error!("peer_cert_chain is not populated!\n");
+                SPDM_STATUS_INVALID_PARAMETER
+            })?;
+
+        let hash_size = self.get_hash_size() as usize;
+        if hash_size == 0 {
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+
+        let total_len = peer_cert_chain.data_size as usize;
+        if total_len > peer_cert_chain.data.len() || total_len <= 4 + hash_size {
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+
+        // SPDM CertificateChain header:
+        // - SPDM 1.0-1.3: [0..2] = 16-bit Length, [2..4] = Reserved (0x0000).
+        // - SPDM 1.4+: [0..4] = 32-bit Length (u32 LE).
+        let data_size_in_cert_chain = u32::from_le_bytes([
+            peer_cert_chain.data[0],
+            peer_cert_chain.data[1],
+            peer_cert_chain.data[2],
+            peer_cert_chain.data[3],
+        ]);
+        if data_size_in_cert_chain != peer_cert_chain.data_size {
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+        if self.negotiate_info.spdm_version_sel < SpdmVersion::SpdmVersion14
+            && data_size_in_cert_chain > u16::MAX as u32
+        {
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+
+        let wire_root_hash = &peer_cert_chain.data[4..(4 + hash_size)];
+        let supplied_certs = &peer_cert_chain.data[(4 + hash_size)..total_len];
+
+        let (first_begin, first_end) =
+            crypto::cert_operation::get_cert_from_cert_chain(supplied_certs, 0)?;
+        let first_cert = &supplied_certs[first_begin..first_end];
+
+        let (leaf_begin, leaf_end) =
+            crypto::cert_operation::get_cert_from_cert_chain(supplied_certs, -1)?;
+        let leaf_cert = &supplied_certs[leaf_begin..leaf_end];
+
+        let first_cert_hash = crypto::hash::hash_all(self.negotiate_info.base_hash_sel, first_cert)
+            .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+        let first_is_included_root = crypto::is_root_certificate(first_cert).is_ok()
+            && ct_eq(
+                &first_cert_hash.data[..(first_cert_hash.data_size as usize)],
+                wire_root_hash,
+            );
+
+        let mut cert_chain_provisioned = false;
+        let mut matched_provisioned_root: Option<&[u8]> = None;
+
+        for peer_root_cert_data in self.provision_info.peer_root_cert_data.iter().flatten() {
+            cert_chain_provisioned = true;
+            let root_len = peer_root_cert_data.data_size as usize;
+            if root_len > peer_root_cert_data.data.len() {
+                continue;
+            }
+            let provisioned_root = &peer_root_cert_data.data[..root_len];
+            if first_is_included_root {
+                if provisioned_root == first_cert {
+                    matched_provisioned_root = Some(provisioned_root);
+                    break;
+                }
+            } else {
+                let provisioned_hash =
+                    crypto::hash::hash_all(self.negotiate_info.base_hash_sel, provisioned_root)
+                        .ok_or(SPDM_STATUS_CRYPTO_ERROR)?;
+                if ct_eq(
+                    &provisioned_hash.data[..(provisioned_hash.data_size as usize)],
+                    wire_root_hash,
+                ) {
+                    matched_provisioned_root = Some(provisioned_root);
+                    break;
+                }
+            }
+        }
+
+        let full_chain_buf: Option<alloc::vec::Vec<u8>> = if first_is_included_root {
+            if cert_chain_provisioned && matched_provisioned_root.is_none() {
+                error!("Root certificate does not match any provisioned trust anchor\n");
+                return Err(SPDM_STATUS_INVALID_CERT);
+            }
+            if !cert_chain_provisioned {
+                warn!("No trust anchor provisioned - cert chain authority not verified\n");
+            } else {
+                info!("root cert is verified against provisioned trust anchor!\n");
+            }
+            None
+        } else {
+            let Some(provisioned_root) = matched_provisioned_root else {
+                error!(
+                    "Omitted root certificate cannot be resolved against provisioned trust anchors\n"
+                );
+                return Err(SPDM_STATUS_INVALID_CERT);
+            };
+            if crypto::is_root_certificate(provisioned_root).is_err() {
+                error!("Provisioned trust anchor is not a self-issued root\n");
+                return Err(SPDM_STATUS_INVALID_CERT);
+            }
+            let mut combined =
+                alloc::vec::Vec::with_capacity(provisioned_root.len() + supplied_certs.len());
+            combined.extend_from_slice(provisioned_root);
+            combined.extend_from_slice(supplied_certs);
+            info!("Omitted root resolved from provisioned trust anchor\n");
+            Some(combined)
+        };
+
+        let is_alias_cert = if is_requester_cert {
+            self.negotiate_info.multi_key_conn_req
+                && matches!(
+                    self.peer_info
+                        .peer_cert_info
+                        .get(slot_id as usize)
+                        .copied()
+                        .flatten(),
+                    Some(SpdmCertificateModelType::SpdmCertModelTypeAliasCert)
+                )
+        } else if self.negotiate_info.multi_key_conn_rsp {
+            matches!(
+                self.peer_info
+                    .peer_cert_info
+                    .get(slot_id as usize)
+                    .copied()
+                    .flatten(),
+                Some(SpdmCertificateModelType::SpdmCertModelTypeAliasCert)
+            )
+        } else {
+            self.negotiate_info
+                .rsp_capabilities_sel
+                .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP)
+        };
+
+        // DSP0274 §7.2.1.1 / §10.7: an AliasCert must be signed by a DeviceCert CA
+        // and cannot be a standalone single self-signed certificate.
+        let is_single_cert_chain =
+            full_chain_buf.is_none() && first_begin == leaf_begin && first_end == leaf_end;
+        if is_single_cert_chain && is_alias_cert {
+            error!("AliasCert model cannot use a single self-signed certificate\n");
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+
+        let (asym_sel, pqc_sel) = if is_requester_cert {
+            (
+                self.negotiate_info.req_asym_sel.to_base(),
+                self.negotiate_info.pqc_req_asym_sel.to_base(),
+            )
+        } else {
+            (
+                self.negotiate_info.base_asym_sel,
+                self.negotiate_info.pqc_asym_sel,
+            )
+        };
+
+        let chain_to_verify = full_chain_buf.as_deref().unwrap_or(supplied_certs);
+        if crypto::cert_operation::verify_cert_chain(
+            chain_to_verify,
+            asym_sel,
+            pqc_sel,
+            self.negotiate_info.base_hash_sel,
+        )
+        .is_err()
+        {
+            error!("cert_chain verification - fail!\n");
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+        info!("integrity of cert_chain is verified!\n");
+
+        if crypto::check_leaf_certificate(leaf_cert, is_alias_cert, is_requester_cert).is_err() {
+            error!("Leaf cert verification - fail!\n");
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+        info!("Leaf cert is verified\n");
+
+        info!("cert_chain verification - pass!\n");
+        Ok(())
+    }
+
     pub fn get_asym_sig_size(&self) -> u16 {
         if self.negotiate_info.pqc_asym_sel != SpdmPqcAsymAlgo::empty() {
             self.negotiate_info.pqc_asym_sel.get_sig_size()
