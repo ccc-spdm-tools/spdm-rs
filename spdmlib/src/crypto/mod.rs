@@ -164,6 +164,26 @@ pub fn check_leaf_certificate(
     Ok(())
 }
 
+/// Validate SPDM extension syntax across every certificate in a root-to-leaf
+/// DER chain and enforce Hardware Identity placement for `AliasCert` chains
+/// (DSP0274 §7.2.1.1, §10.9.2.2, and §10.9.2.2.1).
+pub fn check_chain_hardware_identity(cert_chain: &[u8], is_alias_cert: bool) -> SpdmResult {
+    let model = if is_alias_cert {
+        spdm_x509::x509::spdm_validator::SpdmCertificateModel::AliasCert
+    } else {
+        spdm_x509::x509::spdm_validator::SpdmCertificateModel::DeviceCert
+    };
+    spdm_x509::x509::spdm_validator::validate_chain_hardware_identity(cert_chain, model).map_err(
+        |e| {
+            log::error!(
+                "Certificate chain SPDM extension / hardware identity check failed: {:?}",
+                e
+            );
+            SPDM_STATUS_INVALID_CERT
+        },
+    )
+}
+
 static CRYPTO_HASH: OnceCell<SpdmHash> = OnceCell::uninit();
 static CRYPTO_HMAC: OnceCell<SpdmHmac> = OnceCell::uninit();
 static CRYPTO_AEAD: OnceCell<SpdmAead> = OnceCell::uninit();

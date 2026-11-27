@@ -353,16 +353,21 @@ impl RequesterContext {
             -1,
         )?;
         let leaf_cert = &runtime_peer_cert_chain_data.data[leaf_cert_begin..leaf_cert_end];
-        if check_leaf_certificate(
-            leaf_cert,
-            self.common
-                .negotiate_info
-                .rsp_capabilities_sel
-                .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP),
-            false,
+        let is_alias_cert = self
+            .common
+            .negotiate_info
+            .rsp_capabilities_sel
+            .contains(SpdmResponseCapabilityFlags::ALIAS_CERT_CAP);
+        if crypto::check_chain_hardware_identity(
+            &runtime_peer_cert_chain_data.data[..(runtime_peer_cert_chain_data.data_size as usize)],
+            is_alias_cert,
         )
-        .is_ok()
+        .is_err()
         {
+            info!("Chain SPDM extension / hardware identity verification - fail! \n");
+            return Err(SPDM_STATUS_INVALID_CERT);
+        }
+        if check_leaf_certificate(leaf_cert, is_alias_cert, false).is_ok() {
             info!("1.3. Leaf cert is verified\n");
         } else {
             info!("Leaf cert verification - fail! \n");

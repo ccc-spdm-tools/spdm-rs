@@ -418,6 +418,10 @@ impl<B: CryptoBackend> Validator<B> {
             if ext.extn_id == NAME_CONSTRAINTS {
                 Self::validate_name_constraints_extension(cert, is_issuer)?;
             }
+
+            if ext.extn_id == SPDM_EXTENSION {
+                super::spdm_validator::validate_spdm_extension(cert)?;
+            }
         }
 
         Self::subject_alt_name(cert)?;
