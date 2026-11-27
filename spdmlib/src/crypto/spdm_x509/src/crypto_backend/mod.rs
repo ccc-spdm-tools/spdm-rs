@@ -16,6 +16,7 @@ extern crate alloc;
 
 use crate::error::{Error, Result};
 use const_oid::ObjectIdentifier;
+use der::Tagged;
 
 // Test-only backend: gated on `cfg(test)` with `ring` as a dev-dependency, so it
 // exists only in this crate's own test builds and can never be linked into a
@@ -94,37 +95,102 @@ impl SignatureAlgorithm {
         const SECP256R1: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7");
         const SECP384R1: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.132.0.34");
 
+        let is_absent_or_null = |p: Option<&der::Any>| match p {
+            None => true,
+            Some(any) => any.tag() == der::Tag::Null && any.value().is_empty(),
+        };
+        let invalid_params = |msg: &str| {
+            Error::AlgorithmError(crate::error::AlgorithmError::InvalidParameters(
+                alloc::string::String::from(msg),
+            ))
+        };
+
         match *sig_oid {
-            ECDSA_WITH_SHA256 => match curve_oid {
-                Some(&SECP256R1) => Ok(SignatureAlgorithm::EcdsaP256Sha256),
-                Some(&SECP384R1) => Ok(SignatureAlgorithm::EcdsaP384Sha256),
-                Some(oid) => Err(Error::unsupported_algorithm(alloc::format!(
-                    "ECDSA-SHA256 with unsupported curve OID: {}",
-                    oid
-                ))),
-                None => Err(Error::unsupported_algorithm(
-                    "ECDSA-SHA256 requires a curve OID in the public key parameters",
-                )),
-            },
-            ECDSA_WITH_SHA384 => match curve_oid {
-                Some(&SECP256R1) => Ok(SignatureAlgorithm::EcdsaP256Sha384),
-                Some(&SECP384R1) => Ok(SignatureAlgorithm::EcdsaP384Sha384),
-                Some(oid) => Err(Error::unsupported_algorithm(alloc::format!(
-                    "ECDSA-SHA384 with unsupported curve OID: {}",
-                    oid
-                ))),
-                None => Err(Error::unsupported_algorithm(
-                    "ECDSA-SHA384 requires a curve OID in the public key parameters",
-                )),
-            },
-            RSA_WITH_SHA256 => Ok(SignatureAlgorithm::RsaPkcs1Sha256),
-            RSA_WITH_SHA384 => Ok(SignatureAlgorithm::RsaPkcs1Sha384),
-            RSA_WITH_SHA512 => Ok(SignatureAlgorithm::RsaPkcs1Sha512),
+            ECDSA_WITH_SHA256 => {
+                // RFC 5758 §3.2: ECDSA signature AlgorithmIdentifier parameters MUST be absent.
+                if params.is_some() {
+                    return Err(invalid_params("ECDSA-SHA256 parameters must be absent"));
+                }
+                match curve_oid {
+                    Some(&SECP256R1) => Ok(SignatureAlgorithm::EcdsaP256Sha256),
+                    Some(&SECP384R1) => Ok(SignatureAlgorithm::EcdsaP384Sha256),
+                    Some(oid) => Err(Error::unsupported_algorithm(alloc::format!(
+                        "ECDSA-SHA256 with unsupported curve OID: {}",
+                        oid
+                    ))),
+                    None => Err(Error::unsupported_algorithm(
+                        "ECDSA-SHA256 requires a curve OID in the public key parameters",
+                    )),
+                }
+            }
+            ECDSA_WITH_SHA384 => {
+                // RFC 5758 §3.2: ECDSA signature AlgorithmIdentifier parameters MUST be absent.
+                if params.is_some() {
+                    return Err(invalid_params("ECDSA-SHA384 parameters must be absent"));
+                }
+                match curve_oid {
+                    Some(&SECP256R1) => Ok(SignatureAlgorithm::EcdsaP256Sha384),
+                    Some(&SECP384R1) => Ok(SignatureAlgorithm::EcdsaP384Sha384),
+                    Some(oid) => Err(Error::unsupported_algorithm(alloc::format!(
+                        "ECDSA-SHA384 with unsupported curve OID: {}",
+                        oid
+                    ))),
+                    None => Err(Error::unsupported_algorithm(
+                        "ECDSA-SHA384 requires a curve OID in the public key parameters",
+                    )),
+                }
+            }
+            RSA_WITH_SHA256 => {
+                if !is_absent_or_null(params) {
+                    return Err(invalid_params(
+                        "RSA PKCS#1 SHA-256 parameters must be NULL or absent",
+                    ));
+                }
+                Ok(SignatureAlgorithm::RsaPkcs1Sha256)
+            }
+            RSA_WITH_SHA384 => {
+                if !is_absent_or_null(params) {
+                    return Err(invalid_params(
+                        "RSA PKCS#1 SHA-384 parameters must be NULL or absent",
+                    ));
+                }
+                Ok(SignatureAlgorithm::RsaPkcs1Sha384)
+            }
+            RSA_WITH_SHA512 => {
+                if !is_absent_or_null(params) {
+                    return Err(invalid_params(
+                        "RSA PKCS#1 SHA-512 parameters must be NULL or absent",
+                    ));
+                }
+                Ok(SignatureAlgorithm::RsaPkcs1Sha512)
+            }
             RSA_PSS => Self::parse_rsa_pss_params(params),
-            ED25519_OID => Ok(SignatureAlgorithm::Ed25519),
-            ML_DSA_44_OID => Ok(SignatureAlgorithm::MlDsa44),
-            ML_DSA_65_OID => Ok(SignatureAlgorithm::MlDsa65),
-            ML_DSA_87_OID => Ok(SignatureAlgorithm::MlDsa87),
+            ED25519_OID => {
+                // RFC 8410 §3: Ed25519 signature parameters MUST be absent.
+                if params.is_some() {
+                    return Err(invalid_params("Ed25519 parameters must be absent"));
+                }
+                Ok(SignatureAlgorithm::Ed25519)
+            }
+            ML_DSA_44_OID => {
+                // RFC 9881: ML-DSA signature parameters MUST be absent.
+                if params.is_some() {
+                    return Err(invalid_params("ML-DSA-44 parameters must be absent"));
+                }
+                Ok(SignatureAlgorithm::MlDsa44)
+            }
+            ML_DSA_65_OID => {
+                if params.is_some() {
+                    return Err(invalid_params("ML-DSA-65 parameters must be absent"));
+                }
+                Ok(SignatureAlgorithm::MlDsa65)
+            }
+            ML_DSA_87_OID => {
+                if params.is_some() {
+                    return Err(invalid_params("ML-DSA-87 parameters must be absent"));
+                }
+                Ok(SignatureAlgorithm::MlDsa87)
+            }
             _ => Err(Error::unsupported_algorithm(alloc::format!(
                 "OID: {}", sig_oid
             ))),
@@ -180,7 +246,7 @@ impl SignatureAlgorithm {
         }
     }
 
-    /// Parse RSASSA-PSS-params to determine the hash algorithm.
+    /// Parse and strictly validate RSASSA-PSS-params per RFC 4055 §3.1.
     ///
     /// ```asn1
     /// RSASSA-PSS-params ::= SEQUENCE {
@@ -190,13 +256,28 @@ impl SignatureAlgorithm {
     ///     trailerField      [3] TrailerField DEFAULT trailerFieldBC
     /// }
     /// ```
+    ///
+    /// Requires SHA-256/384/512, matching MGF1 hash, saltLength equal to the
+    /// digest length (32/48/64), trailerField == 1 (or absent default), and no
+    /// trailing fields.
     fn parse_rsa_pss_params(params: Option<&der::Any>) -> Result<Self> {
-        use der::{Reader, SliceReader, TagMode, TagNumber};
+        use der::{Reader, SliceReader, Tag, TagMode, TagNumber};
         use spki::AlgorithmIdentifier;
 
         const SHA256_OID: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.1");
         const SHA384_OID: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.2");
         const SHA512_OID: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.3");
+        const MGF1_OID: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.8");
+
+        let invalid = |msg: &str| {
+            Error::AlgorithmError(crate::error::AlgorithmError::InvalidParameters(
+                alloc::string::String::from(msg),
+            ))
+        };
+        let is_absent_or_null = |p: Option<&der::Any>| match p {
+            None => true,
+            Some(any) => any.tag() == Tag::Null && any.value().is_empty(),
+        };
 
         let params = match params {
             Some(p) => p,
@@ -209,31 +290,104 @@ impl SignatureAlgorithm {
             }
         };
 
-        // The params Any holds the SEQUENCE contents.  Parse the inner fields.
-        let mut reader = SliceReader::new(params.value())
-            .map_err(|_| Error::unsupported_algorithm("Invalid RSA-PSS parameters encoding"))?;
-
-        // Try to read [0] EXPLICIT AlgorithmIdentifier (hash algorithm).
-        let hash_oid: Option<ObjectIdentifier> = reader
-            .context_specific::<AlgorithmIdentifier<der::Any>>(TagNumber::N0, TagMode::Explicit)
-            .ok()
-            .flatten()
-            .map(|ai| ai.oid);
-
-        match hash_oid {
-            Some(oid) if oid == SHA256_OID => Ok(SignatureAlgorithm::RsaPssSha256),
-            Some(oid) if oid == SHA384_OID => Ok(SignatureAlgorithm::RsaPssSha384),
-            Some(oid) if oid == SHA512_OID => Ok(SignatureAlgorithm::RsaPssSha512),
-            Some(oid) => Err(Error::unsupported_algorithm(alloc::format!(
-                "RSA-PSS with unsupported hash OID: {}",
-                oid
-            ))),
-            // [0] absent — per RFC 4055 the ASN.1 default is SHA-1, which
-            // is insecure and MUST NOT be used in SPDM.  Reject explicitly.
-            None => Err(Error::unsupported_algorithm(
-                "RSA-PSS with no hashAlgorithm parameter defaults to SHA-1, which is not allowed",
-            )),
+        if params.tag() != Tag::Sequence {
+            return Err(invalid("RSA-PSS parameters must be a DER SEQUENCE"));
         }
+
+        // The params Any holds the SEQUENCE contents. Parse every field in order.
+        let mut reader = SliceReader::new(params.value())
+            .map_err(|_| invalid("Invalid RSA-PSS parameters encoding"))?;
+
+        // [0] EXPLICIT AlgorithmIdentifier (hashAlgorithm).
+        let hash_ai = reader
+            .context_specific::<AlgorithmIdentifier<der::Any>>(TagNumber::N0, TagMode::Explicit)
+            .map_err(|_| invalid("Malformed RSA-PSS hashAlgorithm parameter"))?
+            .ok_or_else(|| {
+                Error::unsupported_algorithm(
+                    "RSA-PSS with no hashAlgorithm parameter defaults to SHA-1, which is not allowed",
+                )
+            })?;
+
+        if !is_absent_or_null(hash_ai.parameters.as_ref()) {
+            return Err(invalid(
+                "RSA-PSS hashAlgorithm parameters must be NULL or absent",
+            ));
+        }
+
+        let (sig_algo, expected_salt_len) = match hash_ai.oid {
+            SHA256_OID => (SignatureAlgorithm::RsaPssSha256, 32u32),
+            SHA384_OID => (SignatureAlgorithm::RsaPssSha384, 48u32),
+            SHA512_OID => (SignatureAlgorithm::RsaPssSha512, 64u32),
+            oid => {
+                return Err(Error::unsupported_algorithm(alloc::format!(
+                    "RSA-PSS with unsupported hash OID: {}",
+                    oid
+                )))
+            }
+        };
+
+        // [1] EXPLICIT AlgorithmIdentifier (maskGenAlgorithm).
+        // Omitting [1] defaults to mgf1SHA1, which mismatches SHA-256/384/512.
+        let mgf_ai = reader
+            .context_specific::<AlgorithmIdentifier<der::Any>>(TagNumber::N1, TagMode::Explicit)
+            .map_err(|_| invalid("Malformed RSA-PSS maskGenAlgorithm parameter"))?
+            .ok_or_else(|| {
+                invalid("RSA-PSS maskGenAlgorithm is required (omission defaults to mgf1SHA1)")
+            })?;
+
+        if mgf_ai.oid != MGF1_OID {
+            return Err(Error::unsupported_algorithm(alloc::format!(
+                "RSA-PSS unsupported maskGenAlgorithm OID: {}",
+                mgf_ai.oid
+            )));
+        }
+
+        let mgf_hash_ai = mgf_ai
+            .parameters
+            .as_ref()
+            .ok_or_else(|| invalid("RSA-PSS MGF1 missing hash AlgorithmIdentifier"))?
+            .decode_as::<AlgorithmIdentifier<der::Any>>()
+            .map_err(|_| invalid("Malformed RSA-PSS MGF1 hash AlgorithmIdentifier"))?;
+
+        if mgf_hash_ai.oid != hash_ai.oid {
+            return Err(invalid(
+                "RSA-PSS MGF1 hash algorithm does not match hashAlgorithm",
+            ));
+        }
+        if !is_absent_or_null(mgf_hash_ai.parameters.as_ref()) {
+            return Err(invalid(
+                "RSA-PSS MGF1 hash parameters must be NULL or absent",
+            ));
+        }
+
+        // [2] EXPLICIT INTEGER (saltLength).
+        // Omitting [2] defaults to 20 bytes, which mismatches SHA-256/384/512.
+        let salt_len = reader
+            .context_specific::<u32>(TagNumber::N2, TagMode::Explicit)
+            .map_err(|_| invalid("Malformed RSA-PSS saltLength parameter"))?
+            .ok_or_else(|| {
+                invalid("RSA-PSS saltLength is required (omission defaults to 20 bytes)")
+            })?;
+
+        if salt_len != expected_salt_len {
+            return Err(invalid("RSA-PSS saltLength must match digest length"));
+        }
+
+        // [3] EXPLICIT INTEGER (trailerField) — optional, default 1 (0xBC).
+        if let Some(trailer) = reader
+            .context_specific::<u32>(TagNumber::N3, TagMode::Explicit)
+            .map_err(|_| invalid("Malformed RSA-PSS trailerField parameter"))?
+        {
+            if trailer != 1 {
+                return Err(invalid("RSA-PSS trailerField must be 1 (0xBC)"));
+            }
+        }
+
+        if !reader.is_finished() {
+            return Err(invalid("Trailing data in RSA-PSS parameters"));
+        }
+
+        Ok(sig_algo)
     }
 }
 
@@ -496,7 +650,83 @@ mod tests {
         assert!(SignatureAlgorithm::from_oid(&oid).is_err());
     }
 
-    // ── RSA-PSS parameter parsing ──
+    // ── RSA-PSS and signature AlgorithmIdentifier parameter parsing ──
+
+    fn build_rsa_pss_params(
+        hash_oid: ObjectIdentifier,
+        mgf_oid: Option<ObjectIdentifier>,
+        mgf_hash_oid: Option<ObjectIdentifier>,
+        salt_len: Option<u32>,
+        trailer: Option<u32>,
+    ) -> der::Any {
+        use der::asn1::ContextSpecific;
+        use der::{Encode, TagMode, TagNumber};
+        use spki::AlgorithmIdentifier;
+
+        let mut body = alloc::vec::Vec::new();
+        let hash_ai = AlgorithmIdentifier::<der::Any> {
+            oid: hash_oid,
+            parameters: None,
+        };
+        body.extend_from_slice(
+            &ContextSpecific {
+                tag_number: TagNumber::N0,
+                tag_mode: TagMode::Explicit,
+                value: hash_ai,
+            }
+            .to_der()
+            .unwrap(),
+        );
+
+        if let Some(mgf_oid) = mgf_oid {
+            let mgf_params = mgf_hash_oid.map(|oid| {
+                der::Any::encode_from(&AlgorithmIdentifier::<der::Any> {
+                    oid,
+                    parameters: None,
+                })
+                .unwrap()
+            });
+            let mgf_ai = AlgorithmIdentifier::<der::Any> {
+                oid: mgf_oid,
+                parameters: mgf_params,
+            };
+            body.extend_from_slice(
+                &ContextSpecific {
+                    tag_number: TagNumber::N1,
+                    tag_mode: TagMode::Explicit,
+                    value: mgf_ai,
+                }
+                .to_der()
+                .unwrap(),
+            );
+        }
+
+        if let Some(salt_len) = salt_len {
+            body.extend_from_slice(
+                &ContextSpecific {
+                    tag_number: TagNumber::N2,
+                    tag_mode: TagMode::Explicit,
+                    value: salt_len,
+                }
+                .to_der()
+                .unwrap(),
+            );
+        }
+
+        if let Some(trailer) = trailer {
+            body.extend_from_slice(
+                &ContextSpecific {
+                    tag_number: TagNumber::N3,
+                    tag_mode: TagMode::Explicit,
+                    value: trailer,
+                }
+                .to_der()
+                .unwrap(),
+            );
+        }
+
+        der::Any::new(der::Tag::Sequence, body).unwrap()
+    }
 
     #[test]
     fn test_rsa_pss_no_params_rejected() {
@@ -507,49 +737,123 @@ mod tests {
     }
 
     #[test]
-    fn test_rsa_pss_sha256_params() {
-        // Build RSASSA-PSS-params with [0] EXPLICIT AlgorithmIdentifier { SHA-256 }
-        // SEQUENCE {
-        //   [0] EXPLICIT SEQUENCE { OID 2.16.840.1.101.3.4.2.1 }
-        // }
-        let params_der: &[u8] = &[
-            0xa0, 0x0d, // [0] EXPLICIT, length 13
-            0x30, 0x0b, // SEQUENCE, length 11
-            0x06, 0x09, // OID, length 9
-            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, // 2.16.840.1.101.3.4.2.1
-        ];
-        let any = der::Any::new(der::Tag::Sequence, params_der).unwrap();
+    fn test_rsa_pss_sha256_384_512_valid_params() {
+        const MGF1: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.8");
+        const SHA256: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.1");
+        const SHA384: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.2");
+        const SHA512: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.3");
         let oid = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.10");
-        let result = SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&any));
-        assert_eq!(result.unwrap(), SignatureAlgorithm::RsaPssSha256);
+
+        for (hash, salt, expected) in [
+            (SHA256, 32, SignatureAlgorithm::RsaPssSha256),
+            (SHA384, 48, SignatureAlgorithm::RsaPssSha384),
+            (SHA512, 64, SignatureAlgorithm::RsaPssSha512),
+        ] {
+            for trailer in [None, Some(1)] {
+                let any = build_rsa_pss_params(hash, Some(MGF1), Some(hash), Some(salt), trailer);
+                let result = SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&any));
+                assert_eq!(result.unwrap(), expected);
+            }
+        }
     }
 
     #[test]
-    fn test_rsa_pss_sha384_params() {
-        let params_der: &[u8] = &[
-            0xa0, 0x0d, // [0] EXPLICIT, length 13
-            0x30, 0x0b, // SEQUENCE, length 11
-            0x06, 0x09, // OID, length 9
-            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, // 2.16.840.1.101.3.4.2.2
-        ];
-        let any = der::Any::new(der::Tag::Sequence, params_der).unwrap();
+    fn test_rsa_pss_invalid_params_rejected() {
+        const MGF1: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.8");
+        const SHA256: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.1");
+        const SHA384: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.2.2");
         let oid = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.10");
-        let result = SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&any));
-        assert_eq!(result.unwrap(), SignatureAlgorithm::RsaPssSha384);
+
+        // Missing [1] maskGenAlgorithm (defaults to mgf1SHA1)
+        let missing_mgf = build_rsa_pss_params(SHA256, None, None, Some(32), None);
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&missing_mgf)).is_err());
+
+        // Mismatched MGF1 hash (SHA-256 hash + MGF1-SHA384)
+        let mismatch_mgf = build_rsa_pss_params(SHA256, Some(MGF1), Some(SHA384), Some(32), None);
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&mismatch_mgf)).is_err());
+
+        // Unknown maskGenAlgorithm OID
+        let bad_mgf_oid = build_rsa_pss_params(
+            SHA256,
+            Some(ObjectIdentifier::new_unwrap("1.2.3.4")),
+            Some(SHA256),
+            Some(32),
+            None,
+        );
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&bad_mgf_oid)).is_err());
+
+        // Missing [2] saltLength (defaults to 20 bytes)
+        let missing_salt = build_rsa_pss_params(SHA256, Some(MGF1), Some(SHA256), None, None);
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&missing_salt)).is_err());
+
+        // Wrong [2] saltLength (0, 20, 48 for SHA-256)
+        for bad_salt in [0, 20, 48] {
+            let any = build_rsa_pss_params(SHA256, Some(MGF1), Some(SHA256), Some(bad_salt), None);
+            assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&any)).is_err());
+        }
+
+        // Wrong [3] trailerField (must be 1)
+        let bad_trailer = build_rsa_pss_params(SHA256, Some(MGF1), Some(SHA256), Some(32), Some(2));
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&bad_trailer)).is_err());
+
+        // Non-SEQUENCE params tag
+        let non_seq = der::Any::null();
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&non_seq)).is_err());
+
+        // Trailing bytes inside RSASSA-PSS-params
+        let valid = build_rsa_pss_params(SHA256, Some(MGF1), Some(SHA256), Some(32), Some(1));
+        let mut trailing_body = valid.value().to_vec();
+        trailing_body.extend_from_slice(&[0x05, 0x00]);
+        let trailing = der::Any::new(der::Tag::Sequence, trailing_body).unwrap();
+        assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&trailing)).is_err());
     }
 
     #[test]
-    fn test_rsa_pss_sha512_params() {
-        let params_der: &[u8] = &[
-            0xa0, 0x0d, // [0] EXPLICIT, length 13
-            0x30, 0x0b, // SEQUENCE, length 11
-            0x06, 0x09, // OID, length 9
-            0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, // 2.16.840.1.101.3.4.2.3
-        ];
-        let any = der::Any::new(der::Tag::Sequence, params_der).unwrap();
-        let oid = ObjectIdentifier::new_unwrap("1.2.840.113549.1.1.10");
-        let result = SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&any));
-        assert_eq!(result.unwrap(), SignatureAlgorithm::RsaPssSha512);
+    fn test_non_pss_signature_algorithm_parameter_rules() {
+        let null_param = der::Any::null();
+        let bad_param = der::Any::new(der::Tag::Sequence, &[][..]).unwrap();
+        let p256 = ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7");
+
+        // ECDSA, Ed25519, ML-DSA MUST reject any parameters (including NULL).
+        for (oid_str, curve) in [
+            ("1.2.840.10045.4.3.2", Some(&p256)),
+            ("1.2.840.10045.4.3.3", Some(&p256)),
+            ("1.3.101.112", None),
+            ("2.16.840.1.101.3.4.3.17", None),
+            ("2.16.840.1.101.3.4.3.18", None),
+            ("2.16.840.1.101.3.4.3.19", None),
+        ] {
+            let oid = ObjectIdentifier::new_unwrap(oid_str);
+            assert!(SignatureAlgorithm::from_oid_with_params(&oid, curve, None).is_ok());
+            assert!(
+                SignatureAlgorithm::from_oid_with_params(&oid, curve, Some(&null_param)).is_err(),
+                "{} must reject NULL params",
+                oid_str
+            );
+            assert!(
+                SignatureAlgorithm::from_oid_with_params(&oid, curve, Some(&bad_param)).is_err(),
+                "{} must reject SEQUENCE params",
+                oid_str
+            );
+        }
+
+        // RSA PKCS#1 v1.5 accepts absent or NULL params, rejects non-NULL params.
+        for oid_str in [
+            "1.2.840.113549.1.1.11",
+            "1.2.840.113549.1.1.12",
+            "1.2.840.113549.1.1.13",
+        ] {
+            let oid = ObjectIdentifier::new_unwrap(oid_str);
+            assert!(SignatureAlgorithm::from_oid_with_params(&oid, None, None).is_ok());
+            assert!(
+                SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&null_param)).is_ok()
+            );
+            assert!(
+                SignatureAlgorithm::from_oid_with_params(&oid, None, Some(&bad_param)).is_err(),
+                "{} must reject non-NULL params",
+                oid_str
+            );
+        }
     }
 
     #[test]
